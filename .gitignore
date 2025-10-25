@@ -1,0 +1,28 @@
+# Gradle caches and build outputs
+.gradle/
+build/
+**/build/
+
+# Keep Gradle Wrapper in VCS
+!gradle/wrapper/gradle-wrapper.jar
+!gradle/wrapper/gradle-wrapper.properties
+
+# Kotlin/Compose
+.kotlin/
+
+# IDE/project files
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Java defaults
+out/
