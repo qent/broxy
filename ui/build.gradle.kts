@@ -1,10 +1,13 @@
+import org.jetbrains.compose.desktop.application.dsl.TargetFormat
+
 plugins {
     kotlin("multiplatform")
+    id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.compose")
 }
 
 kotlin {
-    jvm()
+    jvm("desktop")
 
     jvmToolchain(17)
 
@@ -17,9 +20,40 @@ kotlin {
                 implementation(compose.material3)
             }
         }
-        val jvmMain by getting {
+        val desktopMain by getting {
             dependencies {
                 implementation(compose.desktop.currentOs)
+            }
+        }
+    }
+}
+
+compose.desktop {
+    application {
+        mainClass = "io.qent.bro.ui.DesktopAppKt"
+
+        nativeDistributions {
+            targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
+            packageName = "mcp-proxy"
+            // Compose Desktop installers require MAJOR > 0
+            val rawVersion = project.version.toString()
+            val parts = rawVersion.split('.')
+            val major = parts.getOrNull(0)?.toIntOrNull() ?: 1
+            val sanitizedVersion = if (major <= 0) {
+                val tail = parts.drop(1).takeIf { it.isNotEmpty() }?.joinToString(".")
+                if (tail.isNullOrBlank()) "1" else "1.$tail"
+            } else rawVersion
+
+            packageVersion = sanitizedVersion
+            macOS {
+                packageVersion = sanitizedVersion
+                dmgPackageVersion = sanitizedVersion
+            }
+            windows {
+                packageVersion = sanitizedVersion
+            }
+            linux {
+                packageVersion = sanitizedVersion
             }
         }
     }
