@@ -449,6 +449,18 @@ cd mcp-proxy
 ./gradlew :cli:shadowJar
 ```
 
+### Пакетирование и подпись
+
+- Команда: `./gradlew :ui:packageDistributionForCurrentOS` генерирует DMG (macOS), MSI (Windows) или DEB (Linux) в `ui/build/compose/binaries/main/<format>/`.
+- Иконки (опционально): положите файлы в `ui/src/desktopMain/resources/icons/`
+  - macOS: `mcp-proxy.icns`
+  - Windows: `mcp-proxy.ico`
+  - Linux: `mcp-proxy.png`
+- Подпись (по переменным окружения; по умолчанию отключена):
+  - macOS: `MACOS_SIGN=true`, `MACOS_IDENTITY=Developer ID Application: ...`, `MACOS_NOTARY_APPLE_ID`, `MACOS_NOTARY_PASSWORD`, `MACOS_NOTARY_TEAM_ID`
+  - Windows: `WIN_SIGN=true`, `WIN_CERT_PATH=/path/to/cert.pem` или `.p7b`, `WIN_KEY_PATH=/path/to/key.pem`, `WIN_CERT_PASSWORD=secret`, `WIN_TIMESTAMP_URL` (необязательно)
+- CI: релизный workflow `.github/workflows/release.yml` собирает артефакты по матрице OS, добавляет SHA256 и публикует их на релиз по тегу `v*`.
+
 ### Структура проекта
 
 ```
