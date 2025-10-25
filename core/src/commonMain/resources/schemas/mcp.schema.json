@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://io.qent.bro/schemas/mcp.schema.json",
+  "title": "MCP Servers Configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["servers"],
+  "properties": {
+    "servers": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/McpServerConfig" }
+    }
+  },
+  "definitions": {
+    "McpServerConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "transport", "enabled"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "transport": { "$ref": "#/definitions/TransportConfig" },
+        "env": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "default": {}
+        },
+        "enabled": { "type": "boolean" }
+      }
+    },
+    "TransportConfig": {
+      "oneOf": [
+        { "$ref": "#/definitions/StdioTransport" },
+        { "$ref": "#/definitions/HttpTransport" },
+        { "$ref": "#/definitions/WebSocketTransport" }
+      ]
+    },
+    "StdioTransport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "command"],
+      "properties": {
+        "type": { "const": "stdio" },
+        "command": { "type": "string", "minLength": 1 },
+        "args": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        }
+      }
+    },
+    "HttpTransport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "url"],
+      "properties": {
+        "type": { "const": "http" },
+        "url": { "type": "string", "format": "uri" },
+        "headers": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "default": {}
+        }
+      }
+    },
+    "WebSocketTransport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "url"],
+      "properties": {
+        "type": { "const": "websocket" },
+        "url": { "type": "string", "format": "uri" }
+      }
+    }
+  }
+}
