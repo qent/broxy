@@ -5,7 +5,7 @@ import io.qent.bro.core.models.Preset
 import io.qent.bro.core.models.TransportConfig
 
 /**
- * Platform abstraction to start/stop the MCP proxy with a given preset
+ * Platform abstraction to start/stop bro with a given preset
  * and inbound transport. Implemented on desktop via Ktor + MCP SDK.
  */
 interface ProxyController {
@@ -14,4 +14,3 @@ interface ProxyController {
 }
 
 expect fun createProxyController(): ProxyController
-

@@ -1,4 +1,4 @@
-# AGENTS.md - Руководство по разработке MCP Proxy
+# AGENTS.md - Руководство по разработке bro
 
 ## Архитектурные принципы
 
@@ -327,7 +327,7 @@ class ToolRegistry {
 - Классы: PascalCase (`McpServerConfig`)
 - Функции и переменные: camelCase (`loadConfig`)
 - Константы: UPPER_SNAKE_CASE (`DEFAULT_TIMEOUT`)
-- Пакеты: lowercase (`com.mcpproxy.core`)
+- Пакеты: lowercase (`io.qent.bro.core`)
 
 ### 2. Структура класса
 ```kotlin

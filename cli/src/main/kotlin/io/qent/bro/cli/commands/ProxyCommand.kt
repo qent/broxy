@@ -24,7 +24,7 @@ import java.io.File
 import java.nio.file.Paths
 import kotlinx.coroutines.runBlocking
 
-class ProxyCommand : CliktCommand(name = "proxy", help = "Run MCP proxy server") {
+class ProxyCommand : CliktCommand(name = "proxy", help = "Run bro server") {
     private val configDir: File by option("--config-dir", help = "Directory containing mcp.json and preset_*.json. Defaults to ~/.config/bro.")
         .file(mustExist = false, canBeFile = false, canBeDir = true)
         .default(File(java.nio.file.Paths.get(System.getProperty("user.home"), ".config", "bro").toString()))

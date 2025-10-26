@@ -15,7 +15,7 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 
 /**
- * Main MCP proxy server. Aggregates downstream MCP servers, exposes filtered
+ * Main bro server. Aggregates downstream MCP servers, exposes filtered
  * capabilities based on a preset, and routes tool calls to the appropriate server.
  */
 class ProxyMcpServer(
@@ -57,10 +57,10 @@ class ProxyMcpServer(
             // Best-effort eager refresh
             kotlinx.coroutines.runBlocking { refreshFilteredCapabilities() }
             status = ServerStatus.Running
-            logger.info("Proxy MCP server started with preset '${preset.name}'")
+            logger.info("bro server started with preset '${preset.name}'")
         }.onFailure {
             status = ServerStatus.Error(it.message)
-            logger.error("Failed to start proxy MCP server", it)
+            logger.error("Failed to start bro server", it)
         }
 
         // NOTE: Inbound transport (STDIO/HTTP/WS) bindings are provided by JVM-specific adapters.
@@ -71,7 +71,7 @@ class ProxyMcpServer(
         status = ServerStatus.Stopping
         // Inbound transport shutdown is handled by platform-specific adapters.
         status = ServerStatus.Stopped
-        logger.info("Proxy MCP server stopped")
+        logger.info("bro server stopped")
     }
 
     override fun getStatus(): ServerStatus = status

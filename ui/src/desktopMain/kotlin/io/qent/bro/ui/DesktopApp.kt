@@ -19,7 +19,7 @@ import kotlinx.coroutines.launch
 
 fun main() = application {
     val state = AppState()
-    Window(onCloseRequest = ::exitApplication, title = "MCP Proxy") {
+    Window(onCloseRequest = ::exitApplication, title = "bro") {
         // Initial load of servers and presets
         val repo = remember { JsonConfigurationRepository() }
         LaunchedEffect(Unit) {

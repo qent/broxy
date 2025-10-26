@@ -1,4 +1,4 @@
-Icon placeholders for MCP Proxy installers
+Icon placeholders for bro installers
 
 Provide platform-specific icons here (optional but recommended):
 
