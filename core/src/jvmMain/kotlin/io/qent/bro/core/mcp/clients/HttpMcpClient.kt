@@ -17,13 +17,19 @@ import kotlin.time.Duration.Companion.seconds
 class HttpMcpClient(
     private val url: String,
     private val defaultHeaders: Map<String, String>,
-    private val logger: Logger = ConsoleLogger
+    private val logger: Logger = ConsoleLogger,
+    private val connector: SdkConnector? = null
 ) : McpClient {
     private var ktor: HttpClient? = null
     private var client: SdkClientFacade? = null
 
     override suspend fun connect(): Result<Unit> = runCatching {
         if (client != null) return@runCatching
+        if (connector != null) {
+            client = connector.connect()
+            logger.info("Connected via test connector for HTTP client")
+            return@runCatching
+        }
         ktor = HttpClient(CIO) {
             install(HttpTimeout) {
                 requestTimeoutMillis = 60_000
@@ -65,7 +71,5 @@ class HttpMcpClient(
         c.callTool(name, arguments) ?: kotlinx.serialization.json.JsonNull
     }
 
-    internal fun setClientForTests(facade: SdkClientFacade) {
-        client = facade
-    }
+    // Uses SdkConnector for test-time injection
 }

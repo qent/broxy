@@ -17,13 +17,19 @@ import kotlinx.serialization.json.JsonObject
 class WebSocketMcpClient(
     private val url: String,
     private val headersMap: Map<String, String> = emptyMap(),
-    private val logger: Logger = ConsoleLogger
+    private val logger: Logger = ConsoleLogger,
+    private val connector: SdkConnector? = null
 ) : McpClient {
     private var ktor: HttpClient? = null
     private var client: SdkClientFacade? = null
 
     override suspend fun connect(): Result<Unit> = runCatching {
         if (client != null) return@runCatching
+        if (connector != null) {
+            client = connector.connect()
+            logger.info("Connected via test connector for WebSocket client")
+            return@runCatching
+        }
         ktor = HttpClient(CIO) {
             install(WebSockets)
             install(HttpTimeout) {
@@ -64,7 +70,5 @@ class WebSocketMcpClient(
         c.callTool(name, arguments) ?: kotlinx.serialization.json.JsonNull
     }
 
-    internal fun setClientForTests(facade: SdkClientFacade) {
-        client = facade
-    }
+    // Uses SdkConnector for test-time injection
 }

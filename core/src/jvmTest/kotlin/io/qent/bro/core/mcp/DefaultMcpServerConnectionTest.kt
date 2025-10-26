@@ -1,58 +1,21 @@
 package io.qent.bro.core.mcp
 
-import io.qent.bro.core.mcp.errors.McpError
 import io.qent.bro.core.models.McpServerConfig
 import io.qent.bro.core.models.TransportConfig
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import kotlin.test.AfterTest
-import kotlin.test.BeforeTest
+import org.mockito.kotlin.any
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.times
+import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-private class FakeMcpClient(
-    var caps: ServerCapabilities,
-    var failFetch: Boolean = false
-) : McpClient {
-    var connectCount = 0
-    var fetchCount = 0
-    var callCount = 0
-
-    override suspend fun connect(): Result<Unit> {
-        connectCount++
-        return Result.success(Unit)
-    }
-
-    override suspend fun disconnect() { /* no-op */ }
-
-    override suspend fun fetchCapabilities(): Result<ServerCapabilities> {
-        fetchCount++
-        return if (failFetch) Result.failure(IllegalStateException("fetch fail")) else Result.success(caps)
-    }
-
-    override suspend fun callTool(name: String, arguments: JsonObject): Result<kotlinx.serialization.json.JsonElement> {
-        callCount++
-        return Result.success(buildJsonObject { put("tool", name) })
-    }
-}
-
 class DefaultMcpServerConnectionTest {
-    private lateinit var fake: FakeMcpClient
-
-    @BeforeTest
-    fun setup() {
-        // Inject fake into factory hooks
-        McpClientFactoryHooks.provider = { _, _ -> fake }
-    }
-
-    @AfterTest
-    fun tearDown() {
-        McpClientFactoryHooks.provider = null
-    }
-
     private fun config(id: String = "s1") = McpServerConfig(
         id = id,
         name = "Test Server",
@@ -60,49 +23,60 @@ class DefaultMcpServerConnectionTest {
     )
 
     @Test
-    fun caching_and_force_refresh_and_fallback() = runBlocking {
-        fake = FakeMcpClient(
-            caps = ServerCapabilities(
-                tools = listOf(ToolDescriptor("t1")),
-                resources = emptyList(),
-                prompts = emptyList()
+    fun caching_forceRefresh_and_fallback_uses_cache_with_mockito() {
+        runBlocking {
+            val mockClient: McpClient = mock()
+            val caps1 = ServerCapabilities(tools = listOf(ToolDescriptor("t1")))
+            val caps2 = ServerCapabilities(tools = listOf(ToolDescriptor("t2")))
+
+            whenever(mockClient.connect()).thenReturn(Result.success(Unit))
+            whenever(mockClient.fetchCapabilities()).thenReturn(
+                Result.success(caps1), // first fetch
+                Result.success(caps2), // second fetch (force refresh)
+                Result.failure(IllegalStateException("fetch fail")) // third fetch (force refresh fallback)
             )
-        )
-        val conn = DefaultMcpServerConnection(config())
 
-        assertTrue(conn.connect().isSuccess)
-        val first = conn.getCapabilities()
-        assertTrue(first.isSuccess)
-        assertEquals(1, fake.fetchCount)
+            val conn = DefaultMcpServerConnection(config(), client = mockClient)
 
-        // Cached path should not increment fetch count
-        val second = conn.getCapabilities()
-        assertTrue(second.isSuccess)
-        assertEquals(1, fake.fetchCount)
+            assertTrue(conn.connect().isSuccess)
 
-        // Force refresh increments fetch count
-        val third = conn.getCapabilities(forceRefresh = true)
-        assertTrue(third.isSuccess)
-        assertEquals(2, fake.fetchCount)
+            val first = conn.getCapabilities()
+            assertTrue(first.isSuccess)
+            assertEquals("t1", first.getOrThrow().tools.first().name)
+            verify(mockClient, times(1)).fetchCapabilities()
 
-        // Now simulate failure, but fallback to cached on forceRefresh
-        fake.failFetch = true
-        val fourth = conn.getCapabilities(forceRefresh = true)
-        assertTrue(fourth.isSuccess)
-        assertEquals(3, fake.fetchCount)
+            // Cached path should not call client again
+            val second = conn.getCapabilities()
+            assertTrue(second.isSuccess)
+            verify(mockClient, times(1)).fetchCapabilities()
+
+            // Force refresh increments fetch count, returns new caps
+            val third = conn.getCapabilities(forceRefresh = true)
+            assertTrue(third.isSuccess)
+            assertEquals("t2", third.getOrThrow().tools.first().name)
+            verify(mockClient, times(2)).fetchCapabilities()
+
+            // Now simulate failure, but fallback to cached on forceRefresh
+            val fourth = conn.getCapabilities(forceRefresh = true)
+            assertTrue(fourth.isSuccess)
+            assertEquals("t2", fourth.getOrThrow().tools.first().name)
+            verify(mockClient, times(3)).fetchCapabilities()
+        }
     }
 
     @Test
-    fun call_tool_delegates() = runBlocking {
-        fake = FakeMcpClient(
-            caps = ServerCapabilities()
-        )
-        val conn = DefaultMcpServerConnection(config())
-        assertTrue(conn.connect().isSuccess)
-        val result = conn.callTool("echo", JsonObject(emptyMap()))
-        assertTrue(result.isSuccess)
-        assertTrue(result.getOrThrow().toString().contains("\"tool\":\"echo\""))
-        assertEquals(1, fake.callCount)
+    fun call_tool_delegates_to_client() {
+        runBlocking {
+            val mockClient: McpClient = mock()
+            whenever(mockClient.connect()).thenReturn(Result.success(Unit))
+            whenever(mockClient.callTool(any(), any())).thenReturn(Result.success(buildJsonObject { put("tool", "echo") }))
+
+            val conn = DefaultMcpServerConnection(config(), client = mockClient)
+            assertTrue(conn.connect().isSuccess)
+            val result = conn.callTool("echo", JsonObject(emptyMap()))
+            assertTrue(result.isSuccess)
+            assertTrue(result.getOrThrow().toString().contains("\"tool\":\"echo\""))
+            verify(mockClient).callTool(any(), any())
+        }
     }
 }
-

@@ -15,15 +15,15 @@ class DefaultMcpServerConnection(
     override val config: McpServerConfig,
     private val logger: Logger = ConsoleLogger,
     private val cacheTtlMs: Long = 5 * 60 * 1000,
-    private val maxRetries: Int = 5
+    private val maxRetries: Int = 5,
+    private val client: McpClient = McpClientFactory(defaultMcpClientProvider()).create(config.transport, config.env),
+    private val cache: CapabilitiesCache = CapabilitiesCache(ttlMillis = cacheTtlMs)
 ) : McpServerConnection {
     override val serverId: String = config.id
     @Volatile
     override var status: ServerStatus = ServerStatus.Stopped
         private set
 
-    private val cache = CapabilitiesCache(ttlMillis = cacheTtlMs)
-    private val client: McpClient by lazy { McpClientFactory.create(config.transport, config.env) }
     private val connectMutex = Mutex()
 
     override suspend fun connect(): Result<Unit> = connectMutex.withLock {
@@ -92,4 +92,3 @@ class DefaultMcpServerConnection(
         return client.callTool(toolName, arguments)
     }
 }
-

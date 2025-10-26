@@ -433,3 +433,52 @@ class CompositeFilter(
 - [ ] Конфигурация валидируется при загрузке
 - [ ] Чувствительные данные не логируются
 - [ ] UI компоненты переиспользуемые и тестируемые
+
+## Unit-тесты с Mockito
+
+- Конструкторная инъекция зависимостей
+  - Все зависимости, которые нужно подменять в тестах (клиенты, кэши, фабрики), передаются через конструктор.
+  - Не используем глобальные singletons/hook-объекты и не модифицируем внутренние поля в тестах.
+
+- Использование Mockito-Kotlin
+  - Создание моков: `val dep: Dep = mock()`.
+  - Стаббинг обычных функций: `whenever(dep.method(arg)).thenReturn(value)`.
+  - Стаббинг suspend-функций выполняем внутри `runBlocking { ... }` или с использованием расширений Mockito-Kotlin: `whenever(dep.suspending()).thenReturn(value)` внутри `runBlocking`.
+  - Последовательные ответы: `whenever(dep.call()).thenReturn(v1, v2, v3)`.
+  - Верификация: `verify(dep).method(arg)`, счётчик: `verify(dep, times(2)).call()`.
+
+- Структура тестов (AAA)
+  - Arrange: подготовка данных и моков явно через конструкторы.
+  - Act: один чёткий вызов тестируемого метода.
+  - Assert: минимально необходимая верификация результата и взаимодействий.
+
+- Работа с корутинами
+  - Для тестов корутин используем `runBlocking` либо `kotlinx-coroutines-test` для виртуального времени.
+  - Избегаем `Thread.sleep`; для таймингов берём `kotlinx-coroutines-test` или минимальные TTL и `delay`.
+
+- Что не делаем
+  - Не меняем внутренние поля объектов из тестов (никаких `set*ForTests`).
+  - Не мокируем простые data-классы; используем реальные значения.
+  - Не тестируем реализацию через глобальные состояния.
+
+Пример
+
+```kotlin
+@Test
+fun caches_and_falls_back_to_cached_caps() = runBlocking {
+    val client: McpClient = mock()
+    val caps1 = ServerCapabilities(tools = listOf(ToolDescriptor("t1")))
+    whenever(client.connect()).thenReturn(Result.success(Unit))
+    whenever(client.fetchCapabilities()).thenReturn(
+        Result.success(caps1),
+        Result.failure(IllegalStateException("boom"))
+    )
+
+    val config = McpServerConfig("s1", "Srv", TransportConfig.HttpTransport("http://"))
+    val conn = DefaultMcpServerConnection(config, client = client)
+
+    conn.connect()
+    assertTrue(conn.getCapabilities().isSuccess)       // put to cache
+    assertTrue(conn.getCapabilities(forceRefresh = true).isSuccess) // fallback to cache
+}
+```

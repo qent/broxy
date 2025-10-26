@@ -19,13 +19,19 @@ class StdioMcpClient(
     private val command: String,
     private val args: List<String>,
     private val env: Map<String, String>,
-    private val logger: Logger = ConsoleLogger
+    private val logger: Logger = ConsoleLogger,
+    private val connector: SdkConnector? = null
 ) : McpClient {
     private var process: Process? = null
     private var client: SdkClientFacade? = null
 
     override suspend fun connect(): Result<Unit> = runCatching {
         if (client != null || process?.isAlive == true) return@runCatching
+        if (connector != null) {
+            client = connector.connect()
+            logger.info("Connected via test connector for stdio client")
+            return@runCatching
+        }
         val pb = ProcessBuilder(listOf(command) + args)
         val envMap = pb.environment()
         env.forEach { (k, v) -> envMap[k] = v }
@@ -62,7 +68,5 @@ class StdioMcpClient(
         c.callTool(name, arguments) ?: JsonNull
     }
 
-    internal fun setClientForTests(facade: SdkClientFacade) {
-        client = facade
-    }
+    // Uses SdkConnector for test-time injection
 }
