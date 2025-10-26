@@ -16,3 +16,10 @@ allprojects {
         google()
     }
 }
+
+// Convenience task to run tests across modules
+tasks.register("testAll") {
+    group = "verification"
+    description = "Runs unit tests across modules (core JVM, CLI)."
+    dependsOn(":core:jvmTest", ":cli:test")
+}
