@@ -7,7 +7,8 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 
 class MultiServerClient(
-    private val servers: List<McpServerConnection>
+    private val servers: List<McpServerConnection>,
+    private val namespace: io.qent.bro.core.proxy.NamespaceManager = io.qent.bro.core.proxy.DefaultNamespaceManager()
 ) {
     suspend fun fetchAllCapabilities(): Map<String, ServerCapabilities> = coroutineScope {
         servers.map { server ->
@@ -18,29 +19,21 @@ class MultiServerClient(
         }.awaitAll().filterNotNull().toMap()
     }
 
-    fun listPrefixedTools(allCaps: Map<String, ServerCapabilities>): List<ToolDescriptor> {
-        return allCaps.flatMap { (serverId, caps) ->
+    fun listPrefixedTools(allCaps: Map<String, ServerCapabilities>): List<ToolDescriptor> =
+        allCaps.flatMap { (serverId, caps) ->
             caps.tools.map { t ->
-                ToolDescriptor(name = prefixToolName(serverId, t.name), description = t.description)
+                ToolDescriptor(name = namespace.prefixToolName(serverId, t.name), description = t.description)
             }
         }
-    }
 
     suspend fun callPrefixedTool(name: String, arguments: JsonObject = JsonObject(emptyMap())): Result<JsonElement> {
-        val (serverId, tool) = parsePrefixedName(name)
+        val (serverId, tool) = namespace.parsePrefixedToolName(name)
         val server = servers.firstOrNull { it.serverId == serverId }
             ?: return Result.failure(IllegalArgumentException("Unknown server: $serverId"))
         return server.callTool(tool, arguments)
     }
 
-    fun prefixToolName(serverId: String, toolName: String): String = "$serverId:$toolName"
-
-    fun parsePrefixedName(name: String): Pair<String, String> {
-        val idx = name.indexOf(':')
-        require(idx > 0 && idx < name.length - 1) { "Tool name must be in 'serverId:toolName' format" }
-        val serverId = name.substring(0, idx)
-        val tool = name.substring(idx + 1)
-        return serverId to tool
-    }
+    // Backwards-compat helper methods: delegate to NamespaceManager
+    fun prefixToolName(serverId: String, toolName: String): String = namespace.prefixToolName(serverId, toolName)
+    fun parsePrefixedName(name: String): Pair<String, String> = namespace.parsePrefixedToolName(name)
 }
-

@@ -4,13 +4,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import io.qent.bro.core.coreGreeting
 
 @Composable
 fun BroApp() {
     MaterialTheme {
         Surface {
-            Text("Hello from UI using \"${coreGreeting()}\"")
+            Text("Hello from UI")
         }
     }
 }

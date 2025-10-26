@@ -35,9 +35,9 @@ class RequestRouterAllowedAllTest {
     @Test
     fun empty_allowed_set_means_all_tools_are_allowed() = runBlocking {
         val s1 = SrvAllowed("s1", cfg("s1")) { tool -> buildJsonObject { put("server", "s1"); put("tool", tool) } }
-        val router = DefaultRequestRouter(servers = listOf(s1), allowedPrefixedTools = { emptySet() })
+        val router = DefaultRequestDispatcher(servers = listOf(s1), allowedPrefixedTools = { emptySet() })
 
-        val res = router.call("s1:echo")
+        val res = router.dispatchToolCall(ToolCallRequest("s1:echo"))
         assertTrue(res.isSuccess)
         assertTrue(res.getOrThrow().toString().contains("\"server\":\"s1\""))
     }

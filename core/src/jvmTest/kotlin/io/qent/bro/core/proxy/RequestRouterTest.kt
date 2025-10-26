@@ -36,12 +36,12 @@ class RequestRouterTest {
     fun enforces_allowed_and_routes_by_prefix() = runBlocking {
         val s1 = Srv("s1", cfg("s1")) { tool -> buildJsonObject { put("server", "s1"); put("tool", tool) } }
         val s2 = Srv("s2", cfg("s2")) { tool -> buildJsonObject { put("server", "s2"); put("tool", tool) } }
-        val router = DefaultRequestRouter(servers = listOf(s1, s2), allowedPrefixedTools = { setOf("s2:echo") })
+        val router = DefaultRequestDispatcher(servers = listOf(s1, s2), allowedPrefixedTools = { setOf("s2:echo") })
 
-        val denied = router.call("s1:echo")
+        val denied = router.dispatchToolCall(ToolCallRequest("s1:echo"))
         assertTrue(denied.isFailure)
 
-        val ok = router.call("s2:echo")
+        val ok = router.dispatchToolCall(ToolCallRequest("s2:echo"))
         assertTrue(ok.isSuccess)
         assertTrue(ok.getOrThrow().toString().contains("\"server\":\"s2\""))
     }
