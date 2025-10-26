@@ -23,7 +23,15 @@ data class ServerUiState(
     val showEdit: Boolean = false
 )
 
-class ServersViewModel {
+fun interface ConnectionProvider {
+    fun create(config: McpServerConfig, logger: Logger): McpServerConnection
+}
+
+class ServersViewModel(
+    private val provider: ConnectionProvider = ConnectionProvider { cfg, logger ->
+        DefaultMcpServerConnection(cfg, logger = logger)
+    }
+) {
     private val connections = mutableMapOf<String, McpServerConnection>()
     private val logsMap = mutableMapOf<String, SnapshotStateList<String>>()
     val uiStates = mutableStateMapOf<String, MutableState<ServerUiState>>()
@@ -44,7 +52,7 @@ class ServersViewModel {
     }
 
     private fun ensureConnection(config: McpServerConfig): McpServerConnection =
-        connections.getOrPut(config.id) { DefaultMcpServerConnection(config = config, logger = buildLogger(config.id)) }
+        connections.getOrPut(config.id) { provider.create(config, buildLogger(config.id)) }
 
     fun openDetails(serverId: String) { state(serverId).value = state(serverId).value.copy(showDetails = true) }
     fun closeDetails(serverId: String) { state(serverId).value = state(serverId).value.copy(showDetails = false) }
@@ -100,7 +108,7 @@ class ServersViewModel {
     }
 
     fun updateConnectionConfig(newConfig: McpServerConfig) {
-        connections[newConfig.id] = DefaultMcpServerConnection(newConfig, logger = buildLogger(newConfig.id))
+        connections[newConfig.id] = provider.create(newConfig, buildLogger(newConfig.id))
         val st = state(newConfig.id)
         st.value = st.value.copy(status = ServerStatus.Stopped, toolsCount = null, lastError = null, lastCapabilities = null)
     }

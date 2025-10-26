@@ -26,6 +26,14 @@ kotlin {
                 implementation(compose.desktop.currentOs)
             }
         }
+        val desktopTest by getting {
+            dependencies {
+                implementation(kotlin("test"))
+                implementation("org.mockito:mockito-core:5.14.1")
+                implementation("org.mockito.kotlin:mockito-kotlin:5.3.1")
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:${property("coroutinesVersion")}")
+            }
+        }
     }
 }
 
