@@ -11,7 +11,8 @@ class HttpMcpClientTest {
     @Test
     fun connect_and_capabilities_and_callTool_with_fake() = runBlocking {
         val fake = FakeSdkClientFacade()
-        val client = HttpMcpClient(url = "http://localhost", defaultHeaders = emptyMap(), sdkClientOverride = fake)
+        val client = HttpMcpClient(url = "http://localhost", defaultHeaders = emptyMap())
+        client.setClientForTests(fake)
 
         val conn = client.connect()
         assertTrue(conn.isSuccess)

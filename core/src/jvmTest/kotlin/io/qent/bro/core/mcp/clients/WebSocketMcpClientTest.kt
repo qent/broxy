@@ -11,7 +11,8 @@ class WebSocketMcpClientTest {
     @Test
     fun connect_and_capabilities_and_callTool_with_fake() = runBlocking {
         val fake = FakeSdkClientFacade()
-        val client = WebSocketMcpClient(url = "ws://localhost", headersMap = emptyMap(), sdkClientOverride = fake)
+        val client = WebSocketMcpClient(url = "ws://localhost", headersMap = emptyMap())
+        client.setClientForTests(fake)
 
         val conn = client.connect()
         assertTrue(conn.isSuccess)

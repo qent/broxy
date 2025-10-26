@@ -17,18 +17,13 @@ import kotlin.time.Duration.Companion.seconds
 class HttpMcpClient(
     private val url: String,
     private val defaultHeaders: Map<String, String>,
-    private val logger: Logger = ConsoleLogger,
-    private val sdkClientOverride: SdkClientFacade? = null
+    private val logger: Logger = ConsoleLogger
 ) : McpClient {
     private var ktor: HttpClient? = null
     private var client: SdkClientFacade? = null
 
     override suspend fun connect(): Result<Unit> = runCatching {
         if (client != null) return@runCatching
-        sdkClientOverride?.let {
-            client = it
-            return@runCatching
-        }
         ktor = HttpClient(CIO) {
             install(HttpTimeout) {
                 requestTimeoutMillis = 60_000
@@ -68,5 +63,9 @@ class HttpMcpClient(
     override suspend fun callTool(name: String, arguments: JsonObject): Result<JsonElement> = runCatching {
         val c = client ?: throw IllegalStateException("Not connected")
         c.callTool(name, arguments) ?: kotlinx.serialization.json.JsonNull
+    }
+
+    internal fun setClientForTests(facade: SdkClientFacade) {
+        client = facade
     }
 }

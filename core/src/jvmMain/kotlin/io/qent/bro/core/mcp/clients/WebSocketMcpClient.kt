@@ -17,18 +17,13 @@ import kotlinx.serialization.json.JsonObject
 class WebSocketMcpClient(
     private val url: String,
     private val headersMap: Map<String, String> = emptyMap(),
-    private val logger: Logger = ConsoleLogger,
-    private val sdkClientOverride: SdkClientFacade? = null
+    private val logger: Logger = ConsoleLogger
 ) : McpClient {
     private var ktor: HttpClient? = null
     private var client: SdkClientFacade? = null
 
     override suspend fun connect(): Result<Unit> = runCatching {
         if (client != null) return@runCatching
-        sdkClientOverride?.let {
-            client = it
-            return@runCatching
-        }
         ktor = HttpClient(CIO) {
             install(WebSockets)
             install(HttpTimeout) {
@@ -67,5 +62,9 @@ class WebSocketMcpClient(
     override suspend fun callTool(name: String, arguments: JsonObject): Result<JsonElement> = runCatching {
         val c = client ?: throw IllegalStateException("Not connected")
         c.callTool(name, arguments) ?: kotlinx.serialization.json.JsonNull
+    }
+
+    internal fun setClientForTests(facade: SdkClientFacade) {
+        client = facade
     }
 }

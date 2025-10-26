@@ -19,18 +19,13 @@ class StdioMcpClient(
     private val command: String,
     private val args: List<String>,
     private val env: Map<String, String>,
-    private val logger: Logger = ConsoleLogger,
-    private val sdkClientOverride: SdkClientFacade? = null
+    private val logger: Logger = ConsoleLogger
 ) : McpClient {
     private var process: Process? = null
     private var client: SdkClientFacade? = null
 
     override suspend fun connect(): Result<Unit> = runCatching {
         if (client != null || process?.isAlive == true) return@runCatching
-        sdkClientOverride?.let {
-            client = it
-            return@runCatching
-        }
         val pb = ProcessBuilder(listOf(command) + args)
         val envMap = pb.environment()
         env.forEach { (k, v) -> envMap[k] = v }
@@ -65,5 +60,9 @@ class StdioMcpClient(
     override suspend fun callTool(name: String, arguments: JsonObject): Result<JsonElement> = runCatching {
         val c = client ?: throw IllegalStateException("Not connected")
         c.callTool(name, arguments) ?: JsonNull
+    }
+
+    internal fun setClientForTests(facade: SdkClientFacade) {
+        client = facade
     }
 }

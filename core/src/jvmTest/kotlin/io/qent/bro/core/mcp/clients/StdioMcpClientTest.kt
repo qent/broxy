@@ -11,7 +11,8 @@ class StdioMcpClientTest {
     @Test
     fun connect_and_capabilities_and_callTool_with_fake() = runBlocking {
         val fake = FakeSdkClientFacade()
-        val client = StdioMcpClient(command = "noop", args = emptyList(), env = emptyMap(), sdkClientOverride = fake)
+        val client = StdioMcpClient(command = "noop", args = emptyList(), env = emptyMap())
+        client.setClientForTests(fake)
 
         val conn = client.connect()
         assertTrue(conn.isSuccess)
