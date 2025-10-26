@@ -20,7 +20,7 @@ import kotlin.io.path.isRegularFile
 import kotlin.io.path.name
 
 class JsonConfigurationRepository(
-    baseDir: Path = Paths.get(System.getProperty("user.home")),
+    baseDir: Path = Paths.get(System.getProperty("user.home"), ".config", "bro"),
     private val json: Json = Json { ignoreUnknownKeys = true; prettyPrint = true },
     private val envResolver: EnvironmentVariableResolver = EnvironmentVariableResolver(),
     private val logger: Logger? = null
@@ -179,6 +179,15 @@ class JsonConfigurationRepository(
             }
         }
         return result
+    }
+
+    override fun deletePreset(id: String) {
+        val file = dir.resolve("preset_${id}.json")
+        try {
+            Files.deleteIfExists(file)
+        } catch (e: IOException) {
+            throw ConfigurationException("Failed to delete preset '$id': ${e.message}")
+        }
     }
 
     private fun validateServers(servers: List<McpServerConfig>) {

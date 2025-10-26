@@ -13,6 +13,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.TextFieldValue
@@ -271,5 +272,29 @@ fun AddPresetDialog(state: AppState) {
         dismissButton = {
             Button(onClick = { state.showAddPresetDialog.value = false }) { Text("Cancel") }
         }
+    )
+}
+
+@Composable
+fun ExportPresetDialog(
+    json: String,
+    onClose: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onClose,
+        title = { Text("Export Preset") },
+        text = {
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("JSON preview:", style = MaterialTheme.typography.bodyMedium)
+                androidx.compose.material3.OutlinedTextField(
+                    value = json,
+                    onValueChange = {},
+                    readOnly = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 6
+                )
+            }
+        },
+        confirmButton = { Button(onClick = onClose) { Text("Close") } }
     )
 }

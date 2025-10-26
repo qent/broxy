@@ -13,4 +13,6 @@ interface ConfigurationRepository {
     fun savePreset(preset: Preset)
 
     fun listPresets(): List<Preset>
+
+    fun deletePreset(id: String)
 }
