@@ -449,7 +449,10 @@ cd bro
 # Запуск юнит-тестов (core, JVM таргет)
 ./gradlew :core:jvmTest
 
-# Запуск всех доступных тестов в проекте (например, CLI)
+# Агрегированный запуск всех модульных тестов (core JVM, CLI)
+./gradlew testAll
+
+# Эквивалентная ручная форма
 ./gradlew :core:jvmTest :cli:test
 
 # Сборка desktop приложения

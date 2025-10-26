@@ -32,9 +32,14 @@ class ProxyMcpServer(
     private var promptServerByName: Map<String, String> = emptyMap()
     private var resourceServerByUri: Map<String, String> = emptyMap()
 
-    private var router: RequestRouter = DefaultRequestRouter(
+    private val namespace: NamespaceManager = DefaultNamespaceManager()
+    private val presetEngine: PresetEngine = DefaultPresetEngine(toolFilter)
+    private var dispatcher: RequestDispatcher = DefaultRequestDispatcher(
         servers = downstreams,
         allowedPrefixedTools = { allowedTools },
+        promptServerResolver = { name -> promptServerByName[name] },
+        resourceServerResolver = { uri -> resourceServerByUri[uri] },
+        namespace = namespace,
         logger = logger
     )
 
@@ -86,7 +91,7 @@ class ProxyMcpServer(
     suspend fun refreshFilteredCapabilities() {
         val preset = currentPreset ?: return
         val all = fetchAllDownstreamCapabilities()
-        val result = toolFilter.filter(all, preset)
+        val result = presetEngine.apply(all, preset)
         filteredCaps = result.capabilities
         allowedTools = result.allowedPrefixedTools
         promptServerByName = result.promptServerByName
@@ -103,24 +108,16 @@ class ProxyMcpServer(
      * in the form `serverId:toolName`.
      */
     suspend fun callTool(toolName: String, arguments: JsonObject = JsonObject(emptyMap())): Result<JsonElement> =
-        router.call(toolName, arguments)
+        dispatcher.dispatchToolCall(ToolCallRequest(toolName, arguments))
 
     /** Fetches a prompt from the appropriate downstream based on mapping computed during filtering. */
     suspend fun getPrompt(name: String): Result<JsonObject> {
-        val serverId = promptServerByName[name]
-            ?: return Result.failure(IllegalArgumentException("Unknown prompt: $name"))
-        val server = downstreams.firstOrNull { it.serverId == serverId }
-            ?: return Result.failure(IllegalStateException("Server not found for prompt: $name"))
-        return server.getPrompt(name)
+        return dispatcher.dispatchPrompt(name)
     }
 
     /** Reads a resource from the appropriate downstream based on mapping computed during filtering. */
     suspend fun readResource(uri: String): Result<JsonObject> {
-        val serverId = resourceServerByUri[uri]
-            ?: return Result.failure(IllegalArgumentException("Unknown resource: $uri"))
-        val server = downstreams.firstOrNull { it.serverId == serverId }
-            ?: return Result.failure(IllegalStateException("Server not found for resource: $uri"))
-        return server.readResource(uri)
+        return dispatcher.dispatchResource(uri)
     }
 
     private suspend fun fetchAllDownstreamCapabilities(): Map<String, ServerCapabilities> = coroutineScope {

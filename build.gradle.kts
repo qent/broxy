@@ -23,3 +23,10 @@ tasks.register("testAll") {
     description = "Runs unit tests across modules (core JVM, CLI)."
     dependsOn(":core:jvmTest", ":cli:test")
 }
+
+// Alias for convenience (same as testAll)
+tasks.register("allTests") {
+    group = "verification"
+    description = "Alias to testAll. Runs unit tests across modules (core JVM, CLI)."
+    dependsOn("testAll")
+}
