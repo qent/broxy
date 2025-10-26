@@ -1,69 +1,171 @@
 package io.qent.bro.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.AssistChip
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.PlayArrow
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Divider
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ElevatedButton
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import io.qent.bro.core.mcp.ServerStatus
+import io.qent.bro.core.models.McpServerConfig
+import io.qent.bro.core.models.TransportConfig
 import io.qent.bro.ui.viewmodels.AppState
-import io.qent.bro.ui.viewmodels.UiServer
+import io.qent.bro.ui.viewmodels.ServersViewModel
+import kotlinx.coroutines.launch
 
 @Composable
 fun ServersScreen(state: AppState) {
-    if (state.servers.isEmpty()) {
-        EmptyState(
-            title = "No servers yet",
-            subtitle = "Use the + button to add your first MCP server"
+    val viewModel = remember { ServersViewModel() }
+    var query by rememberSaveable { mutableStateOf("") }
+
+    Column(modifier = Modifier.fillMaxSize().padding(12.dp)) {
+        OutlinedTextField(
+            value = query,
+            onValueChange = { query = it },
+            label = { Text("Search servers") },
+            modifier = Modifier.fillMaxWidth()
         )
-    } else {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            items(state.servers) { server ->
-                ServerCard(server)
+        Spacer(Modifier.height(12.dp))
+
+        if (state.servers.isEmpty()) {
+            EmptyState(
+                title = "No servers yet",
+                subtitle = "Use the + button to add your first MCP server"
+            )
+        } else {
+            val filtered = state.servers.filter { cfg ->
+                val t = transportLabel(cfg.transport)
+                cfg.name.contains(query, ignoreCase = true) ||
+                        cfg.id.contains(query, ignoreCase = true) ||
+                        t.contains(query, ignoreCase = true)
+            }
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(filtered, key = { it.id }) { cfg ->
+                    ServerCard(cfg, state, viewModel)
+                }
             }
         }
     }
 }
 
 @Composable
-private fun ServerCard(server: UiServer) {
+private fun ServerCard(cfg: McpServerConfig, state: AppState, vm: ServersViewModel) {
+    val scope = rememberCoroutineScope()
+    val ui = vm.uiStates.getOrPut(cfg.id) { mutableStateOf(io.qent.bro.ui.viewmodels.ServerUiState()) }.value
+    val statusColor = when (ui.status) {
+        ServerStatus.Running -> Color(0xFF1DB954)
+        is ServerStatus.Error -> Color(0xFFD64545)
+        ServerStatus.Starting -> Color(0xFFFFB02E)
+        ServerStatus.Stopping -> Color(0xFF6C6F7D)
+        ServerStatus.Stopped -> MaterialTheme.colorScheme.outline
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text(server.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Spacer(Modifier.padding(2.dp))
-                Text(server.id, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(cfg.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Spacer(Modifier.height(2.dp))
+                    Text("${cfg.id} • ${transportLabel(cfg.transport)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Box(Modifier.size(10.dp).clip(CircleShape).background(statusColor))
+                Spacer(Modifier.width(8.dp))
+                Switch(checked = cfg.enabled, onCheckedChange = { enabled ->
+                    vm.applyEnabledChange(state.servers, cfg.id, enabled)
+                    if (enabled) scope.launch { vm.connect(cfg) } else scope.launch { vm.disconnect(cfg.id) }
+                })
             }
-            val label = if (server.isConnected) "Connected" else "Disconnected"
-            AssistChip(
-                onClick = {},
-                label = { Text(label) }
-            )
+
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Tools: ${ui.toolsCount?.toString() ?: "—"}")
+                Spacer(Modifier.weight(1f))
+                if (ui.testing) {
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                }
+                ElevatedButton(onClick = { scope.launch { vm.testConnection(cfg) } }, enabled = !ui.testing) {
+                    Icon(Icons.Outlined.Refresh, contentDescription = null)
+                    Spacer(Modifier.width(6.dp))
+                    Text("Test Connection")
+                }
+                TextButton(onClick = { vm.openDetails(cfg.id) }) {
+                    Icon(Icons.Outlined.Info, contentDescription = null)
+                    Spacer(Modifier.width(4.dp))
+                    Text("Details")
+                }
+                IconButton(onClick = { vm.openEdit(cfg.id) }) { Icon(Icons.Outlined.Edit, contentDescription = "Edit") }
+                IconButton(onClick = { scope.launch { vm.removeServer(state.servers, cfg.id) } }) { Icon(Icons.Outlined.Delete, contentDescription = "Delete") }
+            }
         }
     }
+
+    if (vm.uiStates[cfg.id]?.value?.showDetails == true) {
+        ServerDetailsDialog(cfg = cfg, vm = vm, onClose = { vm.closeDetails(cfg.id) })
+    }
+    if (vm.uiStates[cfg.id]?.value?.showEdit == true) {
+        EditServerDialog(
+            initial = cfg,
+            onSave = { newCfg ->
+                vm.replaceConfig(state.servers, newCfg)
+                vm.updateConnectionConfig(newCfg)
+                vm.closeEdit(cfg.id)
+            },
+            onClose = { vm.closeEdit(cfg.id) }
+        )
+    }
+}
+
+private fun transportLabel(t: TransportConfig): String = when (t) {
+    is TransportConfig.StdioTransport -> "STDIO"
+    is TransportConfig.HttpTransport -> "HTTP"
+    is TransportConfig.WebSocketTransport -> "WebSocket"
 }
 
 @Composable
@@ -78,4 +180,3 @@ private fun EmptyState(title: String, subtitle: String) {
         Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
-
