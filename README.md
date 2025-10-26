@@ -1,6 +1,6 @@
 # bro - Мультиплатформенный прокси-сервер для Model Context Protocol
 
-[![Tests](https://github.com/qent/bro/actions/workflows/tests.yml/badge.svg)](https://github.com/qent/bro/actions/workflows/tests.yml)
+[![Tests](https://github.com/qent/bro/actions/workflows/tests.yml/badge.svg)](https://github.com/qent/bro/actions/workflows/tests.yml) [![Build Installers](https://github.com/qent/bro/actions/workflows/release.yml/badge.svg)](https://github.com/qent/bro/actions/workflows/release.yml)
 
 ## 📋 Описание проекта
 
