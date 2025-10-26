@@ -71,5 +71,19 @@ class HttpMcpClient(
         c.callTool(name, arguments) ?: kotlinx.serialization.json.JsonNull
     }
 
+    override suspend fun getPrompt(name: String): Result<JsonObject> = runCatching {
+        val c = client ?: throw IllegalStateException("Not connected")
+        val r = c.getPrompt(name)
+        val el = kotlinx.serialization.json.Json.encodeToJsonElement(io.modelcontextprotocol.kotlin.sdk.GetPromptResult.serializer(), r)
+        el as JsonObject
+    }
+
+    override suspend fun readResource(uri: String): Result<JsonObject> = runCatching {
+        val c = client ?: throw IllegalStateException("Not connected")
+        val r = c.readResource(uri)
+        val el = kotlinx.serialization.json.Json.encodeToJsonElement(io.modelcontextprotocol.kotlin.sdk.ReadResourceResult.serializer(), r)
+        el as JsonObject
+    }
+
     // Uses SdkConnector for test-time injection
 }

@@ -25,6 +25,8 @@ private class MCServer(
     override suspend fun disconnect() {}
     override suspend fun getCapabilities(forceRefresh: Boolean): Result<ServerCapabilities> = caps
     override suspend fun callTool(toolName: String, arguments: JsonObject): Result<JsonElement> = toolHandler(toolName, arguments)
+    override suspend fun getPrompt(name: String): Result<JsonObject> = Result.failure(UnsupportedOperationException())
+    override suspend fun readResource(uri: String): Result<JsonObject> = Result.failure(UnsupportedOperationException())
 }
 
 class MultiServerClientTest {

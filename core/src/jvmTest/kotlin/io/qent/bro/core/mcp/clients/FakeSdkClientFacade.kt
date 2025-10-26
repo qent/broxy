@@ -3,6 +3,10 @@ package io.qent.bro.core.mcp.clients
 import io.qent.bro.core.mcp.PromptDescriptor
 import io.qent.bro.core.mcp.ResourceDescriptor
 import io.qent.bro.core.mcp.ToolDescriptor
+import io.modelcontextprotocol.kotlin.sdk.GetPromptRequest
+import io.modelcontextprotocol.kotlin.sdk.GetPromptResult
+import io.modelcontextprotocol.kotlin.sdk.ReadResourceRequest
+import io.modelcontextprotocol.kotlin.sdk.ReadResourceResult
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
@@ -21,6 +25,11 @@ class FakeSdkClientFacade(
         put("ok", true)
     }
 
+    override suspend fun getPrompt(name: String): GetPromptResult =
+        GetPromptResult(description = "desc", messages = emptyList(), _meta = JsonObject(emptyMap()))
+
+    override suspend fun readResource(uri: String): ReadResourceResult =
+        ReadResourceResult(contents = emptyList(), _meta = JsonObject(emptyMap()))
+
     override suspend fun close() { /* no-op */ }
 }
-

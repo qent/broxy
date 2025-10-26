@@ -91,4 +91,20 @@ class DefaultMcpServerConnection(
         }
         return client.callTool(toolName, arguments)
     }
+
+    override suspend fun getPrompt(name: String): Result<JsonObject> {
+        if (status != ServerStatus.Running) {
+            val r = connect()
+            if (r.isFailure) return Result.failure(r.exceptionOrNull()!!)
+        }
+        return client.getPrompt(name)
+    }
+
+    override suspend fun readResource(uri: String): Result<JsonObject> {
+        if (status != ServerStatus.Running) {
+            val r = connect()
+            if (r.isFailure) return Result.failure(r.exceptionOrNull()!!)
+        }
+        return client.readResource(uri)
+    }
 }

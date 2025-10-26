@@ -247,14 +247,14 @@ Claude Desktop подключается к прокси-серверу как к
 
 #### Префиксирование имен
 
-Для избежания конфликтов имен, инструменты префиксируются именем сервера:
+Для избежания конфликтов имен, инструменты префиксируются идентификатором сервера через двоеточие:
 
 - Оригинал: `create_issue` (от GitHub сервера)
-- После префикса: `github.create_issue`
+- После префикса: `github:create_issue`
 
 #### Маршрутизация запросов
 
-Когда клиент вызывает `github.create_issue`, прокси:
+Когда клиент вызывает `github:create_issue`, прокси:
 1. Извлекает префикс `github`
 2. Находит соответствующий сервер
 3. Удаляет префикс из имени инструмента
@@ -307,18 +307,22 @@ Claude Desktop подключается к прокси-серверу как к
 
 ### CLI режим
 
-1. Скачать `mcp-proxy.jar`
+1. Собрать CLI JAR:
+```bash
+./gradlew :cli:shadowJar
+```
 
 2. Создать конфигурационные файлы:
-   - `~/mcp.json` - конфигурация серверов
-   - `~/preset_developer.json` - пресет для разработчика
+   - `~/servers.json` — конфигурация MCP серверов
+   - `~/preset_developer.json` — пресет для разработчика
 
 3. Запустить прокси:
 ```bash
-java -jar mcp-proxy.jar run \
-  --config ~/mcp.json \
-  --preset ~/preset_developer.json \
-  --transport stdio
+java -jar cli/build/libs/bro-cli-0.1.0.jar proxy \
+  --servers-file ~/servers.json \
+  --preset-file ~/preset_developer.json \
+  --inbound stdio \
+  --log-level info
 ```
 
 ### Интеграция с Claude Desktop
@@ -333,11 +337,12 @@ java -jar mcp-proxy.jar run \
       "command": "java",
       "args": [
         "-jar",
-        "/path/to/mcp-proxy.jar",
-        "run",
-        "--config", "~/mcp.json",
-        "--preset", "developer",
-        "--transport", "stdio"
+        "/absolute/path/to/cli/build/libs/bro-cli-0.1.0.jar",
+        "proxy",
+        "--servers-file", "~/servers.json",
+        "--preset-file", "~/preset_developer.json",
+        "--inbound", "stdio",
+        "--log-level", "info"
       ]
     }
   }
@@ -439,8 +444,11 @@ cd mcp-proxy
 # Сборка всех модулей
 ./gradlew build
 
-# Запуск тестов
-./gradlew test
+# Запуск юнит-тестов (core, JVM таргет)
+./gradlew :core:jvmTest
+
+# Запуск всех доступных тестов в проекте (например, CLI)
+./gradlew :core:jvmTest :cli:test
 
 # Сборка desktop приложения
 ./gradlew :ui:packageDistributionForCurrentOS

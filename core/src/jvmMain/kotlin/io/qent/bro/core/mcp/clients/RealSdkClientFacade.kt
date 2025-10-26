@@ -4,6 +4,7 @@ import io.modelcontextprotocol.kotlin.sdk.CallToolRequest
 import io.modelcontextprotocol.kotlin.sdk.ListPromptsRequest
 import io.modelcontextprotocol.kotlin.sdk.ListResourcesRequest
 import io.modelcontextprotocol.kotlin.sdk.ListToolsRequest
+import io.modelcontextprotocol.kotlin.sdk.ReadResourceRequest
 import io.modelcontextprotocol.kotlin.sdk.Prompt
 import io.modelcontextprotocol.kotlin.sdk.Resource
 import io.modelcontextprotocol.kotlin.sdk.Tool
@@ -28,6 +29,12 @@ class RealSdkClientFacade(
     override suspend fun callTool(name: String, arguments: JsonObject): JsonElement? =
         client.callTool(CallToolRequest(name, arguments, JsonObject(emptyMap())))?.structuredContent
 
+    override suspend fun getPrompt(name: String): io.modelcontextprotocol.kotlin.sdk.GetPromptResult =
+        client.getPrompt(io.modelcontextprotocol.kotlin.sdk.GetPromptRequest(name, arguments = null, _meta = JsonObject(emptyMap())))
+
+    override suspend fun readResource(uri: String): io.modelcontextprotocol.kotlin.sdk.ReadResourceResult =
+        client.readResource(ReadResourceRequest(uri))
+
     override suspend fun close() {
         client.close()
     }
@@ -48,4 +55,3 @@ class RealSdkClientFacade(
         description = prompt.description
     )
 }
-

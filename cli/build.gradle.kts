@@ -13,6 +13,8 @@ kotlin {
 dependencies {
     implementation(project(":core"))
     implementation("com.github.ajalt.clikt:clikt:${property("cliktVersion")}")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:${property("serializationVersion")}")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:${property("coroutinesVersion")}")
 }
 
 application {
