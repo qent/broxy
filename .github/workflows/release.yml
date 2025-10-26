@@ -1,0 +1,110 @@
+name: Build Installers
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  package:
+    name: Package (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Package distribution for current OS
+        run: ./gradlew --no-daemon :ui:packageDistributionForCurrentOS
+        shell: bash
+
+      - name: Locate artifacts (macOS)
+        if: matrix.os == 'macos-latest'
+        id: paths_macos
+        run: |
+          echo "path=ui/build/compose/binaries/main/dmg" >> $GITHUB_OUTPUT
+
+      - name: Locate artifacts (Windows)
+        if: matrix.os == 'windows-latest'
+        id: paths_windows
+        run: |
+          echo "path=ui\\build\\compose\\binaries\\main\\msi" >> $GITHUB_OUTPUT
+        shell: pwsh
+
+      - name: Locate artifacts (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        id: paths_linux
+        run: |
+          echo "path=ui/build/compose/binaries/main/deb" >> $GITHUB_OUTPUT
+
+      - name: Show produced files
+        run: |
+          echo "Artifacts in $ART_PATH" && ls -la "$ART_PATH"
+        env:
+          ART_PATH: ${{ steps.paths_macos.outputs.path || steps.paths_windows.outputs.path || steps.paths_linux.outputs.path }}
+        shell: bash
+
+      - name: Generate SHA256 checksums
+        run: |
+          cd "$ART_PATH"
+          shopt -s nullglob
+          for f in *.dmg *.msi *.deb; do
+            if [ -f "$f" ]; then
+              shasum -a 256 "$f" >> CHECKSUMS.txt || sha256sum "$f" >> CHECKSUMS.txt || certutil -hashfile "$f" SHA256 >> CHECKSUMS.txt || true
+            fi
+          done
+          cat CHECKSUMS.txt || true
+        env:
+          ART_PATH: ${{ steps.paths_macos.outputs.path || steps.paths_windows.outputs.path || steps.paths_linux.outputs.path }}
+        shell: bash
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: installers-${{ matrix.os }}
+          path: |
+            ${{ steps.paths_macos.outputs.path || steps.paths_windows.outputs.path || steps.paths_linux.outputs.path }}/*.dmg
+            ${{ steps.paths_macos.outputs.path || steps.paths_windows.outputs.path || steps.paths_linux.outputs.path }}/*.msi
+            ${{ steps.paths_macos.outputs.path || steps.paths_windows.outputs.path || steps.paths_linux.outputs.path }}/*.deb
+            ${{ steps.paths_macos.outputs.path || steps.paths_windows.outputs.path || steps.paths_linux.outputs.path }}/CHECKSUMS.txt
+
+  release:
+    name: Publish Release
+    needs: package
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - name: List downloaded files
+        run: |
+          ls -R dist
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/**/**/*.dmg
+            dist/**/**/*.msi
+            dist/**/**/*.deb
+            dist/**/**/CHECKSUMS.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
