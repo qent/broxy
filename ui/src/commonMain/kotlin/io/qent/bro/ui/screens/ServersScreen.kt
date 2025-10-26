@@ -53,11 +53,14 @@ import io.qent.bro.core.models.McpServerConfig
 import io.qent.bro.core.models.TransportConfig
 import io.qent.bro.ui.viewmodels.AppState
 import io.qent.bro.ui.viewmodels.ServersViewModel
+import io.qent.bro.ui.data.provideConfigurationRepository
+import io.qent.bro.core.models.McpServersConfig
 import kotlinx.coroutines.launch
 
 @Composable
-fun ServersScreen(state: AppState) {
+fun ServersScreen(state: AppState, notify: (String) -> Unit = {}) {
     val viewModel = remember { ServersViewModel() }
+    val repo = remember { provideConfigurationRepository() }
     var query by rememberSaveable { mutableStateOf("") }
 
     Column(modifier = Modifier.fillMaxSize().padding(12.dp)) {
@@ -86,7 +89,10 @@ fun ServersScreen(state: AppState) {
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(filtered, key = { it.id }) { cfg ->
-                    ServerCard(cfg, state, viewModel)
+                    ServerCard(cfg, state, viewModel, onPersist = {
+                        runCatching { repo.saveMcpConfig(McpServersConfig(state.servers.toList())) }
+                            .onFailure { notify("Failed to save servers: ${it.message}") }
+                    })
                 }
             }
         }
@@ -94,7 +100,12 @@ fun ServersScreen(state: AppState) {
 }
 
 @Composable
-private fun ServerCard(cfg: McpServerConfig, state: AppState, vm: ServersViewModel) {
+private fun ServerCard(
+    cfg: McpServerConfig,
+    state: AppState,
+    vm: ServersViewModel,
+    onPersist: () -> Unit = {}
+) {
     val scope = rememberCoroutineScope()
     val ui = vm.uiStates.getOrPut(cfg.id) { mutableStateOf(io.qent.bro.ui.viewmodels.ServerUiState()) }.value
     val statusColor = when (ui.status) {
@@ -120,6 +131,7 @@ private fun ServerCard(cfg: McpServerConfig, state: AppState, vm: ServersViewMod
                 Spacer(Modifier.width(8.dp))
                 Switch(checked = cfg.enabled, onCheckedChange = { enabled ->
                     vm.applyEnabledChange(state.servers, cfg.id, enabled)
+                    onPersist()
                     if (enabled) scope.launch { vm.connect(cfg) } else scope.launch { vm.disconnect(cfg.id) }
                 })
             }
@@ -141,7 +153,12 @@ private fun ServerCard(cfg: McpServerConfig, state: AppState, vm: ServersViewMod
                     Text("Details")
                 }
                 IconButton(onClick = { vm.openEdit(cfg.id) }) { Icon(Icons.Outlined.Edit, contentDescription = "Edit") }
-                IconButton(onClick = { scope.launch { vm.removeServer(state.servers, cfg.id) } }) { Icon(Icons.Outlined.Delete, contentDescription = "Delete") }
+                IconButton(onClick = {
+                    scope.launch {
+                        vm.removeServer(state.servers, cfg.id)
+                        onPersist()
+                    }
+                }) { Icon(Icons.Outlined.Delete, contentDescription = "Delete") }
             }
         }
     }
@@ -155,6 +172,7 @@ private fun ServerCard(cfg: McpServerConfig, state: AppState, vm: ServersViewMod
             onSave = { newCfg ->
                 vm.replaceConfig(state.servers, newCfg)
                 vm.updateConnectionConfig(newCfg)
+                onPersist()
                 vm.closeEdit(cfg.id)
             },
             onClose = { vm.closeEdit(cfg.id) }

@@ -21,10 +21,13 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -37,12 +40,16 @@ import io.qent.bro.ui.components.AppNavigationRail
 import io.qent.bro.ui.theme.AppTheme
 import io.qent.bro.ui.viewmodels.AppState
 import io.qent.bro.ui.viewmodels.Screen
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalAnimationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun MainWindow(state: AppState) {
     AppTheme(settings = state.theme.value) {
         val screen = state.currentScreen.value
+        val snackbarHostState = remember { SnackbarHostState() }
+        val scope = rememberCoroutineScope()
+        val notify: (String) -> Unit = { msg -> scope.launch { snackbarHostState.showSnackbar(msg) } }
 
         Scaffold(
             topBar = {
@@ -50,6 +57,7 @@ fun MainWindow(state: AppState) {
                     title = { Text(screen.title) }
                 )
             },
+            snackbarHost = { SnackbarHost(snackbarHostState) },
             floatingActionButton = {
                 when (screen) {
                     Screen.Servers -> FloatingActionButton(onClick = { state.showAddServerDialog.value = true }) {
@@ -78,9 +86,9 @@ fun MainWindow(state: AppState) {
                         label = "screen"
                     ) { s ->
                         when (s) {
-                            Screen.Servers -> ServersScreen(state)
+                            Screen.Servers -> ServersScreen(state, notify)
                             Screen.Presets -> PresetsScreen(state)
-                            Screen.Proxy -> ProxyScreen(state)
+                            Screen.Proxy -> ProxyScreen(state, notify)
                             Screen.Settings -> SettingsScreen(state)
                         }
                     }

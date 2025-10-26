@@ -23,11 +23,14 @@ import io.qent.bro.core.mcp.ServerCapabilities
 import io.qent.bro.core.models.McpServerConfig
 import io.qent.bro.core.models.TransportConfig
 import io.qent.bro.ui.viewmodels.AppState
+import io.qent.bro.ui.data.provideConfigurationRepository
+import io.qent.bro.core.models.McpServersConfig
 import io.qent.bro.ui.viewmodels.UiPreset
 import kotlinx.coroutines.launch
 
 @Composable
 fun AddServerDialog(state: AppState) {
+    val repo = remember { provideConfigurationRepository() }
     var name by remember { mutableStateOf(TextFieldValue("")) }
     var id by remember { mutableStateOf(TextFieldValue("")) }
     var transportType by remember { mutableStateOf("STDIO") }
@@ -143,6 +146,8 @@ fun AddServerDialog(state: AppState) {
                     val cfg = buildConfig()
                     if (cfg != null && lastTest != null) {
                         state.servers.add(cfg)
+                        runCatching { repo.saveMcpConfig(McpServersConfig(state.servers.toList())) }
+                            .onFailure { ex -> errorText = ex.message ?: "Failed to save config" }
                         state.showAddServerDialog.value = false
                     } else {
                         errorText = "Please test connection before saving"
