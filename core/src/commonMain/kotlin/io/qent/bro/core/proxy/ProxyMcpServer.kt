@@ -74,6 +74,14 @@ class ProxyMcpServer(
     /** Returns the current filtered capabilities view. */
     fun getCapabilities(): ServerCapabilities = filteredCaps
 
+    /** Applies a new preset at runtime and refreshes the filtered view. */
+    fun applyPreset(preset: Preset) {
+        currentPreset = preset
+        runCatching { kotlinx.coroutines.runBlocking { refreshFilteredCapabilities() } }
+            .onSuccess { logger.info("Applied preset '${preset.name}'") }
+            .onFailure { logger.error("Failed to apply preset '${preset.name}'", it) }
+    }
+
     /** Forces re-fetch and re-filter of downstream capabilities according to the current preset. */
     suspend fun refreshFilteredCapabilities() {
         val preset = currentPreset ?: return

@@ -12,20 +12,24 @@ import io.qent.bro.core.models.Preset
 import io.qent.bro.core.models.TransportConfig
 import io.qent.bro.core.proxy.ProxyMcpServer
 import io.qent.bro.core.proxy.inbound.InboundServerFactory
+import io.qent.bro.core.config.JsonConfigurationRepository
+import io.qent.bro.core.config.ConfigurationWatcher
+import io.qent.bro.core.config.ConfigurationObserver
+import io.qent.bro.core.config.EnvironmentVariableResolver
 import io.qent.bro.core.utils.FilteredLogger
 import io.qent.bro.core.utils.LogLevel
 import io.qent.bro.core.utils.Logger
 import kotlinx.serialization.json.Json
 import java.io.File
+import java.nio.file.Paths
+import kotlinx.coroutines.runBlocking
 
 class ProxyCommand : CliktCommand(name = "proxy", help = "Run MCP proxy server") {
-    private val serversFile: File by option("--servers-file", help = "Path to MCP servers config JSON")
-        .file(mustExist = true, canBeFile = true, canBeDir = false)
-        .required()
+    private val configDir: File by option("--config-dir", help = "Directory containing mcp.json and preset_*.json. Defaults to user home.")
+        .file(mustExist = false, canBeFile = false, canBeDir = true)
+        .default(File(System.getProperty("user.home")))
 
-    private val presetFile: File by option("--preset-file", help = "Path to preset JSON")
-        .file(mustExist = true, canBeFile = true, canBeDir = false)
-        .required()
+    private val presetId: String by option("--preset-id", help = "Preset ID, e.g. 'developer' (loads preset_developer.json)").required()
 
     private val inbound: String by option("--inbound", help = "Inbound transport: stdio|http|ws").default("stdio")
 
@@ -35,34 +39,70 @@ class ProxyCommand : CliktCommand(name = "proxy", help = "Run MCP proxy server")
 
     override fun run() {
         val json = Json { ignoreUnknownKeys = true }
-        val serversCfg = json.decodeFromString(McpServersConfig.serializer(), serversFile.readText())
-        val preset = json.decodeFromString(Preset.serializer(), presetFile.readText())
 
         val logger = createLogger(logLevel)
 
-        val downstreams: List<McpServerConnection> = serversCfg.servers
+        val repo = JsonConfigurationRepository(
+            baseDir = Paths.get(configDir.absolutePath),
+            json = json,
+            envResolver = EnvironmentVariableResolver(logger = logger),
+            logger = logger
+        )
+
+        var serversCfg = repo.loadMcpConfig()
+        var currentPreset = repo.loadPreset(presetId)
+
+        fun buildDownstreams(cfg: McpServersConfig): List<McpServerConnection> = cfg.servers
             .filter { it.enabled }
             .map { DefaultMcpServerConnection(config = it, logger = logger) }
 
-        val proxy = ProxyMcpServer(downstreams, logger = logger)
+        var downstreams: List<McpServerConnection> = buildDownstreams(serversCfg)
+        var proxy = ProxyMcpServer(downstreams, logger = logger)
 
-        // Initialize proxy (refresh caps)
-        proxy.start(preset, when (inbound) {
-            "stdio" -> TransportConfig.StdioTransport(command = "", args = emptyList())
-            "http" -> TransportConfig.HttpTransport(url = url ?: "http://0.0.0.0:3335/mcp")
-            "ws", "websocket" -> TransportConfig.WebSocketTransport(url = url ?: "ws://0.0.0.0:3336/ws")
-            else -> error("Unsupported inbound: $inbound")
-        })
-
-        // Start inbound server
         val inboundTransport = when (inbound) {
             "stdio" -> TransportConfig.StdioTransport(command = "", args = emptyList())
             "http" -> TransportConfig.HttpTransport(url = url ?: "http://0.0.0.0:3335/mcp")
             "ws", "websocket" -> TransportConfig.WebSocketTransport(url = url ?: "ws://0.0.0.0:3336/ws")
             else -> error("Unsupported inbound: $inbound")
         }
-        val inboundServer = InboundServerFactory.create(inboundTransport, proxy, logger)
+
+        proxy.start(currentPreset, inboundTransport)
+        var inboundServer = InboundServerFactory.create(inboundTransport, proxy, logger)
         inboundServer.start()
+
+        val watcher = ConfigurationWatcher(
+            baseDir = Paths.get(configDir.absolutePath),
+            repo = repo,
+            logger = logger
+        )
+        watcher.addObserver(object : ConfigurationObserver {
+            override fun onConfigurationChanged(config: McpServersConfig) {
+                logger.info("Configuration changed; restarting downstream connections")
+                val oldDownstreams = downstreams
+                val oldInbound = inboundServer
+
+                val newDownstreams = buildDownstreams(config)
+                val newProxy = ProxyMcpServer(newDownstreams, logger = logger)
+                newProxy.start(currentPreset, inboundTransport)
+                val newInbound = InboundServerFactory.create(inboundTransport, newProxy, logger)
+                newInbound.start()
+
+                downstreams = newDownstreams
+                proxy = newProxy
+                inboundServer = newInbound
+                serversCfg = config
+
+                runCatching { oldInbound.stop() }
+                runBlocking { oldDownstreams.forEach { runCatching { it.disconnect() } } }
+            }
+
+            override fun onPresetChanged(preset: Preset) {
+                logger.info("Preset changed to '${preset.id}'; applying to proxy")
+                currentPreset = preset
+                proxy.applyPreset(preset)
+            }
+        })
+        watcher.start()
 
         // Graceful shutdown
         Runtime.getRuntime().addShutdownHook(Thread {
@@ -73,14 +113,8 @@ class ProxyCommand : CliktCommand(name = "proxy", help = "Run MCP proxy server")
             } catch (_: Throwable) {}
         })
 
-        // Block current thread for http/ws servers. For stdio, just sleep.
-        if (inbound == "http" || inbound == "ws" || inbound == "websocket") {
-            // Ktor engine is non-blocking start; keep alive.
-            while (true) Thread.sleep(60_000)
-        } else {
-            // In stdio mode, keep process alive for parent (e.g., Claude Desktop)
-            while (true) Thread.sleep(60_000)
-        }
+        // Keep process alive for all inbounds
+        while (true) Thread.sleep(60_000)
     }
 
     private fun createLogger(level: String): Logger {
