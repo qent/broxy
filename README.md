@@ -1,5 +1,7 @@
 # MCP Proxy - Мультиплатформенный прокси-сервер для Model Context Protocol
 
+[![Tests](https://github.com/qent/bro/actions/workflows/tests.yml/badge.svg)](https://github.com/qent/bro/actions/workflows/tests.yml)
+
 ## 📋 Описание проекта
 
 MCP Proxy - это мультиплатформенное приложение на Kotlin, которое выступает в роли интеллектуального прокси-сервера между AI-клиентами (такими как Claude Desktop) и множеством MCP-серверов. Основная идея - создание единой точки входа, которая агрегирует инструменты из различных MCP-серверов и предоставляет их в отфильтрованном виде на основе пресетов (ролей агентов).
@@ -130,7 +132,7 @@ MCP Proxy - это мультиплатформенное приложение �
 
 **CLI запуск:**
 ```bash
-java -jar mcp-proxy.jar run \
+java -jar bro.jar run \
   --config ~/mcp.json \
   --preset developer \
   --transport stdio
@@ -151,7 +153,7 @@ Claude Desktop подключается к прокси-серверу как к
   "mcpServers": {
     "developer-proxy": {
       "command": "java",
-      "args": ["-jar", "/path/to/mcp-proxy.jar", "run", "--preset", "developer"]
+      "args": ["-jar", "/path/to/bro.jar", "run", "--preset", "developer"]
     }
   }
 }
@@ -294,8 +296,8 @@ Claude Desktop подключается к прокси-серверу как к
 ### Desktop приложение
 
 1. Скачать дистрибутив для вашей ОС:
-   - macOS: `MCP-Proxy-1.0.0.dmg`
-   - Windows: `MCP-Proxy-1.0.0.msi`
+   - macOS: `bro-1.0.0.dmg`
+   - Windows: `bro-1.0.0.msi`
 
 2. Установить приложение
 
@@ -333,7 +335,7 @@ java -jar cli/build/libs/bro-cli-0.1.0.jar proxy \
 ```json
 {
   "mcpServers": {
-    "mcp-proxy": {
+    "bro": {
       "command": "java",
       "args": [
         "-jar",
@@ -384,19 +386,19 @@ export OPENAI_API_KEY="sk-xxxxxxxxxxxx"
 1. В UI: Нажать кнопку "Test Connection" рядом с сервером
 2. В CLI: 
 ```bash
-java -jar mcp-proxy.jar test-server --config ~/mcp.json --server github
+java -jar bro.jar test-server --config ~/mcp.json --server github
 ```
 
 ### Проверка пресета
 
 ```bash
-java -jar mcp-proxy.jar validate-preset --preset ~/preset_developer.json
+java -jar bro.jar validate-preset --preset ~/preset_developer.json
 ```
 
 ### Отладочный режим
 
 ```bash
-java -jar mcp-proxy.jar run \
+java -jar bro.jar run \
   --config ~/mcp.json \
   --preset developer \
   --log-level DEBUG
@@ -438,8 +440,8 @@ java -jar mcp-proxy.jar run \
 
 ```bash
 # Клонировать репозиторий
-git clone https://github.com/your-org/mcp-proxy.git
-cd mcp-proxy
+git clone https://github.com/qent/bro.git
+cd bro
 
 # Сборка всех модулей
 ./gradlew build
@@ -457,13 +459,19 @@ cd mcp-proxy
 ./gradlew :cli:shadowJar
 ```
 
+### Юнит‑тесты: правила и примеры
+
+- Руководство по юнит‑тестам: см. `docs/TESTING.md`.
+- Критическая логика покрыта в `core/src/jvmTest`: соединения MCP, прокси‑фильтрация/роутинг, клиенты HTTP/WS/STDIO, кэш и backoff.
+- Используем AAA‑структуру, Mockito‑Kotlin и конструкторную инъекцию зависимостей.
+
 ### Пакетирование и подпись
 
 - Команда: `./gradlew :ui:packageDistributionForCurrentOS` генерирует DMG (macOS), MSI (Windows) или DEB (Linux) в `ui/build/compose/binaries/main/<format>/`.
 - Иконки (опционально): положите файлы в `ui/src/desktopMain/resources/icons/`
-  - macOS: `mcp-proxy.icns`
-  - Windows: `mcp-proxy.ico`
-  - Linux: `mcp-proxy.png`
+  - macOS: `bro.icns`
+  - Windows: `bro.ico`
+  - Linux: `bro.png`
 - Подпись (по переменным окружения; по умолчанию отключена):
   - macOS: `MACOS_SIGN=true`, `MACOS_IDENTITY=Developer ID Application: ...`, `MACOS_NOTARY_APPLE_ID`, `MACOS_NOTARY_PASSWORD`, `MACOS_NOTARY_TEAM_ID`
   - Windows: `WIN_SIGN=true`, `WIN_CERT_PATH=/path/to/cert.pem` или `.p7b`, `WIN_KEY_PATH=/path/to/key.pem`, `WIN_CERT_PASSWORD=secret`, `WIN_TIMESTAMP_URL` (необязательно)
@@ -472,7 +480,7 @@ cd mcp-proxy
 ### Структура проекта
 
 ```
-mcp-proxy/
+bro/
 ├── core/           # Бизнес-логика
 ├── ui/             # Desktop UI
 ├── cli/            # CLI приложение
@@ -515,6 +523,6 @@ A: Desktop версия поддерживает автообновление. �
 
 ## 📞 Поддержка
 
-- **Issues**: [GitHub Issues](https://github.com/your-org/mcp-proxy/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/your-org/mcp-proxy/discussions)
-- **Email**: support@mcp-proxy.example.com
+- **Issues**: [GitHub Issues](https://github.com/qent/bro/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/qent/bro/discussions)
+- **Email**: support@bro.example.com
