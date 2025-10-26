@@ -1,15 +1,22 @@
 package io.qent.bro.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -26,6 +33,7 @@ import io.qent.bro.ui.viewmodels.AppState
 import io.qent.bro.ui.viewmodels.ProxyStatus
 import io.qent.bro.ui.viewmodels.ProxyViewModel
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProxyScreen(state: AppState, notify: (String) -> Unit = {}) {
     val vm = remember { ProxyViewModel() }
@@ -33,6 +41,7 @@ fun ProxyScreen(state: AppState, notify: (String) -> Unit = {}) {
     var presetId by remember { mutableStateOf<String?>(null) }
     var inboundMode by remember { mutableStateOf("HTTP") }
     var inboundUrl by remember { mutableStateOf("http://0.0.0.0:3335/mcp") }
+    var presetExpanded by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.presets.size) {
         if (presetId == null && state.presets.isNotEmpty()) {
@@ -54,15 +63,59 @@ fun ProxyScreen(state: AppState, notify: (String) -> Unit = {}) {
                 if (state.presets.isEmpty()) {
                     Text("No presets available — create one on the Presets tab.")
                 } else {
-                    Text("Preset: ${presetId ?: "(select)"}")
+                    val currentName = state.presets.firstOrNull { it.id == presetId }?.name
+                        ?: presetId ?: "(select)"
+                    Text("Preset:", style = MaterialTheme.typography.bodyMedium)
+                    Spacer(Modifier.padding(2.dp))
+                    Box {
+                        OutlinedTextField(
+                            value = currentName,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Select preset") },
+                            trailingIcon = { Text(if (presetExpanded) "▲" else "▼") },
+                            modifier = Modifier.fillMaxWidth().padding(top = 4.dp).clickable { presetExpanded = !presetExpanded }
+                                .let { m -> m }
+                        )
+                        DropdownMenu(expanded = presetExpanded, onDismissRequest = { presetExpanded = false }) {
+                            state.presets.forEach { p ->
+                                DropdownMenuItem(text = { Text(p.name) }, onClick = {
+                                    presetId = p.id
+                                    presetExpanded = false
+                                    notify("Preset selected: ${p.name}")
+                                })
+                            }
+                        }
+                    }
                 }
 
                 Spacer(Modifier.padding(8.dp))
-                // Inbound selection (simple)
-                Text("Inbound: $inboundMode")
+                // Inbound selection
+                Text("Inbound mode", style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.padding(2.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("STDIO", "HTTP", "WS").forEach { opt ->
+                        androidx.compose.material3.TextButton(onClick = {
+                            inboundMode = opt
+                            if (opt == "HTTP" && (inboundUrl.isBlank() || inboundUrl.startsWith("ws"))) {
+                                inboundUrl = "http://0.0.0.0:3335/mcp"
+                            }
+                            if (opt == "WS" && (inboundUrl.isBlank() || inboundUrl.startsWith("http"))) {
+                                inboundUrl = "ws://0.0.0.0:3336/ws"
+                            }
+                        }) {
+                            Text(if (inboundMode == opt) "[$opt]" else opt)
+                        }
+                    }
+                }
                 if (inboundMode != "STDIO") {
-                    Text("URL: $inboundUrl", style = MaterialTheme.typography.bodySmall)
+                    Spacer(Modifier.padding(2.dp))
+                    OutlinedTextField(
+                        value = inboundUrl,
+                        onValueChange = { inboundUrl = it },
+                        label = { Text(if (inboundMode == "WS") "WebSocket URL" else "HTTP URL") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
 
                 Spacer(Modifier.padding(8.dp))
