@@ -16,7 +16,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-class WebSocketMcpClientTest {
+class KtorMcpClientWebSocketTest {
     @Test
     fun connect_and_capabilities_and_callTool_with_mockito() {
         runBlocking {
@@ -26,7 +26,8 @@ class WebSocketMcpClientTest {
             whenever(facade.getPrompts()).thenReturn(listOf(PromptDescriptor("p1", "Prompt 1")))
             whenever(facade.callTool(any(), any())).thenReturn(buildJsonObject { put("ok", true) })
 
-            val client = WebSocketMcpClient(
+            val client = KtorMcpClient(
+                mode = KtorMcpClient.Mode.WebSocket,
                 url = "ws://localhost",
                 headersMap = emptyMap(),
                 connector = SdkConnector { facade }

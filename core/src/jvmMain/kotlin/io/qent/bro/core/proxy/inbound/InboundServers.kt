@@ -17,18 +17,6 @@ import io.qent.bro.core.models.TransportConfig
 import io.qent.bro.core.proxy.ProxyMcpServer
 import io.qent.bro.core.utils.ConsoleLogger
 import io.qent.bro.core.utils.Logger
-import kotlinx.coroutines.channels.consumeEach
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonNull
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.buildJsonArray
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.put
-import io.qent.bro.core.mcp.ServerCapabilities
-import io.qent.bro.core.mcp.ToolDescriptor
 import java.net.URI
 
 /**
@@ -48,8 +36,18 @@ object InboundServerFactory {
         logger: Logger = ConsoleLogger
     ): InboundServer = when (transport) {
         is TransportConfig.StdioTransport -> StdioInboundServer(proxy, logger)
-        is TransportConfig.HttpTransport -> HttpSseInboundServer(transport, proxy, logger)
-        is TransportConfig.WebSocketTransport -> WebSocketInboundServer(transport, proxy, logger)
+        is TransportConfig.HttpTransport -> KtorInboundServer(
+            url = transport.url,
+            mode = KtorInboundServer.Mode.Sse,
+            proxy = proxy,
+            logger = logger
+        )
+        is TransportConfig.WebSocketTransport -> KtorInboundServer(
+            url = transport.url,
+            mode = KtorInboundServer.Mode.WebSocket,
+            proxy = proxy,
+            logger = logger
+        )
     }
 }
 
@@ -78,46 +76,28 @@ private class StdioInboundServer(
     }
 }
 
-private class HttpSseInboundServer(
-    private val config: TransportConfig.HttpTransport,
+private class KtorInboundServer(
+    private val url: String,
+    private val mode: Mode,
     private val proxy: ProxyMcpServer,
     private val logger: Logger
 ) : InboundServer {
+    enum class Mode { Sse, WebSocket }
+
     private var engine: EmbeddedServer<*, *>? = null
 
     override fun start(): ServerStatus {
-        val (host, port, basePath) = parse(config.url)
-        logger.info("Starting HTTP inbound at http://$host:$port$basePath")
+        val (host, port, path) = parse(url)
+        val scheme = when (mode) { Mode.Sse -> "http"; Mode.WebSocket -> "ws" }
+        logger.info("Starting $mode inbound at $scheme://$host:$port$path")
         engine = embeddedServer(Netty, host = host, port = port, module = {
             install(CallLogging)
+            if (mode == Mode.WebSocket) install(WebSockets)
             routing {
-                mcp(basePath) { buildSdkServer(proxy) }
-            }
-        }).start(wait = false)
-        return ServerStatus.Running
-    }
-
-    override fun stop(): ServerStatus {
-        engine?.stop()
-        return ServerStatus.Stopped
-    }
-}
-
-private class WebSocketInboundServer(
-    private val config: TransportConfig.WebSocketTransport,
-    private val proxy: ProxyMcpServer,
-    private val logger: Logger
-) : InboundServer {
-    private var engine: EmbeddedServer<*, *>? = null
-
-    override fun start(): ServerStatus {
-        val (host, port, path) = parse(config.url)
-        logger.info("Starting WebSocket inbound at ws://$host:$port$path")
-        engine = embeddedServer(Netty, host = host, port = port, module = {
-            install(CallLogging)
-            install(WebSockets)
-            routing {
-                mcpWebSocket(path = path, block = { buildSdkServer(proxy) })
+                when (mode) {
+                    Mode.Sse -> mcp(path) { buildSdkServer(proxy) }
+                    Mode.WebSocket -> mcpWebSocket(path = path, block = { buildSdkServer(proxy) })
+                }
             }
         }).start(wait = false)
         return ServerStatus.Running

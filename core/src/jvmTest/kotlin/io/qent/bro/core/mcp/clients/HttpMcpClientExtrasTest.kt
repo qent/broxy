@@ -11,7 +11,7 @@ import org.mockito.kotlin.whenever
 import kotlin.test.Test
 import kotlin.test.assertTrue
 
-class HttpMcpClientExtrasTest {
+class KtorMcpClientExtrasTest {
     @Test
     fun getPrompt_and_readResource_with_mockito() {
         runBlocking {
@@ -19,9 +19,10 @@ class HttpMcpClientExtrasTest {
             whenever(facade.getPrompt("p1")).thenReturn(GetPromptResult(description = "d", messages = emptyList(), _meta = JsonObject(emptyMap())))
             whenever(facade.readResource("u1")).thenReturn(ReadResourceResult(contents = emptyList(), _meta = JsonObject(emptyMap())))
 
-            val client = HttpMcpClient(
+            val client = KtorMcpClient(
+                mode = KtorMcpClient.Mode.Sse,
                 url = "http://localhost",
-                defaultHeaders = emptyMap(),
+                headersMap = emptyMap(),
                 connector = SdkConnector { facade }
             )
 
@@ -38,4 +39,3 @@ class HttpMcpClientExtrasTest {
         }
     }
 }
-

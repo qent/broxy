@@ -1,8 +1,7 @@
 package io.qent.bro.core.mcp
 
-import io.qent.bro.core.mcp.clients.HttpMcpClient
+import io.qent.bro.core.mcp.clients.KtorMcpClient
 import io.qent.bro.core.mcp.clients.StdioMcpClient
-import io.qent.bro.core.mcp.clients.WebSocketMcpClient
 import io.qent.bro.core.models.TransportConfig
 import kotlin.test.Test
 import kotlin.test.assertTrue
@@ -16,10 +15,9 @@ class McpClientFactoryJvmTest {
         assertTrue(stdio is StdioMcpClient)
 
         val http = factory.create(TransportConfig.HttpTransport(url = "http://localhost:1234/mcp", headers = mapOf("h" to "v")))
-        assertTrue(http is HttpMcpClient)
+        assertTrue(http is KtorMcpClient)
 
         val ws = factory.create(TransportConfig.WebSocketTransport(url = "ws://localhost:1235/mcp"))
-        assertTrue(ws is WebSocketMcpClient)
+        assertTrue(ws is KtorMcpClient)
     }
 }
-

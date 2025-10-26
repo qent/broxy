@@ -1,8 +1,7 @@
 package io.qent.bro.core.mcp
 
-import io.qent.bro.core.mcp.clients.HttpMcpClient
 import io.qent.bro.core.mcp.clients.StdioMcpClient
-import io.qent.bro.core.mcp.clients.WebSocketMcpClient
+import io.qent.bro.core.mcp.clients.KtorMcpClient
 import io.qent.bro.core.models.TransportConfig
 
 private object DefaultJvmMcpClientProvider : McpClientProvider {
@@ -12,11 +11,13 @@ private object DefaultJvmMcpClientProvider : McpClientProvider {
             args = config.args,
             env = env
         )
-        is TransportConfig.HttpTransport -> HttpMcpClient(
+        is TransportConfig.HttpTransport -> KtorMcpClient(
+            mode = KtorMcpClient.Mode.Sse,
             url = config.url,
-            defaultHeaders = config.headers
+            headersMap = config.headers
         )
-        is TransportConfig.WebSocketTransport -> WebSocketMcpClient(
+        is TransportConfig.WebSocketTransport -> KtorMcpClient(
+            mode = KtorMcpClient.Mode.WebSocket,
             url = config.url
         )
     }
