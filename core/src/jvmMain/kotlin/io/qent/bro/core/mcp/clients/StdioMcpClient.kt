@@ -56,11 +56,16 @@ class StdioMcpClient(
 
     override suspend fun fetchCapabilities(): Result<ServerCapabilities> = runCatching {
         val c = client ?: throw IllegalStateException("Not connected")
-        ServerCapabilities(
-            tools = c.getTools(),
-            resources = c.getResources(),
-            prompts = c.getPrompts()
-        )
+        val tools = kotlin.runCatching { c.getTools() }
+            .onFailure { logger.warn("listTools not available; treating as empty.", it) }
+            .getOrDefault(emptyList())
+        val resources = kotlin.runCatching { c.getResources() }
+            .onFailure { logger.warn("listResources not available; treating as empty.", it) }
+            .getOrDefault(emptyList())
+        val prompts = kotlin.runCatching { c.getPrompts() }
+            .onFailure { logger.warn("listPrompts not available; treating as empty.", it) }
+            .getOrDefault(emptyList())
+        ServerCapabilities(tools = tools, resources = resources, prompts = prompts)
     }
 
     override suspend fun callTool(name: String, arguments: JsonObject): Result<JsonElement> = runCatching {

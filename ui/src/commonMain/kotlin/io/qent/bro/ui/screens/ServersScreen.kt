@@ -79,17 +79,18 @@ fun ServersScreen(ui: UIState, state: AppState, store: AppStore, notify: (String
                                 cfg = cfg,
                                 onToggle = { id, enabled ->
                                     if (enabled) {
-                                        // Validate before enabling to surface errors/timeout quickly
+                                        // Optimistically enable to reflect "connecting" status immediately
+                                        ui.intents.toggleServer(id, true)
                                         scope.launch {
                                             val draft = store.getServerDraft(id)
                                             if (draft == null) {
                                                 notify("Failed to load server config for '${cfg.name}'")
+                                                // Revert enable if draft missing
+                                                ui.intents.toggleServer(id, false)
                                                 return@launch
                                             }
                                             val result = io.qent.bro.ui.adapter.services.validateServerConnection(draft)
-                                            if (result.isSuccess) {
-                                                ui.intents.toggleServer(id, true)
-                                            } else {
+                                            if (result.isFailure) {
                                                 val e = result.exceptionOrNull()
                                                 val isTimeout = e?.message?.contains("timed out", ignoreCase = true) == true
                                                 if (isTimeout) {
@@ -99,6 +100,8 @@ fun ServersScreen(ui: UIState, state: AppState, store: AppStore, notify: (String
                                                     val details = errMsg?.let { ": $it" } ?: ""
                                                     notify("Connection failed for '${cfg.name}'$details")
                                                 }
+                                                // Revert if validation fails
+                                                ui.intents.toggleServer(id, false)
                                             }
                                         }
                                     } else {

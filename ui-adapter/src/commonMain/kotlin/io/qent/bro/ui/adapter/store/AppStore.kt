@@ -138,10 +138,13 @@ class AppStore(
                     is UiWebSocketTransport -> "WebSocket"
                 }
             val snap = capsCache[s.id]
+            // Ensure newly enabled servers render as Connecting immediately,
+            // regardless of any stale Disabled status in serverStatus map.
             val status = when {
                 !s.enabled -> UiServerConnStatus.Disabled
                 snap != null -> UiServerConnStatus.Available
-                else -> serverStatus[s.id] ?: UiServerConnStatus.Connecting
+                serverStatus[s.id] == UiServerConnStatus.Error -> UiServerConnStatus.Error
+                else -> UiServerConnStatus.Connecting
             }
             UiServer(
                 id = s.id,
