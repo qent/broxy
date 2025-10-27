@@ -31,7 +31,7 @@ class ProxyCommand : CliktCommand(name = "proxy", help = "Run bro server") {
 
     private val presetId: String by option("--preset-id", help = "Preset ID, e.g. 'developer' (loads preset_developer.json)").required()
 
-    private val inbound: String by option("--inbound", help = "Inbound transport: stdio|http|ws").default("stdio")
+    private val inbound: String by option("--inbound", help = "Inbound transport: stdio|http|streamable-http|ws").default("stdio")
 
     private val url: String? by option("--url", help = "Listen URL for http/ws inbound (e.g. http://0.0.0.0:3335/mcp or ws://0.0.0.0:3336/ws)")
 
@@ -62,6 +62,7 @@ class ProxyCommand : CliktCommand(name = "proxy", help = "Run bro server") {
         val inboundTransport = when (inbound) {
             "stdio" -> TransportConfig.StdioTransport(command = "", args = emptyList())
             "http" -> TransportConfig.HttpTransport(url = url ?: "http://0.0.0.0:3335/mcp")
+            "streamable-http", "streamhttp" -> TransportConfig.StreamableHttpTransport(url = url ?: "http://0.0.0.0:3337/mcp")
             "ws", "websocket" -> TransportConfig.WebSocketTransport(url = url ?: "ws://0.0.0.0:3336/ws")
             else -> error("Unsupported inbound: $inbound")
         }

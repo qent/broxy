@@ -17,6 +17,9 @@ class McpClientFactoryJvmTest {
         val http = factory.create(TransportConfig.HttpTransport(url = "http://localhost:1234/mcp", headers = mapOf("h" to "v")))
         assertTrue(http is KtorMcpClient)
 
+        val stream = factory.create(TransportConfig.StreamableHttpTransport(url = "http://localhost:1234/mcp", headers = mapOf("h" to "v")))
+        assertTrue(stream is KtorMcpClient)
+
         val ws = factory.create(TransportConfig.WebSocketTransport(url = "ws://localhost:1235/mcp"))
         assertTrue(ws is KtorMcpClient)
     }

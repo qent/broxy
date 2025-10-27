@@ -64,6 +64,11 @@ class JsonConfigurationRepository(
                         ?: fail("Server '$id' (http): 'url' is required")
                     TransportConfig.HttpTransport(url = url, headers = e.headers ?: emptyMap())
                 }
+                "streamable-http", "streamhttp", "streamable" -> {
+                    val url = e.url?.takeIf { it.isNotBlank() }
+                        ?: fail("Server '$id' (streamable-http): 'url' is required")
+                    TransportConfig.StreamableHttpTransport(url = url, headers = e.headers ?: emptyMap())
+                }
                 "ws", "websocket" -> {
                     val url = e.url?.takeIf { it.isNotBlank() }
                         ?: fail("Server '$id' (websocket): 'url' is required")
@@ -118,6 +123,14 @@ class JsonConfigurationRepository(
                         name = s.name,
                         enabled = s.enabled,
                         transport = "http",
+                        url = t.url,
+                        headers = t.headers,
+                        env = s.env
+                    )
+                    is TransportConfig.StreamableHttpTransport -> FileMcpServer(
+                        name = s.name,
+                        enabled = s.enabled,
+                        transport = "streamable-http",
                         url = t.url,
                         headers = t.headers,
                         env = s.env
@@ -210,6 +223,7 @@ class JsonConfigurationRepository(
             when (val t = s.transport) {
                 is TransportConfig.StdioTransport -> if (t.command.isBlank()) fail("Server '${s.id}': stdio.command cannot be blank")
                 is TransportConfig.HttpTransport -> if (t.url.isBlank()) fail("Server '${s.id}': http.url cannot be blank")
+                is TransportConfig.StreamableHttpTransport -> if (t.url.isBlank()) fail("Server '${s.id}': streamable-http.url cannot be blank")
                 is TransportConfig.WebSocketTransport -> if (t.url.isBlank()) fail("Server '${s.id}': ws.url cannot be blank")
             }
         }

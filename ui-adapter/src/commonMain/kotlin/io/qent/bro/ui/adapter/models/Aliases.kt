@@ -8,6 +8,7 @@ typealias UiMcpServersConfig = io.qent.bro.core.models.McpServersConfig
 typealias UiTransportConfig = io.qent.bro.core.models.TransportConfig
 typealias UiStdioTransport = io.qent.bro.core.models.TransportConfig.StdioTransport
 typealias UiHttpTransport = io.qent.bro.core.models.TransportConfig.HttpTransport
+typealias UiStreamableHttpTransport = io.qent.bro.core.models.TransportConfig.StreamableHttpTransport
 typealias UiWebSocketTransport = io.qent.bro.core.models.TransportConfig.WebSocketTransport
 typealias UiPresetCore = io.qent.bro.core.models.Preset
 typealias UiToolReference = io.qent.bro.core.models.ToolReference

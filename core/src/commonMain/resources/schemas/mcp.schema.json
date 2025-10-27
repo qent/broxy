@@ -26,7 +26,7 @@
         "enabled": { "type": "boolean", "default": true },
         "transport": {
           "type": "string",
-          "enum": ["stdio", "http", "websocket", "ws"]
+          "enum": ["stdio", "http", "streamable-http", "websocket", "ws"]
         },
         "command": { "type": "string", "minLength": 1 },
         "args": {
@@ -53,6 +53,10 @@
         },
         {
           "if": { "properties": { "transport": { "const": "http" } }, "required": ["transport"] },
+          "then": { "required": ["url"] }
+        },
+        {
+          "if": { "properties": { "transport": { "const": "streamable-http" } }, "required": ["transport"] },
           "then": { "required": ["url"] }
         },
         {

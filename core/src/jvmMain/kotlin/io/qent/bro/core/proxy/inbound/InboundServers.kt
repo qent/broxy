@@ -43,6 +43,12 @@ object InboundServerFactory {
             proxy = proxy,
             logger = logger
         )
+        is TransportConfig.StreamableHttpTransport -> KtorInboundServer(
+            url = transport.url,
+            mode = KtorInboundServer.Mode.StreamableHttp,
+            proxy = proxy,
+            logger = logger
+        )
         is TransportConfig.WebSocketTransport -> KtorInboundServer(
             url = transport.url,
             mode = KtorInboundServer.Mode.WebSocket,
@@ -83,21 +89,21 @@ private class KtorInboundServer(
     private val proxy: ProxyMcpServer,
     private val logger: Logger
 ) : InboundServer {
-    enum class Mode { Sse, WebSocket }
+    enum class Mode { Sse, StreamableHttp, WebSocket }
 
     private var engine: EmbeddedServer<*, *>? = null
 
     override fun start(): ServerStatus {
         val (host, port, path) = parse(url)
-        val scheme = when (mode) { Mode.Sse -> "http"; Mode.WebSocket -> "ws" }
+        val scheme = when (mode) { Mode.Sse, Mode.StreamableHttp -> "http"; Mode.WebSocket -> "ws" }
         logger.info("Starting $mode inbound at $scheme://$host:$port$path")
         engine = embeddedServer(Netty, host = host, port = port, module = {
             install(CallLogging)
-            if (mode == Mode.Sse) install(SSE)
+            if (mode == Mode.Sse || mode == Mode.StreamableHttp) install(SSE)
             if (mode == Mode.WebSocket) install(WebSockets)
             routing {
                 when (mode) {
-                    Mode.Sse -> mcp(path) { buildSdkServer(proxy) }
+                    Mode.Sse, Mode.StreamableHttp -> mcp(path) { buildSdkServer(proxy) }
                     Mode.WebSocket -> mcpWebSocket(path = path, block = { buildSdkServer(proxy) })
                 }
             }

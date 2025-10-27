@@ -20,6 +20,13 @@ sealed class TransportConfig {
     ) : TransportConfig()
 
     @Serializable
+    @SerialName("streamable-http")
+    data class StreamableHttpTransport(
+        val url: String,
+        val headers: Map<String, String> = emptyMap()
+    ) : TransportConfig()
+
+    @Serializable
     @SerialName("websocket")
     data class WebSocketTransport(
         val url: String

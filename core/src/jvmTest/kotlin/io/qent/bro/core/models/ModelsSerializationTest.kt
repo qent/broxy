@@ -24,6 +24,20 @@ class ModelsSerializationTest {
     }
 
     @Test
+    fun transportConfig_roundtrip_for_streamable_http() {
+        val cfg = McpServerConfig(
+            id = "s1s",
+            name = "Server 1S",
+            transport = TransportConfig.StreamableHttpTransport(url = "http://localhost:1234/mcp", headers = mapOf("X" to "y")),
+            enabled = true
+        )
+        val encoded = json.encodeToString(McpServerConfig.serializer(), cfg)
+        val decoded = json.decodeFromString(McpServerConfig.serializer(), encoded)
+        assertEquals(cfg, decoded)
+        assertTrue(encoded.contains("\"type\":\"streamable-http\""))
+    }
+
+    @Test
     fun transportConfig_roundtrip_for_stdio() {
         val cfg = McpServerConfig(
             id = "s2",
@@ -53,4 +67,3 @@ class ModelsSerializationTest {
         assertEquals(preset, decoded)
     }
 }
-

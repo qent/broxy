@@ -12,6 +12,7 @@ import io.qent.bro.ui.adapter.models.UiServer
 import io.qent.bro.ui.adapter.models.UiServerDraft
 import io.qent.bro.ui.adapter.models.UiStdioDraft
 import io.qent.bro.ui.adapter.models.UiStdioTransport
+import io.qent.bro.ui.adapter.models.UiStreamableHttpTransport
 import io.qent.bro.ui.adapter.models.UiToolRef
 import io.qent.bro.ui.adapter.models.UiWebSocketDraft
 import io.qent.bro.ui.adapter.models.UiWebSocketTransport
@@ -77,6 +78,7 @@ class AppStore(
         val draftTransport = when (val t = cfg.transport) {
             is UiStdioTransport -> UiStdioDraft(command = t.command, args = t.args)
             is UiHttpTransport -> UiHttpDraft(url = t.url, headers = t.headers)
+            is UiStreamableHttpTransport -> UiHttpDraft(url = t.url, headers = t.headers)
             is UiWebSocketTransport -> UiWebSocketDraft(url = t.url)
         }
         return UiServerDraft(
@@ -126,11 +128,12 @@ class AppStore(
 
     private fun publishReady() {
         val uiServers = servers.map { s ->
-            val label = when (s.transport) {
-                is UiStdioTransport -> "STDIO"
-                is UiHttpTransport -> "HTTP"
-                is UiWebSocketTransport -> "WebSocket"
-            }
+                val label = when (s.transport) {
+                    is UiStdioTransport -> "STDIO"
+                    is UiHttpTransport -> "HTTP"
+                    is UiStreamableHttpTransport -> "HTTP (Streamable)"
+                    is UiWebSocketTransport -> "WebSocket"
+                }
             val snap = capsCache[s.id]
             val status = when {
                 !s.enabled -> UiServerConnStatus.Disabled

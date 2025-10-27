@@ -8,6 +8,7 @@ import io.ktor.client.plugins.sse.SSE
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.headers
 import io.modelcontextprotocol.kotlin.sdk.client.mcpSse
+import io.modelcontextprotocol.kotlin.sdk.client.mcpStreamableHttp
 import io.modelcontextprotocol.kotlin.sdk.client.mcpWebSocket
 import io.qent.bro.core.mcp.McpClient
 import io.qent.bro.core.mcp.ServerCapabilities
@@ -27,7 +28,7 @@ class KtorMcpClient(
     private val logger: Logger = ConsoleLogger,
     private val connector: SdkConnector? = null
 ) : McpClient {
-    enum class Mode { Sse, WebSocket }
+    enum class Mode { Sse, StreamableHttp, WebSocket }
 
     private var ktor: HttpClient? = null
     private var client: SdkClientFacade? = null
@@ -42,7 +43,7 @@ class KtorMcpClient(
         }
 
         ktor = HttpClient(CIO) {
-            if (mode == Mode.Sse) install(SSE)
+            if (mode == Mode.Sse || mode == Mode.StreamableHttp) install(SSE)
             if (mode == Mode.WebSocket) install(WebSockets)
             install(HttpTimeout) {
                 requestTimeoutMillis = 60_000
@@ -59,6 +60,7 @@ class KtorMcpClient(
 
         val sdk = when (mode) {
             Mode.Sse -> requireNotNull(ktor).mcpSse(urlString = url, reconnectionTime = 3.seconds, requestBuilder = reqBuilder)
+            Mode.StreamableHttp -> requireNotNull(ktor).mcpStreamableHttp(url = url, requestBuilder = reqBuilder)
             Mode.WebSocket -> requireNotNull(ktor).mcpWebSocket(urlString = url, requestBuilder = reqBuilder)
         }
         client = RealSdkClientFacade(sdk)
@@ -101,4 +103,3 @@ class KtorMcpClient(
         el as JsonObject
     }
 }
-
