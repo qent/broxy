@@ -97,7 +97,7 @@ fun MainWindow(state: AppState) {
         }
 
         // Dialogs
-        if (state.showAddServerDialog.value) AddServerDialog(state)
+        if (state.showAddServerDialog.value) AddServerDialog(state, notify)
         if (state.showAddPresetDialog.value) AddPresetDialog(state)
     }
 }
