@@ -35,8 +35,8 @@ class JsonConfigurationRepositoryTest {
             val repo = JsonConfigurationRepository(
                 baseDir = tmp,
                 json = Json { ignoreUnknownKeys = true },
-                envResolver = EnvironmentVariableResolver(envProvider = { mapOf("GITHUB_TOKEN" to "t") }),
-                logger = ConsoleLogger
+                logger = ConsoleLogger,
+                envResolver = EnvironmentVariableResolver(envProvider = { mapOf("GITHUB_TOKEN" to "t") })
             )
             val cfg = repo.loadMcpConfig()
             assertEquals(1, cfg.servers.size)

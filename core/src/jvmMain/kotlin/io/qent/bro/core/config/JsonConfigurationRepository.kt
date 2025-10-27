@@ -6,6 +6,7 @@ import io.qent.bro.core.models.Preset
 import io.qent.bro.core.models.TransportConfig
 import io.qent.bro.core.repository.ConfigurationRepository
 import io.qent.bro.core.utils.ConfigurationException
+import io.qent.bro.core.utils.ConsoleLogger
 import io.qent.bro.core.utils.Logger
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -22,27 +23,32 @@ import kotlin.io.path.name
 class JsonConfigurationRepository(
     baseDir: Path = Paths.get(System.getProperty("user.home"), ".config", "bro"),
     private val json: Json = Json { ignoreUnknownKeys = true; prettyPrint = true },
-    private val envResolver: EnvironmentVariableResolver = EnvironmentVariableResolver(),
-    private val logger: Logger? = null
+    private val logger: Logger = ConsoleLogger,
+    private val envResolver: EnvironmentVariableResolver = EnvironmentVariableResolver(logger = logger)
 ) : ConfigurationRepository {
 
     private val dir: Path = baseDir
     private val mcpFile: Path = dir.resolve("mcp.json")
 
+    private fun fail(message: String, cause: Throwable? = null): Nothing {
+        logger.error(message, cause)
+        throw ConfigurationException(message)
+    }
+
     override fun loadMcpConfig(): McpServersConfig {
         if (!mcpFile.exists()) {
-            logger?.warn("mcp.json not found at ${mcpFile.toAbsolutePath()}, using empty config")
+            logger.warn("mcp.json not found at ${mcpFile.toAbsolutePath()}, using empty config")
             return McpServersConfig(emptyList())
         }
         val text = try {
             Files.readString(mcpFile)
         } catch (e: IOException) {
-            throw ConfigurationException("Failed to read mcp.json: ${e.message}")
+            fail("Failed to read mcp.json: ${e.message}", e)
         }
         val root = try {
             json.decodeFromString(FileMcpRoot.serializer(), text)
         } catch (e: Exception) {
-            throw ConfigurationException("Invalid mcp.json format: ${e.message}")
+            fail("Invalid mcp.json format: ${e.message}", e)
         }
         val servers = root.mcpServers.map { (id, e) ->
             val name = e.name ?: id
@@ -50,20 +56,20 @@ class JsonConfigurationRepository(
             val transport: TransportConfig = when (transportType) {
                 "stdio" -> {
                     val cmd = e.command?.takeIf { it.isNotBlank() }
-                        ?: throw ConfigurationException("Server '$id' (stdio): 'command' is required")
+                        ?: fail("Server '$id' (stdio): 'command' is required")
                     TransportConfig.StdioTransport(command = cmd, args = e.args ?: emptyList())
                 }
                 "http" -> {
                     val url = e.url?.takeIf { it.isNotBlank() }
-                        ?: throw ConfigurationException("Server '$id' (http): 'url' is required")
+                        ?: fail("Server '$id' (http): 'url' is required")
                     TransportConfig.HttpTransport(url = url, headers = e.headers ?: emptyMap())
                 }
                 "ws", "websocket" -> {
                     val url = e.url?.takeIf { it.isNotBlank() }
-                        ?: throw ConfigurationException("Server '$id' (websocket): 'url' is required")
+                        ?: fail("Server '$id' (websocket): 'url' is required")
                     TransportConfig.WebSocketTransport(url = url)
                 }
-                else -> throw ConfigurationException("Server '$id': unsupported transport '${e.transport}'")
+                else -> fail("Server '$id': unsupported transport '${e.transport}'")
             }
 
             val envRaw: Map<String, String> = e.env ?: emptyMap()
@@ -71,12 +77,13 @@ class JsonConfigurationRepository(
             envRaw.forEach { (_, v) ->
                 val missing = envResolver.missingVars(v)
                 if (missing.isNotEmpty()) {
-                    throw ConfigurationException("Server '$id': missing env vars: ${missing.joinToString()}")
+                    fail("Server '$id': missing env vars: ${missing.joinToString()}")
                 }
             }
             val envResolved = try {
                 envResolver.resolveMap(envRaw)
             } catch (ex: ConfigurationException) {
+                logger.error("Server '$id': ${ex.message}")
                 throw ex
             }
             envResolver.logResolvedEnv("Loaded server '$id'", envResolved)
@@ -132,8 +139,9 @@ class JsonConfigurationRepository(
                 json.encodeToString(FileMcpRoot.serializer(), root),
                 StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING
             )
+            logger.info("Saved ${config.servers.size} MCP servers to ${mcpFile.toAbsolutePath()}")
         } catch (e: IOException) {
-            throw ConfigurationException("Failed to save mcp.json: ${e.message}")
+            fail("Failed to save mcp.json: ${e.message}", e)
         }
     }
 
@@ -157,8 +165,9 @@ class JsonConfigurationRepository(
                 json.encodeToString(Preset.serializer(), preset),
                 StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING
             )
+            logger.info("Saved preset '${preset.id}' to ${file.toAbsolutePath()}")
         } catch (e: IOException) {
-            throw ConfigurationException("Failed to save preset '${preset.id}': ${e.message}")
+            fail("Failed to save preset '${preset.id}': ${e.message}", e)
         }
     }
 
@@ -172,7 +181,7 @@ class JsonConfigurationRepository(
             for (p in ds) {
                 val preset = runCatching { json.decodeFromString(Preset.serializer(), Files.readString(p)) }
                     .getOrElse {
-                        logger?.warn("Failed to load preset file '${p.fileName}': ${it.message}")
+                        logger.warn("Failed to load preset file '${p.fileName}': ${it.message}")
                         null
                     }
                 if (preset != null) result.add(preset)
@@ -194,14 +203,14 @@ class JsonConfigurationRepository(
         if (servers.isEmpty()) return
         val ids = servers.map { it.id }
         val dup = ids.groupBy { it }.filterValues { it.size > 1 }.keys
-        if (dup.isNotEmpty()) throw ConfigurationException("Duplicate server IDs: ${dup.joinToString()}")
+        if (dup.isNotEmpty()) fail("Duplicate server IDs: ${dup.joinToString()}")
         servers.forEach { s ->
-            if (s.id.isBlank()) throw ConfigurationException("Server id cannot be blank")
-            if (s.name.isBlank()) throw ConfigurationException("Server '${s.id}': name cannot be blank")
+            if (s.id.isBlank()) fail("Server id cannot be blank")
+            if (s.name.isBlank()) fail("Server '${s.id}': name cannot be blank")
             when (val t = s.transport) {
-                is TransportConfig.StdioTransport -> if (t.command.isBlank()) throw ConfigurationException("Server '${s.id}': stdio.command cannot be blank")
-                is TransportConfig.HttpTransport -> if (t.url.isBlank()) throw ConfigurationException("Server '${s.id}': http.url cannot be blank")
-                is TransportConfig.WebSocketTransport -> if (t.url.isBlank()) throw ConfigurationException("Server '${s.id}': ws.url cannot be blank")
+                is TransportConfig.StdioTransport -> if (t.command.isBlank()) fail("Server '${s.id}': stdio.command cannot be blank")
+                is TransportConfig.HttpTransport -> if (t.url.isBlank()) fail("Server '${s.id}': http.url cannot be blank")
+                is TransportConfig.WebSocketTransport -> if (t.url.isBlank()) fail("Server '${s.id}': ws.url cannot be blank")
             }
         }
     }

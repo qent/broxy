@@ -45,8 +45,8 @@ class ProxyCommand : CliktCommand(name = "proxy", help = "Run bro server") {
         val repo = JsonConfigurationRepository(
             baseDir = Paths.get(configDir.absolutePath),
             json = json,
-            envResolver = EnvironmentVariableResolver(logger = logger),
-            logger = logger
+            logger = logger,
+            envResolver = EnvironmentVariableResolver(logger = logger)
         )
 
         var serversCfg = repo.loadMcpConfig()

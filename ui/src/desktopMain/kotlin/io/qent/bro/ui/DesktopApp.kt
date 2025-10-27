@@ -13,6 +13,7 @@ import io.qent.bro.core.config.ConfigurationWatcher
 import io.qent.bro.core.config.JsonConfigurationRepository
 import io.qent.bro.core.models.McpServersConfig
 import io.qent.bro.core.models.Preset
+import io.qent.bro.core.utils.ConsoleLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -21,12 +22,13 @@ fun main() = application {
     val state = AppState()
     Window(onCloseRequest = ::exitApplication, title = "bro") {
         // Initial load of servers and presets
-        val repo = remember { JsonConfigurationRepository() }
+        val repo = remember { JsonConfigurationRepository(logger = ConsoleLogger) }
         LaunchedEffect(Unit) {
             runCatching { repo.loadMcpConfig() }
                 .onSuccess { cfg ->
                     state.servers.clear(); state.servers.addAll(cfg.servers)
                 }
+                .onFailure { ConsoleLogger.error("Failed to load mcp.json: ${it.message}", it) }
             runCatching { repo.listPresets() }
                 .onSuccess { presets ->
                     state.presets.clear()
@@ -39,12 +41,13 @@ fun main() = application {
                         )
                     })
                 }
+                .onFailure { ConsoleLogger.error("Failed to load presets: ${it.message}", it) }
         }
 
         // Watch for external changes (reactive updates)
         val watcher = remember { mutableStateOf<ConfigurationWatcher?>(null) }
         LaunchedEffect(Unit) {
-            val w = ConfigurationWatcher(repo = repo)
+            val w = ConfigurationWatcher(repo = repo, logger = ConsoleLogger)
             w.addObserver(object : ConfigurationObserver {
                 override fun onConfigurationChanged(config: McpServersConfig) {
                     GlobalScope.launch(Dispatchers.Main) {

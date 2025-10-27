@@ -4,6 +4,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.websocket.WebSockets
+import io.ktor.client.plugins.sse.SSE
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.headers
 import io.modelcontextprotocol.kotlin.sdk.client.mcpSse
@@ -41,6 +42,7 @@ class KtorMcpClient(
         }
 
         ktor = HttpClient(CIO) {
+            if (mode == Mode.Sse) install(SSE)
             if (mode == Mode.WebSocket) install(WebSockets)
             install(HttpTimeout) {
                 requestTimeoutMillis = 60_000
