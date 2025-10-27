@@ -22,11 +22,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
-import io.qent.bro.core.models.McpServerConfig
-import io.qent.bro.core.models.ToolReference
+import io.qent.bro.ui.adapter.models.UiMcpServerConfig as McpServerConfig
+import io.qent.bro.ui.adapter.models.UiToolReference as ToolReference
 import io.qent.bro.ui.components.ToolSelector
 import io.qent.bro.ui.viewmodels.UiPreset
-import io.qent.bro.ui.viewmodels.slugify
+import io.qent.bro.ui.adapter.viewmodels.slugify
 
 @Composable
 fun PresetEditorDialog(
@@ -105,4 +105,3 @@ fun PresetEditorDialog(
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     )
 }
-

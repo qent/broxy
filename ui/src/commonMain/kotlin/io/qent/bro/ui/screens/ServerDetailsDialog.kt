@@ -14,17 +14,20 @@ import androidx.compose.material3.Divider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import io.qent.bro.core.models.McpServerConfig
-import io.qent.bro.ui.viewmodels.ServersViewModel
+import io.qent.bro.ui.adapter.models.UiMcpServerConfig as McpServerConfig
+import io.qent.bro.ui.adapter.viewmodels.ServerUiState
+import io.qent.bro.ui.adapter.viewmodels.ServersViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 
 @Composable
 fun ServerDetailsDialog(cfg: McpServerConfig, vm: ServersViewModel, onClose: () -> Unit) {
-    val state = vm.uiStates[cfg.id]?.value
-    val caps = state?.lastCapabilities
-    val logs = vm.getLogs(cfg.id)
+    val state = (vm.uiStates[cfg.id] ?: MutableStateFlow(ServerUiState())).collectAsState().value
+    val caps = state.lastCapabilities
+    val logs = vm.logsFlow(cfg.id).collectAsState().value
 
     AlertDialog(
         onDismissRequest = onClose,
@@ -64,4 +67,3 @@ fun ServerDetailsDialog(cfg: McpServerConfig, vm: ServersViewModel, onClose: () 
         }
     )
 }
-

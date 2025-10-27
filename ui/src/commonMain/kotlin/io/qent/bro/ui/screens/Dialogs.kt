@@ -16,13 +16,16 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
-import io.qent.bro.core.mcp.DefaultMcpServerConnection
-import io.qent.bro.core.mcp.ServerCapabilities
-import io.qent.bro.core.models.McpServerConfig
-import io.qent.bro.core.models.TransportConfig
+import io.qent.bro.ui.adapter.models.UiServerCapabilities as ServerCapabilities
+import io.qent.bro.ui.adapter.models.UiMcpServerConfig as McpServerConfig
+import io.qent.bro.ui.adapter.models.UiTransportConfig as TransportConfig
+import io.qent.bro.ui.adapter.models.UiStdioTransport as StdioTransport
+import io.qent.bro.ui.adapter.models.UiHttpTransport as HttpTransport
+import io.qent.bro.ui.adapter.models.UiWebSocketTransport as WebSocketTransport
 import io.qent.bro.ui.viewmodels.AppState
-import io.qent.bro.ui.data.provideConfigurationRepository
-import io.qent.bro.core.models.McpServersConfig
+import io.qent.bro.ui.adapter.data.provideConfigurationRepository
+import io.qent.bro.ui.adapter.models.UiMcpServersConfig as McpServersConfig
+import io.qent.bro.ui.adapter.services.fetchServerCapabilities
 import io.qent.bro.ui.viewmodels.UiPreset
 import kotlinx.coroutines.launch
 
@@ -47,7 +50,7 @@ fun AddServerDialog(state: AppState, notify: (String) -> Unit) {
                 val cmd = command.text.trim()
                 if (cmd.isBlank()) return null
                 val parts = args.text.split(',').mapNotNull { it.trim().takeIf { it.isNotEmpty() } }
-                TransportConfig.StdioTransport(command = cmd, args = parts)
+                StdioTransport(command = cmd, args = parts)
             }
             "HTTP" -> {
                 val u = url.text.trim()
@@ -56,12 +59,12 @@ fun AddServerDialog(state: AppState, notify: (String) -> Unit) {
                     val idx = line.indexOf(':')
                     if (idx <= 0) null else (line.substring(0, idx).trim() to line.substring(idx + 1).trim())
                 }.toMap()
-                TransportConfig.HttpTransport(url = u, headers = hdrs)
+                HttpTransport(url = u, headers = hdrs)
             }
             else -> { // WebSocket
                 val u = url.text.trim()
                 if (u.isBlank()) return null
-                TransportConfig.WebSocketTransport(url = u)
+                WebSocketTransport(url = u)
             }
         }
         val n = name.text.trim()
@@ -119,26 +122,17 @@ fun AddServerDialog(state: AppState, notify: (String) -> Unit) {
                         testing = true
                         errorText = null
                         lastTest = null
-                        val conn = DefaultMcpServerConnection(cfg)
-                        val connectResult = conn.connect()
-                        if (connectResult.isSuccess) {
-                            val caps = conn.getCapabilities(forceRefresh = true)
-                            if (caps.isSuccess) {
-                                val capabilities = caps.getOrNull()
-                                lastTest = capabilities
-                                notify("Test succeeded for ${cfg.name}: ${capabilities?.tools?.size ?: 0} tools")
-                            } else {
-                                val message = caps.exceptionOrNull()?.message ?: "Failed to fetch capabilities"
-                                errorText = message
-                                notify("Test failed for ${cfg.name}: $message")
-                            }
+                        val caps = fetchServerCapabilities(cfg)
+                        if (caps.isSuccess) {
+                            val capabilities = caps.getOrNull()
+                            lastTest = capabilities
+                            notify("Test succeeded for ${cfg.name}: ${'$'}{capabilities?.tools?.size ?: 0} tools")
                         } else {
-                            val message = connectResult.exceptionOrNull()?.message ?: "Failed to connect"
+                            val message = caps.exceptionOrNull()?.message ?: "Failed to fetch capabilities"
                             errorText = message
                             notify("Test failed for ${cfg.name}: $message")
                         }
                         testing = false
-                        conn.disconnect()
                     }
                 }, enabled = !testing) {
                     if (testing) CircularProgressIndicator()
@@ -193,15 +187,16 @@ fun EditServerDialog(
     var id by remember { mutableStateOf(TextFieldValue(initial.id)) }
     var transportType by remember { mutableStateOf(
         when (initial.transport) {
-            is TransportConfig.StdioTransport -> "STDIO"
-            is TransportConfig.HttpTransport -> "HTTP"
-            is TransportConfig.WebSocketTransport -> "WebSocket"
+            is StdioTransport -> "STDIO"
+            is HttpTransport -> "HTTP"
+            is WebSocketTransport -> "WebSocket"
+            else -> "STDIO"
         }
     ) }
-    var command by remember { mutableStateOf(TextFieldValue((initial.transport as? TransportConfig.StdioTransport)?.command ?: "")) }
-    var args by remember { mutableStateOf(TextFieldValue((initial.transport as? TransportConfig.StdioTransport)?.args?.joinToString(",") ?: "")) }
-    var url by remember { mutableStateOf(TextFieldValue((initial.transport as? TransportConfig.HttpTransport)?.url ?: (initial.transport as? TransportConfig.WebSocketTransport)?.url ?: "")) }
-    var headers by remember { mutableStateOf(TextFieldValue((initial.transport as? TransportConfig.HttpTransport)?.headers?.entries?.joinToString("\n") { (k, v) -> "$k:$v" } ?: "")) }
+    var command by remember { mutableStateOf(TextFieldValue((initial.transport as? StdioTransport)?.command ?: "")) }
+    var args by remember { mutableStateOf(TextFieldValue((initial.transport as? StdioTransport)?.args?.joinToString(",") ?: "")) }
+    var url by remember { mutableStateOf(TextFieldValue((initial.transport as? HttpTransport)?.url ?: (initial.transport as? WebSocketTransport)?.url ?: "")) }
+    var headers by remember { mutableStateOf(TextFieldValue((initial.transport as? HttpTransport)?.headers?.entries?.joinToString("\n") { (k, v) -> "$k:$v" } ?: "")) }
 
     fun buildConfig(): McpServerConfig? {
         val t: TransportConfig = when (transportType) {
@@ -209,7 +204,7 @@ fun EditServerDialog(
                 val cmd = command.text.trim()
                 val parts = args.text.split(',').mapNotNull { it.trim().takeIf { it.isNotEmpty() } }
                 if (cmd.isBlank()) return null
-                TransportConfig.StdioTransport(command = cmd, args = parts)
+                StdioTransport(command = cmd, args = parts)
             }
             "HTTP" -> {
                 val u = url.text.trim()
@@ -218,12 +213,12 @@ fun EditServerDialog(
                     val idx = line.indexOf(':')
                     if (idx <= 0) null else (line.substring(0, idx).trim() to line.substring(idx + 1).trim())
                 }.toMap()
-                TransportConfig.HttpTransport(url = u, headers = hdrs)
+                HttpTransport(url = u, headers = hdrs)
             }
             else -> {
                 val u = url.text.trim()
                 if (u.isBlank()) return null
-                TransportConfig.WebSocketTransport(url = u)
+                WebSocketTransport(url = u)
             }
         }
         val n = name.text.trim()

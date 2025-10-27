@@ -46,13 +46,23 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import io.qent.bro.core.mcp.ServerStatus
-import io.qent.bro.core.models.McpServerConfig
-import io.qent.bro.core.models.TransportConfig
+import io.qent.bro.ui.adapter.models.UiServerStatus as ServerStatus
+import io.qent.bro.ui.adapter.models.UiRunning as Running
+import io.qent.bro.ui.adapter.models.UiError as Error
+import io.qent.bro.ui.adapter.models.UiStarting as Starting
+import io.qent.bro.ui.adapter.models.UiStopping as Stopping
+import io.qent.bro.ui.adapter.models.UiStopped as Stopped
+import io.qent.bro.ui.adapter.models.UiMcpServerConfig as McpServerConfig
+import io.qent.bro.ui.adapter.models.UiTransportConfig as TransportConfig
 import io.qent.bro.ui.viewmodels.AppState
-import io.qent.bro.ui.viewmodels.ServersViewModel
-import io.qent.bro.ui.data.provideConfigurationRepository
-import io.qent.bro.core.models.McpServersConfig
+import io.qent.bro.ui.adapter.viewmodels.ServersViewModel
+import io.qent.bro.ui.adapter.data.provideConfigurationRepository
+import io.qent.bro.ui.adapter.models.UiMcpServersConfig as McpServersConfig
+import io.qent.bro.ui.adapter.models.UiHttpTransport as HttpTransport
+import io.qent.bro.ui.adapter.models.UiStdioTransport as StdioTransport
+import io.qent.bro.ui.adapter.models.UiWebSocketTransport as WebSocketTransport
+import androidx.compose.runtime.collectAsState
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -128,13 +138,14 @@ private fun ServerCard(
     onPersist: () -> Unit = {}
 ) {
     val scope = rememberCoroutineScope()
-    val ui = vm.uiStates.getOrPut(cfg.id) { mutableStateOf(io.qent.bro.ui.viewmodels.ServerUiState()) }.value
+    val ui = (vm.uiStates[cfg.id] ?: MutableStateFlow(io.qent.bro.ui.adapter.viewmodels.ServerUiState())).collectAsState().value
     val statusColor = when (ui.status) {
-        ServerStatus.Running -> Color(0xFF1DB954)
-        is ServerStatus.Error -> Color(0xFFD64545)
-        ServerStatus.Starting -> Color(0xFFFFB02E)
-        ServerStatus.Stopping -> Color(0xFF6C6F7D)
-        ServerStatus.Stopped -> MaterialTheme.colorScheme.outline
+        Running -> Color(0xFF1DB954)
+        is Error -> Color(0xFFD64545)
+        Starting -> Color(0xFFFFB02E)
+        Stopping -> Color(0xFF6C6F7D)
+        Stopped -> MaterialTheme.colorScheme.outline
+        else -> MaterialTheme.colorScheme.outline
     }
 
     Card(
@@ -211,10 +222,10 @@ private fun ServerCard(
         }
     }
 
-    if (vm.uiStates[cfg.id]?.value?.showDetails == true) {
+    if (ui.showDetails) {
         ServerDetailsDialog(cfg = cfg, vm = vm, onClose = { vm.closeDetails(cfg.id) })
     }
-    if (vm.uiStates[cfg.id]?.value?.showEdit == true) {
+    if (ui.showEdit) {
         EditServerDialog(
             initial = cfg,
             onSave = { newCfg ->
@@ -229,9 +240,10 @@ private fun ServerCard(
 }
 
 private fun transportLabel(t: TransportConfig): String = when (t) {
-    is TransportConfig.StdioTransport -> "STDIO"
-    is TransportConfig.HttpTransport -> "HTTP"
-    is TransportConfig.WebSocketTransport -> "WebSocket"
+    is StdioTransport -> "STDIO"
+    is HttpTransport -> "HTTP"
+    is WebSocketTransport -> "WebSocket"
+    else -> ""
 }
 
 @Composable

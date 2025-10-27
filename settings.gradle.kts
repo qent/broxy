@@ -21,6 +21,7 @@ rootProject.name = "bro"
 
 include(
     "core",
+    "ui-adapter",
     "ui",
     "cli"
 )

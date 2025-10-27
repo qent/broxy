@@ -35,10 +35,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import io.qent.bro.core.models.ToolReference
+import io.qent.bro.ui.adapter.models.UiToolReference as ToolReference
 import io.qent.bro.ui.viewmodels.AppState
-import io.qent.bro.ui.viewmodels.PresetsViewModel
+import io.qent.bro.ui.adapter.viewmodels.PresetsViewModel
 import io.qent.bro.ui.viewmodels.UiPreset
+import androidx.compose.runtime.collectAsState
+import kotlinx.coroutines.flow.MutableStateFlow
 
 @Composable
 fun PresetsScreen(state: AppState) {
@@ -81,8 +83,8 @@ fun PresetsScreen(state: AppState) {
                         },
                         onDelete = { vm.removePreset(state.presets, preset.id) }
                     )
-                    val ui = vm.uiStates[preset.id]?.value
-                    if (ui?.showEditor == true) {
+                    val ui = (vm.uiStates[preset.id] ?: MutableStateFlow(io.qent.bro.ui.adapter.viewmodels.PresetUiState())).collectAsState().value
+                    if (ui.showEditor) {
                         val selection = vm.getSelection(preset.id)
                         PresetEditorDialog(
                             servers = state.servers,
@@ -93,8 +95,9 @@ fun PresetsScreen(state: AppState) {
                             onDismiss = { vm.closeEdit(preset.id) }
                         )
                     }
-                    if (ui?.exportJson != null) {
-                        ExportPresetDialog(json = ui.exportJson) { vm.closeExport(preset.id) }
+                    val exportJson = ui.exportJson
+                    if (exportJson != null) {
+                        ExportPresetDialog(json = exportJson) { vm.closeExport(preset.id) }
                     }
                 }
             }

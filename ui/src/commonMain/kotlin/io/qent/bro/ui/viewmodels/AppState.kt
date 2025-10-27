@@ -4,7 +4,8 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshots.SnapshotStateList
-import io.qent.bro.core.models.McpServerConfig
+import io.qent.bro.ui.adapter.models.UiMcpServerConfig
+import io.qent.bro.ui.adapter.models.UiPreset as AdapterUiPreset
 
 /**
  * Global UI state for the application.
@@ -17,10 +18,10 @@ class AppState(
     val currentScreen: MutableState<Screen> = mutableStateOf(initialScreen)
 
     // Servers management (configs live here; connections handled by ViewModel)
-    val servers: SnapshotStateList<McpServerConfig> = mutableStateListOf()
+    val servers: SnapshotStateList<UiMcpServerConfig> = mutableStateListOf()
 
     // Presets management
-    val presets: SnapshotStateList<UiPreset> = mutableStateListOf()
+    val presets: SnapshotStateList<AdapterUiPreset> = mutableStateListOf()
 
     // Proxy status
     val proxyStatus: MutableState<ProxyStatus> = mutableStateOf(ProxyStatus.Stopped)
@@ -41,12 +42,8 @@ enum class Screen(val title: String) {
 }
 
 // Minimal UI-layer models
-data class UiPreset(
-    val id: String,
-    val name: String,
-    val description: String? = null,
-    val toolsCount: Int = 0
-)
+// UI preset summary re-export for convenience
+typealias UiPreset = AdapterUiPreset
 
 sealed class ProxyStatus {
     data object Running : ProxyStatus()

@@ -14,7 +14,7 @@ kotlin {
     sourceSets {
         val commonMain by getting {
             dependencies {
-                implementation(project(":core"))
+                implementation(project(":ui-adapter"))
                 implementation(compose.runtime)
                 implementation(compose.foundation)
                 implementation(compose.material3)
@@ -24,6 +24,7 @@ kotlin {
         val desktopMain by getting {
             dependencies {
                 implementation(compose.desktop.currentOs)
+                implementation(project(":ui-adapter"))
             }
         }
         val desktopTest by getting {
@@ -32,6 +33,8 @@ kotlin {
                 implementation("org.mockito:mockito-core:5.14.1")
                 implementation("org.mockito.kotlin:mockito-kotlin:5.3.1")
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:${property("coroutinesVersion")}")
+                implementation(project(":core"))
+                implementation(project(":ui-adapter"))
             }
         }
     }

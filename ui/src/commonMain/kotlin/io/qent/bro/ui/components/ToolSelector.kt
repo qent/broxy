@@ -39,10 +39,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import io.qent.bro.core.mcp.DefaultMcpServerConnection
-import io.qent.bro.core.mcp.ServerCapabilities
-import io.qent.bro.core.models.McpServerConfig
-import io.qent.bro.core.models.ToolReference
+import io.qent.bro.ui.adapter.models.UiMcpServerConfig as McpServerConfig
+import io.qent.bro.ui.adapter.models.UiToolReference as ToolReference
+import io.qent.bro.ui.adapter.models.UiServerCapabilities as ServerCapabilities
+import io.qent.bro.ui.adapter.services.fetchServerCapabilities
 import kotlinx.coroutines.launch
 
 private data class ToolItem(
@@ -90,32 +90,23 @@ fun ToolSelector(
         sections.values.forEach { sec ->
             sec.loading = true
             sec.error = null
-            val conn = DefaultMcpServerConnection(sec.config)
-            val r = conn.connect()
-            if (r.isFailure) {
-                sec.loading = false
-                sec.error = r.exceptionOrNull()?.message
+            val caps = fetchServerCapabilities(sec.config)
+            if (caps.isSuccess) {
+                val c: ServerCapabilities = caps.getOrThrow()
                 sec.tools.clear()
-            } else {
-                val caps = conn.getCapabilities(forceRefresh = true)
-                if (caps.isSuccess) {
-                    val c: ServerCapabilities = caps.getOrThrow()
-                    sec.tools.clear()
-                    sec.tools.addAll(c.tools.map { t ->
-                        ToolItem(name = t.name, description = t.description, available = true, selected = false)
-                    })
-                    // apply initial selection
-                    initialSelection.filter { it.serverId == sec.config.id && it.enabled }.forEach { sel ->
-                        sec.tools.find { it.name == sel.toolName }?.let { it.selected = true }
-                    }
-                    sec.loading = false
-                } else {
-                    sec.loading = false
-                    sec.error = caps.exceptionOrNull()?.message
-                    sec.tools.clear()
+                sec.tools.addAll(c.tools.map { t ->
+                    ToolItem(name = t.name, description = t.description, available = true, selected = false)
+                })
+                // apply initial selection
+                initialSelection.filter { it.serverId == sec.config.id && it.enabled }.forEach { sel ->
+                    sec.tools.find { it.name == sel.toolName }?.let { it.selected = true }
                 }
+                sec.loading = false
+            } else {
+                sec.loading = false
+                sec.error = caps.exceptionOrNull()?.message
+                sec.tools.clear()
             }
-            conn.disconnect()
         }
         emitSelection()
     }

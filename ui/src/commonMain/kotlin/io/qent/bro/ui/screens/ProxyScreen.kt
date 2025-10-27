@@ -27,11 +27,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import io.qent.bro.core.models.TransportConfig
-import io.qent.bro.ui.data.provideConfigurationRepository
+import io.qent.bro.ui.adapter.models.UiTransportConfig as TransportConfig
+import io.qent.bro.ui.adapter.models.UiStdioTransport as StdioTransport
+import io.qent.bro.ui.adapter.models.UiHttpTransport as HttpTransport
+import io.qent.bro.ui.adapter.models.UiWebSocketTransport as WebSocketTransport
+import io.qent.bro.ui.adapter.data.provideConfigurationRepository
 import io.qent.bro.ui.viewmodels.AppState
-import io.qent.bro.ui.viewmodels.ProxyStatus
-import io.qent.bro.ui.viewmodels.ProxyViewModel
+import io.qent.bro.ui.adapter.viewmodels.ProxyStatus
+import io.qent.bro.ui.adapter.viewmodels.ProxyViewModel
+import androidx.compose.runtime.collectAsState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -119,8 +123,8 @@ fun ProxyScreen(state: AppState, notify: (String) -> Unit = {}) {
                 }
 
                 Spacer(Modifier.padding(8.dp))
-                val running = vm.status.value is ProxyStatus.Running
-                val statusText = when (val s = vm.status.value) {
+                val running = vm.status.collectAsState().value is ProxyStatus.Running
+                val statusText = when (val s = vm.status.collectAsState().value) {
                     ProxyStatus.Running -> "Running"
                     ProxyStatus.Stopped -> "Stopped"
                     is ProxyStatus.Error -> "Error: ${s.message}"
@@ -136,9 +140,9 @@ fun ProxyScreen(state: AppState, notify: (String) -> Unit = {}) {
                             return@Button
                         }
                         val inbound = when (inboundMode) {
-                            "STDIO" -> TransportConfig.StdioTransport(command = "", args = emptyList())
-                            "WS" -> TransportConfig.WebSocketTransport(url = inboundUrl.replace("http://", "ws://").replace("https://", "wss://"))
-                            else -> TransportConfig.HttpTransport(url = inboundUrl)
+                            "STDIO" -> StdioTransport(command = "", args = emptyList())
+                            "WS" -> WebSocketTransport(url = inboundUrl.replace("http://", "ws://").replace("https://", "wss://"))
+                            else -> HttpTransport(url = inboundUrl)
                         }
                         val r = vm.start(state.servers.toList(), pid, inbound)
                         if (r.isSuccess) notify("Proxy started ($inboundMode)") else notify("Failed to start: ${r.exceptionOrNull()?.message}")

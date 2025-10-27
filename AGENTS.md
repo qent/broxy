@@ -7,7 +7,7 @@
 
 - **Domain Layer (core)**: Бизнес-логика, не зависящая от фреймворков и платформ
 - **Data Layer (core)**: Репозитории, работа с данными, MCP клиенты/серверы
-- **Presentation Layer (ui/cli)**: UI компоненты, ViewModels, CLI команды
+- **Presentation Layer (ui/ui-adapter/cli)**: Compose UI, адаптер презентации (формирование состояния), CLI команды
 
 ### 2. SOLID принципы
 
@@ -54,13 +54,18 @@ bro/
 │   │   ├── jvmMain/          # JVM-специфичный код
 │   │   └── nativeMain/       # Native-специфичный код
 │   └── build.gradle.kts
-├── ui/                        # Compose Multiplatform UI
+├── ui-adapter/                # Адаптер презентации (UDF/MVI, Flow)
 │   ├── src/
-│   │   ├── commonMain/       # Общий UI код
+│   │   ├── commonMain/       # Общие view-models, интерфейсы, алиасы core типов
+│   │   └── jvmMain/          # JVM-реализации (ProxyController, ToolService)
+│   └── build.gradle.kts
+├── ui/                        # Compose Multiplatform UI (тонкий слой)
+│   ├── src/
+│   │   ├── commonMain/       # Общий UI код (чистые Composable)
 │   │   │   ├── screens/      # Экраны приложения
 │   │   │   ├── components/   # Переиспользуемые компоненты
 │   │   │   ├── theme/        # Material 3 тема
-│   │   │   └── viewmodels/   # ViewModels
+│   │   │   └── viewmodels/   # Только AppState и UI-модели
 │   │   ├── desktopMain/      # Desktop-специфичный UI
 │   │   └── resources/        # Ресурсы (иконки, строки)
 │   └── build.gradle.kts
@@ -72,6 +77,34 @@ bro/
 │   └── build.gradle.kts
 └── build.gradle.kts          # Root build файл
 ```
+
+## Тонкий UI на UDF + Compose
+
+- Единое направление данных (UDF): события от UI → интенты → адаптер (ui-adapter) → обновление `StateFlow` состояния → UI отображает через `collectAsState()`.
+- MVI: явно моделируем три сущности
+  - State: неизменяемые data-классы UI-состояния (без ссылок на core), публикуются как `StateFlow`.
+  - Intent: действия пользователя/системы; UI вызывает методы/диспетчер адаптера, не мутирует состояние напрямую.
+  - Effect: одноразовые события (tost/snackbar/навигация) — как `SharedFlow`/каналы.
+- UI-модуль
+  - Содержит только Composable-функции, тему, простые UI-модели и `AppState` для локальных визуальных настроек.
+  - Не импортирует `core`. Любые доменные типы приходят из `ui-adapter` (через алиасы/модели).
+  - Не содержит побочных эффектов работы с сетью/файлами — только подписки на `Flow` и вызовы коллбеков.
+  - Никаких `GlobalScope`; эффекты — в `LaunchedEffect`/`rememberCoroutineScope` только для вызова адаптера.
+- ui-adapter
+  - Зависит от `core`. Инкапсулирует всю логику презентации, IO, orchestration, кеши и жизненный цикл.
+  - Экспортирует: view-models/сторы на `StateFlow`, сервисы (ProxyController, ToolService), провайдеры репозиториев.
+  - Предоставляет UI-модели без утечек domain-типов; допустимы `typealias` для прозрачной инкапсуляции.
+  - Не зависит от Compose: никаких `MutableState`, `SnapshotStateList` и пр. Только Kotlin/Coroutines.
+- Коллекция состояния в UI
+  - Всегда `collectAsState()` из `StateFlow`.
+  - Никаких `.value =` в UI — изменения только через интенты/методы адаптера.
+- Обработка ошибок
+  - Все публичные методы адаптера возвращают `Result<T>` и логируют.
+  - UI отображает ошибки (snackbar/диалоги), не решает доменную логику.
+- Тестирование
+  - ViewModel/Store тестируется на уровне `ui-adapter` с подменой зависимостей (Mockito).
+  - UI тестируется как чистый рендер по состоянию (скриншоты/Compose tests), без реального IO.
+
 
 ## Паттерны проектирования
 

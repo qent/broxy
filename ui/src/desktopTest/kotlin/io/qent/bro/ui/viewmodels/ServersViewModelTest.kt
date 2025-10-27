@@ -4,8 +4,12 @@ import io.qent.bro.core.mcp.McpServerConnection
 import io.qent.bro.core.mcp.ServerCapabilities
 import io.qent.bro.core.mcp.ServerStatus
 import io.qent.bro.core.mcp.ToolDescriptor
-import io.qent.bro.core.models.McpServerConfig
-import io.qent.bro.core.models.TransportConfig
+import io.qent.bro.ui.adapter.models.UiMcpServerConfig as McpServerConfig
+import io.qent.bro.ui.adapter.models.UiTransportConfig as TransportConfig
+import io.qent.bro.ui.adapter.viewmodels.ServersViewModel
+import io.qent.bro.ui.adapter.models.UiHttpTransport as HttpTransport
+import io.qent.bro.ui.adapter.models.UiWebSocketTransport as WebSocketTransport
+import io.qent.bro.ui.adapter.models.UiStdioTransport as StdioTransport
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import org.mockito.kotlin.mock
@@ -26,8 +30,8 @@ class ServersViewModelTest {
                 Result.success(ServerCapabilities(tools = listOf(ToolDescriptor("t1"), ToolDescriptor("t2"))))
             )
 
-            val vm = ServersViewModel { cfg, _ -> conn }
-            val cfg = McpServerConfig("s1", "Server 1", TransportConfig.HttpTransport("http://localhost"))
+            val vm = ServersViewModel { _, _ -> conn }
+            val cfg = McpServerConfig("s1", "Server 1", HttpTransport("http://localhost"))
 
             val res = vm.testConnection(cfg)
             assertTrue(res.isSuccess)
@@ -48,7 +52,7 @@ class ServersViewModelTest {
             whenever(conn.status).thenReturn(ServerStatus.Running)
 
             val vm = ServersViewModel { _, _ -> conn }
-            val cfg = McpServerConfig("s2", "Server 2", TransportConfig.WebSocketTransport("ws://localhost"))
+            val cfg = McpServerConfig("s2", "Server 2", WebSocketTransport("ws://localhost"))
 
             val r = vm.connect(cfg)
             assertTrue(r.isSuccess)
@@ -66,7 +70,7 @@ class ServersViewModelTest {
         runBlocking {
             val conn: McpServerConnection = mock()
             val vm = ServersViewModel { _, _ -> conn }
-            val cfg = McpServerConfig("s3", "Server 3", TransportConfig.StdioTransport(command = "echo"))
+            val cfg = McpServerConfig("s3", "Server 3", StdioTransport(command = "echo"))
 
             val list = androidx.compose.runtime.mutableStateListOf(cfg)
             // Ensure state exists
@@ -88,7 +92,7 @@ class ServersViewModelTest {
     @Test
     fun applyEnabledChange_updates_config_in_list() {
         val vm = ServersViewModel()
-        val cfg = McpServerConfig("s4", "Server 4", TransportConfig.HttpTransport("http://u"), enabled = true)
+        val cfg = McpServerConfig("s4", "Server 4", HttpTransport("http://u"), enabled = true)
         val list = androidx.compose.runtime.mutableStateListOf(cfg)
 
         vm.applyEnabledChange(list, "s4", false)
