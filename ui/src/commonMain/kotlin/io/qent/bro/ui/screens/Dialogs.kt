@@ -56,16 +56,16 @@ fun AddServerDialog(ui: UIState, state: AppState, notify: (String) -> Unit) {
                                 if (isTimeout) {
                                     notify("Connection timed out. Saved as disabled.")
                                 } else {
-                                    val errMsg = e?.message?.takeIf { it.isNotBlank() }
-                                    val details = errMsg?.let { ": ${'$'}it" } ?: ""
-                                    notify("Connection failed${'$'}details. Saved as disabled.")
+                                val errMsg = e?.message?.takeIf { it.isNotBlank() }
+                                val details = errMsg?.let { ": $it" } ?: ""
+                                notify("Connection failed$details. Saved as disabled.")
                                 }
                                 toSave = draft.copy(enabled = false)
                             }
                         }
                         ui.intents.upsertServer(toSave)
                         state.showAddServerDialog.value = false
-                        notify("Saved ${'$'}{toSave.name}")
+                        notify("Saved ${toSave.name}")
                     }
                 }
             }) { Text("Save") }
@@ -143,16 +143,16 @@ fun EditServerDialog(
                                 if (isTimeout) {
                                     notify("Connection timed out. Saved as disabled.")
                                 } else {
-                                    val errMsg = e?.message?.takeIf { it.isNotBlank() }
-                                    val details = errMsg?.let { ": ${'$'}it" } ?: ""
-                                    notify("Connection failed${'$'}details. Saved as disabled.")
+                                val errMsg = e?.message?.takeIf { it.isNotBlank() }
+                                val details = errMsg?.let { ": $it" } ?: ""
+                                notify("Connection failed$details. Saved as disabled.")
                                 }
                                 toSave = draft.copy(enabled = false)
                             }
                         }
                         ui.intents.upsertServer(toSave)
                         onClose()
-                        notify("Saved ${'$'}{toSave.name}")
+                        notify("Saved ${toSave.name}")
                     }
                 }
             }) { Text("Save") }

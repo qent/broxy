@@ -72,7 +72,7 @@ fun ProxyScreen(ui: UIState, state: AppState, notify: (String) -> Unit = {}) {
                                     DropdownMenuItem(text = { Text(p.name) }, onClick = {
                                         presetId = p.id
                                         presetExpanded = false
-                                        notify("Preset selected: ${'$'}{p.name}")
+                                        notify("Preset selected: ${p.name}")
                                     })
                                 }
                             }
@@ -110,7 +110,7 @@ fun ProxyScreen(ui: UIState, state: AppState, notify: (String) -> Unit = {}) {
                         val statusText = when (val s = ui.proxyStatus) {
                             is io.qent.bro.ui.adapter.models.UiProxyStatus.Running -> "Running"
                             is io.qent.bro.ui.adapter.models.UiProxyStatus.Stopped -> "Stopped"
-                            is io.qent.bro.ui.adapter.models.UiProxyStatus.Error -> "Error: ${'$'}{s.message}"
+                            is io.qent.bro.ui.adapter.models.UiProxyStatus.Error -> "Error: ${s.message}"
                         }
                         Text(statusText, style = MaterialTheme.typography.bodyMedium)
                         Spacer(Modifier.padding(8.dp))

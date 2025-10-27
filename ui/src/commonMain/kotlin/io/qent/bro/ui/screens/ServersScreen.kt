@@ -96,8 +96,8 @@ fun ServersScreen(ui: UIState, state: AppState, store: AppStore, notify: (String
                                                     notify("Connection timed out for '${cfg.name}'")
                                                 } else {
                                                     val errMsg = e?.message?.takeIf { it.isNotBlank() }
-                                                    val details = errMsg?.let { ": ${'$'}it" } ?: ""
-                                                    notify("Connection failed for '${'$'}{cfg.name}${'$'}details")
+                                                    val details = errMsg?.let { ": $it" } ?: ""
+                                                    notify("Connection failed for '${cfg.name}'$details")
                                                 }
                                             }
                                         }
@@ -152,9 +152,9 @@ private fun ServerCard(
                         val tc = cfg.toolsCount ?: 0
                         val pc = cfg.promptsCount ?: 0
                         val rc = cfg.resourcesCount ?: 0
-                        " • tools ${'$'}tc • prompts ${'$'}pc • resources ${'$'}rc"
+                        " • tools $tc • prompts $pc • resources $rc"
                     } else ""
-                    Text("status: ${'$'}status${'$'}counts", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("status: $status$counts", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Switch(checked = cfg.enabled, onCheckedChange = { enabled -> onToggle(cfg.id, enabled) })
                 IconButton(onClick = onEdit) { Icon(Icons.Outlined.Edit, contentDescription = "Edit") }
