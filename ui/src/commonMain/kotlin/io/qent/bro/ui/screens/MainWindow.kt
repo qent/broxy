@@ -40,11 +40,12 @@ import io.qent.bro.ui.components.AppNavigationRail
 import io.qent.bro.ui.theme.AppTheme
 import io.qent.bro.ui.viewmodels.AppState
 import io.qent.bro.ui.viewmodels.Screen
+import io.qent.bro.ui.adapter.store.UIState
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalAnimationApi::class, ExperimentalMaterial3Api::class)
 @Composable
-fun MainWindow(state: AppState) {
+fun MainWindow(state: AppState, ui: UIState) {
     AppTheme(settings = state.theme.value) {
         val screen = state.currentScreen.value
         val snackbarHostState = remember { SnackbarHostState() }
@@ -86,9 +87,9 @@ fun MainWindow(state: AppState) {
                         label = "screen"
                     ) { s ->
                         when (s) {
-                            Screen.Servers -> ServersScreen(state, notify)
-                            Screen.Presets -> PresetsScreen(state)
-                            Screen.Proxy -> ProxyScreen(state, notify)
+                            Screen.Servers -> ServersScreen(ui, state, notify)
+                            Screen.Presets -> PresetsScreen(ui, state)
+                            Screen.Proxy -> ProxyScreen(ui, state, notify)
                             Screen.Settings -> SettingsScreen(state)
                         }
                     }
@@ -97,7 +98,7 @@ fun MainWindow(state: AppState) {
         }
 
         // Dialogs
-        if (state.showAddServerDialog.value) AddServerDialog(state, notify)
-        if (state.showAddPresetDialog.value) AddPresetDialog(state)
+        if (state.showAddServerDialog.value) AddServerDialog(ui, state, notify)
+        if (state.showAddPresetDialog.value) AddPresetDialog(ui, state)
     }
 }

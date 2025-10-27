@@ -11,7 +11,8 @@ kotlin {
     sourceSets {
         val commonMain by getting {
             dependencies {
-                api(project(":core"))
+                // Do NOT expose core via API to UI
+                implementation(project(":core"))
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:${property("coroutinesVersion")}")
             }
         }

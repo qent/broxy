@@ -12,10 +12,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.IosShare
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -27,28 +25,19 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import io.qent.bro.ui.adapter.models.UiToolReference as ToolReference
+import io.qent.bro.ui.adapter.models.UiPreset
+import io.qent.bro.ui.adapter.store.UIState
 import io.qent.bro.ui.viewmodels.AppState
-import io.qent.bro.ui.adapter.viewmodels.PresetsViewModel
-import io.qent.bro.ui.viewmodels.UiPreset
-import androidx.compose.runtime.collectAsState
-import kotlinx.coroutines.flow.MutableStateFlow
 
 @Composable
-fun PresetsScreen(state: AppState) {
-    val vm = remember { PresetsViewModel() }
+fun PresetsScreen(ui: UIState, state: AppState) {
     var query by rememberSaveable { mutableStateOf("") }
-    LaunchedEffect(Unit) {
-        vm.loadIntoState(state.presets)
-    }
 
     Column(modifier = Modifier.fillMaxSize().padding(12.dp)) {
         OutlinedTextField(
@@ -59,61 +48,35 @@ fun PresetsScreen(state: AppState) {
         )
         Spacer(Modifier.height(12.dp))
 
-        if (state.presets.isEmpty()) {
-            EmptyState(
-                title = "No presets yet",
-                subtitle = "Use the + button to add your first preset"
-            )
-        } else {
-            val filtered = state.presets.filter { p ->
-                p.name.contains(query, ignoreCase = true) || (p.description?.contains(query, ignoreCase = true) == true)
-            }
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(filtered, key = { it.id }) { preset ->
-                    PresetCard(
-                        preset = preset,
-                        onEdit = { vm.openEdit(preset.id) },
-                        onDuplicate = { vm.duplicatePreset(state.presets, preset.id) },
-                        onExport = {
-                            val json = vm.exportToJson(preset)
-                            vm.openExport(preset.id, json)
-                        },
-                        onDelete = { vm.removePreset(state.presets, preset.id) }
+        when (ui) {
+            is UIState.Loading -> Text("Loading...", style = MaterialTheme.typography.bodyMedium)
+            is UIState.Error -> Text("Error: ${ui.message}")
+            is UIState.Ready -> {
+                val presets = ui.presets
+                if (presets.isEmpty()) {
+                    EmptyState(
+                        title = "No presets yet",
+                        subtitle = "Use the + button to add your first preset"
                     )
-                    val ui = (vm.uiStates[preset.id] ?: MutableStateFlow(io.qent.bro.ui.adapter.viewmodels.PresetUiState())).collectAsState().value
-                    if (ui.showEditor) {
-                        val selection = vm.getSelection(preset.id)
-                        PresetEditorDialog(
-                            servers = state.servers,
-                            existingPresets = state.presets,
-                            initial = preset,
-                            initialSelection = selection,
-                            onSave = { newUi, tools -> vm.upsertPreset(state.presets, newUi, tools) },
-                            onDismiss = { vm.closeEdit(preset.id) }
-                        )
+                } else {
+                    val filtered = presets.filter { p ->
+                        p.name.contains(query, ignoreCase = true) || (p.description?.contains(query, ignoreCase = true) == true)
                     }
-                    val exportJson = ui.exportJson
-                    if (exportJson != null) {
-                        ExportPresetDialog(json = exportJson) { vm.closeExport(preset.id) }
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(filtered, key = { it.id }) { preset ->
+                            PresetCard(
+                                preset = preset,
+                                onEdit = { /* handled via dialog in future */ },
+                                onDelete = { ui.intents.removePreset(preset.id) }
+                            )
+                        }
                     }
                 }
             }
         }
-    }
-
-    // Create new preset flow via global toggle in MainWindow
-    if (state.showAddPresetDialog.value) {
-        PresetEditorDialog(
-            servers = state.servers,
-            existingPresets = state.presets,
-            initial = null,
-            initialSelection = emptyList(),
-            onSave = { ui, tools -> vm.upsertPreset(state.presets, ui, tools) },
-            onDismiss = { state.showAddPresetDialog.value = false }
-        )
     }
 }
 
@@ -121,8 +84,6 @@ fun PresetsScreen(state: AppState) {
 private fun PresetCard(
     preset: UiPreset,
     onEdit: () -> Unit,
-    onDuplicate: () -> Unit,
-    onExport: () -> Unit,
     onDelete: () -> Unit
 ) {
     Card(
@@ -145,16 +106,6 @@ private fun PresetCard(
                     Icon(Icons.Outlined.Edit, contentDescription = null)
                     Spacer(Modifier.width(4.dp))
                     Text("Edit")
-                }
-                TextButton(onClick = onDuplicate) {
-                    Icon(Icons.Outlined.ContentCopy, contentDescription = null)
-                    Spacer(Modifier.width(4.dp))
-                    Text("Duplicate")
-                }
-                TextButton(onClick = onExport) {
-                    Icon(Icons.Outlined.IosShare, contentDescription = null)
-                    Spacer(Modifier.width(4.dp))
-                    Text("Export")
                 }
                 Spacer(Modifier.weight(1f))
                 IconButton(onClick = onDelete) { Icon(Icons.Outlined.Delete, contentDescription = "Delete") }
