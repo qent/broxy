@@ -16,6 +16,7 @@ import io.qent.bro.ui.adapter.models.UiToolRef
 import io.qent.bro.ui.adapter.models.UiWebSocketDraft
 import io.qent.bro.ui.adapter.models.UiWebSocketTransport
 import io.qent.bro.ui.adapter.models.UiServerCapsSnapshot
+import io.qent.bro.ui.adapter.models.UiServerConnStatus
 import io.qent.bro.ui.adapter.services.fetchServerCapabilities
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -41,6 +42,7 @@ class AppStore(
     private val presets = mutableListOf<UiPreset>()
     private var proxyStatus: UiProxyStatus = UiProxyStatus.Stopped
     private val repo = provideConfigurationRepository()
+    private val capsCache = mutableMapOf<String, UiServerCapsSnapshot>()
 
     fun start() {
         scope.launch {
@@ -64,6 +66,8 @@ class AppStore(
                 return@launch
             }
             publishReady()
+            // Kick off capability scan to populate counts
+            scope.launch { refreshServerCapsAndPublish() }
         }
     }
 
@@ -127,7 +131,22 @@ class AppStore(
                 is UiHttpTransport -> "HTTP"
                 is UiWebSocketTransport -> "WebSocket"
             }
-            UiServer(id = s.id, name = s.name, transportLabel = label, enabled = s.enabled)
+            val snap = capsCache[s.id]
+            val status = when {
+                !s.enabled -> UiServerConnStatus.Disabled
+                snap != null -> UiServerConnStatus.Available
+                else -> serverStatus[s.id] ?: UiServerConnStatus.Connecting
+            }
+            UiServer(
+                id = s.id,
+                name = s.name,
+                transportLabel = label,
+                enabled = s.enabled,
+                status = status,
+                toolsCount = snap?.tools?.size,
+                promptsCount = snap?.prompts?.size,
+                resourcesCount = snap?.resources?.size
+            )
         }
         _state.value = UIState.Ready(
             servers = uiServers,
@@ -135,6 +154,37 @@ class AppStore(
             proxyStatus = proxyStatus,
             intents = intents
         )
+    }
+
+    private val serverStatus = mutableMapOf<String, UiServerConnStatus>()
+
+    private suspend fun refreshServerCapsAndPublish() {
+        // Set connecting for enabled servers without a known status
+        servers.forEach { s ->
+            serverStatus[s.id] = if (!s.enabled) UiServerConnStatus.Disabled else UiServerConnStatus.Connecting
+        }
+        publishReady()
+        // Fetch per server to determine success/failure explicitly
+        servers.filter { it.enabled }.map { cfg ->
+            scope.launch {
+                val r = fetchServerCapabilities(cfg)
+                if (r.isSuccess) {
+                    val caps = r.getOrNull()!!
+                    capsCache[cfg.id] = UiServerCapsSnapshot(
+                        serverId = cfg.id,
+                        name = cfg.name,
+                        tools = caps.tools.map { it.name },
+                        prompts = caps.prompts.map { it.name },
+                        resources = caps.resources.map { it.uri ?: it.name }
+                    )
+                    serverStatus[cfg.id] = UiServerConnStatus.Available
+                } else {
+                    capsCache.remove(cfg.id)
+                    serverStatus[cfg.id] = UiServerConnStatus.Error
+                }
+                publishReady()
+            }
+        }
     }
 
     private val intents = object : Intents {
@@ -159,6 +209,8 @@ class AppStore(
                     _state.value = UIState.Error(msg)
                 }
                 publishReady()
+                // Update capability counts and statuses after refresh
+                refreshServerCapsAndPublish()
             }
         }
 
@@ -182,6 +234,7 @@ class AppStore(
                     _state.value = UIState.Error(msg)
                 }
                 publishReady()
+                refreshServerCapsAndPublish()
             }
         }
 
@@ -209,6 +262,7 @@ class AppStore(
                     _state.value = UIState.Error(msg)
                 }
                 publishReady()
+                refreshServerCapsAndPublish()
             }
         }
 
@@ -226,6 +280,7 @@ class AppStore(
                     _state.value = UIState.Error(msg)
                 }
                 publishReady()
+                refreshServerCapsAndPublish()
             }
         }
 
@@ -241,6 +296,7 @@ class AppStore(
                     _state.value = UIState.Error(msg)
                 }
                 publishReady()
+                refreshServerCapsAndPublish()
             }
         }
 
@@ -259,6 +315,7 @@ class AppStore(
                     }
                 }
                 publishReady()
+                refreshServerCapsAndPublish()
             }
         }
 

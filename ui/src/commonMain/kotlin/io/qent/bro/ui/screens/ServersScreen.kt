@@ -112,6 +112,19 @@ private fun ServerCard(
                     Text(cfg.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Spacer(Modifier.height(2.dp))
                     Text("${cfg.id} • ${cfg.transportLabel}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    val status = when (cfg.status.name) {
+                        "Disabled" -> "disabled"
+                        "Available" -> "available"
+                        "Error" -> "error"
+                        else -> "connecting"
+                    }
+                    val counts = if (cfg.enabled && cfg.toolsCount != null) {
+                        val tc = cfg.toolsCount ?: 0
+                        val pc = cfg.promptsCount ?: 0
+                        val rc = cfg.resourcesCount ?: 0
+                        " • tools ${'$'}tc • prompts ${'$'}pc • resources ${'$'}rc"
+                    } else ""
+                    Text("status: ${'$'}status${'$'}counts", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Switch(checked = cfg.enabled, onCheckedChange = { enabled -> onToggle(cfg.id, enabled) })
                 IconButton(onClick = onEdit) { Icon(Icons.Outlined.Edit, contentDescription = "Edit") }
