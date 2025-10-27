@@ -8,8 +8,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.foundation.layout.Row
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -29,12 +27,11 @@ import io.qent.bro.ui.viewmodels.UiPreset
 import kotlinx.coroutines.launch
 
 @Composable
-fun AddServerDialog(state: AppState) {
+fun AddServerDialog(state: AppState, notify: (String) -> Unit) {
     val repo = remember { provideConfigurationRepository() }
     var name by remember { mutableStateOf(TextFieldValue("")) }
     var id by remember { mutableStateOf(TextFieldValue("")) }
     var transportType by remember { mutableStateOf("STDIO") }
-    var expanded by remember { mutableStateOf(false) }
     var command by remember { mutableStateOf(TextFieldValue("")) }
     var args by remember { mutableStateOf(TextFieldValue("")) }
     var url by remember { mutableStateOf(TextFieldValue("")) }
@@ -123,16 +120,22 @@ fun AddServerDialog(state: AppState) {
                         errorText = null
                         lastTest = null
                         val conn = DefaultMcpServerConnection(cfg)
-                        val r1 = conn.connect()
-                        if (r1.isSuccess) {
+                        val connectResult = conn.connect()
+                        if (connectResult.isSuccess) {
                             val caps = conn.getCapabilities(forceRefresh = true)
                             if (caps.isSuccess) {
-                                lastTest = caps.getOrNull()
+                                val capabilities = caps.getOrNull()
+                                lastTest = capabilities
+                                notify("Test succeeded for ${cfg.name}: ${capabilities?.tools?.size ?: 0} tools")
                             } else {
-                                errorText = caps.exceptionOrNull()?.message ?: "Failed to fetch capabilities"
+                                val message = caps.exceptionOrNull()?.message ?: "Failed to fetch capabilities"
+                                errorText = message
+                                notify("Test failed for ${cfg.name}: $message")
                             }
                         } else {
-                            errorText = r1.exceptionOrNull()?.message ?: "Failed to connect"
+                            val message = connectResult.exceptionOrNull()?.message ?: "Failed to connect"
+                            errorText = message
+                            notify("Test failed for ${cfg.name}: $message")
                         }
                         testing = false
                         conn.disconnect()
@@ -144,13 +147,32 @@ fun AddServerDialog(state: AppState) {
 
                 Button(onClick = {
                     val cfg = buildConfig()
-                    if (cfg != null && lastTest != null) {
-                        state.servers.add(cfg)
-                        runCatching { repo.saveMcpConfig(McpServersConfig(state.servers.toList())) }
-                            .onFailure { ex -> errorText = ex.message ?: "Failed to save config" }
-                        state.showAddServerDialog.value = false
-                    } else {
-                        errorText = "Please test connection before saving"
+                    if (cfg == null) {
+                        errorText = "Please fill all required fields"
+                        return@Button
+                    }
+                    scope.launch {
+                        val updated = state.servers.toMutableList()
+                        val idx = updated.indexOfFirst { it.id == cfg.id }
+                        if (idx >= 0) {
+                            updated[idx] = cfg
+                        } else {
+                            updated.add(cfg)
+                        }
+                        runCatching { repo.saveMcpConfig(McpServersConfig(updated.toList())) }
+                            .onSuccess {
+                                state.servers.clear()
+                                state.servers.addAll(updated)
+                                state.showAddServerDialog.value = false
+                                lastTest = null
+                                errorText = null
+                                notify("Saved ${cfg.name}")
+                            }
+                            .onFailure { ex ->
+                                val message = ex.message ?: "Failed to save config"
+                                errorText = message
+                                notify("Failed to save ${cfg.name}: $message")
+                            }
                     }
                 }, enabled = !testing) { Text("Save") }
             }

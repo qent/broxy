@@ -19,9 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.Refresh
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -55,13 +53,28 @@ import io.qent.bro.ui.viewmodels.AppState
 import io.qent.bro.ui.viewmodels.ServersViewModel
 import io.qent.bro.ui.data.provideConfigurationRepository
 import io.qent.bro.core.models.McpServersConfig
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun ServersScreen(state: AppState, notify: (String) -> Unit = {}) {
     val viewModel = remember { ServersViewModel() }
     val repo = remember { provideConfigurationRepository() }
     var query by rememberSaveable { mutableStateOf("") }
+
+    LaunchedEffect(Unit) {
+        runCatching {
+            withContext(Dispatchers.IO) { repo.loadMcpConfig() }
+        }
+            .onSuccess { cfg ->
+                state.servers.clear()
+                state.servers.addAll(cfg.servers)
+            }
+            .onFailure { ex ->
+                notify("Failed to load servers: ${ex.message ?: "unknown error"}")
+            }
+    }
 
     Column(modifier = Modifier.fillMaxSize().padding(12.dp)) {
         OutlinedTextField(
@@ -89,10 +102,17 @@ fun ServersScreen(state: AppState, notify: (String) -> Unit = {}) {
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(filtered, key = { it.id }) { cfg ->
-                    ServerCard(cfg, state, viewModel, onPersist = {
-                        runCatching { repo.saveMcpConfig(McpServersConfig(state.servers.toList())) }
-                            .onFailure { notify("Failed to save servers: ${it.message}") }
-                    })
+                    ServerCard(
+                        cfg = cfg,
+                        state = state,
+                        vm = viewModel,
+                        notify = notify,
+                        onPersist = {
+                            runCatching {
+                                repo.saveMcpConfig(McpServersConfig(state.servers.toList()))
+                            }.onFailure { notify("Failed to save servers: ${it.message}") }
+                        }
+                    )
                 }
             }
         }
@@ -104,6 +124,7 @@ private fun ServerCard(
     cfg: McpServerConfig,
     state: AppState,
     vm: ServersViewModel,
+    notify: (String) -> Unit,
     onPersist: () -> Unit = {}
 ) {
     val scope = rememberCoroutineScope()
@@ -132,7 +153,20 @@ private fun ServerCard(
                 Switch(checked = cfg.enabled, onCheckedChange = { enabled ->
                     vm.applyEnabledChange(state.servers, cfg.id, enabled)
                     onPersist()
-                    if (enabled) scope.launch { vm.connect(cfg) } else scope.launch { vm.disconnect(cfg.id) }
+                    if (enabled) {
+                        scope.launch {
+                            vm.connect(cfg)
+                                .onSuccess { notify("Connected to ${cfg.name}") }
+                                .onFailure { ex ->
+                                    notify("Failed to connect to ${cfg.name}: ${ex.message ?: "unknown error"}")
+                                }
+                        }
+                    } else {
+                        scope.launch {
+                            vm.disconnect(cfg.id)
+                            notify("Disconnected from ${cfg.name}")
+                        }
+                    }
                 })
             }
 
@@ -142,7 +176,20 @@ private fun ServerCard(
                 if (ui.testing) {
                     CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
                 }
-                ElevatedButton(onClick = { scope.launch { vm.testConnection(cfg) } }, enabled = !ui.testing) {
+                ElevatedButton(
+                    onClick = {
+                        scope.launch {
+                            vm.testConnection(cfg)
+                                .onSuccess { caps ->
+                                    notify("${cfg.name}: ${caps.tools.size} tools available")
+                                }
+                                .onFailure { ex ->
+                                    notify("Failed to test ${cfg.name}: ${ex.message ?: "unknown error"}")
+                                }
+                        }
+                    },
+                    enabled = !ui.testing
+                ) {
                     Icon(Icons.Outlined.Refresh, contentDescription = null)
                     Spacer(Modifier.width(6.dp))
                     Text("Test Connection")
@@ -157,6 +204,7 @@ private fun ServerCard(
                     scope.launch {
                         vm.removeServer(state.servers, cfg.id)
                         onPersist()
+                        notify("Removed ${cfg.name}")
                     }
                 }) { Icon(Icons.Outlined.Delete, contentDescription = "Delete") }
             }
