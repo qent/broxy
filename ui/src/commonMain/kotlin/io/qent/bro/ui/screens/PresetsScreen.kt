@@ -84,7 +84,7 @@ fun PresetsScreen(ui: UIState, state: AppState, store: AppStore) {
         if (editing != null) {
             val draft = store.getPresetDraft(editing!!.id)
             if (draft != null) {
-                EditPresetDialog(ui = ui, initial = draft, onClose = { editing = null })
+                EditPresetDialog(ui = ui, initial = draft, onClose = { editing = null }, store = store)
             } else {
                 editing = null
             }

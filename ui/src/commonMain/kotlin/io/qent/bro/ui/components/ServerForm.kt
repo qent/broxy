@@ -146,3 +146,5 @@ fun ServerForm(
     }
 }
 
+// Helper to build a UiMcpServerConfig from a UI draft for validation
+// Deliberately avoid exposing core aliases in UI; conversion lives in ui-adapter services.

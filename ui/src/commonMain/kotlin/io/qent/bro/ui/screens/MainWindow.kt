@@ -108,6 +108,6 @@ fun MainWindow(state: AppState, ui: UIState, store: AppStore) {
 
         // Dialogs
         if (state.showAddServerDialog.value) AddServerDialog(ui, state, notify)
-        if (state.showAddPresetDialog.value) AddPresetDialog(ui, state)
+        if (state.showAddPresetDialog.value) AddPresetDialog(ui, state, store)
     }
 }

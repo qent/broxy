@@ -15,6 +15,11 @@ import io.qent.bro.ui.adapter.models.UiStdioTransport
 import io.qent.bro.ui.adapter.models.UiToolRef
 import io.qent.bro.ui.adapter.models.UiWebSocketDraft
 import io.qent.bro.ui.adapter.models.UiWebSocketTransport
+import io.qent.bro.ui.adapter.models.UiServerCapsSnapshot
+import io.qent.bro.ui.adapter.services.fetchServerCapabilities
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -90,6 +95,29 @@ class AppStore(
         }.onFailure { e ->
             println("[AppStore] getPresetDraft('$id') failed: ${'$'}{e.message}")
         }.getOrNull()
+    }
+
+    // Expose full server configs for UI consumers (e.g., capability selectors)
+    fun listServerConfigs(): List<UiMcpServerConfig> = servers.toList()
+
+    /** Fetch capabilities for all currently enabled servers; failures are skipped. */
+    suspend fun listEnabledServerCaps(): List<UiServerCapsSnapshot> = coroutineScope {
+        val enabled = servers.filter { it.enabled }
+        enabled.map { cfg ->
+            async {
+                val r = fetchServerCapabilities(cfg)
+                if (r.isSuccess) {
+                    val caps = r.getOrNull()!!
+                    UiServerCapsSnapshot(
+                        serverId = cfg.id,
+                        name = cfg.name,
+                        tools = caps.tools.map { it.name },
+                        prompts = caps.prompts.map { it.name },
+                        resources = caps.resources.map { it.uri ?: it.name }
+                    )
+                } else null
+            }
+        }.awaitAll().filterNotNull()
     }
 
     private fun publishReady() {
