@@ -16,6 +16,6 @@ fun main() = application {
     Window(onCloseRequest = ::exitApplication, title = "bro") {
         LaunchedEffect(Unit) { store.start() }
         val uiState by store.state.collectAsState()
-        MainWindow(appState, uiState)
+        MainWindow(appState, uiState, store)
     }
 }

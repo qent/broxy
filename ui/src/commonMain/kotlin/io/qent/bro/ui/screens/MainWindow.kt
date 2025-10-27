@@ -32,6 +32,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -41,16 +42,24 @@ import io.qent.bro.ui.theme.AppTheme
 import io.qent.bro.ui.viewmodels.AppState
 import io.qent.bro.ui.viewmodels.Screen
 import io.qent.bro.ui.adapter.store.UIState
+import io.qent.bro.ui.adapter.store.AppStore
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalAnimationApi::class, ExperimentalMaterial3Api::class)
 @Composable
-fun MainWindow(state: AppState, ui: UIState) {
+fun MainWindow(state: AppState, ui: UIState, store: AppStore) {
     AppTheme(settings = state.theme.value) {
         val screen = state.currentScreen.value
         val snackbarHostState = remember { SnackbarHostState() }
         val scope = rememberCoroutineScope()
         val notify: (String) -> Unit = { msg -> scope.launch { snackbarHostState.showSnackbar(msg) } }
+
+        // Basic mapping: show snackbar on adapter Error state
+        if (ui is UIState.Error) {
+            LaunchedEffect(ui.message) {
+                snackbarHostState.showSnackbar("Error: ${ui.message}")
+            }
+        }
 
         Scaffold(
             topBar = {
@@ -87,8 +96,8 @@ fun MainWindow(state: AppState, ui: UIState) {
                         label = "screen"
                     ) { s ->
                         when (s) {
-                            Screen.Servers -> ServersScreen(ui, state, notify)
-                            Screen.Presets -> PresetsScreen(ui, state)
+                            Screen.Servers -> ServersScreen(ui, state, store, notify)
+                            Screen.Presets -> PresetsScreen(ui, state, store)
                             Screen.Proxy -> ProxyScreen(ui, state, notify)
                             Screen.Settings -> SettingsScreen(state)
                         }

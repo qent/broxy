@@ -1,6 +1,20 @@
 package io.qent.bro.ui.adapter.store
 
-import io.qent.bro.ui.adapter.models.*
+import io.qent.bro.ui.adapter.data.provideConfigurationRepository
+import io.qent.bro.ui.adapter.models.UiHttpDraft
+import io.qent.bro.ui.adapter.models.UiHttpTransport
+import io.qent.bro.ui.adapter.models.UiMcpServerConfig
+import io.qent.bro.ui.adapter.models.UiMcpServersConfig
+import io.qent.bro.ui.adapter.models.UiPreset
+import io.qent.bro.ui.adapter.models.UiPresetDraft
+import io.qent.bro.ui.adapter.models.UiProxyStatus
+import io.qent.bro.ui.adapter.models.UiServer
+import io.qent.bro.ui.adapter.models.UiServerDraft
+import io.qent.bro.ui.adapter.models.UiStdioDraft
+import io.qent.bro.ui.adapter.models.UiStdioTransport
+import io.qent.bro.ui.adapter.models.UiToolRef
+import io.qent.bro.ui.adapter.models.UiWebSocketDraft
+import io.qent.bro.ui.adapter.models.UiWebSocketTransport
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,27 +31,65 @@ class AppStore(
     private val _state = MutableStateFlow<UIState>(UIState.Loading)
     val state: StateFlow<UIState> = _state
 
-    // In-memory backing store for demo purposes. Replace with repositories later.
+    // Backing store
     private val servers = mutableListOf<UiMcpServerConfig>()
     private val presets = mutableListOf<UiPreset>()
     private var proxyStatus: UiProxyStatus = UiProxyStatus.Stopped
+    private val repo = provideConfigurationRepository()
 
     fun start() {
         scope.launch {
-            // Initial demo data; real impl should load from ConfigurationRepository
-            if (servers.isEmpty()) {
-                servers += UiMcpServerConfig(
-                    id = "example-stdio",
-                    name = "Example STDIO",
-                    transport = UiStdioTransport(command = "my-mcp"),
-                    enabled = false
-                )
+            val load = runCatching {
+                val cfg = repo.loadMcpConfig()
+                val loadedPresets = repo.listPresets()
+                servers.clear(); servers.addAll(cfg.servers)
+                presets.clear(); presets.addAll(loadedPresets.map { p ->
+                    UiPreset(
+                        id = p.id,
+                        name = p.name,
+                        description = p.description.ifBlank { null },
+                        toolsCount = p.tools.count { it.enabled }
+                    )
+                })
             }
-            if (presets.isEmpty()) {
-                presets += UiPreset(id = "default", name = "Default", description = null, toolsCount = 0)
+            if (load.isFailure) {
+                val msg = load.exceptionOrNull()?.message ?: "Failed to load configuration"
+                println("[AppStore] load failed: ${'$'}msg")
+                _state.value = UIState.Error(msg)
+                return@launch
             }
             publishReady()
         }
+    }
+
+    // Exposed helpers (pure UI drafts) — no core leak to UI
+    fun getServerDraft(id: String): UiServerDraft? {
+        val cfg = servers.firstOrNull { it.id == id } ?: return null
+        val draftTransport = when (val t = cfg.transport) {
+            is UiStdioTransport -> UiStdioDraft(command = t.command, args = t.args)
+            is UiHttpTransport -> UiHttpDraft(url = t.url, headers = t.headers)
+            is UiWebSocketTransport -> UiWebSocketDraft(url = t.url)
+        }
+        return UiServerDraft(
+            id = cfg.id,
+            name = cfg.name,
+            enabled = cfg.enabled,
+            transport = draftTransport
+        )
+    }
+
+    fun getPresetDraft(id: String): UiPresetDraft? {
+        return runCatching {
+            val p = repo.loadPreset(id)
+            UiPresetDraft(
+                id = p.id,
+                name = p.name,
+                description = p.description.ifBlank { null },
+                tools = p.tools.map { t -> UiToolRef(serverId = t.serverId, toolName = t.toolName, enabled = t.enabled) }
+            )
+        }.onFailure { e ->
+            println("[AppStore] getPresetDraft('$id') failed: ${'$'}{e.message}")
+        }.getOrNull()
     }
 
     private fun publishReady() {
@@ -59,50 +111,195 @@ class AppStore(
 
     private val intents = object : Intents {
         override fun refresh() {
-            // In-memory impl: nothing to fetch; just re-emit state
-            publishReady()
+            scope.launch {
+                val r = runCatching {
+                    val cfg = repo.loadMcpConfig()
+                    val loadedPresets = repo.listPresets()
+                    servers.clear(); servers.addAll(cfg.servers)
+                    presets.clear(); presets.addAll(loadedPresets.map { p ->
+                        UiPreset(
+                            id = p.id,
+                            name = p.name,
+                            description = p.description.ifBlank { null },
+                            toolsCount = p.tools.count { it.enabled }
+                        )
+                    })
+                }
+                if (r.isFailure) {
+                    val msg = r.exceptionOrNull()?.message ?: "Failed to refresh"
+                    println("[AppStore] refresh failed: ${'$'}msg")
+                    _state.value = UIState.Error(msg)
+                }
+                publishReady()
+            }
         }
 
         override fun addOrUpdateServerUi(ui: UiServer) {
-            val idx = servers.indexOfFirst { it.id == ui.id }
-            val current = servers.getOrNull(idx)
-            val updated = (current ?: UiMcpServerConfig(
-                id = ui.id,
-                name = ui.name,
-                transport = UiStdioTransport(command = ""),
-                enabled = ui.enabled
-            )).copy(name = ui.name, enabled = ui.enabled)
-            if (idx >= 0) servers[idx] = updated else servers += updated
-            publishReady()
+            scope.launch {
+                val idx = servers.indexOfFirst { it.id == ui.id }
+                val current = servers.getOrNull(idx)
+                val updated = (current ?: UiMcpServerConfig(
+                    id = ui.id,
+                    name = ui.name,
+                    transport = UiStdioTransport(command = ""),
+                    enabled = ui.enabled
+                )).copy(name = ui.name, enabled = ui.enabled)
+                val snapshot = servers.toList()
+                if (idx >= 0) servers[idx] = updated else servers += updated
+                val r = runCatching { repo.saveMcpConfig(UiMcpServersConfig(servers.toList())) }
+                if (r.isFailure) {
+                    val msg = r.exceptionOrNull()?.message ?: "Failed to save servers"
+                    println("[AppStore] addOrUpdateServerUi failed: ${'$'}msg")
+                    servers.clear(); servers.addAll(snapshot)
+                    _state.value = UIState.Error(msg)
+                }
+                publishReady()
+            }
+        }
+
+        override fun upsertServer(draft: UiServerDraft) {
+            scope.launch {
+                val transport = when (val t = draft.transport) {
+                    is UiStdioDraft -> UiStdioTransport(command = t.command, args = t.args)
+                    is UiHttpDraft -> UiHttpTransport(url = t.url, headers = t.headers)
+                    is UiWebSocketDraft -> UiWebSocketTransport(url = t.url)
+                }
+                val cfg = UiMcpServerConfig(
+                    id = draft.id,
+                    name = draft.name,
+                    enabled = draft.enabled,
+                    transport = transport
+                )
+                val idx = servers.indexOfFirst { it.id == cfg.id }
+                val snapshot = servers.toList()
+                if (idx >= 0) servers[idx] = cfg else servers += cfg
+                val r = runCatching { repo.saveMcpConfig(UiMcpServersConfig(servers.toList())) }
+                if (r.isFailure) {
+                    val msg = r.exceptionOrNull()?.message ?: "Failed to save servers"
+                    println("[AppStore] upsertServer failed: ${'$'}msg")
+                    servers.clear(); servers.addAll(snapshot)
+                    _state.value = UIState.Error(msg)
+                }
+                publishReady()
+            }
         }
 
         override fun addServerBasic(id: String, name: String) {
-            val cfg = UiMcpServerConfig(id = id, name = name, transport = UiStdioTransport(command = ""), enabled = true)
-            val idx = servers.indexOfFirst { it.id == cfg.id }
-            if (idx >= 0) servers[idx] = cfg else servers += cfg
-            publishReady()
+            scope.launch {
+                val cfg = UiMcpServerConfig(id = id, name = name, transport = UiStdioTransport(command = ""), enabled = true)
+                val idx = servers.indexOfFirst { it.id == cfg.id }
+                val snapshot = servers.toList()
+                if (idx >= 0) servers[idx] = cfg else servers += cfg
+                val r = runCatching { repo.saveMcpConfig(UiMcpServersConfig(servers.toList())) }
+                if (r.isFailure) {
+                    val msg = r.exceptionOrNull()?.message ?: "Failed to save servers"
+                    println("[AppStore] addServerBasic failed: ${'$'}msg")
+                    servers.clear(); servers.addAll(snapshot)
+                    _state.value = UIState.Error(msg)
+                }
+                publishReady()
+            }
         }
 
         override fun removeServer(id: String) {
-            servers.removeAll { it.id == id }
-            publishReady()
+            scope.launch {
+                val snapshot = servers.toList()
+                servers.removeAll { it.id == id }
+                val r = runCatching { repo.saveMcpConfig(UiMcpServersConfig(servers.toList())) }
+                if (r.isFailure) {
+                    val msg = r.exceptionOrNull()?.message ?: "Failed to save servers"
+                    println("[AppStore] removeServer failed: ${'$'}msg")
+                    servers.clear(); servers.addAll(snapshot)
+                    _state.value = UIState.Error(msg)
+                }
+                publishReady()
+            }
         }
 
         override fun toggleServer(id: String, enabled: Boolean) {
-            val idx = servers.indexOfFirst { it.id == id }
-            if (idx >= 0) servers[idx] = servers[idx].copy(enabled = enabled)
-            publishReady()
+            scope.launch {
+                val idx = servers.indexOfFirst { it.id == id }
+                if (idx >= 0) {
+                    val snapshot = servers[idx]
+                    servers[idx] = servers[idx].copy(enabled = enabled)
+                    val r = runCatching { repo.saveMcpConfig(UiMcpServersConfig(servers.toList())) }
+                    if (r.isFailure) {
+                        val msg = r.exceptionOrNull()?.message ?: "Failed to save server state"
+                        println("[AppStore] toggleServer failed: ${'$'}msg")
+                        servers[idx] = snapshot
+                        _state.value = UIState.Error(msg)
+                    }
+                }
+                publishReady()
+            }
         }
 
         override fun addOrUpdatePreset(preset: UiPreset) {
-            val idx = presets.indexOfFirst { it.id == preset.id }
-            if (idx >= 0) presets[idx] = preset else presets += preset
-            publishReady()
+            scope.launch {
+                val idx = presets.indexOfFirst { it.id == preset.id }
+                if (idx >= 0) presets[idx] = preset else presets += preset
+                val r = runCatching {
+                    val p = io.qent.bro.core.models.Preset(
+                        id = preset.id,
+                        name = preset.name,
+                        description = preset.description ?: "",
+                        tools = emptyList()
+                    )
+                    repo.savePreset(p)
+                }
+                if (r.isFailure) {
+                    val msg = r.exceptionOrNull()?.message ?: "Failed to save preset"
+                    println("[AppStore] savePreset failed: ${'$'}msg")
+                    _state.value = UIState.Error(msg)
+                }
+                publishReady()
+            }
+        }
+
+        override fun upsertPreset(draft: UiPresetDraft) {
+            scope.launch {
+                val coreTools = draft.tools.map { t ->
+                    io.qent.bro.core.models.ToolReference(serverId = t.serverId, toolName = t.toolName, enabled = t.enabled)
+                }
+                val r = runCatching {
+                    val p = io.qent.bro.core.models.Preset(
+                        id = draft.id,
+                        name = draft.name,
+                        description = draft.description ?: "",
+                        tools = coreTools
+                    )
+                    repo.savePreset(p)
+                }
+                if (r.isFailure) {
+                    val msg = r.exceptionOrNull()?.message ?: "Failed to save preset"
+                    println("[AppStore] upsertPreset failed: ${'$'}msg")
+                    _state.value = UIState.Error(msg)
+                }
+                val summary = UiPreset(
+                    id = draft.id,
+                    name = draft.name,
+                    description = draft.description,
+                    toolsCount = draft.tools.count { it.enabled }
+                )
+                val idx = presets.indexOfFirst { it.id == summary.id }
+                if (idx >= 0) presets[idx] = summary else presets += summary
+                publishReady()
+            }
         }
 
         override fun removePreset(id: String) {
-            presets.removeAll { it.id == id }
-            publishReady()
+            scope.launch {
+                val snapshot = presets.toList()
+                presets.removeAll { it.id == id }
+                val r = runCatching { repo.deletePreset(id) }
+                if (r.isFailure) {
+                    val msg = r.exceptionOrNull()?.message ?: "Failed to delete preset"
+                    println("[AppStore] deletePreset failed: ${'$'}msg")
+                    presets.clear(); presets.addAll(snapshot)
+                    _state.value = UIState.Error(msg)
+                }
+                publishReady()
+            }
         }
 
         override fun startProxySimple(presetId: String) {

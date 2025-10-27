@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -24,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
@@ -31,12 +33,14 @@ import androidx.compose.ui.unit.dp
 import io.qent.bro.ui.adapter.models.UiServer
 import io.qent.bro.ui.adapter.store.UIState
 import io.qent.bro.ui.viewmodels.AppState
+import io.qent.bro.ui.adapter.store.AppStore
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 
 @Composable
-fun ServersScreen(ui: UIState, state: AppState, notify: (String) -> Unit = {}) {
+fun ServersScreen(ui: UIState, state: AppState, store: AppStore, notify: (String) -> Unit = {}) {
     var query by rememberSaveable { mutableStateOf("") }
+    var editing: UiServer? by remember { mutableStateOf<UiServer?>(null) }
 
     Column(modifier = Modifier.fillMaxSize().padding(12.dp)) {
         OutlinedTextField(
@@ -71,11 +75,21 @@ fun ServersScreen(ui: UIState, state: AppState, notify: (String) -> Unit = {}) {
                             ServerCard(
                                 cfg = cfg,
                                 onToggle = { id, enabled -> ui.intents.toggleServer(id, enabled) },
+                                onEdit = { editing = cfg },
                                 onDelete = { id -> ui.intents.removeServer(id) }
                             )
                         }
                     }
                 }
+            }
+        }
+
+        if (editing != null) {
+            val draft = store.getServerDraft(editing!!.id)
+            if (draft != null) {
+                EditServerDialog(initial = draft, ui = ui, onClose = { editing = null }, notify = notify)
+            } else {
+                editing = null
             }
         }
     }
@@ -85,7 +99,8 @@ fun ServersScreen(ui: UIState, state: AppState, notify: (String) -> Unit = {}) {
 private fun ServerCard(
     cfg: UiServer,
     onToggle: (String, Boolean) -> Unit,
-    onDelete: (String) -> Unit
+    onDelete: (String) -> Unit,
+    onEdit: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -99,6 +114,7 @@ private fun ServerCard(
                     Text("${cfg.id} • ${cfg.transportLabel}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Switch(checked = cfg.enabled, onCheckedChange = { enabled -> onToggle(cfg.id, enabled) })
+                IconButton(onClick = onEdit) { Icon(Icons.Outlined.Edit, contentDescription = "Edit") }
                 IconButton(onClick = { onDelete(cfg.id) }) { Icon(Icons.Outlined.Delete, contentDescription = "Delete") }
             }
         }

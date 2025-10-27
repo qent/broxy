@@ -26,6 +26,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,11 +34,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.qent.bro.ui.adapter.models.UiPreset
 import io.qent.bro.ui.adapter.store.UIState
+import io.qent.bro.ui.adapter.store.AppStore
 import io.qent.bro.ui.viewmodels.AppState
 
 @Composable
-fun PresetsScreen(ui: UIState, state: AppState) {
+fun PresetsScreen(ui: UIState, state: AppState, store: AppStore) {
     var query by rememberSaveable { mutableStateOf("") }
+    var editing: UiPreset? by remember { mutableStateOf<UiPreset?>(null) }
 
     Column(modifier = Modifier.fillMaxSize().padding(12.dp)) {
         OutlinedTextField(
@@ -69,12 +72,21 @@ fun PresetsScreen(ui: UIState, state: AppState) {
                         items(filtered, key = { it.id }) { preset ->
                             PresetCard(
                                 preset = preset,
-                                onEdit = { /* handled via dialog in future */ },
+                                onEdit = { editing = preset },
                                 onDelete = { ui.intents.removePreset(preset.id) }
                             )
                         }
                     }
                 }
+            }
+        }
+
+        if (editing != null) {
+            val draft = store.getPresetDraft(editing!!.id)
+            if (draft != null) {
+                EditPresetDialog(ui = ui, initial = draft, onClose = { editing = null })
+            } else {
+                editing = null
             }
         }
     }
