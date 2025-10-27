@@ -26,6 +26,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
@@ -36,11 +37,13 @@ import io.qent.bro.ui.viewmodels.AppState
 import io.qent.bro.ui.adapter.store.AppStore
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import kotlinx.coroutines.launch
 
 @Composable
 fun ServersScreen(ui: UIState, state: AppState, store: AppStore, notify: (String) -> Unit = {}) {
     var query by rememberSaveable { mutableStateOf("") }
     var editing: UiServer? by remember { mutableStateOf<UiServer?>(null) }
+    val scope = rememberCoroutineScope()
 
     Column(modifier = Modifier.fillMaxSize().padding(12.dp)) {
         OutlinedTextField(
@@ -74,7 +77,34 @@ fun ServersScreen(ui: UIState, state: AppState, store: AppStore, notify: (String
                         items(filtered, key = { it.id }) { cfg ->
                             ServerCard(
                                 cfg = cfg,
-                                onToggle = { id, enabled -> ui.intents.toggleServer(id, enabled) },
+                                onToggle = { id, enabled ->
+                                    if (enabled) {
+                                        // Validate before enabling to surface errors/timeout quickly
+                                        scope.launch {
+                                            val draft = store.getServerDraft(id)
+                                            if (draft == null) {
+                                                notify("Failed to load server config for '${cfg.name}'")
+                                                return@launch
+                                            }
+                                            val result = io.qent.bro.ui.adapter.services.validateServerConnection(draft)
+                                            if (result.isSuccess) {
+                                                ui.intents.toggleServer(id, true)
+                                            } else {
+                                                val e = result.exceptionOrNull()
+                                                val isTimeout = e?.message?.contains("timed out", ignoreCase = true) == true
+                                                if (isTimeout) {
+                                                    notify("Connection timed out for '${cfg.name}'")
+                                                } else {
+                                                    val errMsg = e?.message?.takeIf { it.isNotBlank() }
+                                                    val details = errMsg?.let { ": ${'$'}it" } ?: ""
+                                                    notify("Connection failed for '${'$'}{cfg.name}${'$'}details")
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        ui.intents.toggleServer(id, false)
+                                    }
+                                },
                                 onEdit = { editing = cfg },
                                 onDelete = { id -> ui.intents.removeServer(id) }
                             )

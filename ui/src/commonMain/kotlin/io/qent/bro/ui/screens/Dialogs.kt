@@ -49,9 +49,17 @@ fun AddServerDialog(ui: UIState, state: AppState, notify: (String) -> Unit) {
                     scope.launch {
                         var toSave = draft
                         if (draft.enabled) {
-                            val ok = validateServerConnection(draft).isSuccess
-                            if (!ok) {
-                                notify("Connection failed for '${'$'}{draft.name}'. Saved as disabled.")
+                            val result = validateServerConnection(draft)
+                            if (result.isFailure) {
+                                val e = result.exceptionOrNull()
+                                val isTimeout = e?.message?.contains("timed out", ignoreCase = true) == true
+                                if (isTimeout) {
+                                    notify("Connection timed out. Saved as disabled.")
+                                } else {
+                                    val errMsg = e?.message?.takeIf { it.isNotBlank() }
+                                    val details = errMsg?.let { ": ${'$'}it" } ?: ""
+                                    notify("Connection failed${'$'}details. Saved as disabled.")
+                                }
                                 toSave = draft.copy(enabled = false)
                             }
                         }
@@ -128,9 +136,17 @@ fun EditServerDialog(
                     scope.launch {
                         var toSave = draft
                         if (draft.enabled) {
-                            val ok = validateServerConnection(draft).isSuccess
-                            if (!ok) {
-                                notify("Connection failed for '${'$'}{draft.name}'. Saved as disabled.")
+                            val result = validateServerConnection(draft)
+                            if (result.isFailure) {
+                                val e = result.exceptionOrNull()
+                                val isTimeout = e?.message?.contains("timed out", ignoreCase = true) == true
+                                if (isTimeout) {
+                                    notify("Connection timed out. Saved as disabled.")
+                                } else {
+                                    val errMsg = e?.message?.takeIf { it.isNotBlank() }
+                                    val details = errMsg?.let { ": ${'$'}it" } ?: ""
+                                    notify("Connection failed${'$'}details. Saved as disabled.")
+                                }
                                 toSave = draft.copy(enabled = false)
                             }
                         }
