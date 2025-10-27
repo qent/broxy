@@ -16,12 +16,13 @@ import io.qent.bro.ui.adapter.models.UiHttpDraft
 import io.qent.bro.ui.adapter.models.UiServerDraft
 import io.qent.bro.ui.adapter.models.UiStdioDraft
 import io.qent.bro.ui.adapter.models.UiWebSocketDraft
+import io.qent.bro.ui.adapter.models.UiStreamableHttpDraft
 
 data class ServerFormState(
     val name: String = "",
     val id: String = "",
     val enabled: Boolean = true,
-    val transportType: String = "STDIO", // one of: STDIO, HTTP, WS
+    val transportType: String = "STDIO", // one of: STDIO, HTTP, STREAMABLE_HTTP, WS
     val command: String = "",
     val args: String = "",
     val url: String = "",
@@ -35,6 +36,15 @@ fun ServerFormState.toDraft(): UiServerDraft {
             args = args.split(',').mapNotNull { it.trim().takeIf { v -> v.isNotEmpty() } }
         )
         "HTTP" -> UiHttpDraft(
+            url = url.trim(),
+            headers = headers.lines().mapNotNull { line ->
+                val idx = line.indexOf(':')
+                if (idx <= 0) null else (
+                    line.substring(0, idx).trim() to line.substring(idx + 1).trim()
+                )
+            }.toMap()
+        )
+        "STREAMABLE_HTTP" -> UiStreamableHttpDraft(
             url = url.trim(),
             headers = headers.lines().mapNotNull { line ->
                 val idx = line.indexOf(':')
@@ -58,6 +68,7 @@ object ServerFormStateFactory {
         val (transportType, command, args, url, headers) = when (val t = initial.transport) {
             is UiStdioDraft -> arrayOf("STDIO", t.command, t.args.joinToString(","), "", "")
             is UiHttpDraft -> arrayOf("HTTP", "", "", t.url, t.headers.entries.joinToString("\n") { (k, v) -> "$k:$v" })
+            is UiStreamableHttpDraft -> arrayOf("STREAMABLE_HTTP", "", "", t.url, t.headers.entries.joinToString("\n") { (k, v) -> "$k:$v" })
             is UiWebSocketDraft -> arrayOf("WS", "", "", t.url, "")
             else -> arrayOf("STDIO", "", "", "", "")
         }
@@ -99,9 +110,15 @@ fun ServerForm(
         }
         Text("Transport")
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf("STDIO", "HTTP", "WS").forEach { label ->
+            listOf("STDIO", "HTTP", "STREAMABLE_HTTP", "WS").forEach { label ->
                 TextButton(onClick = { onStateChange(state.copy(transportType = label)) }) {
-                    Text(if (state.transportType == label) "[$label]" else label)
+                    val pretty = when (label) {
+                        "STDIO" -> "STDIO"
+                        "HTTP" -> "HTTP"
+                        "STREAMABLE_HTTP" -> "HTTP (Streamable)"
+                        else -> "WS"
+                    }
+                    Text(if (state.transportType == label) "[$pretty]" else pretty)
                 }
             }
         }
@@ -120,7 +137,7 @@ fun ServerForm(
                     modifier = Modifier.fillMaxWidth()
                 )
             }
-            "HTTP" -> {
+            "HTTP", "STREAMABLE_HTTP" -> {
                 OutlinedTextField(
                     value = state.url,
                     onValueChange = { onStateChange(state.copy(url = it)) },

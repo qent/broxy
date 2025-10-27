@@ -6,8 +6,10 @@ import io.qent.bro.ui.adapter.models.UiServerCapsSnapshot
 import io.qent.bro.ui.adapter.models.UiServerDraft
 import io.qent.bro.ui.adapter.models.UiStdioDraft
 import io.qent.bro.ui.adapter.models.UiWebSocketDraft
+import io.qent.bro.ui.adapter.models.UiStreamableHttpDraft
 import io.qent.bro.ui.adapter.models.UiHttpTransport
 import io.qent.bro.ui.adapter.models.UiStdioTransport
+import io.qent.bro.ui.adapter.models.UiStreamableHttpTransport
 import io.qent.bro.ui.adapter.models.UiWebSocketTransport
 import io.qent.bro.ui.adapter.models.UiServerCapabilities
 
@@ -22,6 +24,7 @@ suspend fun validateServerConnection(draft: UiServerDraft): Result<Unit> {
     val transport = when (val t = draft.transport) {
         is UiStdioDraft -> UiStdioTransport(command = t.command, args = t.args)
         is UiHttpDraft -> UiHttpTransport(url = t.url, headers = t.headers)
+        is UiStreamableHttpDraft -> UiStreamableHttpTransport(url = t.url, headers = t.headers)
         is UiWebSocketDraft -> UiWebSocketTransport(url = t.url)
         else -> UiStdioTransport(command = "")
     }

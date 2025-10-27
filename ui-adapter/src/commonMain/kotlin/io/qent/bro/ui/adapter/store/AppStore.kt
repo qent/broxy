@@ -13,6 +13,7 @@ import io.qent.bro.ui.adapter.models.UiServerDraft
 import io.qent.bro.ui.adapter.models.UiStdioDraft
 import io.qent.bro.ui.adapter.models.UiStdioTransport
 import io.qent.bro.ui.adapter.models.UiStreamableHttpTransport
+import io.qent.bro.ui.adapter.models.UiStreamableHttpDraft
 import io.qent.bro.ui.adapter.models.UiToolRef
 import io.qent.bro.ui.adapter.models.UiWebSocketDraft
 import io.qent.bro.ui.adapter.models.UiWebSocketTransport
@@ -78,7 +79,7 @@ class AppStore(
         val draftTransport = when (val t = cfg.transport) {
             is UiStdioTransport -> UiStdioDraft(command = t.command, args = t.args)
             is UiHttpTransport -> UiHttpDraft(url = t.url, headers = t.headers)
-            is UiStreamableHttpTransport -> UiHttpDraft(url = t.url, headers = t.headers)
+            is UiStreamableHttpTransport -> UiStreamableHttpDraft(url = t.url, headers = t.headers)
             is UiWebSocketTransport -> UiWebSocketDraft(url = t.url)
         }
         return UiServerDraft(
@@ -246,6 +247,7 @@ class AppStore(
                 val transport = when (val t = draft.transport) {
                     is UiStdioDraft -> UiStdioTransport(command = t.command, args = t.args)
                     is UiHttpDraft -> UiHttpTransport(url = t.url, headers = t.headers)
+                    is UiStreamableHttpDraft -> UiStreamableHttpTransport(url = t.url, headers = t.headers)
                     is UiWebSocketDraft -> UiWebSocketTransport(url = t.url)
                 }
                 val cfg = UiMcpServerConfig(
