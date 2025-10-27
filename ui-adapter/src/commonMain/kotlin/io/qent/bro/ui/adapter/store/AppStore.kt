@@ -2,7 +2,6 @@ package io.qent.bro.ui.adapter.store
 
 import io.qent.bro.ui.adapter.data.provideConfigurationRepository
 import io.qent.bro.ui.adapter.models.UiHttpDraft
-import io.qent.bro.ui.adapter.models.UiHttpTransport
 import io.qent.bro.ui.adapter.models.UiMcpServerConfig
 import io.qent.bro.ui.adapter.models.UiMcpServersConfig
 import io.qent.bro.ui.adapter.models.UiPreset
@@ -12,6 +11,7 @@ import io.qent.bro.ui.adapter.models.UiServer
 import io.qent.bro.ui.adapter.models.UiServerDraft
 import io.qent.bro.ui.adapter.models.UiStdioDraft
 import io.qent.bro.ui.adapter.models.UiStdioTransport
+import io.qent.bro.ui.adapter.models.UiHttpTransport
 import io.qent.bro.ui.adapter.models.UiStreamableHttpTransport
 import io.qent.bro.ui.adapter.models.UiStreamableHttpDraft
 import io.qent.bro.ui.adapter.models.UiToolRef
@@ -20,6 +20,7 @@ import io.qent.bro.ui.adapter.models.UiWebSocketTransport
 import io.qent.bro.ui.adapter.models.UiServerCapsSnapshot
 import io.qent.bro.ui.adapter.models.UiServerConnStatus
 import io.qent.bro.ui.adapter.services.fetchServerCapabilities
+import io.qent.bro.ui.adapter.proxy.createProxyController
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -45,6 +46,7 @@ class AppStore(
     private var proxyStatus: UiProxyStatus = UiProxyStatus.Stopped
     private val repo = provideConfigurationRepository()
     private val capsCache = mutableMapOf<String, UiServerCapsSnapshot>()
+    private val proxy = createProxyController()
 
     fun start() {
         scope.launch {
@@ -393,13 +395,32 @@ class AppStore(
         }
 
         override fun startProxySimple(presetId: String) {
-            proxyStatus = UiProxyStatus.Running
-            publishReady()
+            scope.launch {
+                val presetResult = runCatching { repo.loadPreset(presetId) }
+                if (presetResult.isFailure) {
+                    val msg = presetResult.exceptionOrNull()?.message ?: "Failed to load preset"
+                    println("[AppStore] startProxySimple failed: ${'$'}msg")
+                    proxyStatus = UiProxyStatus.Error(msg)
+                    publishReady()
+                    return@launch
+                }
+                val preset = presetResult.getOrNull()!!
+                // Default inbound to HTTP facade matching UI default
+                val inbound = UiHttpTransport("http://0.0.0.0:3335/mcp")
+                val result = proxy.start(servers.toList(), preset, inbound)
+                proxyStatus = if (result.isSuccess) UiProxyStatus.Running
+                else UiProxyStatus.Error(result.exceptionOrNull()?.message ?: "Failed to start proxy")
+                publishReady()
+            }
         }
 
         override fun stopProxy() {
-            proxyStatus = UiProxyStatus.Stopped
-            publishReady()
+            scope.launch {
+                val result = proxy.stop()
+                proxyStatus = if (result.isSuccess) UiProxyStatus.Stopped
+                else UiProxyStatus.Error(result.exceptionOrNull()?.message ?: "Failed to stop proxy")
+                publishReady()
+            }
         }
     }
 }
