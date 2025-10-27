@@ -1,0 +1,148 @@
+package io.qent.bro.ui.components
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import io.qent.bro.ui.adapter.models.UiHttpDraft
+import io.qent.bro.ui.adapter.models.UiServerDraft
+import io.qent.bro.ui.adapter.models.UiStdioDraft
+import io.qent.bro.ui.adapter.models.UiWebSocketDraft
+
+data class ServerFormState(
+    val name: String = "",
+    val id: String = "",
+    val enabled: Boolean = true,
+    val transportType: String = "STDIO", // one of: STDIO, HTTP, WS
+    val command: String = "",
+    val args: String = "",
+    val url: String = "",
+    val headers: String = ""
+)
+
+fun ServerFormState.toDraft(): UiServerDraft {
+    val draftTransport = when (transportType) {
+        "STDIO" -> UiStdioDraft(
+            command = command.trim(),
+            args = args.split(',').mapNotNull { it.trim().takeIf { v -> v.isNotEmpty() } }
+        )
+        "HTTP" -> UiHttpDraft(
+            url = url.trim(),
+            headers = headers.lines().mapNotNull { line ->
+                val idx = line.indexOf(':')
+                if (idx <= 0) null else (
+                    line.substring(0, idx).trim() to line.substring(idx + 1).trim()
+                )
+            }.toMap()
+        )
+        else -> UiWebSocketDraft(url = url.trim())
+    }
+    return UiServerDraft(
+        id = id.trim(),
+        name = name.trim(),
+        enabled = enabled,
+        transport = draftTransport
+    )
+}
+
+object ServerFormStateFactory {
+    fun from(initial: UiServerDraft): ServerFormState {
+        val (transportType, command, args, url, headers) = when (val t = initial.transport) {
+            is UiStdioDraft -> arrayOf("STDIO", t.command, t.args.joinToString(","), "", "")
+            is UiHttpDraft -> arrayOf("HTTP", "", "", t.url, t.headers.entries.joinToString("\n") { (k, v) -> "$k:$v" })
+            is UiWebSocketDraft -> arrayOf("WS", "", "", t.url, "")
+            else -> arrayOf("STDIO", "", "", "", "")
+        }
+        return ServerFormState(
+            name = initial.name,
+            id = initial.id,
+            enabled = initial.enabled,
+            transportType = transportType,
+            command = command,
+            args = args,
+            url = url,
+            headers = headers
+        )
+    }
+}
+
+@Composable
+fun ServerForm(
+    state: ServerFormState,
+    onStateChange: (ServerFormState) -> Unit
+) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedTextField(
+            value = state.name,
+            onValueChange = { onStateChange(state.copy(name = it)) },
+            label = { Text("Name") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        OutlinedTextField(
+            value = state.id,
+            onValueChange = { onStateChange(state.copy(id = it)) },
+            label = { Text("ID") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Row {
+            Text("Enabled")
+            androidx.compose.foundation.layout.Spacer(modifier = Modifier.padding(4.dp))
+            Switch(checked = state.enabled, onCheckedChange = { onStateChange(state.copy(enabled = it)) })
+        }
+        Text("Transport")
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf("STDIO", "HTTP", "WS").forEach { label ->
+                TextButton(onClick = { onStateChange(state.copy(transportType = label)) }) {
+                    Text(if (state.transportType == label) "[$label]" else label)
+                }
+            }
+        }
+        when (state.transportType) {
+            "STDIO" -> {
+                OutlinedTextField(
+                    value = state.command,
+                    onValueChange = { onStateChange(state.copy(command = it)) },
+                    label = { Text("Command") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = state.args,
+                    onValueChange = { onStateChange(state.copy(args = it)) },
+                    label = { Text("Args (comma-separated)") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            "HTTP" -> {
+                OutlinedTextField(
+                    value = state.url,
+                    onValueChange = { onStateChange(state.copy(url = it)) },
+                    label = { Text("HTTP URL") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = state.headers,
+                    onValueChange = { onStateChange(state.copy(headers = it)) },
+                    label = { Text("Headers (key:value per line)") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            else -> {
+                OutlinedTextField(
+                    value = state.url,
+                    onValueChange = { onStateChange(state.copy(url = it)) },
+                    label = { Text("WebSocket URL") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+    }
+}
+

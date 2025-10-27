@@ -2,7 +2,6 @@ package io.qent.bro.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
@@ -13,44 +12,37 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.material3.Switch
-import androidx.compose.foundation.layout.Row
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import io.qent.bro.ui.adapter.models.UiPreset
 import io.qent.bro.ui.adapter.store.UIState
 import io.qent.bro.ui.viewmodels.AppState
-import io.qent.bro.ui.adapter.models.UiServer
 import io.qent.bro.ui.adapter.models.UiServerDraft
-import io.qent.bro.ui.adapter.models.UiStdioDraft
-import io.qent.bro.ui.adapter.models.UiHttpDraft
-import io.qent.bro.ui.adapter.models.UiWebSocketDraft
 import io.qent.bro.ui.adapter.models.UiPresetDraft
 import io.qent.bro.ui.adapter.models.UiToolRef
+import io.qent.bro.ui.components.ServerForm
+import io.qent.bro.ui.components.ServerFormState
+import io.qent.bro.ui.components.ServerFormStateFactory
+import io.qent.bro.ui.components.toDraft
 
 @Composable
 fun AddServerDialog(ui: UIState, state: AppState, notify: (String) -> Unit) {
-    val name = remember { mutableStateOf(TextFieldValue("")) }
-    val id = remember { mutableStateOf(TextFieldValue("")) }
+    val form = remember { mutableStateOf(ServerFormState()) }
 
     AlertDialog(
         onDismissRequest = { state.showAddServerDialog.value = false },
         title = { Text("Add server") },
         text = {
-            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(value = name.value, onValueChange = { name.value = it }, label = { Text("Name") }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = id.value, onValueChange = { id.value = it }, label = { Text("ID") }, modifier = Modifier.fillMaxWidth())
-            }
+            ServerForm(state = form.value, onStateChange = { form.value = it })
         },
         confirmButton = {
             Button(onClick = {
-                val n = name.value.text.trim()
-                val i = id.value.text.trim()
-                if (n.isNotBlank() && i.isNotBlank() && ui is UIState.Ready) {
-                    ui.intents.addServerBasic(i, n)
+                if (ui is UIState.Ready) {
+                    val draft: UiServerDraft = form.value.toDraft()
+                    ui.intents.upsertServer(draft)
                     state.showAddServerDialog.value = false
-                    notify("Saved ${'$'}n")
+                    notify("Saved ${'$'}{draft.name}")
                 }
             }) { Text("Save") }
         },
@@ -102,66 +94,18 @@ fun EditServerDialog(
     onClose: () -> Unit,
     notify: (String) -> Unit = {}
 ) {
-    val name = remember { mutableStateOf(TextFieldValue(initial.name)) }
-    val id = remember { mutableStateOf(TextFieldValue(initial.id)) }
-    val enabled = remember { mutableStateOf(initial.enabled) }
-    val transportType = remember { mutableStateOf(
-        when (initial.transport) {
-            is UiStdioDraft -> "STDIO"
-            is UiHttpDraft -> "HTTP"
-            is UiWebSocketDraft -> "WS"
-        }
-    ) }
-    val command = remember { mutableStateOf(TextFieldValue((initial.transport as? UiStdioDraft)?.command ?: "")) }
-    val args = remember { mutableStateOf(TextFieldValue((initial.transport as? UiStdioDraft)?.args?.joinToString(",") ?: "")) }
-    val url = remember { mutableStateOf(TextFieldValue((initial.transport as? UiHttpDraft)?.url ?: (initial.transport as? UiWebSocketDraft)?.url ?: "")) }
-    val headers = remember { mutableStateOf(TextFieldValue((initial.transport as? UiHttpDraft)?.headers?.entries?.joinToString("\n") { (k, v) -> "$k:$v" } ?: "")) }
+    val form = remember { mutableStateOf(ServerFormStateFactory.from(initial)) }
 
     AlertDialog(
         onDismissRequest = onClose,
         title = { Text("Edit server") },
         text = {
-            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(value = name.value, onValueChange = { name.value = it }, label = { Text("Name") }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = id.value, onValueChange = { id.value = it }, label = { Text("ID") }, modifier = Modifier.fillMaxWidth())
-                Row { Text("Enabled"); Spacer(modifier = Modifier.padding(4.dp)); Switch(checked = enabled.value, onCheckedChange = { enabled.value = it }) }
-                Text("Transport")
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("STDIO", "HTTP", "WS").forEach { label ->
-                        TextButton(onClick = { transportType.value = label }) { Text(if (transportType.value == label) "[$label]" else label) }
-                    }
-                }
-                when (transportType.value) {
-                    "STDIO" -> {
-                        OutlinedTextField(value = command.value, onValueChange = { command.value = it }, label = { Text("Command") }, modifier = Modifier.fillMaxWidth())
-                        OutlinedTextField(value = args.value, onValueChange = { args.value = it }, label = { Text("Args (comma-separated)") }, modifier = Modifier.fillMaxWidth())
-                    }
-                    "HTTP" -> {
-                        OutlinedTextField(value = url.value, onValueChange = { url.value = it }, label = { Text("HTTP URL") }, modifier = Modifier.fillMaxWidth())
-                        OutlinedTextField(value = headers.value, onValueChange = { headers.value = it }, label = { Text("Headers (key:value per line)") }, modifier = Modifier.fillMaxWidth())
-                    }
-                    else -> {
-                        OutlinedTextField(value = url.value, onValueChange = { url.value = it }, label = { Text("WebSocket URL") }, modifier = Modifier.fillMaxWidth())
-                    }
-                }
-            }
+            ServerForm(state = form.value, onStateChange = { form.value = it })
         },
         confirmButton = {
             Button(onClick = {
                 if (ui is UIState.Ready) {
-                    val draftTransport = when (transportType.value) {
-                        "STDIO" -> UiStdioDraft(command = command.value.text.trim(), args = args.value.text.split(',').mapNotNull { it.trim().takeIf { it.isNotEmpty() } })
-                        "HTTP" -> UiHttpDraft(url = url.value.text.trim(), headers = headers.value.text.lines().mapNotNull { line ->
-                            val idx = line.indexOf(':'); if (idx <= 0) null else (line.substring(0, idx).trim() to line.substring(idx + 1).trim())
-                        }.toMap())
-                        else -> UiWebSocketDraft(url = url.value.text.trim())
-                    }
-                    val draft = UiServerDraft(
-                        id = id.value.text.trim(),
-                        name = name.value.text.trim(),
-                        enabled = enabled.value,
-                        transport = draftTransport
-                    )
+                    val draft = form.value.toDraft()
                     ui.intents.upsertServer(draft)
                     onClose()
                     notify("Saved ${'$'}{draft.name}")
