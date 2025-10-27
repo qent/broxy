@@ -24,7 +24,6 @@ kotlin {
                 implementation("io.modelcontextprotocol:kotlin-sdk:${property("mcpSdkVersion")}")
                 implementation("io.modelcontextprotocol:kotlin-sdk-server-jvm:${property("mcpSdkVersion")}")
                 implementation("io.ktor:ktor-client-cio:${property("ktorVersion")}")
-                implementation("io.ktor:ktor-client-sse:${property("ktorVersion")}")
                 implementation("io.ktor:ktor-client-websockets:${property("ktorVersion")}")
                 implementation("io.ktor:ktor-server-netty:${property("ktorVersion")}")
                 implementation("io.ktor:ktor-server-websockets:${property("ktorVersion")}")
