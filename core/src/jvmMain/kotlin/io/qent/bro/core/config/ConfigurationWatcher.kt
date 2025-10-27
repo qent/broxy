@@ -14,7 +14,7 @@ import java.nio.file.*
 import kotlin.io.path.exists
 
 class ConfigurationWatcher(
-    private val baseDir: Path = Paths.get(System.getProperty("user.home")),
+    private val baseDir: Path = Paths.get(System.getProperty("user.home"), ".config", "bro"),
     private val repo: ConfigurationRepository,
     private val logger: Logger? = null,
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.IO),
@@ -37,7 +37,10 @@ class ConfigurationWatcher(
 
     fun start() {
         if (watchJob != null) return
-        if (!baseDir.exists()) return
+        if (!baseDir.exists()) {
+            logger?.warn("Configuration directory ${baseDir.toAbsolutePath()} does not exist; watcher idle")
+            return
+        }
         val ws = FileSystems.getDefault().newWatchService()
         watchService = ws
         try {
@@ -46,6 +49,8 @@ class ConfigurationWatcher(
             logger?.warn("Failed to register watcher: ${e.message}", e)
             return
         }
+
+        logger?.info("Watching configuration directory ${baseDir.toAbsolutePath()}")
 
         // Emit initial state after debounce
         markConfigDirtyAndSchedule()
@@ -108,7 +113,7 @@ class ConfigurationWatcher(
             if (notifyConfig) {
                 runCatching { repo.loadMcpConfig() }
                     .onSuccess { cfg -> observers.forEach { it.onConfigurationChanged(cfg) } }
-                    .onFailure { ex -> logger?.warn("Failed to reload mcp.json: ${ex.message}") }
+                    .onFailure { ex -> logger?.warn("Failed to reload mcp.json: ${ex.message}", ex) }
             }
 
             presetFiles.forEach { file ->
@@ -117,7 +122,7 @@ class ConfigurationWatcher(
                     val id = name.removePrefix("preset_").removeSuffix(".json")
                     runCatching { repo.loadPreset(id) }
                         .onSuccess { p: Preset -> observers.forEach { it.onPresetChanged(p) } }
-                        .onFailure { ex -> logger?.warn("Failed to reload preset '$name': ${ex.message}") }
+                        .onFailure { ex -> logger?.warn("Failed to reload preset '$name': ${ex.message}", ex) }
                 } else {
                     logger?.info("Preset file deleted: $name")
                 }

@@ -7,6 +7,7 @@ import io.ktor.server.netty.Netty
 import io.ktor.server.plugins.calllogging.CallLogging
 import io.ktor.server.routing.routing
 import io.ktor.server.websocket.WebSockets
+import io.ktor.server.sse.SSE
 import io.modelcontextprotocol.kotlin.sdk.server.mcp
 import io.modelcontextprotocol.kotlin.sdk.server.mcpWebSocket
 import kotlinx.io.asSink
@@ -92,6 +93,7 @@ private class KtorInboundServer(
         logger.info("Starting $mode inbound at $scheme://$host:$port$path")
         engine = embeddedServer(Netty, host = host, port = port, module = {
             install(CallLogging)
+            if (mode == Mode.Sse) install(SSE)
             if (mode == Mode.WebSocket) install(WebSockets)
             routing {
                 when (mode) {

@@ -4,73 +4,65 @@
   "title": "MCP Servers Configuration",
   "type": "object",
   "additionalProperties": false,
-  "required": ["servers"],
+  "required": ["mcpServers"],
   "properties": {
-    "servers": {
-      "type": "array",
-      "items": { "$ref": "#/definitions/McpServerConfig" }
+    "mcpServers": {
+      "type": "object",
+      "description": "Map of server IDs to MCP server definitions.",
+      "propertyNames": {
+        "type": "string",
+        "minLength": 1
+      },
+      "additionalProperties": { "$ref": "#/definitions/FileMcpServer" }
     }
   },
   "definitions": {
-    "McpServerConfig": {
+    "FileMcpServer": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "name", "transport", "enabled"],
+      "required": ["transport"],
       "properties": {
-        "id": { "type": "string", "minLength": 1 },
         "name": { "type": "string", "minLength": 1 },
-        "transport": { "$ref": "#/definitions/TransportConfig" },
-        "env": {
-          "type": "object",
-          "additionalProperties": { "type": "string" },
-          "default": {}
+        "enabled": { "type": "boolean", "default": true },
+        "transport": {
+          "type": "string",
+          "enum": ["stdio", "http", "websocket", "ws"]
         },
-        "enabled": { "type": "boolean" }
-      }
-    },
-    "TransportConfig": {
-      "oneOf": [
-        { "$ref": "#/definitions/StdioTransport" },
-        { "$ref": "#/definitions/HttpTransport" },
-        { "$ref": "#/definitions/WebSocketTransport" }
-      ]
-    },
-    "StdioTransport": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["type", "command"],
-      "properties": {
-        "type": { "const": "stdio" },
         "command": { "type": "string", "minLength": 1 },
         "args": {
           "type": "array",
           "items": { "type": "string" },
           "default": []
-        }
-      }
-    },
-    "HttpTransport": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["type", "url"],
-      "properties": {
-        "type": { "const": "http" },
-        "url": { "type": "string", "format": "uri" },
+        },
+        "url": { "type": "string", "minLength": 1 },
         "headers": {
           "type": "object",
           "additionalProperties": { "type": "string" },
           "default": {}
+        },
+        "env": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "default": {}
         }
-      }
-    },
-    "WebSocketTransport": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["type", "url"],
-      "properties": {
-        "type": { "const": "websocket" },
-        "url": { "type": "string", "format": "uri" }
-      }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "transport": { "const": "stdio" } }, "required": ["transport"] },
+          "then": { "required": ["command"], "properties": { "args": { "type": "array", "items": { "type": "string" } } } }
+        },
+        {
+          "if": { "properties": { "transport": { "const": "http" } }, "required": ["transport"] },
+          "then": { "required": ["url"] }
+        },
+        {
+          "if": {
+            "properties": { "transport": { "enum": ["websocket", "ws"] } },
+            "required": ["transport"]
+          },
+          "then": { "required": ["url"] }
+        }
+      ]
     }
   }
 }
