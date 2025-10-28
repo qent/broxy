@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Divider
 import androidx.compose.material3.MaterialTheme
@@ -45,9 +47,9 @@ fun PresetSelector(
 
     // Selection state
     val selectedServers = remember { mutableStateMapOf<String, Boolean>() }
-    val selectedTools = remember { mutableStateMapOf<String, MutableSet<String>>() } // per server tool names
-    val selectedPrompts = remember { mutableStateMapOf<String, MutableSet<String>>() }
-    val selectedResources = remember { mutableStateMapOf<String, MutableSet<String>>() }
+    val selectedTools = remember { mutableStateMapOf<String, Set<String>>() }
+    val selectedPrompts = remember { mutableStateMapOf<String, Set<String>>() }
+    val selectedResources = remember { mutableStateMapOf<String, Set<String>>() }
 
     LaunchedEffect(Unit) {
         loading = true
@@ -57,12 +59,14 @@ fun PresetSelector(
         // Initialize selection from initialToolRefs (tools only)
         initialToolRefs.filter { it.enabled }.forEach { ref ->
             selectedServers[ref.serverId] = true
-            val set = selectedTools.getOrPut(ref.serverId) { mutableSetOf() }
-            set += ref.toolName
+            val prev = selectedTools[ref.serverId] ?: emptySet()
+            selectedTools[ref.serverId] = prev + ref.toolName
         }
         loading = false
         // Push initial mapping to consumer
-        onToolsChanged(selectedTools.flatMap { (sid, tools) -> tools.map { t -> UiToolRef(serverId = sid, toolName = t, enabled = true) } })
+        onToolsChanged(selectedTools.flatMap { (sid, tools) ->
+            tools.map { t -> UiToolRef(serverId = sid, toolName = t, enabled = true) }
+        })
     }
 
     fun recomputeAndEmit() {
@@ -70,7 +74,14 @@ fun PresetSelector(
         onToolsChanged(refs)
     }
 
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    val scroll = rememberScrollState()
+    
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .verticalScroll(scroll),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
         if (loading) {
             Text("Loading server capabilities...", style = MaterialTheme.typography.bodyMedium)
             return@Column
@@ -91,10 +102,10 @@ fun PresetSelector(
                             onCheckedChange = { checked ->
                                 selectedServers[serverId] = checked
                                 if (checked) {
-                                    // Select all items for this server
-                                    selectedTools[serverId] = snap.tools.toMutableSet()
-                                    selectedPrompts[serverId] = snap.prompts.toMutableSet()
-                                    selectedResources[serverId] = snap.resources.toMutableSet()
+                                    // FIX: присваиваем новые set'ы
+                                    selectedTools[serverId] = snap.tools.toSet()
+                                    selectedPrompts[serverId] = snap.prompts.toSet()
+                                    selectedResources[serverId] = snap.resources.toSet()
                                 } else {
                                     selectedTools.remove(serverId)
                                     selectedPrompts.remove(serverId)
@@ -103,7 +114,11 @@ fun PresetSelector(
                                 recomputeAndEmit()
                             }
                         )
-                        Text(serverNames[serverId] ?: serverId, style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 10.dp))
+                        Text(
+                            serverNames[serverId] ?: serverId,
+                            style = MaterialTheme.typography.titleSmall,
+                            modifier = Modifier.padding(top = 10.dp)
+                        )
                     }
                     TextButton(onClick = { expanded[serverId] = !(expanded[serverId] ?: false) }) {
                         Text(if (expanded[serverId] == true) "Hide" else "Show")
@@ -116,13 +131,18 @@ fun PresetSelector(
                     snap.tools.forEach { t ->
                         val checked = selectedTools[serverId]?.contains(t) == true
                         Row(Modifier.fillMaxWidth().padding(start = 8.dp)) {
-                            Checkbox(checked = checked, onCheckedChange = { c ->
-                                val set = selectedTools.getOrPut(serverId) { mutableSetOf() }
-                                if (c) set += t else set -= t
-                                // Maintain server checkbox if any item selected
-                                selectedServers[serverId] = (selectedTools[serverId]?.isNotEmpty() == true)
-                                recomputeAndEmit()
-                            })
+                            Checkbox(
+                                checked = checked,
+                                onCheckedChange = { c ->
+                                    // FIX: создаём новое множество и присваиваем в map
+                                    val prev = selectedTools[serverId] ?: emptySet()
+                                    val next = if (c) prev + t else prev - t
+                                    selectedTools[serverId] = next
+                                    // Maintain server checkbox if any item selected
+                                    selectedServers[serverId] = next.isNotEmpty()
+                                    recomputeAndEmit()
+                                }
+                            )
                             Text(t, modifier = Modifier.padding(top = 10.dp))
                         }
                     }
@@ -132,10 +152,14 @@ fun PresetSelector(
                     snap.prompts.forEach { p ->
                         val checked = selectedPrompts[serverId]?.contains(p) == true
                         Row(Modifier.fillMaxWidth().padding(start = 8.dp)) {
-                            Checkbox(checked = checked, onCheckedChange = { c ->
-                                val set = selectedPrompts.getOrPut(serverId) { mutableSetOf() }
-                                if (c) set += p else set -= p
-                            })
+                            Checkbox(
+                                checked = checked,
+                                onCheckedChange = { c ->
+                                    val prev = selectedPrompts[serverId] ?: emptySet()
+                                    val next = if (c) prev + p else prev - p
+                                    selectedPrompts[serverId] = next
+                                }
+                            )
                             Text(p, modifier = Modifier.padding(top = 10.dp))
                         }
                     }
@@ -145,10 +169,14 @@ fun PresetSelector(
                     snap.resources.forEach { key ->
                         val checked = selectedResources[serverId]?.contains(key) == true
                         Row(Modifier.fillMaxWidth().padding(start = 8.dp)) {
-                            Checkbox(checked = checked, onCheckedChange = { c ->
-                                val set = selectedResources.getOrPut(serverId) { mutableSetOf() }
-                                if (c) set += key else set -= key
-                            })
+                            Checkbox(
+                                checked = checked,
+                                onCheckedChange = { c ->
+                                    val prev = selectedResources[serverId] ?: emptySet()
+                                    val next = if (c) prev + key else prev - key
+                                    selectedResources[serverId] = next
+                                }
+                            )
                             Text(key, modifier = Modifier.padding(top = 10.dp))
                         }
                     }

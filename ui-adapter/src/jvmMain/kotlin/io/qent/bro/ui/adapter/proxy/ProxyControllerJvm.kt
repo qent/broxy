@@ -6,26 +6,38 @@ import io.qent.bro.core.mcp.ServerStatus
 import io.qent.bro.core.proxy.ProxyMcpServer
 import io.qent.bro.core.proxy.inbound.InboundServer
 import io.qent.bro.core.proxy.inbound.InboundServerFactory
-import io.qent.bro.core.utils.ConsoleLogger
+import io.qent.bro.core.utils.CollectingLogger
+import io.qent.bro.core.utils.LogEvent
 import io.qent.bro.core.utils.Logger
 import io.qent.bro.core.utils.StdErrLogger
 import io.qent.bro.ui.adapter.models.UiMcpServerConfig
 import io.qent.bro.ui.adapter.models.UiPresetCore
 import io.qent.bro.ui.adapter.models.UiTransportConfig
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.flow.Flow
 
 private class JvmProxyController(
-    private val logger: Logger = ConsoleLogger
+    private val logger: CollectingLogger = CollectingLogger()
 ) : ProxyController {
     private var downstreams: List<McpServerConnection> = emptyList()
     private var proxy: ProxyMcpServer? = null
     private var inbound: InboundServer? = null
+    @Volatile
+    private var callTimeoutMillis: Long = 60_000
 
-    override fun start(servers: List<UiMcpServerConfig>, preset: UiPresetCore, inbound: UiTransportConfig): Result<Unit> = runCatching {
+    override val logs: Flow<LogEvent> get() = logger.events
+
+    override fun start(
+        servers: List<UiMcpServerConfig>,
+        preset: UiPresetCore,
+        inbound: UiTransportConfig,
+        callTimeoutSeconds: Int
+    ): Result<Unit> = runCatching {
         runCatching { stop() }
+        callTimeoutMillis = callTimeoutSeconds.coerceIn(5, 600) * 1000L
 
         downstreams = servers.filter { it.enabled }.map { cfg ->
-            DefaultMcpServerConnection(cfg, logger = logger)
+            DefaultMcpServerConnection(cfg, logger = logger, callTimeoutMillis = callTimeoutMillis)
         }
         val p = ProxyMcpServer(downstreams, logger = logger)
         p.start(preset, inbound)
@@ -46,6 +58,13 @@ private class JvmProxyController(
         proxy = null
         runBlocking { ds.forEach { runCatching { it.disconnect() } } }
     }
+
+    override fun updateCallTimeout(seconds: Int) {
+        callTimeoutMillis = seconds.coerceIn(5, 600) * 1000L
+        downstreams.forEach { conn ->
+            (conn as? DefaultMcpServerConnection)?.updateCallTimeout(callTimeoutMillis)
+        }
+    }
 }
 
 actual fun createProxyController(): ProxyController = JvmProxyController()
@@ -54,4 +73,5 @@ actual fun createProxyController(): ProxyController = JvmProxyController()
  * Specialized factory for STDIO inbound where stdout must remain clean for MCP
  * and all logs go to stderr.
  */
-fun createStdioProxyController(): ProxyController = JvmProxyController(logger = StdErrLogger)
+fun createStdioProxyController(): ProxyController =
+    JvmProxyController(logger = CollectingLogger(delegate = StdErrLogger))

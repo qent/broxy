@@ -108,16 +108,34 @@ class ProxyMcpServer(
      * in the form `serverId:toolName`.
      */
     suspend fun callTool(toolName: String, arguments: JsonObject = JsonObject(emptyMap())): Result<JsonElement> =
-        dispatcher.dispatchToolCall(ToolCallRequest(toolName, arguments))
+        dispatcher.dispatchToolCall(ToolCallRequest(toolName, arguments)).also { result ->
+            if (result.isSuccess) {
+                logger.info("Forwarded tool '$toolName' response back to LLM")
+            } else {
+                logger.error("Tool '$toolName' failed", result.exceptionOrNull())
+            }
+        }
 
     /** Fetches a prompt from the appropriate downstream based on mapping computed during filtering. */
     suspend fun getPrompt(name: String): Result<JsonObject> {
-        return dispatcher.dispatchPrompt(name)
+        val result = dispatcher.dispatchPrompt(name)
+        if (result.isSuccess) {
+            logger.info("Delivered prompt '$name' back to LLM")
+        } else {
+            logger.error("Prompt '$name' failed", result.exceptionOrNull())
+        }
+        return result
     }
 
     /** Reads a resource from the appropriate downstream based on mapping computed during filtering. */
     suspend fun readResource(uri: String): Result<JsonObject> {
-        return dispatcher.dispatchResource(uri)
+        val result = dispatcher.dispatchResource(uri)
+        if (result.isSuccess) {
+            logger.info("Delivered resource '$uri' back to LLM")
+        } else {
+            logger.error("Resource '$uri' failed", result.exceptionOrNull())
+        }
+        return result
     }
 
     private suspend fun fetchAllDownstreamCapabilities(): Map<String, ServerCapabilities> = coroutineScope {

@@ -67,7 +67,7 @@ private class StdioInboundServer(
         val input = System.`in`.asSource().buffered()
         val output = System.out.asSink().buffered()
         val transport = io.modelcontextprotocol.kotlin.sdk.server.StdioServerTransport(input, output)
-        val server = buildSdkServer(proxy)
+        val server = buildSdkServer(proxy, logger)
         return try {
             kotlinx.coroutines.runBlocking { server.connect(transport) }
             ServerStatus.Running
@@ -103,8 +103,8 @@ private class KtorInboundServer(
             if (mode == Mode.WebSocket) install(WebSockets)
             routing {
                 when (mode) {
-                    Mode.Sse, Mode.StreamableHttp -> mcp(path) { buildSdkServer(proxy) }
-                    Mode.WebSocket -> mcpWebSocket(path = path, block = { buildSdkServer(proxy) })
+                    Mode.Sse, Mode.StreamableHttp -> mcp(path) { buildSdkServer(proxy, logger) }
+                    Mode.WebSocket -> mcpWebSocket(path = path, block = { buildSdkServer(proxy, logger) })
                 }
             }
         }).start(wait = false)

@@ -20,6 +20,8 @@ import io.qent.bro.ui.adapter.models.UiWebSocketDraft
 import io.qent.bro.ui.adapter.models.UiWebSocketTransport
 import io.qent.bro.ui.adapter.models.UiServerCapsSnapshot
 import io.qent.bro.ui.adapter.models.UiServerConnStatus
+import io.qent.bro.ui.adapter.models.UiLogEntry
+import io.qent.bro.ui.adapter.models.UiLogLevel
 import io.qent.bro.ui.adapter.services.fetchServerCapabilities
 import io.qent.bro.ui.adapter.proxy.createProxyController
 import kotlinx.coroutines.async
@@ -48,11 +50,34 @@ class AppStore(
     private val repo = provideConfigurationRepository()
     private val capsCache = mutableMapOf<String, UiServerCapsSnapshot>()
     private val proxy = createProxyController()
+    private var requestTimeoutSeconds: Int = 60
+    private val logs = mutableListOf<UiLogEntry>()
+    private val maxLogs = 500
+
+    init {
+        scope.launch {
+            proxy.logs.collect { event ->
+                val uiEntry = UiLogEntry(
+                    timestampMillis = event.timestampMillis,
+                    level = UiLogLevel.valueOf(event.level.name),
+                    message = event.message,
+                    throwableMessage = event.throwableMessage
+                )
+                synchronized(logs) {
+                    logs += uiEntry
+                    if (logs.size > maxLogs) logs.removeAt(0)
+                }
+                publishReady()
+            }
+        }
+    }
 
     fun start() {
         scope.launch {
             val load = runCatching {
                 val cfg = repo.loadMcpConfig()
+                requestTimeoutSeconds = cfg.requestTimeoutSeconds
+                proxy.updateCallTimeout(requestTimeoutSeconds)
                 val loadedPresets = repo.listPresets()
                 servers.clear(); servers.addAll(cfg.servers)
                 presets.clear(); presets.addAll(loadedPresets.map { p ->
@@ -162,6 +187,8 @@ class AppStore(
             servers = uiServers,
             presets = presets.toList(),
             proxyStatus = proxyStatus,
+            requestTimeoutSeconds = requestTimeoutSeconds,
+            logs = synchronized(logs) { logs.asReversed().toList() },
             intents = intents
         )
     }
@@ -202,6 +229,8 @@ class AppStore(
             scope.launch {
                 val r = runCatching {
                     val cfg = repo.loadMcpConfig()
+                    requestTimeoutSeconds = cfg.requestTimeoutSeconds
+                    proxy.updateCallTimeout(requestTimeoutSeconds)
                     val loadedPresets = repo.listPresets()
                     servers.clear(); servers.addAll(cfg.servers)
                     presets.clear(); presets.addAll(loadedPresets.map { p ->
@@ -236,7 +265,14 @@ class AppStore(
                 )).copy(name = ui.name, enabled = ui.enabled)
                 val snapshot = servers.toList()
                 if (idx >= 0) servers[idx] = updated else servers += updated
-                val r = runCatching { repo.saveMcpConfig(UiMcpServersConfig(servers.toList())) }
+                val r = runCatching {
+                    repo.saveMcpConfig(
+                        UiMcpServersConfig(
+                            servers = servers.toList(),
+                            requestTimeoutSeconds = requestTimeoutSeconds
+                        )
+                    )
+                }
                 if (r.isFailure) {
                     val msg = r.exceptionOrNull()?.message ?: "Failed to save servers"
                     println("[AppStore] addOrUpdateServerUi failed: ${'$'}msg")
@@ -265,7 +301,14 @@ class AppStore(
                 val idx = servers.indexOfFirst { it.id == cfg.id }
                 val snapshot = servers.toList()
                 if (idx >= 0) servers[idx] = cfg else servers += cfg
-                val r = runCatching { repo.saveMcpConfig(UiMcpServersConfig(servers.toList())) }
+                val r = runCatching {
+                    repo.saveMcpConfig(
+                        UiMcpServersConfig(
+                            servers = servers.toList(),
+                            requestTimeoutSeconds = requestTimeoutSeconds
+                        )
+                    )
+                }
                 if (r.isFailure) {
                     val msg = r.exceptionOrNull()?.message ?: "Failed to save servers"
                     println("[AppStore] upsertServer failed: ${'$'}msg")
@@ -283,7 +326,14 @@ class AppStore(
                 val idx = servers.indexOfFirst { it.id == cfg.id }
                 val snapshot = servers.toList()
                 if (idx >= 0) servers[idx] = cfg else servers += cfg
-                val r = runCatching { repo.saveMcpConfig(UiMcpServersConfig(servers.toList())) }
+                val r = runCatching {
+                    repo.saveMcpConfig(
+                        UiMcpServersConfig(
+                            servers = servers.toList(),
+                            requestTimeoutSeconds = requestTimeoutSeconds
+                        )
+                    )
+                }
                 if (r.isFailure) {
                     val msg = r.exceptionOrNull()?.message ?: "Failed to save servers"
                     println("[AppStore] addServerBasic failed: ${'$'}msg")
@@ -299,7 +349,14 @@ class AppStore(
             scope.launch {
                 val snapshot = servers.toList()
                 servers.removeAll { it.id == id }
-                val r = runCatching { repo.saveMcpConfig(UiMcpServersConfig(servers.toList())) }
+                val r = runCatching {
+                    repo.saveMcpConfig(
+                        UiMcpServersConfig(
+                            servers = servers.toList(),
+                            requestTimeoutSeconds = requestTimeoutSeconds
+                        )
+                    )
+                }
                 if (r.isFailure) {
                     val msg = r.exceptionOrNull()?.message ?: "Failed to save servers"
                     println("[AppStore] removeServer failed: ${'$'}msg")
@@ -317,7 +374,14 @@ class AppStore(
                 if (idx >= 0) {
                     val snapshot = servers[idx]
                     servers[idx] = servers[idx].copy(enabled = enabled)
-                    val r = runCatching { repo.saveMcpConfig(UiMcpServersConfig(servers.toList())) }
+                    val r = runCatching {
+                        repo.saveMcpConfig(
+                            UiMcpServersConfig(
+                                servers = servers.toList(),
+                                requestTimeoutSeconds = requestTimeoutSeconds
+                            )
+                        )
+                    }
                     if (r.isFailure) {
                         val msg = r.exceptionOrNull()?.message ?: "Failed to save server state"
                         println("[AppStore] toggleServer failed: ${'$'}msg")
@@ -411,7 +475,7 @@ class AppStore(
                 val preset = presetResult.getOrNull()!!
                 // Default inbound to HTTP facade matching UI default
                 val inbound = UiHttpTransport("http://0.0.0.0:3335/mcp")
-                val result = proxy.start(servers.toList(), preset, inbound)
+                val result = proxy.start(servers.toList(), preset, inbound, requestTimeoutSeconds)
                 proxyStatus = if (result.isSuccess) UiProxyStatus.Running
                 else UiProxyStatus.Error(result.exceptionOrNull()?.message ?: "Failed to start proxy")
                 publishReady()
@@ -436,7 +500,7 @@ class AppStore(
                     is UiWebSocketDraft -> UiWebSocketTransport(url = inbound.url)
                     else -> UiHttpTransport(url = "http://0.0.0.0:3335/mcp")
                 }
-                val result = proxy.start(servers.toList(), preset, inboundTransport)
+                val result = proxy.start(servers.toList(), preset, inboundTransport, requestTimeoutSeconds)
                 proxyStatus = if (result.isSuccess) UiProxyStatus.Running
                 else UiProxyStatus.Error(result.exceptionOrNull()?.message ?: "Failed to start proxy")
                 publishReady()
@@ -448,6 +512,31 @@ class AppStore(
                 val result = proxy.stop()
                 proxyStatus = if (result.isSuccess) UiProxyStatus.Stopped
                 else UiProxyStatus.Error(result.exceptionOrNull()?.message ?: "Failed to stop proxy")
+                publishReady()
+            }
+        }
+
+        override fun updateRequestTimeout(seconds: Int) {
+            scope.launch {
+                val coerced = seconds.coerceIn(5, 600)
+                val previous = requestTimeoutSeconds
+                requestTimeoutSeconds = coerced
+                proxy.updateCallTimeout(requestTimeoutSeconds)
+                val r = runCatching {
+                    repo.saveMcpConfig(
+                        UiMcpServersConfig(
+                            servers = servers.toList(),
+                            requestTimeoutSeconds = requestTimeoutSeconds
+                        )
+                    )
+                }
+                if (r.isFailure) {
+                    val msg = r.exceptionOrNull()?.message ?: "Failed to update timeout"
+                    println("[AppStore] updateRequestTimeout failed: ${'$'}msg")
+                    requestTimeoutSeconds = previous
+                    proxy.updateCallTimeout(requestTimeoutSeconds)
+                    _state.value = UIState.Error(msg)
+                }
                 publishReady()
             }
         }

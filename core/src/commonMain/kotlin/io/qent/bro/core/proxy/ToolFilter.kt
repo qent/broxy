@@ -76,7 +76,7 @@ class DefaultToolFilter(
                 if (tool != null) {
                     val prefixed = "$serverId:${tool.name}"
                     allowedPrefixed += prefixed
-                    filteredTools += ToolDescriptor(name = prefixed, description = tool.description)
+                    filteredTools += tool.copy(name = prefixed)
                 }
             }
         }

@@ -11,6 +11,8 @@ import io.qent.bro.core.models.TransportConfig
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlin.test.Test
@@ -28,7 +30,15 @@ private class DServer(
     override suspend fun disconnect() {}
     override suspend fun getCapabilities(forceRefresh: Boolean): Result<ServerCapabilities> = Result.success(caps)
     override suspend fun callTool(toolName: String, arguments: JsonObject): Result<JsonElement> =
-        Result.success(buildJsonObject { put("server", serverId); put("tool", toolName) })
+        Result.success(buildJsonObject {
+            put("content", buildJsonArray { })
+            put("structuredContent", buildJsonObject {
+                put("server", JsonPrimitive(serverId))
+                put("tool", JsonPrimitive(toolName))
+            })
+            put("isError", JsonPrimitive(false))
+            put("_meta", JsonObject(emptyMap()))
+        })
     override suspend fun getPrompt(name: String): Result<JsonObject> =
         Result.success(buildJsonObject { put("description", "desc-$name"); put("messages", "[]") })
     override suspend fun readResource(uri: String): Result<JsonObject> =
@@ -116,4 +126,3 @@ class RequestDispatcherBatchTest {
         assertTrue(prUnknown.isFailure)
     }
 }
-

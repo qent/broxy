@@ -5,11 +5,16 @@ import io.qent.bro.core.mcp.MultiServerClient
 import io.qent.bro.core.mcp.ServerCapabilities
 import io.qent.bro.core.utils.ConsoleLogger
 import io.qent.bro.core.utils.Logger
+import io.qent.bro.core.utils.errorJson
+import io.qent.bro.core.utils.infoJson
+import io.qent.bro.core.utils.warnJson
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonPrimitive
 
 data class ToolCallRequest(val name: String, val arguments: JsonObject = JsonObject(emptyMap()))
 
@@ -42,14 +47,40 @@ class DefaultRequestDispatcher(
         val name = request.name
         if (allowed.isNotEmpty() && name !in allowed) {
             val msg = "Tool '$name' is not allowed by current preset"
-            logger.warn(msg)
+            logger.warnJson("proxy.tool.denied") {
+                put("toolName", JsonPrimitive(name))
+                put("reason", JsonPrimitive(msg))
+            }
             return Result.failure(IllegalArgumentException(msg))
         }
         return try {
             val (serverId, tool) = namespace.parsePrefixedToolName(name)
             val server = servers.firstOrNull { it.serverId == serverId }
                 ?: return Result.failure(IllegalArgumentException("Unknown server: $serverId"))
-            server.callTool(tool, request.arguments)
+            logger.infoJson("facade_to_downstream.request") {
+                put("toolName", JsonPrimitive(request.name))
+                put("resolvedServerId", JsonPrimitive(serverId))
+                put("downstreamTool", JsonPrimitive(tool))
+                put("arguments", request.arguments)
+            }
+            val result = server.callTool(tool, request.arguments)
+            if (result.isSuccess) {
+                logger.infoJson("downstream.response") {
+                    put("toolName", JsonPrimitive(request.name))
+                    put("resolvedServerId", JsonPrimitive(serverId))
+                    put("downstreamTool", JsonPrimitive(tool))
+                    put("response", result.getOrNull() ?: JsonNull)
+                }
+            } else {
+                val failure = result.exceptionOrNull()
+                logger.errorJson("downstream.response.error", failure) {
+                    put("toolName", JsonPrimitive(request.name))
+                    put("resolvedServerId", JsonPrimitive(serverId))
+                    put("downstreamTool", JsonPrimitive(tool))
+                    put("errorMessage", JsonPrimitive(failure?.message ?: "callTool failed"))
+                }
+            }
+            result
         } catch (t: Throwable) {
             Result.failure(t)
         }
@@ -62,13 +93,27 @@ class DefaultRequestDispatcher(
     override suspend fun dispatchPrompt(name: String): Result<JsonObject> {
         val server = resolveServerForPrompt(name)
             ?: return Result.failure(IllegalArgumentException("Unknown prompt: $name"))
-        return server.getPrompt(name)
+        logger.info("Routing prompt '$name' to server '${server.serverId}'")
+        val result = server.getPrompt(name)
+        if (result.isSuccess) {
+            logger.info("Server '${server.serverId}' returned prompt '$name'")
+        } else {
+            logger.error("Server '${server.serverId}' failed to get prompt '$name'", result.exceptionOrNull())
+        }
+        return result
     }
 
     override suspend fun dispatchResource(uri: String): Result<JsonObject> {
         val server = resolveServerForResource(uri)
             ?: return Result.failure(IllegalArgumentException("Unknown resource: $uri"))
-        return server.readResource(uri)
+        logger.info("Routing resource '$uri' to server '${server.serverId}'")
+        val result = server.readResource(uri)
+        if (result.isSuccess) {
+            logger.info("Server '${server.serverId}' returned resource '$uri'")
+        } else {
+            logger.error("Server '${server.serverId}' failed to read resource '$uri'", result.exceptionOrNull())
+        }
+        return result
     }
 
     private suspend fun resolveServerForPrompt(name: String): McpServerConnection? {
@@ -87,4 +132,3 @@ class DefaultRequestDispatcher(
         return serverId?.let { sid -> servers.firstOrNull { it.serverId == sid } }
     }
 }
-

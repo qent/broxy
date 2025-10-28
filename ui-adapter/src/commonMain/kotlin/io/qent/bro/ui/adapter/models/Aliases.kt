@@ -12,7 +12,6 @@ typealias UiStreamableHttpTransport = io.qent.bro.core.models.TransportConfig.St
 typealias UiWebSocketTransport = io.qent.bro.core.models.TransportConfig.WebSocketTransport
 typealias UiPresetCore = io.qent.bro.core.models.Preset
 typealias UiToolReference = io.qent.bro.core.models.ToolReference
-
 // MCP client runtime and capabilities
 typealias UiServerStatus = io.qent.bro.core.mcp.ServerStatus
 typealias UiStarting = io.qent.bro.core.mcp.ServerStatus.Starting

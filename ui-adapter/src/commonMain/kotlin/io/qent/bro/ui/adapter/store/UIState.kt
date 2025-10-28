@@ -1,5 +1,6 @@
 package io.qent.bro.ui.adapter.store
 
+import io.qent.bro.ui.adapter.models.UiLogEntry
 import io.qent.bro.ui.adapter.models.UiServer
 import io.qent.bro.ui.adapter.models.UiPreset
 import io.qent.bro.ui.adapter.models.UiProxyStatus
@@ -15,6 +16,8 @@ sealed class UIState {
         val servers: List<UiServer>,
         val presets: List<UiPreset>,
         val proxyStatus: UiProxyStatus,
+        val requestTimeoutSeconds: Int,
+        val logs: List<UiLogEntry>,
         val intents: Intents
     ) : UIState()
 }
@@ -35,4 +38,5 @@ interface Intents {
     fun startProxySimple(presetId: String)
     fun startProxy(presetId: String, inbound: UiTransportDraft)
     fun stopProxy()
+    fun updateRequestTimeout(seconds: Int)
 }

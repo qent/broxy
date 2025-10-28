@@ -26,6 +26,11 @@ class JsonConfigurationRepository(
     private val logger: Logger = ConsoleLogger,
     private val envResolver: EnvironmentVariableResolver = EnvironmentVariableResolver(logger = logger)
 ) : ConfigurationRepository {
+    companion object {
+        private const val DEFAULT_TIMEOUT_SECONDS = 60
+        private const val MIN_TIMEOUT_SECONDS = 5
+        private const val MAX_TIMEOUT_SECONDS = 600
+    }
 
     private val dir: Path = baseDir
     private val mcpFile: Path = dir.resolve("mcp.json")
@@ -104,11 +109,18 @@ class JsonConfigurationRepository(
 
         validateServers(servers)
 
-        return McpServersConfig(servers = servers)
+        val timeoutSeconds = (root.requestTimeoutSeconds ?: DEFAULT_TIMEOUT_SECONDS)
+            .coerceIn(MIN_TIMEOUT_SECONDS, MAX_TIMEOUT_SECONDS)
+
+        return McpServersConfig(
+            servers = servers,
+            requestTimeoutSeconds = timeoutSeconds
+        )
     }
 
     override fun saveMcpConfig(config: McpServersConfig) {
         val root = FileMcpRoot(
+            requestTimeoutSeconds = config.requestTimeoutSeconds.coerceIn(MIN_TIMEOUT_SECONDS, MAX_TIMEOUT_SECONDS),
             mcpServers = config.servers.associate { s ->
                 s.id to when (val t = s.transport) {
                     is TransportConfig.StdioTransport -> FileMcpServer(
@@ -231,6 +243,7 @@ class JsonConfigurationRepository(
 
     @Serializable
     private data class FileMcpRoot(
+        val requestTimeoutSeconds: Int? = null,
         val mcpServers: Map<String, FileMcpServer>
     )
 
