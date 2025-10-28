@@ -73,4 +73,5 @@ actual fun createProxyController(): ProxyController = JvmProxyController()
  * Specialized factory for STDIO inbound where stdout must remain clean for MCP
  * and all logs go to stderr.
  */
-fun createStdioProxyController(): ProxyController = JvmProxyController(logger = StdErrLogger)
+fun createStdioProxyController(): ProxyController =
+    JvmProxyController(logger = CollectingLogger(delegate = StdErrLogger))
