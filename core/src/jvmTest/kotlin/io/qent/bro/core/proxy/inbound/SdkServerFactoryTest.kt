@@ -5,15 +5,20 @@ import io.qent.bro.core.mcp.McpServerConnection
 import io.qent.bro.core.mcp.ServerCapabilities
 import io.qent.bro.core.mcp.ServerStatus
 import io.qent.bro.core.mcp.ToolDescriptor
+import io.qent.bro.core.mcp.PromptDescriptor
+import io.qent.bro.core.mcp.ResourceDescriptor
+import io.modelcontextprotocol.kotlin.sdk.PromptArgument
+import io.modelcontextprotocol.kotlin.sdk.Tool
 import io.qent.bro.core.models.McpServerConfig
 import io.qent.bro.core.models.Preset
 import io.qent.bro.core.models.ToolReference
 import io.qent.bro.core.models.TransportConfig
 import io.qent.bro.core.proxy.ProxyMcpServer
-import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonPrimitive
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -38,7 +43,29 @@ class SdkServerFactoryTest {
 
     @Test
     fun registers_tools_and_handlers_from_caps() {
-        val s1 = Srv("s1", cfg("s1"), ServerCapabilities(tools = listOf(ToolDescriptor("t1"))))
+        val schema = Tool.Input(
+            properties = buildJsonObject {
+                put("arg", buildJsonObject { put("type", JsonPrimitive("string")) })
+            },
+            required = listOf("arg")
+        )
+        val promptArgs = listOf(PromptArgument(name = "topic", description = "Topic to explore", required = true))
+        val s1 = Srv(
+            "s1",
+            cfg("s1"),
+            ServerCapabilities(
+                tools = listOf(ToolDescriptor("t1", description = "desc", inputSchema = schema)),
+                prompts = listOf(PromptDescriptor("p1", description = "prompt", arguments = promptArgs)),
+                resources = listOf(
+                    ResourceDescriptor(
+                        name = "Resource",
+                        uri = "uri://r1",
+                        description = "resource",
+                        mimeType = "application/json"
+                    )
+                )
+            )
+        )
         val proxy = ProxyMcpServer(listOf(s1))
         // Prepare filtered capabilities via preset
         val preset = Preset("p", "n", "d", tools = listOf(ToolReference("s1", "t1", true)))
@@ -47,6 +74,17 @@ class SdkServerFactoryTest {
         val server = buildSdkServer(proxy)
         // Tool registered (prefixed)
         assertTrue(server.tools.containsKey("s1:t1"))
+
+        val registered = server.tools["s1:t1"]!!
+        assertEquals(schema, registered.tool.inputSchema)
+        assertEquals("desc", registered.tool.description)
+
+        val registeredPrompt = server.prompts["p1"]!!
+        assertEquals(promptArgs, registeredPrompt.prompt.arguments)
+
+        val registeredResource = server.resources["uri://r1"]!!
+        assertEquals("application/json", registeredResource.resource.mimeType)
+        assertEquals("resource", registeredResource.resource.description)
 
         // Call handler directly
         val handler = server.tools["s1:t1"]!!.handler

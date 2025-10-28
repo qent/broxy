@@ -188,7 +188,7 @@ class AppStore(
             presets = presets.toList(),
             proxyStatus = proxyStatus,
             requestTimeoutSeconds = requestTimeoutSeconds,
-            logs = synchronized(logs) { logs.toList() },
+            logs = synchronized(logs) { logs.asReversed().toList() },
             intents = intents
         )
     }

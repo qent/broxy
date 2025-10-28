@@ -15,10 +15,15 @@ import io.modelcontextprotocol.kotlin.sdk.shared.IMPLEMENTATION_NAME
 import io.qent.bro.core.proxy.ProxyMcpServer
 import io.qent.bro.core.utils.ConsoleLogger
 import io.qent.bro.core.utils.Logger
+import io.qent.bro.core.utils.errorJson
+import io.qent.bro.core.utils.infoJson
+import io.qent.bro.core.utils.putIfNotNull
+import io.qent.bro.core.utils.warnJson
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.encodeToJsonElement
 
 /**
  * Builds an MCP Server (SDK) instance backed by our ProxyMcpServer for filtering and routing.
@@ -46,13 +51,17 @@ fun buildSdkServer(proxy: ProxyMcpServer, logger: Logger = ConsoleLogger): Serve
     caps.tools.forEach { td ->
         server.addTool(
             name = td.name,
-            title = null,
-            description = td.description ?: td.name,
-            inputSchema = Tool.Input(),
-            outputSchema = null,
-            toolAnnotations = null
+            title = td.title,
+            description = td.description ?: td.title ?: td.name,
+            inputSchema = td.inputSchema ?: Tool.Input(),
+            outputSchema = td.outputSchema,
+            toolAnnotations = td.annotations
         ) { req: CallToolRequest ->
-            logger.info("Received tool call from LLM: name='${req.name}'")
+            logger.infoJson("llm_to_facade.request") {
+                put("toolName", JsonPrimitive(req.name))
+                put("arguments", req.arguments)
+                putIfNotNull("meta", req._meta)
+            }
             val result = kotlinx.coroutines.runBlocking { proxy.callTool(req.name, req.arguments) }
             val colonIdx = req.name.indexOf(':')
             val serverId = if (colonIdx > 0) req.name.substring(0, colonIdx) else "unknown"
@@ -61,10 +70,17 @@ fun buildSdkServer(proxy: ProxyMcpServer, logger: Logger = ConsoleLogger): Serve
                 val el = result.getOrNull() ?: JsonNull
                 val decodedBase = runCatching {
                     json.decodeFromJsonElement(CallToolResultBase.serializer(), el)
+                }.onFailure { failure ->
+                    logger.warnJson("facade_to_llm.decode_failed", failure) {
+                        put("toolName", JsonPrimitive(req.name))
+                        put("targetServerId", JsonPrimitive(serverId))
+                        put("downstreamTool", JsonPrimitive(downstreamTool))
+                        put("rawResponse", el)
+                    }
                 }.getOrElse {
                     CallToolResult(
                         content = emptyList(),
-                        structuredContent = (el as? JsonObject) ?: JsonObject(mapOf("value" to JsonPrimitive(el.toString()))),
+                        structuredContent = (el as? JsonObject) ?: JsonObject(mapOf("raw" to el)),
                         isError = false,
                         _meta = JsonObject(emptyMap())
                     )
@@ -75,11 +91,21 @@ fun buildSdkServer(proxy: ProxyMcpServer, logger: Logger = ConsoleLogger): Serve
                     isError = decodedBase.isError,
                     _meta = decodedBase._meta
                 )
-                logger.info("Server '$serverId' responded to tool '$downstreamTool' (isError=${decoded.isError ?: false}); forwarding to LLM")
+                logger.infoJson("facade_to_llm.response") {
+                    put("toolName", JsonPrimitive(req.name))
+                    put("targetServerId", JsonPrimitive(serverId))
+                    put("downstreamTool", JsonPrimitive(downstreamTool))
+                    put("response", Json.encodeToJsonElement(CallToolResult.serializer(), decoded))
+                }
                 decoded
             } else {
                 val errMsg = result.exceptionOrNull()?.message ?: "Tool error"
-                logger.error("Server '$serverId' failed tool '$downstreamTool': $errMsg", result.exceptionOrNull())
+                logger.errorJson("facade_to_llm.error", result.exceptionOrNull()) {
+                    put("toolName", JsonPrimitive(req.name))
+                    put("targetServerId", JsonPrimitive(serverId))
+                    put("downstreamTool", JsonPrimitive(downstreamTool))
+                    put("errorMessage", JsonPrimitive(errMsg))
+                }
                 CallToolResult(
                     content = emptyList(),
                     structuredContent = JsonObject(mapOf("error" to JsonPrimitive(errMsg))),
@@ -95,7 +121,7 @@ fun buildSdkServer(proxy: ProxyMcpServer, logger: Logger = ConsoleLogger): Serve
         val prompt = Prompt(
             name = pd.name,
             description = pd.description ?: pd.name,
-            arguments = emptyList()
+            arguments = pd.arguments ?: emptyList()
         )
         server.addPrompt(prompt) { req ->
             logger.info("Received prompt request from LLM: name='${req.name}'")
@@ -126,7 +152,8 @@ fun buildSdkServer(proxy: ProxyMcpServer, logger: Logger = ConsoleLogger): Serve
         server.addResource(
             uri = uri,
             name = rd.name,
-            description = desc
+            description = desc,
+            mimeType = rd.mimeType ?: "text/html"
         ) { _ ->
             logger.info("Received resource request from LLM: uri='$uri'")
             val json = kotlinx.coroutines.runBlocking { proxy.readResource(uri) }

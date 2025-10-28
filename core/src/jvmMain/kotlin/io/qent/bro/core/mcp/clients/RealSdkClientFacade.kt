@@ -41,17 +41,26 @@ class RealSdkClientFacade(
 
     private fun mapTool(tool: Tool): ToolDescriptor = ToolDescriptor(
         name = tool.name,
-        description = tool.description
+        description = tool.description,
+        title = tool.title,
+        inputSchema = tool.inputSchema,
+        outputSchema = tool.outputSchema,
+        annotations = tool.annotations
     )
 
     private fun mapResource(resource: Resource): ResourceDescriptor = ResourceDescriptor(
         name = resource.name,
         uri = resource.uri,
-        description = resource.description
+        description = resource.description,
+        mimeType = resource.mimeType,
+        title = resource.title,
+        size = resource.size,
+        annotations = resource.annotations
     )
 
     private fun mapPrompt(prompt: Prompt): PromptDescriptor = PromptDescriptor(
         name = prompt.name,
-        description = prompt.description
+        description = prompt.description,
+        arguments = prompt.arguments
     )
 }

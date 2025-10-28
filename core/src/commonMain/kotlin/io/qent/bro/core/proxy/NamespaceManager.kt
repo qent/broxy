@@ -39,11 +39,10 @@ class DefaultNamespaceManager : NamespaceManager {
         val resources = mutableListOf<ResourceDescriptor>()
         val prompts = mutableListOf<PromptDescriptor>()
         all.forEach { (serverId, caps) ->
-            tools += caps.tools.map { ToolDescriptor(name = prefixToolName(serverId, it.name), description = it.description) }
+            tools += caps.tools.map { it.copy(name = prefixToolName(serverId, it.name)) }
             resources += caps.resources
             prompts += caps.prompts
         }
         return ServerCapabilities(tools = tools, resources = resources, prompts = prompts)
     }
 }
-

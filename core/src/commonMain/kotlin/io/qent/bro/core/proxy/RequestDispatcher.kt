@@ -5,11 +5,16 @@ import io.qent.bro.core.mcp.MultiServerClient
 import io.qent.bro.core.mcp.ServerCapabilities
 import io.qent.bro.core.utils.ConsoleLogger
 import io.qent.bro.core.utils.Logger
+import io.qent.bro.core.utils.errorJson
+import io.qent.bro.core.utils.infoJson
+import io.qent.bro.core.utils.warnJson
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonPrimitive
 
 data class ToolCallRequest(val name: String, val arguments: JsonObject = JsonObject(emptyMap()))
 
@@ -42,19 +47,38 @@ class DefaultRequestDispatcher(
         val name = request.name
         if (allowed.isNotEmpty() && name !in allowed) {
             val msg = "Tool '$name' is not allowed by current preset"
-            logger.warn(msg)
+            logger.warnJson("proxy.tool.denied") {
+                put("toolName", JsonPrimitive(name))
+                put("reason", JsonPrimitive(msg))
+            }
             return Result.failure(IllegalArgumentException(msg))
         }
         return try {
             val (serverId, tool) = namespace.parsePrefixedToolName(name)
             val server = servers.firstOrNull { it.serverId == serverId }
                 ?: return Result.failure(IllegalArgumentException("Unknown server: $serverId"))
-            logger.info("Routing tool '${request.name}' to server '$serverId' as '$tool'")
+            logger.infoJson("facade_to_downstream.request") {
+                put("toolName", JsonPrimitive(request.name))
+                put("resolvedServerId", JsonPrimitive(serverId))
+                put("downstreamTool", JsonPrimitive(tool))
+                put("arguments", request.arguments)
+            }
             val result = server.callTool(tool, request.arguments)
             if (result.isSuccess) {
-                logger.info("Server '$serverId' completed tool '$tool' for '${request.name}'")
+                logger.infoJson("downstream.response") {
+                    put("toolName", JsonPrimitive(request.name))
+                    put("resolvedServerId", JsonPrimitive(serverId))
+                    put("downstreamTool", JsonPrimitive(tool))
+                    put("response", result.getOrNull() ?: JsonNull)
+                }
             } else {
-                logger.error("Server '$serverId' failed tool '$tool' for '${request.name}'", result.exceptionOrNull())
+                val failure = result.exceptionOrNull()
+                logger.errorJson("downstream.response.error", failure) {
+                    put("toolName", JsonPrimitive(request.name))
+                    put("resolvedServerId", JsonPrimitive(serverId))
+                    put("downstreamTool", JsonPrimitive(tool))
+                    put("errorMessage", JsonPrimitive(failure?.message ?: "callTool failed"))
+                }
             }
             result
         } catch (t: Throwable) {

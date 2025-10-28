@@ -22,7 +22,7 @@ class MultiServerClient(
     fun listPrefixedTools(allCaps: Map<String, ServerCapabilities>): List<ToolDescriptor> =
         allCaps.flatMap { (serverId, caps) ->
             caps.tools.map { t ->
-                ToolDescriptor(name = namespace.prefixToolName(serverId, t.name), description = t.description)
+                t.copy(name = namespace.prefixToolName(serverId, t.name))
             }
         }
 
