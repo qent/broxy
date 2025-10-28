@@ -8,6 +8,7 @@ import io.qent.bro.core.proxy.inbound.InboundServer
 import io.qent.bro.core.proxy.inbound.InboundServerFactory
 import io.qent.bro.core.utils.ConsoleLogger
 import io.qent.bro.core.utils.Logger
+import io.qent.bro.core.utils.StdErrLogger
 import io.qent.bro.ui.adapter.models.UiMcpServerConfig
 import io.qent.bro.ui.adapter.models.UiPresetCore
 import io.qent.bro.ui.adapter.models.UiTransportConfig
@@ -48,3 +49,9 @@ private class JvmProxyController(
 }
 
 actual fun createProxyController(): ProxyController = JvmProxyController()
+
+/**
+ * Specialized factory for STDIO inbound where stdout must remain clean for MCP
+ * and all logs go to stderr.
+ */
+fun createStdioProxyController(): ProxyController = JvmProxyController(logger = StdErrLogger)

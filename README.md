@@ -173,6 +173,43 @@ java -jar cli/build/libs/bro-cli-0.1.0.jar proxy \
 
 Claude Desktop подключается к прокси-серверу как к обычному MCP серверу. Пример для STDIO inbound:
 
+Есть два варианта:
+
+1) Без CLI — использовать установленное приложение (рекомендуется, если у вас только DMG/MSI):
+
+macOS (DMG):
+```json
+{
+  "mcpServers": {
+    "bro": {
+      "command": "/Applications/bro.app/Contents/MacOS/bro",
+      "args": [
+        "--stdio-proxy",
+        "--preset-id", "developer",
+        "--config-dir", "/Users/you/.config/bro"
+      ]
+    }
+  }
+}
+```
+
+Windows (MSI):
+```json
+{
+  "mcpServers": {
+    "bro": {
+      "command": "C:\\Program Files\\bro\\bro.exe",
+      "args": [
+        "--stdio-proxy",
+        "--preset-id", "developer",
+        "--config-dir", "C:\\Users\\you\\.config\\bro"
+      ]
+    }
+  }
+}
+```
+
+2) Через CLI (если вы собирали JAR):
 ```json
 {
   "mcpServers": {
@@ -347,6 +384,25 @@ Claude Desktop подключается к прокси-серверу как к
 4. Добавить MCP серверы в настройках
 
 5. Создать пресеты для различных ролей
+
+### STDIO режим без сборки CLI (из установленного приложения)
+
+Если у вас только установленное приложение (DMG/MSI) и вы не собирали отдельный CLI JAR, используйте бинарник приложения напрямую в режиме `--stdio-proxy`.
+
+macOS:
+```bash
+/Applications/bro.app/Contents/MacOS/bro --stdio-proxy --preset-id <preset> [--config-dir ~/.config/bro]
+```
+
+Windows:
+```powershell
+"C:\\Program Files\\bro\\bro.exe" --stdio-proxy --preset-id <preset> --config-dir "%APPDATA%\\bro"
+```
+
+Примечания:
+- `--preset-id` обязателен — это пресет, который будет применён для фильтрации инструментов.
+- `--config-dir` опционален. По умолчанию используется `~/.config/bro` на macOS/Linux и `%USERPROFILE%\\.config\\bro` на Windows.
+- Логи в этом режиме пишутся в stderr, а stdout используется только для MCP-протокола (не смешивается с логами).
 
 ### CLI режим
 
