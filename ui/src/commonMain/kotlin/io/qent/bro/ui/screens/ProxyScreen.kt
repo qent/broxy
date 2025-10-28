@@ -28,13 +28,17 @@ import androidx.compose.ui.unit.dp
  
 import io.qent.bro.ui.adapter.store.UIState
 import io.qent.bro.ui.viewmodels.AppState
+import io.qent.bro.ui.adapter.models.UiHttpDraft
+import io.qent.bro.ui.adapter.models.UiStreamableHttpDraft
+import io.qent.bro.ui.adapter.models.UiWebSocketDraft
+import io.qent.bro.ui.adapter.models.UiStdioDraft
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProxyScreen(ui: UIState, state: AppState, notify: (String) -> Unit = {}) {
     var presetId by remember { mutableStateOf<String?>(null) }
     var presetExpanded by remember { mutableStateOf(false) }
-    var inboundMode by remember { mutableStateOf("HTTP") }
+    var inboundMode by remember { mutableStateOf("HTTP SSE") }
     var inboundUrl by remember { mutableStateOf("http://0.0.0.0:3335/mcp") }
 
     Column(
@@ -83,14 +87,14 @@ fun ProxyScreen(ui: UIState, state: AppState, notify: (String) -> Unit = {}) {
                         Text("Inbound mode", style = MaterialTheme.typography.bodyMedium)
                         Spacer(Modifier.padding(2.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            listOf("STDIO", "HTTP", "WS").forEach { opt ->
+                            listOf("STDIO", "HTTP SSE", "HTTP Streaming", "WS").forEach { opt ->
                                 TextButton(onClick = {
                                     inboundMode = opt
-                                    if (opt == "HTTP" && (inboundUrl.isBlank() || inboundUrl.startsWith("ws"))) {
-                                        inboundUrl = "http://0.0.0.0:3335/mcp"
-                                    }
-                                    if (opt == "WS" && (inboundUrl.isBlank() || inboundUrl.startsWith("http"))) {
-                                        inboundUrl = "ws://0.0.0.0:3336/ws"
+                                    when (opt) {
+                                        "HTTP SSE" -> if (inboundUrl.isBlank() || inboundUrl.startsWith("ws")) inboundUrl = "http://0.0.0.0:3335/mcp"
+                                        "HTTP Streaming" -> if (inboundUrl.isBlank() || inboundUrl.startsWith("ws")) inboundUrl = "http://0.0.0.0:3337/mcp"
+                                        "WS" -> if (inboundUrl.isBlank() || inboundUrl.startsWith("http")) inboundUrl = "ws://0.0.0.0:3336/ws"
+                                        else -> {}
                                     }
                                 }) { Text(if (inboundMode == opt) "[$opt]" else opt) }
                             }
@@ -100,7 +104,13 @@ fun ProxyScreen(ui: UIState, state: AppState, notify: (String) -> Unit = {}) {
                             OutlinedTextField(
                                 value = inboundUrl,
                                 onValueChange = { inboundUrl = it },
-                                label = { Text(if (inboundMode == "WS") "WebSocket URL" else "HTTP URL") },
+                                label = { Text(
+                                    when (inboundMode) {
+                                        "WS" -> "WebSocket URL"
+                                        "HTTP Streaming" -> "HTTP Streaming URL"
+                                        else -> "HTTP (SSE) URL"
+                                    }
+                                ) },
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
@@ -122,7 +132,14 @@ fun ProxyScreen(ui: UIState, state: AppState, notify: (String) -> Unit = {}) {
                                     notify("Select a preset first")
                                     return@Button
                                 }
-                                ui.intents.startProxySimple(pid)
+                                val inbound = when (inboundMode) {
+                                    "STDIO" -> UiStdioDraft(command = "")
+                                    "HTTP SSE" -> UiHttpDraft(url = inboundUrl)
+                                    "HTTP Streaming" -> UiStreamableHttpDraft(url = inboundUrl)
+                                    "WS" -> UiWebSocketDraft(url = inboundUrl)
+                                    else -> UiHttpDraft(url = inboundUrl)
+                                }
+                                ui.intents.startProxy(pid, inbound)
                                 notify("Proxy started")
                             } else {
                                 ui.intents.stopProxy()

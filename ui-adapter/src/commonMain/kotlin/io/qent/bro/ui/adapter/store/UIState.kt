@@ -5,6 +5,7 @@ import io.qent.bro.ui.adapter.models.UiPreset
 import io.qent.bro.ui.adapter.models.UiProxyStatus
 import io.qent.bro.ui.adapter.models.UiServerDraft
 import io.qent.bro.ui.adapter.models.UiPresetDraft
+import io.qent.bro.ui.adapter.models.UiTransportDraft
 
 // Sealed UI state for the entire app. UI collects this via Flow and renders.
 sealed class UIState {
@@ -32,5 +33,6 @@ interface Intents {
     fun removePreset(id: String)
 
     fun startProxySimple(presetId: String)
+    fun startProxy(presetId: String, inbound: UiTransportDraft)
     fun stopProxy()
 }

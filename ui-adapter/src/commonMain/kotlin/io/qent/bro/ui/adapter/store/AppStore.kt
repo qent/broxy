@@ -9,6 +9,7 @@ import io.qent.bro.ui.adapter.models.UiPresetDraft
 import io.qent.bro.ui.adapter.models.UiProxyStatus
 import io.qent.bro.ui.adapter.models.UiServer
 import io.qent.bro.ui.adapter.models.UiServerDraft
+import io.qent.bro.ui.adapter.models.UiTransportConfig
 import io.qent.bro.ui.adapter.models.UiStdioDraft
 import io.qent.bro.ui.adapter.models.UiStdioTransport
 import io.qent.bro.ui.adapter.models.UiHttpTransport
@@ -411,6 +412,31 @@ class AppStore(
                 // Default inbound to HTTP facade matching UI default
                 val inbound = UiHttpTransport("http://0.0.0.0:3335/mcp")
                 val result = proxy.start(servers.toList(), preset, inbound)
+                proxyStatus = if (result.isSuccess) UiProxyStatus.Running
+                else UiProxyStatus.Error(result.exceptionOrNull()?.message ?: "Failed to start proxy")
+                publishReady()
+            }
+        }
+
+        override fun startProxy(presetId: String, inbound: io.qent.bro.ui.adapter.models.UiTransportDraft) {
+            scope.launch {
+                val presetResult = runCatching { repo.loadPreset(presetId) }
+                if (presetResult.isFailure) {
+                    val msg = presetResult.exceptionOrNull()?.message ?: "Failed to load preset"
+                    println("[AppStore] startProxy failed: ${'$'}msg")
+                    proxyStatus = UiProxyStatus.Error(msg)
+                    publishReady()
+                    return@launch
+                }
+                val preset = presetResult.getOrNull()!!
+                val inboundTransport = when (inbound) {
+                    is UiStdioDraft -> UiStdioTransport(command = inbound.command, args = inbound.args)
+                    is UiHttpDraft -> UiHttpTransport(url = inbound.url, headers = inbound.headers)
+                    is UiStreamableHttpDraft -> UiStreamableHttpTransport(url = inbound.url, headers = inbound.headers)
+                    is UiWebSocketDraft -> UiWebSocketTransport(url = inbound.url)
+                    else -> UiHttpTransport(url = "http://0.0.0.0:3335/mcp")
+                }
+                val result = proxy.start(servers.toList(), preset, inboundTransport)
                 proxyStatus = if (result.isSuccess) UiProxyStatus.Running
                 else UiProxyStatus.Error(result.exceptionOrNull()?.message ?: "Failed to start proxy")
                 publishReady()
