@@ -3,6 +3,9 @@ package io.qent.bro.core.mcp
 import io.qent.bro.core.models.McpServerConfig
 import io.qent.bro.core.models.TransportConfig
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import org.mockito.kotlin.any
@@ -21,7 +24,12 @@ class MultiServerClientMockitoTest {
         whenever(s1.serverId).thenReturn("s1")
         whenever(s1.config).thenReturn(cfg("s1"))
         whenever(s1.getCapabilities(false)).thenReturn(Result.success(ServerCapabilities(tools = listOf(ToolDescriptor("t1")))))
-        whenever(s1.callTool(any(), any())).thenReturn(Result.success(buildJsonObject { put("server", "s1") }))
+        whenever(s1.callTool(any(), any())).thenReturn(Result.success(buildJsonObject {
+            put("content", buildJsonArray { })
+            put("structuredContent", buildJsonObject { put("server", JsonPrimitive("s1")) })
+            put("isError", JsonPrimitive(false))
+            put("_meta", JsonObject(emptyMap()))
+        }))
 
         val s2: McpServerConnection = mock()
         whenever(s2.serverId).thenReturn("s2")

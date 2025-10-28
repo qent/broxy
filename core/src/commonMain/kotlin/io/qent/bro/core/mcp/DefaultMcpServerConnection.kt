@@ -5,9 +5,11 @@ import io.qent.bro.core.models.McpServerConfig
 import io.qent.bro.core.utils.ConsoleLogger
 import io.qent.bro.core.utils.ExponentialBackoff
 import io.qent.bro.core.utils.Logger
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 
@@ -17,12 +19,21 @@ class DefaultMcpServerConnection(
     private val cacheTtlMs: Long = 5 * 60 * 1000,
     private val maxRetries: Int = 5,
     private val client: McpClient = McpClientFactory(defaultMcpClientProvider()).create(config.transport, config.env),
-    private val cache: CapabilitiesCache = CapabilitiesCache(ttlMillis = cacheTtlMs)
+    private val cache: CapabilitiesCache = CapabilitiesCache(ttlMillis = cacheTtlMs),
+    callTimeoutMillis: Long = 60_000
 ) : McpServerConnection {
     override val serverId: String = config.id
     @Volatile
     override var status: ServerStatus = ServerStatus.Stopped
         private set
+
+    @Volatile
+    private var callTimeoutMillis: Long = callTimeoutMillis.coerceAtLeast(1)
+
+    fun updateCallTimeout(millis: Long) {
+        callTimeoutMillis = millis.coerceAtLeast(1)
+        logger.info("Updated call timeout for '${config.name}' to ${callTimeoutMillis}ms")
+    }
 
     private val connectMutex = Mutex()
 
@@ -89,7 +100,15 @@ class DefaultMcpServerConnection(
             val r = connect()
             if (r.isFailure) return Result.failure(r.exceptionOrNull()!!)
         }
-        return client.callTool(toolName, arguments)
+        return try {
+            withTimeout(callTimeoutMillis) {
+                client.callTool(toolName, arguments)
+            }
+        } catch (t: TimeoutCancellationException) {
+            val err = McpError.TimeoutError("Tool '$toolName' timed out after ${callTimeoutMillis}ms", t)
+            logger.warn("Timed out calling tool '$toolName' on '${config.name}'", t)
+            Result.failure(err)
+        }
     }
 
     override suspend fun getPrompt(name: String): Result<JsonObject> {
@@ -97,7 +116,15 @@ class DefaultMcpServerConnection(
             val r = connect()
             if (r.isFailure) return Result.failure(r.exceptionOrNull()!!)
         }
-        return client.getPrompt(name)
+        return try {
+            withTimeout(callTimeoutMillis) {
+                client.getPrompt(name)
+            }
+        } catch (t: TimeoutCancellationException) {
+            val err = McpError.TimeoutError("Prompt '$name' timed out after ${callTimeoutMillis}ms", t)
+            logger.warn("Timed out fetching prompt '$name' from '${config.name}'", t)
+            Result.failure(err)
+        }
     }
 
     override suspend fun readResource(uri: String): Result<JsonObject> {
@@ -105,6 +132,14 @@ class DefaultMcpServerConnection(
             val r = connect()
             if (r.isFailure) return Result.failure(r.exceptionOrNull()!!)
         }
-        return client.readResource(uri)
+        return try {
+            withTimeout(callTimeoutMillis) {
+                client.readResource(uri)
+            }
+        } catch (t: TimeoutCancellationException) {
+            val err = McpError.TimeoutError("Resource '$uri' timed out after ${callTimeoutMillis}ms", t)
+            logger.warn("Timed out reading resource '$uri' from '${config.name}'", t)
+            Result.failure(err)
+        }
     }
 }

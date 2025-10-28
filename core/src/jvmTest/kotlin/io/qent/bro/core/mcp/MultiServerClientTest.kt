@@ -5,6 +5,8 @@ import io.qent.bro.core.models.TransportConfig
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlin.test.Test
@@ -39,13 +41,23 @@ class MultiServerClientTest {
             serverId = "s1",
             config = cfg("s1"),
             caps = Result.success(ServerCapabilities(tools = listOf(ToolDescriptor("t1"))))
-        ) { _, _ -> Result.success(buildJsonObject { put("ok", true) }) }
+        ) { _, _ -> Result.success(buildJsonObject {
+            put("content", buildJsonArray { })
+            put("structuredContent", buildJsonObject { put("ok", JsonPrimitive(true)) })
+            put("isError", JsonPrimitive(false))
+            put("_meta", JsonObject(emptyMap()))
+        }) }
 
         val s2 = MCServer(
             serverId = "s2",
             config = cfg("s2"),
             caps = Result.failure(IllegalStateException("boom"))
-        ) { _, _ -> Result.success(buildJsonObject { put("ok", true) }) }
+        ) { _, _ -> Result.success(buildJsonObject {
+            put("content", buildJsonArray { })
+            put("structuredContent", buildJsonObject { put("ok", JsonPrimitive(true)) })
+            put("isError", JsonPrimitive(false))
+            put("_meta", JsonObject(emptyMap()))
+        }) }
 
         val multi = MultiServerClient(listOf(s1, s2))
         val all = multi.fetchAllCapabilities()
@@ -64,13 +76,29 @@ class MultiServerClientTest {
             serverId = "a",
             config = cfg("a"),
             caps = Result.success(ServerCapabilities()),
-        ) { tool, _ -> Result.success(buildJsonObject { put("server", "a"); put("tool", tool) }) }
+        ) { tool, _ -> Result.success(buildJsonObject {
+            put("content", buildJsonArray { })
+            put("structuredContent", buildJsonObject {
+                put("server", JsonPrimitive("a"))
+                put("tool", JsonPrimitive(tool))
+            })
+            put("isError", JsonPrimitive(false))
+            put("_meta", JsonObject(emptyMap()))
+        }) }
 
         val s2 = MCServer(
             serverId = "b",
             config = cfg("b"),
             caps = Result.success(ServerCapabilities()),
-        ) { tool, _ -> Result.success(buildJsonObject { put("server", "b"); put("tool", tool) }) }
+        ) { tool, _ -> Result.success(buildJsonObject {
+            put("content", buildJsonArray { })
+            put("structuredContent", buildJsonObject {
+                put("server", JsonPrimitive("b"))
+                put("tool", JsonPrimitive(tool))
+            })
+            put("isError", JsonPrimitive(false))
+            put("_meta", JsonObject(emptyMap()))
+        }) }
 
         val multi = MultiServerClient(listOf(s1, s2))
         val r = multi.callPrefixedTool("b:echo")

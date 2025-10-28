@@ -2,11 +2,12 @@ package io.qent.bro.core.mcp.clients
 
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
+import io.ktor.client.plugins.sse.SSE
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.websocket.WebSockets
-import io.ktor.client.plugins.sse.SSE
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.headers
+import io.modelcontextprotocol.kotlin.sdk.CallToolResultBase
 import io.modelcontextprotocol.kotlin.sdk.client.mcpSse
 import io.modelcontextprotocol.kotlin.sdk.client.mcpStreamableHttp
 import io.modelcontextprotocol.kotlin.sdk.client.mcpWebSocket
@@ -16,6 +17,8 @@ import io.qent.bro.core.utils.ConsoleLogger
 import io.qent.bro.core.utils.Logger
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.encodeToJsonElement
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -32,6 +35,7 @@ class KtorMcpClient(
 
     private var ktor: HttpClient? = null
     private var client: SdkClientFacade? = null
+    private val json = Json { ignoreUnknownKeys = true }
 
     override suspend fun connect(): Result<Unit> = runCatching {
         if (client != null) return@runCatching
@@ -91,7 +95,13 @@ class KtorMcpClient(
 
     override suspend fun callTool(name: String, arguments: JsonObject): Result<JsonElement> = runCatching {
         val c = client ?: throw IllegalStateException("Not connected")
-        c.callTool(name, arguments) ?: kotlinx.serialization.json.JsonNull
+        val result = c.callTool(name, arguments) ?: io.modelcontextprotocol.kotlin.sdk.CallToolResult(
+            content = emptyList(),
+            structuredContent = JsonObject(emptyMap()),
+            isError = false,
+            _meta = JsonObject(emptyMap())
+        )
+        json.encodeToJsonElement(CallToolResultBase.serializer(), result) as JsonObject
     }
 
     override suspend fun getPrompt(name: String): Result<JsonObject> = runCatching {

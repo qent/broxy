@@ -1,8 +1,9 @@
 package io.qent.bro.core.mcp.clients
 
-import io.modelcontextprotocol.kotlin.sdk.LIB_VERSION
 import io.modelcontextprotocol.kotlin.sdk.client.Client
 import io.modelcontextprotocol.kotlin.sdk.client.StdioClientTransport
+import io.modelcontextprotocol.kotlin.sdk.CallToolResultBase
+import io.modelcontextprotocol.kotlin.sdk.LIB_VERSION
 import io.modelcontextprotocol.kotlin.sdk.shared.IMPLEMENTATION_NAME
 import io.qent.bro.core.mcp.McpClient
 import io.qent.bro.core.mcp.ServerCapabilities
@@ -11,9 +12,10 @@ import io.qent.bro.core.utils.Logger
 import kotlinx.io.buffered
 import kotlinx.io.asSink
 import kotlinx.io.asSource
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.encodeToJsonElement
 
 class StdioMcpClient(
     private val command: String,
@@ -24,6 +26,7 @@ class StdioMcpClient(
 ) : McpClient {
     private var process: Process? = null
     private var client: SdkClientFacade? = null
+    private val json = Json { ignoreUnknownKeys = true }
 
     override suspend fun connect(): Result<Unit> = runCatching {
         if (client != null || process?.isAlive == true) return@runCatching
@@ -70,7 +73,13 @@ class StdioMcpClient(
 
     override suspend fun callTool(name: String, arguments: JsonObject): Result<JsonElement> = runCatching {
         val c = client ?: throw IllegalStateException("Not connected")
-        c.callTool(name, arguments) ?: JsonNull
+        val result = c.callTool(name, arguments) ?: io.modelcontextprotocol.kotlin.sdk.CallToolResult(
+            content = emptyList(),
+            structuredContent = JsonObject(emptyMap()),
+            isError = false,
+            _meta = JsonObject(emptyMap())
+        )
+        json.encodeToJsonElement(CallToolResultBase.serializer(), result) as JsonObject
     }
 
     override suspend fun getPrompt(name: String): Result<JsonObject> = runCatching {

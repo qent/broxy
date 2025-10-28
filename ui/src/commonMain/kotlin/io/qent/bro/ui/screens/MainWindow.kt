@@ -99,7 +99,8 @@ fun MainWindow(state: AppState, ui: UIState, store: AppStore) {
                             Screen.Servers -> ServersScreen(ui, state, store, notify)
                             Screen.Presets -> PresetsScreen(ui, state, store)
                             Screen.Proxy -> ProxyScreen(ui, state, notify)
-                            Screen.Settings -> SettingsScreen(state)
+                            Screen.Logs -> LogsScreen(ui)
+                            Screen.Settings -> SettingsScreen(state, ui)
                         }
                     }
                 }

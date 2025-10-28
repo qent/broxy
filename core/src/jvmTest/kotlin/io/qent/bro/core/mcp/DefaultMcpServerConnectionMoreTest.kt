@@ -2,6 +2,8 @@ package io.qent.bro.core.mcp
 
 import io.qent.bro.core.models.McpServerConfig
 import io.qent.bro.core.models.TransportConfig
+import io.qent.bro.core.mcp.ServerCapabilities
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
@@ -13,6 +15,7 @@ import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import kotlin.test.Test
 import kotlin.test.assertTrue
+import kotlin.test.assertIs
 
 class DefaultMcpServerConnectionMoreTest {
     private fun config(id: String = "s1") = McpServerConfig(
@@ -52,6 +55,29 @@ class DefaultMcpServerConnectionMoreTest {
             val res = conn.callTool("echo", JsonObject(emptyMap()))
             assertTrue(res.isFailure)
             verify(client, never()).callTool(any(), any())
+        }
+    }
+
+    @Test
+    fun callTool_times_out_when_client_is_slow() {
+        runBlocking {
+            val slowClient = object : McpClient {
+                override suspend fun connect(): Result<Unit> = Result.success(Unit)
+                override suspend fun disconnect() {}
+                override suspend fun fetchCapabilities(): Result<ServerCapabilities> = Result.success(ServerCapabilities())
+                override suspend fun callTool(name: String, arguments: JsonObject): Result<kotlinx.serialization.json.JsonElement> {
+                    delay(50)
+                    return Result.success(buildJsonObject { put("ok", true) })
+                }
+
+                override suspend fun getPrompt(name: String): Result<JsonObject> = Result.success(JsonObject(emptyMap()))
+                override suspend fun readResource(uri: String): Result<JsonObject> = Result.success(JsonObject(emptyMap()))
+            }
+
+            val conn = DefaultMcpServerConnection(config(), client = slowClient, callTimeoutMillis = 10)
+            val res = conn.callTool("slow", JsonObject(emptyMap()))
+            assertTrue(res.isFailure)
+            assertIs<io.qent.bro.core.mcp.errors.McpError.TimeoutError>(res.exceptionOrNull())
         }
     }
 }

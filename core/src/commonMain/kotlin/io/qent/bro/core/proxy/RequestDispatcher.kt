@@ -49,7 +49,14 @@ class DefaultRequestDispatcher(
             val (serverId, tool) = namespace.parsePrefixedToolName(name)
             val server = servers.firstOrNull { it.serverId == serverId }
                 ?: return Result.failure(IllegalArgumentException("Unknown server: $serverId"))
-            server.callTool(tool, request.arguments)
+            logger.info("Routing tool '${request.name}' to server '$serverId' as '$tool'")
+            val result = server.callTool(tool, request.arguments)
+            if (result.isSuccess) {
+                logger.info("Server '$serverId' completed tool '$tool' for '${request.name}'")
+            } else {
+                logger.error("Server '$serverId' failed tool '$tool' for '${request.name}'", result.exceptionOrNull())
+            }
+            result
         } catch (t: Throwable) {
             Result.failure(t)
         }
@@ -62,13 +69,27 @@ class DefaultRequestDispatcher(
     override suspend fun dispatchPrompt(name: String): Result<JsonObject> {
         val server = resolveServerForPrompt(name)
             ?: return Result.failure(IllegalArgumentException("Unknown prompt: $name"))
-        return server.getPrompt(name)
+        logger.info("Routing prompt '$name' to server '${server.serverId}'")
+        val result = server.getPrompt(name)
+        if (result.isSuccess) {
+            logger.info("Server '${server.serverId}' returned prompt '$name'")
+        } else {
+            logger.error("Server '${server.serverId}' failed to get prompt '$name'", result.exceptionOrNull())
+        }
+        return result
     }
 
     override suspend fun dispatchResource(uri: String): Result<JsonObject> {
         val server = resolveServerForResource(uri)
             ?: return Result.failure(IllegalArgumentException("Unknown resource: $uri"))
-        return server.readResource(uri)
+        logger.info("Routing resource '$uri' to server '${server.serverId}'")
+        val result = server.readResource(uri)
+        if (result.isSuccess) {
+            logger.info("Server '${server.serverId}' returned resource '$uri'")
+        } else {
+            logger.error("Server '${server.serverId}' failed to read resource '$uri'", result.exceptionOrNull())
+        }
+        return result
     }
 
     private suspend fun resolveServerForPrompt(name: String): McpServerConnection? {
@@ -87,4 +108,3 @@ class DefaultRequestDispatcher(
         return serverId?.let { sid -> servers.firstOrNull { it.serverId == sid } }
     }
 }
-

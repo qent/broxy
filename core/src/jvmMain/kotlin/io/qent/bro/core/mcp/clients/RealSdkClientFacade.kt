@@ -1,6 +1,7 @@
 package io.qent.bro.core.mcp.clients
 
 import io.modelcontextprotocol.kotlin.sdk.CallToolRequest
+import io.modelcontextprotocol.kotlin.sdk.CallToolResultBase
 import io.modelcontextprotocol.kotlin.sdk.ListPromptsRequest
 import io.modelcontextprotocol.kotlin.sdk.ListResourcesRequest
 import io.modelcontextprotocol.kotlin.sdk.ListToolsRequest
@@ -11,7 +12,6 @@ import io.modelcontextprotocol.kotlin.sdk.Tool
 import io.qent.bro.core.mcp.PromptDescriptor
 import io.qent.bro.core.mcp.ResourceDescriptor
 import io.qent.bro.core.mcp.ToolDescriptor
-import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 
 class RealSdkClientFacade(
@@ -26,8 +26,8 @@ class RealSdkClientFacade(
     override suspend fun getPrompts(): List<PromptDescriptor> =
         client.listPrompts(ListPromptsRequest()).prompts.map(::mapPrompt)
 
-    override suspend fun callTool(name: String, arguments: JsonObject): JsonElement? =
-        client.callTool(CallToolRequest(name, arguments, JsonObject(emptyMap())))?.structuredContent
+    override suspend fun callTool(name: String, arguments: JsonObject): CallToolResultBase? =
+        client.callTool(CallToolRequest(name, arguments, JsonObject(emptyMap())))
 
     override suspend fun getPrompt(name: String): io.modelcontextprotocol.kotlin.sdk.GetPromptResult =
         client.getPrompt(io.modelcontextprotocol.kotlin.sdk.GetPromptRequest(name, arguments = null, _meta = JsonObject(emptyMap())))

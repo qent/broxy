@@ -15,6 +15,7 @@ kotlin {
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:${property("coroutinesVersion")}")
                 implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:${property("serializationVersion")}")
                 implementation("io.ktor:ktor-client-core:${property("ktorVersion")}")
+                implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.6.1")
             }
         }
         val jvmMain by getting {

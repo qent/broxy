@@ -19,6 +19,7 @@ kotlin {
                 implementation(compose.foundation)
                 implementation(compose.material3)
                 implementation(compose.materialIconsExtended)
+                implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.6.1")
             }
         }
         val desktopMain by getting {

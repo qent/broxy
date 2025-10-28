@@ -20,6 +20,7 @@ class JsonConfigurationRepositoryTest {
         try {
             val mcpJson = """
             {
+              "requestTimeoutSeconds": 90,
               "mcpServers": {
                 "github": {
                   "transport": "stdio",
@@ -44,6 +45,7 @@ class JsonConfigurationRepositoryTest {
             assertEquals("github", s.id)
             assertTrue(s.transport is TransportConfig.StdioTransport)
             assertEquals("t", s.env["GITHUB_TOKEN"]) // resolved
+            assertEquals(90, cfg.requestTimeoutSeconds)
         } finally {
             tmp.toFile().deleteRecursively()
         }
@@ -83,4 +85,3 @@ class JsonConfigurationRepositoryTest {
         }
     }
 }
-

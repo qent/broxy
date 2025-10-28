@@ -4,6 +4,8 @@ import io.qent.bro.core.models.McpServerConfig
 import io.qent.bro.core.models.TransportConfig
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import org.mockito.kotlin.any
@@ -69,7 +71,12 @@ class DefaultMcpServerConnectionTest {
         runBlocking {
             val mockClient: McpClient = mock()
             whenever(mockClient.connect()).thenReturn(Result.success(Unit))
-            whenever(mockClient.callTool(any(), any())).thenReturn(Result.success(buildJsonObject { put("tool", "echo") }))
+            whenever(mockClient.callTool(any(), any())).thenReturn(Result.success(buildJsonObject {
+                put("content", buildJsonArray { })
+                put("structuredContent", buildJsonObject { put("tool", JsonPrimitive("echo")) })
+                put("isError", JsonPrimitive(false))
+                put("_meta", JsonObject(emptyMap()))
+            }))
 
             val conn = DefaultMcpServerConnection(config(), client = mockClient)
             assertTrue(conn.connect().isSuccess)
