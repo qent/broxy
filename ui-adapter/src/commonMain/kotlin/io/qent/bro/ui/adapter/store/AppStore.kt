@@ -114,7 +114,8 @@ class AppStore(
             id = cfg.id,
             name = cfg.name,
             enabled = cfg.enabled,
-            transport = draftTransport
+            transport = draftTransport,
+            env = cfg.env
         )
     }
 
@@ -296,7 +297,8 @@ class AppStore(
                     id = draft.id,
                     name = draft.name,
                     enabled = draft.enabled,
-                    transport = transport
+                    transport = transport,
+                    env = draft.env
                 )
                 val idx = servers.indexOfFirst { it.id == cfg.id }
                 val snapshot = servers.toList()

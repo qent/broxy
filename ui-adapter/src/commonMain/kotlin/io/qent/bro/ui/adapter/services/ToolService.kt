@@ -32,7 +32,8 @@ suspend fun validateServerConnection(draft: UiServerDraft): Result<Unit> {
         id = draft.id,
         name = draft.name,
         enabled = draft.enabled,
-        transport = transport
+        transport = transport,
+        env = draft.env
     )
     return fetchServerCapabilities(cfg).map { }
 }

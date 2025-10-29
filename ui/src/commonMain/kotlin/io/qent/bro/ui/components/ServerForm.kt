@@ -26,10 +26,20 @@ data class ServerFormState(
     val command: String = "",
     val args: String = "",
     val url: String = "",
-    val headers: String = ""
+    val headers: String = "",
+    val env: String = ""
 )
 
 fun ServerFormState.toDraft(): UiServerDraft {
+    val envMap = env.lines().mapNotNull { line ->
+        val trimmed = line.trim()
+        if (trimmed.isEmpty()) return@mapNotNull null
+        val idx = trimmed.indexOf(':')
+        if (idx <= 0) return@mapNotNull null
+        val key = trimmed.substring(0, idx).trim()
+        val value = trimmed.substring(idx + 1).trim()
+        if (key.isEmpty()) null else key to value
+    }.toMap()
     val draftTransport = when (transportType) {
         "STDIO" -> UiStdioDraft(
             command = command.trim(),
@@ -59,7 +69,8 @@ fun ServerFormState.toDraft(): UiServerDraft {
         id = id.trim(),
         name = name.trim(),
         enabled = enabled,
-        transport = draftTransport
+        transport = draftTransport,
+        env = if (transportType == "STDIO") envMap else emptyMap()
     )
 }
 
@@ -80,7 +91,8 @@ object ServerFormStateFactory {
             command = command,
             args = args,
             url = url,
-            headers = headers
+            headers = headers,
+            env = initial.env.entries.joinToString("\n") { (k, v) -> "$k:$v" }
         )
     }
 }
@@ -134,6 +146,12 @@ fun ServerForm(
                     value = state.args,
                     onValueChange = { onStateChange(state.copy(args = it)) },
                     label = { Text("Args (comma-separated)") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = state.env,
+                    onValueChange = { onStateChange(state.copy(env = it)) },
+                    label = { Text("Env (key:value per line, values may use {ENV_VAR})") },
                     modifier = Modifier.fillMaxWidth()
                 )
             }

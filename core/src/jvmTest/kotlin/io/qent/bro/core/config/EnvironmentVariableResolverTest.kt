@@ -13,7 +13,10 @@ class EnvironmentVariableResolverTest {
         assertEquals("abc123", r.resolveString("${'$'}{GITHUB_TOKEN}"))
         assertEquals("Bearer abc123", r.resolveString("Bearer ${'$'}{GITHUB_TOKEN}"))
         assertEquals("http://x/u", r.resolveString("http://x/${'$'}{USER}"))
+        assertEquals("abc123", r.resolveString("{GITHUB_TOKEN}"))
+        assertEquals("Bearer abc123", r.resolveString("Bearer {GITHUB_TOKEN}"))
+        assertEquals("http://x/u", r.resolveString("http://x/{USER}"))
         assertFailsWith<ConfigurationException> { r.resolveString("${'$'}{MISSING}") }
+        assertFailsWith<ConfigurationException> { r.resolveString("{MISSING}") }
     }
 }
-

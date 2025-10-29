@@ -9,6 +9,8 @@ import io.qent.bro.core.mcp.McpClient
 import io.qent.bro.core.mcp.ServerCapabilities
 import io.qent.bro.core.utils.ConsoleLogger
 import io.qent.bro.core.utils.Logger
+import io.qent.bro.core.config.EnvironmentVariableResolver
+import io.qent.bro.core.utils.ConfigurationException
 import kotlinx.io.buffered
 import kotlinx.io.asSink
 import kotlinx.io.asSource
@@ -27,6 +29,7 @@ class StdioMcpClient(
     private var process: Process? = null
     private var client: SdkClientFacade? = null
     private val json = Json { ignoreUnknownKeys = true }
+    private val envResolver = EnvironmentVariableResolver(logger = logger)
 
     override suspend fun connect(): Result<Unit> = runCatching {
         if (client != null || process?.isAlive == true) return@runCatching
@@ -35,9 +38,16 @@ class StdioMcpClient(
             logger.info("Connected via test connector for stdio client")
             return@runCatching
         }
+        val resolvedEnv = try {
+            envResolver.resolveMap(env)
+        } catch (ex: ConfigurationException) {
+            logger.error("Failed to resolve environment for stdio client '$command'", ex)
+            throw ex
+        }
         val pb = ProcessBuilder(listOf(command) + args)
         val envMap = pb.environment()
-        env.forEach { (k, v) -> envMap[k] = v }
+        resolvedEnv.forEach { (k, v) -> envMap[k] = v }
+        envResolver.logResolvedEnv("Launching stdio MCP process '$command'", resolvedEnv)
         val proc = pb.start()
         process = proc
 
