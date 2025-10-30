@@ -1,5 +1,6 @@
 package io.qent.bro.ui.adapter.services
 
+import io.qent.bro.core.utils.Logger
 import io.qent.bro.ui.adapter.models.UiMcpServerConfig
 import io.qent.bro.ui.adapter.models.UiHttpDraft
 import io.qent.bro.ui.adapter.models.UiServerCapsSnapshot
@@ -17,10 +18,10 @@ import io.qent.bro.ui.adapter.models.UiServerCapabilities
  * Provides access to server tools/capabilities for UI components.
  * Implementations live per-platform.
  */
-expect suspend fun fetchServerCapabilities(config: UiMcpServerConfig): Result<UiServerCapabilities>
+expect suspend fun fetchServerCapabilities(config: UiMcpServerConfig, logger: Logger? = null): Result<UiServerCapabilities>
 
 /** Validates connectivity by attempting to fetch capabilities for a draft config. */
-suspend fun validateServerConnection(draft: UiServerDraft): Result<Unit> {
+suspend fun validateServerConnection(draft: UiServerDraft, logger: Logger? = null): Result<Unit> {
     val transport = when (val t = draft.transport) {
         is UiStdioDraft -> UiStdioTransport(command = t.command, args = t.args)
         is UiHttpDraft -> UiHttpTransport(url = t.url, headers = t.headers)
@@ -35,5 +36,5 @@ suspend fun validateServerConnection(draft: UiServerDraft): Result<Unit> {
         transport = transport,
         env = draft.env
     )
-    return fetchServerCapabilities(cfg).map { }
+    return fetchServerCapabilities(cfg, logger).map { }
 }

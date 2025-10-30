@@ -1,5 +1,6 @@
 package io.qent.bro.ui.adapter.store
 
+import io.qent.bro.core.utils.CollectingLogger
 import io.qent.bro.ui.adapter.data.provideConfigurationRepository
 import io.qent.bro.ui.adapter.models.UiHttpDraft
 import io.qent.bro.ui.adapter.models.UiMcpServerConfig
@@ -48,15 +49,16 @@ class AppStore(
     private val presets = mutableListOf<UiPreset>()
     private var proxyStatus: UiProxyStatus = UiProxyStatus.Stopped
     private val repo = provideConfigurationRepository()
+    private val logger = CollectingLogger()
     private val capsCache = mutableMapOf<String, UiServerCapsSnapshot>()
-    private val proxy = createProxyController()
+    private val proxy = createProxyController(logger)
     private var requestTimeoutSeconds: Int = 60
     private val logs = mutableListOf<UiLogEntry>()
     private val maxLogs = 500
 
     init {
         scope.launch {
-            proxy.logs.collect { event ->
+            logger.events.collect { event ->
                 val uiEntry = UiLogEntry(
                     timestampMillis = event.timestampMillis,
                     level = UiLogLevel.valueOf(event.level.name),
@@ -141,7 +143,7 @@ class AppStore(
         val enabled = servers.filter { it.enabled }
         enabled.map { cfg ->
             async {
-                val r = fetchServerCapabilities(cfg)
+                val r = fetchServerCapabilities(cfg, logger)
                 if (r.isSuccess) {
                     val caps = r.getOrNull()!!
                     UiServerCapsSnapshot(
@@ -205,7 +207,7 @@ class AppStore(
         // Fetch per server to determine success/failure explicitly
         servers.filter { it.enabled }.map { cfg ->
             scope.launch {
-                val r = fetchServerCapabilities(cfg)
+                val r = fetchServerCapabilities(cfg, logger)
                 if (r.isSuccess) {
                     val caps = r.getOrNull()!!
                     capsCache[cfg.id] = UiServerCapsSnapshot(

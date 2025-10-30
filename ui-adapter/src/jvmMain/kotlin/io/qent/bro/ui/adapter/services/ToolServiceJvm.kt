@@ -2,14 +2,17 @@ package io.qent.bro.ui.adapter.services
 
 import io.qent.bro.core.mcp.DefaultMcpServerConnection
 import io.qent.bro.core.mcp.errors.McpError
+import io.qent.bro.core.utils.ConsoleLogger
+import io.qent.bro.core.utils.Logger
 import io.qent.bro.ui.adapter.models.UiMcpServerConfig
 import io.qent.bro.ui.adapter.models.UiServerCapabilities
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withTimeout
 
-actual suspend fun fetchServerCapabilities(config: UiMcpServerConfig): Result<UiServerCapabilities> {
+actual suspend fun fetchServerCapabilities(config: UiMcpServerConfig, logger: Logger?): Result<UiServerCapabilities> {
     // For interactive UI validation we want a quick fail: single attempt + short timeout.
-    val conn = DefaultMcpServerConnection(config, maxRetries = 1)
+    val connLogger = logger ?: ConsoleLogger
+    val conn = DefaultMcpServerConnection(config, logger = connLogger, maxRetries = 1)
     return try {
         withTimeout(5_000L) {
             val connect = conn.connect()

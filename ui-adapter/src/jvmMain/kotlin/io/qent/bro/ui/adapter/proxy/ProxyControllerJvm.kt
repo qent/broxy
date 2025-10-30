@@ -8,7 +8,6 @@ import io.qent.bro.core.proxy.inbound.InboundServer
 import io.qent.bro.core.proxy.inbound.InboundServerFactory
 import io.qent.bro.core.utils.CollectingLogger
 import io.qent.bro.core.utils.LogEvent
-import io.qent.bro.core.utils.Logger
 import io.qent.bro.core.utils.StdErrLogger
 import io.qent.bro.ui.adapter.models.UiMcpServerConfig
 import io.qent.bro.ui.adapter.models.UiPresetCore
@@ -17,7 +16,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.flow.Flow
 
 private class JvmProxyController(
-    private val logger: CollectingLogger = CollectingLogger()
+    private val logger: CollectingLogger
 ) : ProxyController {
     private var downstreams: List<McpServerConnection> = emptyList()
     private var proxy: ProxyMcpServer? = null
@@ -67,11 +66,11 @@ private class JvmProxyController(
     }
 }
 
-actual fun createProxyController(): ProxyController = JvmProxyController()
+actual fun createProxyController(logger: CollectingLogger): ProxyController = JvmProxyController(logger)
 
 /**
  * Specialized factory for STDIO inbound where stdout must remain clean for MCP
  * and all logs go to stderr.
  */
-fun createStdioProxyController(): ProxyController =
-    JvmProxyController(logger = CollectingLogger(delegate = StdErrLogger))
+fun createStdioProxyController(logger: CollectingLogger = CollectingLogger(delegate = StdErrLogger)): ProxyController =
+    JvmProxyController(logger = logger)
