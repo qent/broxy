@@ -48,7 +48,9 @@ class StdioMcpClient(
         val envMap = pb.environment()
         resolvedEnv.forEach { (k, v) -> envMap[k] = v }
         envResolver.logResolvedEnv("Launching stdio MCP process '$command'", resolvedEnv)
-        val proc = pb.start()
+        val proc = runCatching { pb.start() }
+            .onFailure { ex -> logger.error("Failed to launch stdio MCP process '$command'", ex) }
+            .getOrThrow()
         process = proc
 
         val source = proc.inputStream.asSource().buffered()

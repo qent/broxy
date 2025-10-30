@@ -18,7 +18,11 @@ class DefaultMcpServerConnection(
     private val logger: Logger = ConsoleLogger,
     private val cacheTtlMs: Long = 5 * 60 * 1000,
     private val maxRetries: Int = 5,
-    private val client: McpClient = McpClientFactory(defaultMcpClientProvider()).create(config.transport, config.env),
+    private val client: McpClient = McpClientFactory(defaultMcpClientProvider()).create(
+        config.transport,
+        config.env,
+        logger
+    ),
     private val cache: CapabilitiesCache = CapabilitiesCache(ttlMillis = cacheTtlMs),
     callTimeoutMillis: Long = 60_000
 ) : McpServerConnection {
