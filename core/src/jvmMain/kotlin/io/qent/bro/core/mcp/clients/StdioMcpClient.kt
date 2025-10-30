@@ -14,10 +14,11 @@ import io.qent.bro.core.utils.ConfigurationException
 import kotlinx.io.buffered
 import kotlinx.io.asSink
 import kotlinx.io.asSource
-import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.encodeToJsonElement
+import kotlin.concurrent.thread
 
 class StdioMcpClient(
     private val command: String,
@@ -28,6 +29,7 @@ class StdioMcpClient(
 ) : McpClient {
     private var process: Process? = null
     private var client: SdkClientFacade? = null
+    private var stderrThread: Thread? = null
     private val json = Json { ignoreUnknownKeys = true }
     private val envResolver = EnvironmentVariableResolver(logger = logger)
 
@@ -52,6 +54,22 @@ class StdioMcpClient(
             .onFailure { ex -> logger.error("Failed to launch stdio MCP process '$command'", ex) }
             .getOrThrow()
         process = proc
+        stderrThread?.takeIf { it.isAlive }?.interrupt()
+        stderrThread = thread(name = "StdioMcpClient-stderr-$command") {
+            runCatching {
+                proc.errorStream.bufferedReader().useLines { lines ->
+                    lines.forEach { line ->
+                        if (line.isNotBlank()) {
+                            logger.warn("[STDERR][$command] $line")
+                        }
+                    }
+                }
+            }.onFailure { ex ->
+                if (!Thread.currentThread().isInterrupted) {
+                    logger.warn("Error reading stderr from '$command'", ex)
+                }
+            }
+        }
 
         val source = proc.inputStream.asSource().buffered()
         val sink = proc.outputStream.asSink().buffered()
@@ -65,6 +83,10 @@ class StdioMcpClient(
     override suspend fun disconnect() {
         runCatching { client?.close() }
         process?.destroy()
+        stderrThread?.let {
+            runCatching { it.join(500) }
+        }
+        stderrThread = null
         client = null
         logger.info("Stopped stdio MCP process: $command")
     }
