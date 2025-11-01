@@ -48,7 +48,7 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalAnimationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun MainWindow(state: AppState, ui: UIState, store: AppStore) {
-    AppTheme(settings = state.theme.value) {
+    AppTheme {
         val screen = state.currentScreen.value
         val snackbarHostState = remember { SnackbarHostState() }
         val scope = rememberCoroutineScope()
@@ -100,7 +100,6 @@ fun MainWindow(state: AppState, ui: UIState, store: AppStore) {
                             Screen.Presets -> PresetsScreen(ui, state, store)
                             Screen.Proxy -> ProxyScreen(ui, state, notify)
                             Screen.Logs -> LogsScreen(ui)
-                            Screen.Settings -> SettingsScreen(state, ui)
                         }
                     }
                 }

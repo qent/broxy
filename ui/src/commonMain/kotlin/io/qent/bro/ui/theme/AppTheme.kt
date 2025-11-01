@@ -10,7 +10,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
-import io.qent.bro.ui.viewmodels.ThemeSettings
 
 private val LightColors = lightColorScheme(
     primary = Color(0xFF4E7CF5),
@@ -36,18 +35,17 @@ private val DarkColors = darkColorScheme(
 
 @Composable
 fun AppTheme(
-    settings: ThemeSettings,
     content: @Composable () -> Unit
 ) {
-    val dark = if (settings.dynamicColors) isSystemInDarkTheme() else settings.darkTheme
+    val dark = isSystemInDarkTheme()
 
     // Rounded shapes configurable via settings
     val shapes = Shapes(
         extraSmall = RoundedCornerShape(8.dp),
         small = RoundedCornerShape(12.dp),
-        medium = RoundedCornerShape(settings.mediumCornerRadius.dp),
-        large = RoundedCornerShape(settings.largeCornerRadius.dp),
-        extraLarge = RoundedCornerShape(settings.largeCornerRadius.dp)
+        medium = RoundedCornerShape(16.dp),
+        large = RoundedCornerShape(18.dp),
+        extraLarge = RoundedCornerShape(20.dp)
     )
 
     val typography = Typography()

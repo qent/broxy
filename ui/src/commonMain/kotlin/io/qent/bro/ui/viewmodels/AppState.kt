@@ -8,11 +8,9 @@ import androidx.compose.runtime.mutableStateOf
  * All business data comes from ui-adapter as Flow<UIState>.
  */
 class AppState(
-    initialScreen: Screen = Screen.Servers,
-    initialTheme: ThemeSettings = ThemeSettings()
+    initialScreen: Screen = Screen.Servers
 ) {
     val currentScreen: MutableState<Screen> = mutableStateOf(initialScreen)
-    val theme: MutableState<ThemeSettings> = mutableStateOf(initialTheme)
 
     // Dialog flags
     val showAddServerDialog: MutableState<Boolean> = mutableStateOf(false)
@@ -24,13 +22,6 @@ enum class Screen(val title: String) {
     Presets("Presets"),
     Proxy("Proxy"),
     Logs("Logs"),
-    Settings("Settings")
 }
 
-data class ThemeSettings(
-    val darkTheme: Boolean = false,
-    val dynamicColors: Boolean = false,
-    val mediumCornerRadius: Int = 16,
-    val largeCornerRadius: Int = 28,
-    val motionEnabled: Boolean = true
-)
+

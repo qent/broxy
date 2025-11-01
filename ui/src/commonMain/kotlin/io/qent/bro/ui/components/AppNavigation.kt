@@ -4,7 +4,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Dns
 import androidx.compose.material.icons.outlined.List
 import androidx.compose.material.icons.outlined.Tune
-import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationRail
@@ -25,7 +24,6 @@ private val navItems = listOf(
     NavItem(Screen.Presets, "Presets") { Icon(Icons.Outlined.Tune, contentDescription = "Presets") },
     NavItem(Screen.Proxy, "Proxy") { Icon(Icons.Outlined.Dns, contentDescription = "Proxy") },
     NavItem(Screen.Logs, "Logs") { Icon(Icons.Outlined.List, contentDescription = "Logs") },
-    NavItem(Screen.Settings, "Settings") { Icon(Icons.Outlined.Settings, contentDescription = "Settings") }
 )
 
 @Composable
