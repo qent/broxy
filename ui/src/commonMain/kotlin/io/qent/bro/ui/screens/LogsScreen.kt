@@ -18,14 +18,21 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Divider
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -60,6 +67,14 @@ private fun LogsContent(logs: List<UiLogEntry>) {
 
     val listState = rememberLazyListState()
 
+    val activeLevelsState = remember {
+        mutableStateOf(setOf(
+            UiLogLevel.ERROR, UiLogLevel.WARN, UiLogLevel.INFO, UiLogLevel.DEBUG
+        ))
+    }
+    val activeLevels = activeLevelsState.value
+    val filteredLogs = remember(logs, activeLevels) { logs.filter { it.level in activeLevels } }
+
     Box(Modifier.fillMaxSize()) {
         LazyColumn(
             state = listState,
@@ -67,10 +82,49 @@ private fun LogsContent(logs: List<UiLogEntry>) {
                 .fillMaxSize()
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
-            contentPadding = PaddingValues(bottom = 12.dp)
+            contentPadding = PaddingValues(top = 44.dp, bottom = 12.dp)
         ) {
-            items(logs) { entry ->
+            items(filteredLogs) { entry ->
                 LogRow(entry)
+            }
+        }
+
+        // Top pinned filter bar with level badges
+        Row(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            listOf(UiLogLevel.ERROR, UiLogLevel.WARN, UiLogLevel.INFO, UiLogLevel.DEBUG).forEach { level ->
+                val color = when (level) {
+                    UiLogLevel.ERROR -> MaterialTheme.colorScheme.error
+                    UiLogLevel.WARN -> MaterialTheme.colorScheme.tertiary
+                    UiLogLevel.DEBUG -> MaterialTheme.colorScheme.outline
+                    UiLogLevel.INFO -> MaterialTheme.colorScheme.primary
+                }
+                val isActive = level in activeLevels
+                Text(
+                    level.name,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(color.copy(alpha = 0.18f))
+                        .alpha(if (isActive) 1f else 0.3f)
+                        .clickable {
+                            activeLevelsState.value = if (isActive) activeLevels - level else activeLevels + level
+                        }
+                        .padding(horizontal = 8.dp, vertical = 2.dp),
+                    color = color,
+                    style = MaterialTheme.typography.labelSmall
+                )
+            }
+        }
+
+        if (filteredLogs.isEmpty()) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("No logs for selected levels", style = MaterialTheme.typography.bodyMedium)
             }
         }
 
@@ -98,6 +152,7 @@ private fun LogsContent(logs: List<UiLogEntry>) {
 
 @Composable
 private fun LogRow(entry: UiLogEntry) {
+    val clipboardManager = LocalClipboardManager.current
     val formattedTime = remember(entry.timestampMillis) {
         val instant = Instant.fromEpochMilliseconds(entry.timestampMillis)
         val local = instant.toLocalDateTime(TimeZone.currentSystemDefault())
@@ -106,6 +161,9 @@ private fun LogRow(entry: UiLogEntry) {
     val message = remember(entry) {
         if (entry.throwableMessage.isNullOrBlank()) entry.message
         else "${entry.message} (${entry.throwableMessage})"
+    }
+    val copyText = remember(entry, formattedTime) {
+        "[" + formattedTime + "] " + entry.level.name + ": " + message
     }
 
     val levelColor = when (entry.level) {
@@ -143,10 +201,21 @@ private fun LogRow(entry: UiLogEntry) {
                 color = levelColor,
                 style = MaterialTheme.typography.labelSmall
             )
+            Spacer(Modifier.weight(1f))
+            TextButton(onClick = {
+                clipboardManager.setText(AnnotatedString(copyText))
+            }) {
+                Text(
+                    "Copy",
+                    style = MaterialTheme.typography.labelSmall
+                )
+            }
         }
-        Text(
-            message,
-            style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace)
-        )
+        SelectionContainer {
+            Text(
+                message,
+                style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace)
+            )
+        }
     }
 }
