@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -72,10 +74,23 @@ private fun LogsContent(logs: List<UiLogEntry>) {
             }
         }
 
+        // Track background to visually indicate draggable area
+        Box(
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .fillMaxHeight()
+                .width(12.dp)
+                .padding(end = 2.dp)
+                .clip(RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
+        )
+
         VerticalScrollbar(
             adapter = rememberScrollbarAdapter(listState),
             modifier = Modifier
                 .align(Alignment.CenterEnd)
+                .fillMaxHeight()
+                .width(12.dp)
                 .padding(end = 2.dp)
         )
     }
