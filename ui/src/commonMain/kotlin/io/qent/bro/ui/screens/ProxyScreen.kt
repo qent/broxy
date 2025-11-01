@@ -18,7 +18,8 @@ import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -26,6 +27,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.shape.RoundedCornerShape
 
 import io.qent.bro.ui.adapter.store.UIState
 import io.qent.bro.ui.viewmodels.AppState
@@ -51,7 +53,7 @@ fun ProxyScreen(ui: UIState, state: AppState, notify: (String) -> Unit = {}) {
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
             Column(Modifier.fillMaxWidth().padding(16.dp)) {
-                Text("Proxy", style = MaterialTheme.typography.titleMedium)
+                Text("Proxy", style = MaterialTheme.typography.titleLarge)
                 Spacer(Modifier.padding(2.dp))
 
                 if (ui is UIState.Ready) {
@@ -99,16 +101,32 @@ fun ProxyScreen(ui: UIState, state: AppState, notify: (String) -> Unit = {}) {
                         Text("Inbound mode", style = MaterialTheme.typography.bodyMedium)
                         Spacer(Modifier.padding(2.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            listOf("STDIO", "HTTP SSE", "HTTP Streaming", "WS").forEach { opt ->
-                                TextButton(onClick = {
-                                    inboundMode = opt
-                                    when (opt) {
-                                        "HTTP SSE" -> if (inboundUrl.isBlank() || inboundUrl.startsWith("ws")) inboundUrl = "http://0.0.0.0:3335/mcp"
-                                        "HTTP Streaming" -> if (inboundUrl.isBlank() || inboundUrl.startsWith("ws")) inboundUrl = "http://0.0.0.0:3337/mcp"
-                                        "WS" -> if (inboundUrl.isBlank() || inboundUrl.startsWith("http")) inboundUrl = "ws://0.0.0.0:3336/ws"
-                                        else -> {}
-                                    }
-                                }) { Text(if (inboundMode == opt) "[$opt]" else opt) }
+                            listOf("STDIO", "HTTP SSE", "WS").forEach { opt ->
+                                val selected = inboundMode == opt
+                                val (bg, fg) = when (opt) {
+                                    "STDIO" -> MaterialTheme.colorScheme.secondaryContainer to MaterialTheme.colorScheme.onSecondaryContainer
+                                    "HTTP SSE" -> MaterialTheme.colorScheme.primaryContainer to MaterialTheme.colorScheme.onPrimaryContainer
+                                    "HTTP Streaming" -> MaterialTheme.colorScheme.tertiaryContainer to MaterialTheme.colorScheme.onTertiaryContainer
+                                    else -> MaterialTheme.colorScheme.surfaceVariant to MaterialTheme.colorScheme.onSurfaceVariant
+                                }
+                                FilledTonalButton(
+                                    onClick = {
+                                        inboundMode = opt
+                                        when (opt) {
+                                            "HTTP SSE" -> if (inboundUrl.isBlank() || inboundUrl.startsWith("ws")) inboundUrl = "http://0.0.0.0:3335/mcp"
+                                            "HTTP Streaming" -> if (inboundUrl.isBlank() || inboundUrl.startsWith("ws")) inboundUrl = "http://0.0.0.0:3337/mcp"
+                                            "WS" -> if (inboundUrl.isBlank() || inboundUrl.startsWith("http")) inboundUrl = "ws://0.0.0.0:3336/ws"
+                                            else -> {}
+                                        }
+                                    },
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = ButtonDefaults.filledTonalButtonColors(
+                                        containerColor = if (selected) bg else MaterialTheme.colorScheme.surfaceVariant,
+                                        contentColor = if (selected) fg else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                ) {
+                                    Text(opt)
+                                }
                             }
                         }
                         if (inboundMode != "STDIO") {
