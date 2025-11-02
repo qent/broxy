@@ -14,6 +14,17 @@
         "minLength": 1
       },
       "additionalProperties": { "$ref": "#/definitions/FileMcpServer" }
+    },
+    "requestTimeoutSeconds": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Timeout for MCP requests in seconds.",
+      "default": 60
+    },
+    "showTrayIcon": {
+      "type": "boolean",
+      "description": "Whether the desktop UI should display a system tray icon.",
+      "default": true
     }
   },
   "definitions": {

@@ -108,16 +108,19 @@ class JsonConfigurationRepository(
         validateServers(servers)
 
         val timeoutSeconds = root.requestTimeoutSeconds ?: DEFAULT_TIMEOUT_SECONDS
+        val showTrayIcon = root.showTrayIcon ?: true
 
         return McpServersConfig(
             servers = servers,
-            requestTimeoutSeconds = timeoutSeconds
+            requestTimeoutSeconds = timeoutSeconds,
+            showTrayIcon = showTrayIcon
         )
     }
 
     override fun saveMcpConfig(config: McpServersConfig) {
         val root = FileMcpRoot(
             requestTimeoutSeconds = config.requestTimeoutSeconds,
+            showTrayIcon = config.showTrayIcon,
             mcpServers = config.servers.associate { s ->
                 s.id to when (val t = s.transport) {
                     is TransportConfig.StdioTransport -> FileMcpServer(
@@ -241,6 +244,7 @@ class JsonConfigurationRepository(
     @Serializable
     private data class FileMcpRoot(
         val requestTimeoutSeconds: Int? = null,
+        val showTrayIcon: Boolean? = null,
         val mcpServers: Map<String, FileMcpServer>
     )
 

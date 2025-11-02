@@ -12,6 +12,7 @@ import kotlin.io.path.writeText
 import kotlin.io.path.readText
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlin.test.assertFalse
 import kotlin.test.assertFailsWith
 
 class JsonConfigurationRepositoryTest {
@@ -47,6 +48,7 @@ class JsonConfigurationRepositoryTest {
             assertTrue(s.transport is TransportConfig.StdioTransport)
             assertEquals("t", s.env["GITHUB_TOKEN"]) // resolved
             assertEquals(90, cfg.requestTimeoutSeconds)
+            assertTrue(cfg.showTrayIcon)
         } finally {
             tmp.toFile().deleteRecursively()
         }
@@ -91,12 +93,14 @@ class JsonConfigurationRepositoryTest {
         val tmp = Files.createTempDirectory("cfgtest4")
         try {
             val repo = JsonConfigurationRepository(baseDir = tmp)
-            val cfg = McpServersConfig(requestTimeoutSeconds = 1_200)
+            val cfg = McpServersConfig(requestTimeoutSeconds = 1_200, showTrayIcon = false)
             repo.saveMcpConfig(cfg)
             val raw = tmp.resolve("mcp.json").readText()
             assertTrue(raw.contains("\"requestTimeoutSeconds\": 1200"))
+            assertTrue(raw.contains("\"showTrayIcon\": false"))
             val loaded = repo.loadMcpConfig()
             assertEquals(1_200, loaded.requestTimeoutSeconds)
+            assertFalse(loaded.showTrayIcon)
         } finally {
             tmp.toFile().deleteRecursively()
         }

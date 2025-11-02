@@ -59,6 +59,7 @@ class AppStore(
     private val capsCacheTtlMillis: Long = 5 * 60 * 1000L
     private val proxy = createProxyController(logger)
     private var requestTimeoutSeconds: Int = 60
+    private var showTrayIcon: Boolean = true
     private val logs = mutableListOf<UiLogEntry>()
     private val maxLogs = 500
 
@@ -85,6 +86,7 @@ class AppStore(
             val load = runCatching {
                 val cfg = repo.loadMcpConfig()
                 requestTimeoutSeconds = cfg.requestTimeoutSeconds
+                showTrayIcon = cfg.showTrayIcon
                 proxy.updateCallTimeout(requestTimeoutSeconds)
                 val loadedPresets = repo.listPresets()
                 servers.clear(); servers.addAll(cfg.servers)
@@ -244,10 +246,17 @@ class AppStore(
             selectedPresetId = selectedProxyPresetId,
             proxyStatus = proxyStatus,
             requestTimeoutSeconds = requestTimeoutSeconds,
+            showTrayIcon = showTrayIcon,
             logs = synchronized(logs) { logs.asReversed().toList() },
             intents = intents
         )
     }
+
+    private fun snapshotConfig(): UiMcpServersConfig = UiMcpServersConfig(
+        servers = servers.toList(),
+        requestTimeoutSeconds = requestTimeoutSeconds,
+        showTrayIcon = showTrayIcon
+    )
 
     private val serverStatus = mutableMapOf<String, UiServerConnStatus>()
 
@@ -363,6 +372,7 @@ class AppStore(
                 val r = runCatching {
                     val cfg = repo.loadMcpConfig()
                     requestTimeoutSeconds = cfg.requestTimeoutSeconds
+                    showTrayIcon = cfg.showTrayIcon
                     proxy.updateCallTimeout(requestTimeoutSeconds)
                     val loadedPresets = repo.listPresets()
                     servers.clear(); servers.addAll(cfg.servers)
@@ -399,14 +409,7 @@ class AppStore(
                 val snapshot = servers.toList()
                 if (idx >= 0) servers[idx] = updated else servers += updated
                 updateCachedCapsName(ui.id, ui.name)
-                val r = runCatching {
-                    repo.saveMcpConfig(
-                        UiMcpServersConfig(
-                            servers = servers.toList(),
-                            requestTimeoutSeconds = requestTimeoutSeconds
-                        )
-                    )
-                }
+                val r = runCatching { repo.saveMcpConfig(snapshotConfig()) }
                 if (r.isFailure) {
                     val msg = r.exceptionOrNull()?.message ?: "Failed to save servers"
                     println("[AppStore] addOrUpdateServerUi failed: ${'$'}msg")
@@ -437,14 +440,7 @@ class AppStore(
                 val snapshot = servers.toList()
                 if (idx >= 0) servers[idx] = cfg else servers += cfg
                 removeCachedCaps(cfg.id)
-                val r = runCatching {
-                    repo.saveMcpConfig(
-                        UiMcpServersConfig(
-                            servers = servers.toList(),
-                            requestTimeoutSeconds = requestTimeoutSeconds
-                        )
-                    )
-                }
+                val r = runCatching { repo.saveMcpConfig(snapshotConfig()) }
                 if (r.isFailure) {
                     val msg = r.exceptionOrNull()?.message ?: "Failed to save servers"
                     println("[AppStore] upsertServer failed: ${'$'}msg")
@@ -462,14 +458,7 @@ class AppStore(
                 val idx = servers.indexOfFirst { it.id == cfg.id }
                 val snapshot = servers.toList()
                 if (idx >= 0) servers[idx] = cfg else servers += cfg
-                val r = runCatching {
-                    repo.saveMcpConfig(
-                        UiMcpServersConfig(
-                            servers = servers.toList(),
-                            requestTimeoutSeconds = requestTimeoutSeconds
-                        )
-                    )
-                }
+                val r = runCatching { repo.saveMcpConfig(snapshotConfig()) }
                 if (r.isFailure) {
                     val msg = r.exceptionOrNull()?.message ?: "Failed to save servers"
                     println("[AppStore] addServerBasic failed: ${'$'}msg")
@@ -486,14 +475,7 @@ class AppStore(
                 val snapshot = servers.toList()
                 servers.removeAll { it.id == id }
                 removeCachedCaps(id)
-                val r = runCatching {
-                    repo.saveMcpConfig(
-                        UiMcpServersConfig(
-                            servers = servers.toList(),
-                            requestTimeoutSeconds = requestTimeoutSeconds
-                        )
-                    )
-                }
+                val r = runCatching { repo.saveMcpConfig(snapshotConfig()) }
                 if (r.isFailure) {
                     val msg = r.exceptionOrNull()?.message ?: "Failed to save servers"
                     println("[AppStore] removeServer failed: ${'$'}msg")
@@ -511,14 +493,7 @@ class AppStore(
                 if (idx >= 0) {
                     val snapshot = servers[idx]
                     servers[idx] = servers[idx].copy(enabled = enabled)
-                    val r = runCatching {
-                        repo.saveMcpConfig(
-                            UiMcpServersConfig(
-                                servers = servers.toList(),
-                                requestTimeoutSeconds = requestTimeoutSeconds
-                            )
-                        )
-                    }
+                    val r = runCatching { repo.saveMcpConfig(snapshotConfig()) }
                     if (r.isFailure) {
                         val msg = r.exceptionOrNull()?.message ?: "Failed to save server state"
                         println("[AppStore] toggleServer failed: ${'$'}msg")
@@ -702,19 +677,28 @@ class AppStore(
                 val previous = requestTimeoutSeconds
                 requestTimeoutSeconds = seconds
                 proxy.updateCallTimeout(requestTimeoutSeconds)
-                val r = runCatching {
-                    repo.saveMcpConfig(
-                        UiMcpServersConfig(
-                            servers = servers.toList(),
-                            requestTimeoutSeconds = requestTimeoutSeconds
-                        )
-                    )
-                }
+                val r = runCatching { repo.saveMcpConfig(snapshotConfig()) }
                 if (r.isFailure) {
                     val msg = r.exceptionOrNull()?.message ?: "Failed to update timeout"
                     println("[AppStore] updateRequestTimeout failed: ${'$'}msg")
                     requestTimeoutSeconds = previous
                     proxy.updateCallTimeout(requestTimeoutSeconds)
+                    _state.value = UIState.Error(msg)
+                }
+                publishReady()
+            }
+        }
+
+        override fun updateTrayIconVisibility(visible: Boolean) {
+            scope.launch {
+                if (showTrayIcon == visible) return@launch
+                val previous = showTrayIcon
+                showTrayIcon = visible
+                val r = runCatching { repo.saveMcpConfig(snapshotConfig()) }
+                if (r.isFailure) {
+                    val msg = r.exceptionOrNull()?.message ?: "Failed to update tray preference"
+                    println("[AppStore] updateTrayIconVisibility failed: ${'$'}msg")
+                    showTrayIcon = previous
                     _state.value = UIState.Error(msg)
                 }
                 publishReady()
