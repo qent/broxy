@@ -260,14 +260,28 @@ class AppStore(
         }
     }
 
-    private suspend fun refreshServerCapsAndPublish() {
-        // Set connecting for enabled servers without a known status
-        servers.forEach { s ->
-            serverStatus[s.id] = if (!s.enabled) UiServerConnStatus.Disabled else UiServerConnStatus.Connecting
+    private suspend fun refreshServerCapsAndPublish(targetServerIds: Collection<String>? = null) {
+        val targetSet = targetServerIds?.toSet()
+        if (targetSet != null) {
+            val existingIds = servers.mapTo(mutableSetOf()) { it.id }
+            val removedIds = targetSet - existingIds
+            removedIds.forEach { id ->
+                serverStatus.remove(id)
+                removeCachedCaps(id)
+            }
+        }
+        val targets = if (targetSet == null) servers.toList() else servers.filter { it.id in targetSet }
+        if (targets.isEmpty()) {
+            publishReady()
+            return
+        }
+        targets.forEach { cfg ->
+            val status = if (!cfg.enabled) UiServerConnStatus.Disabled else UiServerConnStatus.Connecting
+            serverStatus[cfg.id] = status
         }
         publishReady()
         // Fetch per server to determine success/failure explicitly
-        servers.filter { it.enabled }.map { cfg ->
+        targets.filter { it.enabled }.forEach { cfg ->
             scope.launch {
                 val r = fetchServerCapabilities(cfg, logger)
                 if (r.isSuccess) {
@@ -347,7 +361,7 @@ class AppStore(
                     _state.value = UIState.Error(msg)
                 }
                 publishReady()
-                refreshServerCapsAndPublish()
+                refreshServerCapsAndPublish(setOf(ui.id))
             }
         }
 
@@ -385,7 +399,7 @@ class AppStore(
                     _state.value = UIState.Error(msg)
                 }
                 publishReady()
-                refreshServerCapsAndPublish()
+                refreshServerCapsAndPublish(setOf(cfg.id))
             }
         }
 
@@ -410,7 +424,7 @@ class AppStore(
                     _state.value = UIState.Error(msg)
                 }
                 publishReady()
-                refreshServerCapsAndPublish()
+                refreshServerCapsAndPublish(setOf(cfg.id))
             }
         }
 
@@ -434,7 +448,7 @@ class AppStore(
                     _state.value = UIState.Error(msg)
                 }
                 publishReady()
-                refreshServerCapsAndPublish()
+                refreshServerCapsAndPublish(setOf(id))
             }
         }
 
@@ -460,7 +474,7 @@ class AppStore(
                     }
                 }
                 publishReady()
-                refreshServerCapsAndPublish()
+                refreshServerCapsAndPublish(setOf(id))
             }
         }
 
