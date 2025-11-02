@@ -25,6 +25,7 @@ import io.qent.bro.ui.adapter.models.UiLogEntry
 import io.qent.bro.ui.adapter.models.UiLogLevel
 import io.qent.bro.ui.adapter.services.fetchServerCapabilities
 import io.qent.bro.ui.adapter.proxy.createProxyController
+import io.qent.bro.ui.adapter.models.UiPresetCore
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -48,6 +49,9 @@ class AppStore(
     private val servers = mutableListOf<UiMcpServerConfig>()
     private val presets = mutableListOf<UiPreset>()
     private var proxyStatus: UiProxyStatus = UiProxyStatus.Stopped
+    private var selectedProxyPresetId: String? = null
+    private var activeProxyPresetId: String? = null
+    private var activeInbound: UiTransportConfig? = null
     private val repo = provideConfigurationRepository()
     private val logger = CollectingLogger()
     private data class CachedCaps(val snapshot: UiServerCapsSnapshot, val timestampMillis: Long)
@@ -194,7 +198,19 @@ class AppStore(
         enabled.mapNotNull { resolved[it.id] }
     }
 
+    private fun reconcilePresetSelection() {
+        val selected = selectedProxyPresetId
+        if (selected != null && presets.none { it.id == selected }) {
+            selectedProxyPresetId = null
+        }
+        val active = activeProxyPresetId
+        if (active != null && presets.none { it.id == active }) {
+            activeProxyPresetId = null
+        }
+    }
+
     private fun publishReady() {
+        reconcilePresetSelection()
         val uiServers = servers.map { s ->
                 val label = when (s.transport) {
                     is UiStdioTransport -> "STDIO"
@@ -225,6 +241,7 @@ class AppStore(
         _state.value = UIState.Ready(
             servers = uiServers,
             presets = presets.toList(),
+            selectedPresetId = selectedProxyPresetId,
             proxyStatus = proxyStatus,
             requestTimeoutSeconds = requestTimeoutSeconds,
             logs = synchronized(logs) { logs.asReversed().toList() },
@@ -302,6 +319,42 @@ class AppStore(
                 publishReady()
             }
         }
+    }
+
+    private fun resolveInboundTransport(inbound: io.qent.bro.ui.adapter.models.UiTransportDraft): UiTransportConfig =
+        when (inbound) {
+            is UiStdioDraft -> UiStdioTransport(command = inbound.command, args = inbound.args)
+            is UiHttpDraft -> UiHttpTransport(url = inbound.url, headers = inbound.headers)
+            is UiStreamableHttpDraft -> UiStreamableHttpTransport(url = inbound.url, headers = inbound.headers)
+            is UiWebSocketDraft -> UiWebSocketTransport(url = inbound.url)
+        }
+
+    private fun restartProxyWithPreset(presetId: String, presetOverride: UiPresetCore? = null) {
+        if (proxyStatus !is UiProxyStatus.Running) return
+        val inboundTransport = activeInbound ?: return
+        val presetResult = presetOverride?.let { Result.success(it) } ?: runCatching { repo.loadPreset(presetId) }
+        if (presetResult.isFailure) {
+            val msg = presetResult.exceptionOrNull()?.message ?: "Failed to load preset for restart"
+            println("[AppStore] restartProxyWithPreset failed to load preset '$presetId': $msg")
+            proxyStatus = UiProxyStatus.Error(msg)
+            activeProxyPresetId = null
+            activeInbound = null
+            publishReady()
+            return
+        }
+        val preset = presetResult.getOrNull()!!
+        val result = proxy.start(servers.toList(), preset, inboundTransport, requestTimeoutSeconds)
+        if (result.isSuccess) {
+            activeProxyPresetId = presetId
+            proxyStatus = UiProxyStatus.Running
+        } else {
+            val msg = result.exceptionOrNull()?.message ?: "Failed to restart proxy"
+            println("[AppStore] restartProxyWithPreset failed for '$presetId': $msg")
+            proxyStatus = UiProxyStatus.Error(msg)
+            activeProxyPresetId = null
+            activeInbound = null
+        }
+        publishReady()
     }
 
     private val intents = object : Intents {
@@ -505,17 +558,15 @@ class AppStore(
                 val coreTools = draft.tools.map { t ->
                     io.qent.bro.core.models.ToolReference(serverId = t.serverId, toolName = t.toolName, enabled = t.enabled)
                 }
-                val r = runCatching {
-                    val p = io.qent.bro.core.models.Preset(
-                        id = draft.id,
-                        name = draft.name,
-                        description = draft.description ?: "",
-                        tools = coreTools
-                    )
-                    repo.savePreset(p)
-                }
-                if (r.isFailure) {
-                    val msg = r.exceptionOrNull()?.message ?: "Failed to save preset"
+                val preset = io.qent.bro.core.models.Preset(
+                    id = draft.id,
+                    name = draft.name,
+                    description = draft.description ?: "",
+                    tools = coreTools
+                )
+                val saveResult = runCatching { repo.savePreset(preset) }
+                if (saveResult.isFailure) {
+                    val msg = saveResult.exceptionOrNull()?.message ?: "Failed to save preset"
                     println("[AppStore] upsertPreset failed: ${'$'}msg")
                     _state.value = UIState.Error(msg)
                 }
@@ -527,7 +578,14 @@ class AppStore(
                 )
                 val idx = presets.indexOfFirst { it.id == summary.id }
                 if (idx >= 0) presets[idx] = summary else presets += summary
+                val shouldRestart = saveResult.isSuccess &&
+                    proxyStatus is UiProxyStatus.Running &&
+                    activeProxyPresetId == preset.id &&
+                    activeInbound != null
                 publishReady()
+                if (shouldRestart) {
+                    restartProxyWithPreset(preset.id, preset)
+                }
             }
         }
 
@@ -546,6 +604,21 @@ class AppStore(
             }
         }
 
+        override fun selectProxyPreset(presetId: String?) {
+            scope.launch {
+                if (selectedProxyPresetId == presetId) return@launch
+                selectedProxyPresetId = presetId
+                publishReady()
+                val shouldRestart = presetId != null &&
+                    proxyStatus is UiProxyStatus.Running &&
+                    activeInbound != null &&
+                    presetId != activeProxyPresetId
+                if (shouldRestart) {
+                    restartProxyWithPreset(presetId!!)
+                }
+            }
+        }
+
         override fun startProxySimple(presetId: String) {
             scope.launch {
                 val presetResult = runCatching { repo.loadPreset(presetId) }
@@ -553,6 +626,9 @@ class AppStore(
                     val msg = presetResult.exceptionOrNull()?.message ?: "Failed to load preset"
                     println("[AppStore] startProxySimple failed: ${'$'}msg")
                     proxyStatus = UiProxyStatus.Error(msg)
+                    selectedProxyPresetId = presetId
+                    activeProxyPresetId = null
+                    activeInbound = null
                     publishReady()
                     return@launch
                 }
@@ -560,8 +636,18 @@ class AppStore(
                 // Default inbound to HTTP facade matching UI default
                 val inbound = UiHttpTransport("http://0.0.0.0:3335/mcp")
                 val result = proxy.start(servers.toList(), preset, inbound, requestTimeoutSeconds)
-                proxyStatus = if (result.isSuccess) UiProxyStatus.Running
-                else UiProxyStatus.Error(result.exceptionOrNull()?.message ?: "Failed to start proxy")
+                selectedProxyPresetId = presetId
+                if (result.isSuccess) {
+                    proxyStatus = UiProxyStatus.Running
+                    activeProxyPresetId = presetId
+                    activeInbound = inbound
+                } else {
+                    val msg = result.exceptionOrNull()?.message ?: "Failed to start proxy"
+                    println("[AppStore] startProxySimple failed to start proxy: $msg")
+                    proxyStatus = UiProxyStatus.Error(msg)
+                    activeProxyPresetId = null
+                    activeInbound = null
+                }
                 publishReady()
             }
         }
@@ -573,20 +659,27 @@ class AppStore(
                     val msg = presetResult.exceptionOrNull()?.message ?: "Failed to load preset"
                     println("[AppStore] startProxy failed: ${'$'}msg")
                     proxyStatus = UiProxyStatus.Error(msg)
+                    selectedProxyPresetId = presetId
+                    activeProxyPresetId = null
+                    activeInbound = null
                     publishReady()
                     return@launch
                 }
                 val preset = presetResult.getOrNull()!!
-                val inboundTransport = when (inbound) {
-                    is UiStdioDraft -> UiStdioTransport(command = inbound.command, args = inbound.args)
-                    is UiHttpDraft -> UiHttpTransport(url = inbound.url, headers = inbound.headers)
-                    is UiStreamableHttpDraft -> UiStreamableHttpTransport(url = inbound.url, headers = inbound.headers)
-                    is UiWebSocketDraft -> UiWebSocketTransport(url = inbound.url)
-                    else -> UiHttpTransport(url = "http://0.0.0.0:3335/mcp")
-                }
+                val inboundTransport = resolveInboundTransport(inbound)
                 val result = proxy.start(servers.toList(), preset, inboundTransport, requestTimeoutSeconds)
-                proxyStatus = if (result.isSuccess) UiProxyStatus.Running
-                else UiProxyStatus.Error(result.exceptionOrNull()?.message ?: "Failed to start proxy")
+                selectedProxyPresetId = presetId
+                if (result.isSuccess) {
+                    proxyStatus = UiProxyStatus.Running
+                    activeProxyPresetId = presetId
+                    activeInbound = inboundTransport
+                } else {
+                    val msg = result.exceptionOrNull()?.message ?: "Failed to start proxy"
+                    println("[AppStore] startProxy failed to start proxy: $msg")
+                    proxyStatus = UiProxyStatus.Error(msg)
+                    activeProxyPresetId = null
+                    activeInbound = null
+                }
                 publishReady()
             }
         }
@@ -596,6 +689,10 @@ class AppStore(
                 val result = proxy.stop()
                 proxyStatus = if (result.isSuccess) UiProxyStatus.Stopped
                 else UiProxyStatus.Error(result.exceptionOrNull()?.message ?: "Failed to stop proxy")
+                if (result.isSuccess) {
+                    activeProxyPresetId = null
+                    activeInbound = null
+                }
                 publishReady()
             }
         }

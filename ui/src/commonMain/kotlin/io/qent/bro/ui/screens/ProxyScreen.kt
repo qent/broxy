@@ -39,7 +39,6 @@ import io.qent.bro.ui.adapter.models.UiStdioDraft
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProxyScreen(ui: UIState, state: AppState, notify: (String) -> Unit = {}) {
-    var presetId by remember { mutableStateOf<String?>(null) }
     var presetExpanded by remember { mutableStateOf(false) }
     var inboundMode by remember { mutableStateOf("HTTP SSE") }
     var inboundUrl by remember { mutableStateOf("http://0.0.0.0:3335/mcp") }
@@ -61,8 +60,9 @@ fun ProxyScreen(ui: UIState, state: AppState, notify: (String) -> Unit = {}) {
                     if (presets.isEmpty()) {
                         Text("No presets available — create one on the Presets tab.")
                     } else {
-                        val currentName = presets.firstOrNull { it.id == presetId }?.name
-                            ?: presetId ?: "(select)"
+                        val selectedPresetId = ui.selectedPresetId
+                        val currentName = presets.firstOrNull { it.id == selectedPresetId }?.name
+                            ?: selectedPresetId ?: "(select)"
                         Text("Preset:", style = MaterialTheme.typography.bodyMedium)
                         Spacer(Modifier.padding(2.dp))
                         ExposedDropdownMenuBox(
@@ -85,12 +85,15 @@ fun ProxyScreen(ui: UIState, state: AppState, notify: (String) -> Unit = {}) {
                                 onDismissRequest = { presetExpanded = false }
                             ) {
                                 presets.forEach { p ->
+                                    val isSelected = p.id == selectedPresetId
                                     DropdownMenuItem(
                                         text = { Text(p.name) },
                                         onClick = {
-                                            presetId = p.id
                                             presetExpanded = false
-                                            notify("Preset selected: ${p.name}")
+                                            if (!isSelected) {
+                                                ui.intents.selectProxyPreset(p.id)
+                                                notify("Preset selected: ${p.name}")
+                                            }
                                         }
                                     )
                                 }
@@ -156,7 +159,7 @@ fun ProxyScreen(ui: UIState, state: AppState, notify: (String) -> Unit = {}) {
                         Spacer(Modifier.padding(8.dp))
 
                         Button(onClick = {
-                            val pid = presetId
+                            val pid = ui.selectedPresetId
                             if (!running) {
                                 if (pid == null) {
                                     notify("Select a preset first")

@@ -15,6 +15,7 @@ sealed class UIState {
     data class Ready(
         val servers: List<UiServer>,
         val presets: List<UiPreset>,
+        val selectedPresetId: String?,
         val proxyStatus: UiProxyStatus,
         val requestTimeoutSeconds: Int,
         val logs: List<UiLogEntry>,
@@ -35,6 +36,7 @@ interface Intents {
     fun upsertPreset(draft: UiPresetDraft)
     fun removePreset(id: String)
 
+    fun selectProxyPreset(presetId: String?)
     fun startProxySimple(presetId: String)
     fun startProxy(presetId: String, inbound: UiTransportDraft)
     fun stopProxy()
