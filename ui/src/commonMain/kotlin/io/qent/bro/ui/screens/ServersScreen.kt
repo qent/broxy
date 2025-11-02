@@ -46,6 +46,7 @@ fun ServersScreen(ui: UIState, state: AppState, store: AppStore, notify: (String
     val scope = rememberCoroutineScope()
 
     Column(modifier = Modifier.fillMaxSize().padding(12.dp)) {
+
         OutlinedTextField(
             value = query,
             onValueChange = { query = it },

@@ -22,6 +22,6 @@ enum class Screen(val title: String) {
     Presets("Presets"),
     Proxy("Proxy"),
     Logs("Logs"),
+    Settings("Settings"),
 }
-
 

@@ -602,9 +602,8 @@ class AppStore(
 
         override fun updateRequestTimeout(seconds: Int) {
             scope.launch {
-                val coerced = seconds.coerceIn(5, 600)
                 val previous = requestTimeoutSeconds
-                requestTimeoutSeconds = coerced
+                requestTimeoutSeconds = seconds
                 proxy.updateCallTimeout(requestTimeoutSeconds)
                 val r = runCatching {
                     repo.saveMcpConfig(

@@ -33,7 +33,7 @@ private class JvmProxyController(
         callTimeoutSeconds: Int
     ): Result<Unit> = runCatching {
         runCatching { stop() }
-        callTimeoutMillis = callTimeoutSeconds.coerceIn(5, 600) * 1000L
+        callTimeoutMillis = callTimeoutSeconds.toLong() * 1000L
 
         downstreams = servers.filter { it.enabled }.map { cfg ->
             DefaultMcpServerConnection(cfg, logger = logger, callTimeoutMillis = callTimeoutMillis)
@@ -59,7 +59,7 @@ private class JvmProxyController(
     }
 
     override fun updateCallTimeout(seconds: Int) {
-        callTimeoutMillis = seconds.coerceIn(5, 600) * 1000L
+        callTimeoutMillis = seconds.toLong() * 1000L
         downstreams.forEach { conn ->
             (conn as? DefaultMcpServerConnection)?.updateCallTimeout(callTimeoutMillis)
         }

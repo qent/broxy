@@ -9,6 +9,7 @@ import org.junit.Test
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.writeText
+import kotlin.io.path.readText
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlin.test.assertFailsWith
@@ -80,6 +81,22 @@ class JsonConfigurationRepositoryTest {
             tmp.resolve("mcp.json").writeText(mcpJson)
             val repo = JsonConfigurationRepository(baseDir = tmp, envResolver = EnvironmentVariableResolver(envProvider = { emptyMap() }))
             assertFailsWith<ConfigurationException> { repo.loadMcpConfig() }
+        } finally {
+            tmp.toFile().deleteRecursively()
+        }
+    }
+
+    @Test
+    fun preserves_unbounded_timeout_values() {
+        val tmp = Files.createTempDirectory("cfgtest4")
+        try {
+            val repo = JsonConfigurationRepository(baseDir = tmp)
+            val cfg = McpServersConfig(requestTimeoutSeconds = 1_200)
+            repo.saveMcpConfig(cfg)
+            val raw = tmp.resolve("mcp.json").readText()
+            assertTrue(raw.contains("\"requestTimeoutSeconds\": 1200"))
+            val loaded = repo.loadMcpConfig()
+            assertEquals(1_200, loaded.requestTimeoutSeconds)
         } finally {
             tmp.toFile().deleteRecursively()
         }
