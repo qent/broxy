@@ -51,10 +51,9 @@ fun main(args: Array<String>) {
         val uiState by store.state.collectAsState()
         var isWindowVisible by remember { mutableStateOf(true) }
         val windowState = rememberWindowState()
-        val isMac = remember { System.getProperty("os.name")?.contains("mac", ignoreCase = true) == true }
         val traySupported = remember { runCatching { SystemTray.isSupported() }.getOrDefault(false) }
         val trayPreference = (uiState as? UIState.Ready)?.showTrayIcon ?: true
-        val trayActive = isMac && traySupported && trayPreference
+        val trayActive = traySupported && trayPreference
 
         LaunchedEffect(trayActive) {
             if (!trayActive) {
