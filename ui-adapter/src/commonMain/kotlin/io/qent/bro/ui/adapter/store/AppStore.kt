@@ -50,7 +50,9 @@ class AppStore(
     private var proxyStatus: UiProxyStatus = UiProxyStatus.Stopped
     private val repo = provideConfigurationRepository()
     private val logger = CollectingLogger()
-    private val capsCache = mutableMapOf<String, UiServerCapsSnapshot>()
+    private data class CachedCaps(val snapshot: UiServerCapsSnapshot, val timestampMillis: Long)
+    private val capsCache = mutableMapOf<String, CachedCaps>()
+    private val capsCacheTtlMillis: Long = 5 * 60 * 1000L
     private val proxy = createProxyController(logger)
     private var requestTimeoutSeconds: Int = 60
     private val logs = mutableListOf<UiLogEntry>()
@@ -141,21 +143,55 @@ class AppStore(
     /** Fetch capabilities for all currently enabled servers; failures are skipped. */
     suspend fun listEnabledServerCaps(): List<UiServerCapsSnapshot> = coroutineScope {
         val enabled = servers.filter { it.enabled }
-        enabled.map { cfg ->
-            async {
-                val r = fetchServerCapabilities(cfg, logger)
-                if (r.isSuccess) {
-                    val caps = r.getOrNull()!!
-                    UiServerCapsSnapshot(
-                        serverId = cfg.id,
-                        name = cfg.name,
-                        tools = caps.tools.map { it.name },
-                        prompts = caps.prompts.map { it.name },
-                        resources = caps.resources.map { it.uri ?: it.name }
-                    )
-                } else null
+        if (enabled.isEmpty()) return@coroutineScope emptyList()
+
+        val resolved = mutableMapOf<String, UiServerCapsSnapshot>()
+        val missing = mutableListOf<UiMcpServerConfig>()
+
+        enabled.forEach { cfg ->
+            val cached = getCachedCaps(cfg.id)
+            if (cached != null) {
+                resolved[cfg.id] = cached
+            } else {
+                missing += cfg
             }
-        }.awaitAll().filterNotNull()
+        }
+
+        if (missing.isNotEmpty()) {
+            val fetched = missing.map { cfg ->
+                async {
+                    val r = fetchServerCapabilities(cfg, logger)
+                    if (r.isSuccess) {
+                        val caps = r.getOrNull()!!
+                        val snapshot = UiServerCapsSnapshot(
+                            serverId = cfg.id,
+                            name = cfg.name,
+                            tools = caps.tools.map { it.name },
+                            prompts = caps.prompts.map { it.name },
+                            resources = caps.resources.map { it.uri ?: it.name }
+                        )
+                        putCachedCaps(cfg.id, snapshot)
+                        serverStatus[cfg.id] = UiServerConnStatus.Available
+                        snapshot
+                    } else {
+                        removeCachedCaps(cfg.id)
+                        serverStatus[cfg.id] = UiServerConnStatus.Error
+                        null
+                    }
+                }
+            }.awaitAll()
+
+            fetched.forEachIndexed { index, snapshot ->
+                val cfg = missing[index]
+                if (snapshot != null) {
+                    resolved[cfg.id] = snapshot
+                }
+            }
+
+            publishReady()
+        }
+
+        enabled.mapNotNull { resolved[it.id] }
     }
 
     private fun publishReady() {
@@ -166,7 +202,7 @@ class AppStore(
                     is UiStreamableHttpTransport -> "HTTP (Streamable)"
                     is UiWebSocketTransport -> "WebSocket"
                 }
-            val snap = capsCache[s.id]
+            val snap = getCachedCaps(s.id)
             // Ensure newly enabled servers render as Connecting immediately,
             // regardless of any stale Disabled status in serverStatus map.
             val status = when {
@@ -198,6 +234,32 @@ class AppStore(
 
     private val serverStatus = mutableMapOf<String, UiServerConnStatus>()
 
+    private fun getCachedCaps(serverId: String): UiServerCapsSnapshot? = synchronized(capsCache) {
+        val entry = capsCache[serverId] ?: return@synchronized null
+        if (System.currentTimeMillis() - entry.timestampMillis <= capsCacheTtlMillis) {
+            entry.snapshot
+        } else {
+            capsCache.remove(serverId)
+            null
+        }
+    }
+
+    private fun putCachedCaps(serverId: String, snapshot: UiServerCapsSnapshot) {
+        val entry = CachedCaps(snapshot = snapshot, timestampMillis = System.currentTimeMillis())
+        synchronized(capsCache) { capsCache[serverId] = entry }
+    }
+
+    private fun removeCachedCaps(serverId: String) {
+        synchronized(capsCache) { capsCache.remove(serverId) }
+    }
+
+    private fun updateCachedCapsName(serverId: String, name: String) {
+        synchronized(capsCache) {
+            val entry = capsCache[serverId] ?: return@synchronized
+            capsCache[serverId] = entry.copy(snapshot = entry.snapshot.copy(name = name))
+        }
+    }
+
     private suspend fun refreshServerCapsAndPublish() {
         // Set connecting for enabled servers without a known status
         servers.forEach { s ->
@@ -210,16 +272,17 @@ class AppStore(
                 val r = fetchServerCapabilities(cfg, logger)
                 if (r.isSuccess) {
                     val caps = r.getOrNull()!!
-                    capsCache[cfg.id] = UiServerCapsSnapshot(
+                    val snapshot = UiServerCapsSnapshot(
                         serverId = cfg.id,
                         name = cfg.name,
                         tools = caps.tools.map { it.name },
                         prompts = caps.prompts.map { it.name },
                         resources = caps.resources.map { it.uri ?: it.name }
                     )
+                    putCachedCaps(cfg.id, snapshot)
                     serverStatus[cfg.id] = UiServerConnStatus.Available
                 } else {
-                    capsCache.remove(cfg.id)
+                    removeCachedCaps(cfg.id)
                     serverStatus[cfg.id] = UiServerConnStatus.Error
                 }
                 publishReady()
@@ -268,6 +331,7 @@ class AppStore(
                 )).copy(name = ui.name, enabled = ui.enabled)
                 val snapshot = servers.toList()
                 if (idx >= 0) servers[idx] = updated else servers += updated
+                updateCachedCapsName(ui.id, ui.name)
                 val r = runCatching {
                     repo.saveMcpConfig(
                         UiMcpServersConfig(
@@ -305,6 +369,7 @@ class AppStore(
                 val idx = servers.indexOfFirst { it.id == cfg.id }
                 val snapshot = servers.toList()
                 if (idx >= 0) servers[idx] = cfg else servers += cfg
+                removeCachedCaps(cfg.id)
                 val r = runCatching {
                     repo.saveMcpConfig(
                         UiMcpServersConfig(
@@ -353,6 +418,7 @@ class AppStore(
             scope.launch {
                 val snapshot = servers.toList()
                 servers.removeAll { it.id == id }
+                removeCachedCaps(id)
                 val r = runCatching {
                     repo.saveMcpConfig(
                         UiMcpServersConfig(
