@@ -6,10 +6,8 @@ import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import io.ktor.server.plugins.calllogging.CallLogging
 import io.ktor.server.routing.routing
-import io.ktor.server.websocket.WebSockets
 import io.ktor.server.sse.SSE
 import io.modelcontextprotocol.kotlin.sdk.server.mcp
-import io.modelcontextprotocol.kotlin.sdk.server.mcpWebSocket
 import kotlinx.io.asSink
 import kotlinx.io.asSource
 import kotlinx.io.buffered
@@ -22,7 +20,7 @@ import java.net.URI
 
 /**
  * Abstraction for platform-specific inbound transport servers that expose
- * the proxy over STDIO / HTTP(SSE) / WebSocket. These classes adapt the
+ * the proxy over STDIO / HTTP(SSE). These classes adapt the
  * wire protocol to the [ProxyMcpServer]'s filtering and routing.
  */
 interface InboundServer {
@@ -39,22 +37,10 @@ object InboundServerFactory {
         is TransportConfig.StdioTransport -> StdioInboundServer(proxy, logger)
         is TransportConfig.HttpTransport -> KtorInboundServer(
             url = transport.url,
-            mode = KtorInboundServer.Mode.Sse,
             proxy = proxy,
             logger = logger
         )
-        is TransportConfig.StreamableHttpTransport -> KtorInboundServer(
-            url = transport.url,
-            mode = KtorInboundServer.Mode.StreamableHttp,
-            proxy = proxy,
-            logger = logger
-        )
-        is TransportConfig.WebSocketTransport -> KtorInboundServer(
-            url = transport.url,
-            mode = KtorInboundServer.Mode.WebSocket,
-            proxy = proxy,
-            logger = logger
-        )
+        else -> error("Unsupported inbound transport: ${transport::class.simpleName}")
     }
 }
 
@@ -85,27 +71,21 @@ private class StdioInboundServer(
 
 private class KtorInboundServer(
     private val url: String,
-    private val mode: Mode,
     private val proxy: ProxyMcpServer,
     private val logger: Logger
 ) : InboundServer {
-    enum class Mode { Sse, StreamableHttp, WebSocket }
 
     private var engine: EmbeddedServer<*, *>? = null
 
     override fun start(): ServerStatus {
         val (host, port, path) = parse(url)
-        val scheme = when (mode) { Mode.Sse, Mode.StreamableHttp -> "http"; Mode.WebSocket -> "ws" }
-        logger.info("Starting $mode inbound at $scheme://$host:$port$path")
+        val scheme = runCatching { URI(url).scheme }.getOrNull()?.takeIf { it.isNotBlank() } ?: "http"
+        logger.info("Starting HTTP SSE inbound at $scheme://$host:$port$path")
         engine = embeddedServer(Netty, host = host, port = port, module = {
             install(CallLogging)
-            if (mode == Mode.Sse || mode == Mode.StreamableHttp) install(SSE)
-            if (mode == Mode.WebSocket) install(WebSockets)
+            install(SSE)
             routing {
-                when (mode) {
-                    Mode.Sse, Mode.StreamableHttp -> mcp(path) { buildSdkServer(proxy, logger) }
-                    Mode.WebSocket -> mcpWebSocket(path = path, block = { buildSdkServer(proxy, logger) })
-                }
+                mcp(path) { buildSdkServer(proxy, logger) }
             }
         }).start(wait = false)
         return ServerStatus.Running

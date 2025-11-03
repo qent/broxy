@@ -607,9 +607,18 @@ class AppStore(
                     return@launch
                 }
                 val preset = presetResult.getOrThrow()
-                val inboundTransport = inbound.toTransportConfig()
-                val result = proxyController.start(servers.toList(), preset, inboundTransport, requestTimeoutSeconds)
                 selectedProxyPresetId = presetId
+                val inboundTransport = inbound.toTransportConfig()
+                if (inboundTransport !is UiStdioTransport && inboundTransport !is UiHttpTransport) {
+                    val msg = "Inbound transport not supported. Use Local (STDIO) or Remote (SSE)."
+                    logger.info("[AppStore] startProxy unsupported inbound: ${inbound::class.simpleName}")
+                    proxyStatus = UiProxyStatus.Error(msg)
+                    activeProxyPresetId = null
+                    activeInbound = null
+                    publishReady()
+                    return@launch
+                }
+                val result = proxyController.start(servers.toList(), preset, inboundTransport, requestTimeoutSeconds)
                 if (result.isSuccess) {
                     proxyStatus = UiProxyStatus.Running
                     activeProxyPresetId = presetId

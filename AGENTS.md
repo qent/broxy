@@ -227,7 +227,7 @@ class CapabilitiesCache {
 ## Платформенные адаптеры
 
 - MCP клиенты абстрагированы через `McpClientProvider` (`core/src/commonMain/kotlin/io/qent/broxy/core/mcp/McpClientProvider.kt`) и `defaultMcpClientProvider()` с реализацией для JVM (`core/src/jvmMain/kotlin/io/qent/broxy/core/mcp/McpClientFactoryJvm.kt`). `StdioMcpClient` и `KtorMcpClient` покрывают STDIO/SSE/StreamableHttp/WebSocket транспорты.
-- Входящий трафик обслуживается `InboundServerFactory` и его реализациями (`core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/InboundServers.kt`): STDIO использует SDK transport, HTTP(SSE)/Streamable/WebSocket — встраиваемый Ktor Netty.
+- Входящий трафик обслуживается `InboundServerFactory` и его реализациями (`core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/InboundServers.kt`): STDIO использует SDK transport, HTTP(SSE) — встраиваемый Ktor Netty. Другие транспорты поддерживаются только на downstream стороне.
 - `buildSdkServer` (`core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/SdkServerFactory.kt`) проксирует прокси в MCP SDK, декодирует ответы, применяет fallback-логику и логирует события. Unit-тест `core/src/jvmTest/kotlin/io/qent/broxy/core/proxy/inbound/SdkServerFactoryTest.kt` фиксирует ожидаемое поведение.
 
 ## UI-адаптер и AppStore

@@ -147,7 +147,7 @@ java -jar cli/build/libs/broxy-cli-0.1.0.jar proxy \
   --log-level info
 ```
 
-Примеры inbound для сети:
+Пример сетевого inbound:
 ```bash
 # HTTP + SSE
 java -jar cli/build/libs/broxy-cli-0.1.0.jar proxy \
@@ -155,13 +155,6 @@ java -jar cli/build/libs/broxy-cli-0.1.0.jar proxy \
   --preset-id developer \
   --inbound http \
   --url http://0.0.0.0:3335/mcp
-
-# WebSocket
-java -jar cli/build/libs/broxy-cli-0.1.0.jar proxy \
-  --config-dir ~/.config/broxy \
-  --preset-id developer \
-  --inbound ws \
-  --url ws://0.0.0.0:3336/ws
 ```
 
 **Через UI:**
