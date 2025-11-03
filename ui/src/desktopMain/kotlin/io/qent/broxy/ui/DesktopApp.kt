@@ -29,6 +29,7 @@ import io.qent.broxy.ui.viewmodels.AppState
 import io.qent.broxy.ui.adapter.store.createAppStore
 import io.qent.broxy.ui.windowDrag
 import java.awt.Frame
+import java.awt.Dimension
 import java.awt.SystemTray
 import java.awt.Color as AwtColor
 
@@ -83,6 +84,10 @@ fun main(args: Array<String>) {
             title = "broxy"
         ) {
             val window = this.window
+            // Set minimum window height (in pixels). Width left unconstrained.
+            SideEffect {
+                window.minimumSize = Dimension(720, 640)
+            }
             val isDarkTheme = isSystemInDarkTheme()
             val topBarModifier = remember(isMacOs, window) {
                 if (isMacOs) {
