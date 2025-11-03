@@ -26,6 +26,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.getValue
@@ -47,7 +48,13 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalAnimationApi::class, ExperimentalMaterial3Api::class)
 @Composable
-fun MainWindow(state: AppState, ui: UIState, store: AppStore) {
+fun MainWindow(
+    state: AppState,
+    ui: UIState,
+    store: AppStore,
+    topBarModifier: Modifier = Modifier,
+    useTransparentTitleBar: Boolean = false
+) {
     AppTheme {
         val screen = state.currentScreen.value
         val snackbarHostState = remember { SnackbarHostState() }
@@ -63,8 +70,21 @@ fun MainWindow(state: AppState, ui: UIState, store: AppStore) {
 
         Scaffold(
             topBar = {
+                val colors = if (useTransparentTitleBar) {
+                    TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        scrolledContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        navigationIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        actionIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                } else {
+                    TopAppBarDefaults.topAppBarColors()
+                }
                 TopAppBar(
-                    title = { Text(screen.title) }
+                    modifier = topBarModifier,
+                    title = { Text(screen.title) },
+                    colors = colors
                 )
             },
             snackbarHost = { SnackbarHost(snackbarHostState) },

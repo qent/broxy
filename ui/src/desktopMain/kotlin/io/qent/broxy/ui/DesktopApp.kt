@@ -8,6 +8,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -25,8 +26,10 @@ import io.qent.broxy.ui.adapter.store.UIState
 import io.qent.broxy.ui.screens.MainWindow
 import io.qent.broxy.ui.viewmodels.AppState
 import io.qent.broxy.ui.adapter.store.createAppStore
+import io.qent.broxy.ui.windowDrag
 import java.awt.Frame
 import java.awt.SystemTray
+import java.awt.Color as AwtColor
 
 fun main(args: Array<String>) {
     // Headless STDIO mode: allow Claude Desktop to spawn the app as an MCP server.
@@ -80,6 +83,13 @@ fun main(args: Array<String>) {
         ) {
             val window = this.window
             val isDarkTheme = isSystemInDarkTheme()
+            val topBarModifier = remember(isMacOs, window) {
+                if (isMacOs) {
+                    Modifier.windowDrag(window)
+                } else {
+                    Modifier
+                }
+            }
 
             LaunchedEffect(isWindowVisible) {
                 if (isWindowVisible) {
@@ -96,11 +106,29 @@ fun main(args: Array<String>) {
                     window.rootPane.putClientProperty("apple.awt.windowAppearance", appearance)
                     window.rootPane.putClientProperty("apple.awt.application.appearance", appearance)
                     System.setProperty("apple.awt.application.appearance", appearance)
+                    window.rootPane.putClientProperty("apple.awt.fullWindowContent", true)
+                    window.rootPane.putClientProperty("apple.awt.transparentTitleBar", true)
+                    window.rootPane.putClientProperty("apple.awt.windowTitleVisible", false)
+                    val chromeColor = if (isDarkTheme) {
+                        AwtColor(0x31, 0x46, 0x74)
+                    } else {
+                        AwtColor(0xF9, 0xFA, 0xFB)
+                    }
+                    window.background = chromeColor
+                    window.rootPane.background = chromeColor
+                    window.contentPane.background = chromeColor
                     window.rootPane.repaint()
+                    window.repaint()
                 }
             }
 
-            MainWindow(appState, uiState, store)
+            MainWindow(
+                state = appState,
+                ui = uiState,
+                store = store,
+                topBarModifier = topBarModifier,
+                useTransparentTitleBar = isMacOs
+            )
         }
 
         if (trayActive) {
