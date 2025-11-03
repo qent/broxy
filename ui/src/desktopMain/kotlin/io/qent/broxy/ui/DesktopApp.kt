@@ -1,8 +1,10 @@
 package io.qent.broxy.ui
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -56,6 +58,7 @@ fun main(args: Array<String>) {
         val traySupported = remember { runCatching { SystemTray.isSupported() }.getOrDefault(false) }
         val trayPreference = (uiState as? UIState.Ready)?.showTrayIcon ?: true
         val trayActive = traySupported && trayPreference
+        val isMacOs = remember { System.getProperty("os.name")?.contains("Mac", ignoreCase = true) == true }
 
         LaunchedEffect(trayActive) {
             if (!trayActive) {
@@ -76,6 +79,8 @@ fun main(args: Array<String>) {
             title = "broxy"
         ) {
             val window = this.window
+            val isDarkTheme = isSystemInDarkTheme()
+
             LaunchedEffect(isWindowVisible) {
                 if (isWindowVisible) {
                     window.isVisible = true
@@ -84,6 +89,15 @@ fun main(args: Array<String>) {
                     window.requestFocus()
                 }
             }
+
+            if (isMacOs) {
+                SideEffect {
+                    val appearance = if (isDarkTheme) "dark" else "light"
+                    window.rootPane.putClientProperty("apple.awt.windowAppearance", appearance)
+                    window.rootPane.repaint()
+                }
+            }
+
             MainWindow(appState, uiState, store)
         }
 
