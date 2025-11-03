@@ -38,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.animation.togetherWith
+import androidx.compose.ui.unit.sp
 import io.qent.broxy.ui.components.AppNavigationRail
 import io.qent.broxy.ui.theme.AppTheme
 import io.qent.broxy.ui.viewmodels.AppState
@@ -83,7 +84,10 @@ fun MainWindow(
                 }
                 TopAppBar(
                     modifier = topBarModifier,
-                    title = { Text(screen.title) },
+                    title = { Text(
+                        screen.title,
+                        fontSize = 14.sp,
+                        modifier = Modifier.padding(start = 80.dp)) },
                     colors = colors
                 )
             },

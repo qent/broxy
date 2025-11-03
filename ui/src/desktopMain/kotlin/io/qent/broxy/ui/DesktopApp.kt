@@ -1,6 +1,7 @@
 package io.qent.broxy.ui
 
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
@@ -126,7 +127,7 @@ fun main(args: Array<String>) {
                 state = appState,
                 ui = uiState,
                 store = store,
-                topBarModifier = topBarModifier,
+                topBarModifier = topBarModifier.height(28.dp),
                 useTransparentTitleBar = isMacOs
             )
         }
