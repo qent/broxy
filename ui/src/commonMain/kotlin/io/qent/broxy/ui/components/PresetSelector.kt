@@ -22,10 +22,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.adapter.models.UiServerCapsSnapshot
 import io.qent.broxy.ui.adapter.models.UiToolRef
 import io.qent.broxy.ui.adapter.store.AppStore
+import io.qent.broxy.ui.theme.AppTheme
 
 data class PresetSelectionState(
     val selectedServers: Set<String> = emptySet(),
@@ -80,7 +80,7 @@ fun PresetSelector(
         Modifier
             .fillMaxWidth()
             .verticalScroll(scroll),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)
     ) {
         if (loading) {
             Text("Loading server capabilities...", style = MaterialTheme.typography.bodyMedium)
@@ -93,7 +93,11 @@ fun PresetSelector(
 
         snaps.value.forEach { snap ->
             val serverId = snap.serverId
-            Column(Modifier.fillMaxWidth().padding(8.dp)) {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(AppTheme.spacing.sm)
+            ) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Row {
                         val srvChecked = selectedServers[serverId] == true
@@ -117,7 +121,7 @@ fun PresetSelector(
                         Text(
                             serverNames[serverId] ?: serverId,
                             style = MaterialTheme.typography.titleSmall,
-                            modifier = Modifier.padding(top = 10.dp)
+                            modifier = Modifier.padding(top = AppTheme.spacing.md)
                         )
                     }
                     TextButton(onClick = { expanded[serverId] = !(expanded[serverId] ?: false) }) {
@@ -125,13 +129,17 @@ fun PresetSelector(
                     }
                 }
                 if (expanded[serverId] == true) {
-                    Spacer(Modifier.height(4.dp))
+                    Spacer(Modifier.height(AppTheme.spacing.xs))
                     // Tools
                     Text("Tools", style = MaterialTheme.typography.labelLarge)
                     snap.tools.forEach { t ->
                         val checked = selectedTools[serverId]?.contains(t.name) == true
                         val description = t.description?.takeIf { it.isNotBlank() } ?: "No description provided"
-                        Row(Modifier.fillMaxWidth().padding(start = 8.dp)) {
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(start = AppTheme.spacing.sm)
+                        ) {
                             Checkbox(
                                 checked = checked,
                                 onCheckedChange = { c ->
@@ -144,11 +152,11 @@ fun PresetSelector(
                                     recomputeAndEmit()
                                 }
                             )
-                            Column(modifier = Modifier.padding(top = 6.dp)) {
+                            Column(modifier = Modifier.padding(top = AppTheme.spacing.sm)) {
                                 Text(t.name, style = MaterialTheme.typography.bodyMedium)
                                 CapabilityArgumentList(
                                     arguments = t.arguments,
-                                    modifier = Modifier.padding(top = 2.dp)
+                                    modifier = Modifier.padding(top = AppTheme.spacing.xs)
                                 )
                                 Text(
                                     description,
@@ -158,13 +166,17 @@ fun PresetSelector(
                             }
                         }
                     }
-                    Spacer(Modifier.height(4.dp))
+                    Spacer(Modifier.height(AppTheme.spacing.xs))
                     // Prompts
                     Text("Prompts", style = MaterialTheme.typography.labelLarge)
                     snap.prompts.forEach { p ->
                         val checked = selectedPrompts[serverId]?.contains(p.name) == true
                         val description = p.description?.takeIf { it.isNotBlank() } ?: "No description provided"
-                        Row(Modifier.fillMaxWidth().padding(start = 8.dp)) {
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(start = AppTheme.spacing.sm)
+                        ) {
                             Checkbox(
                                 checked = checked,
                                 onCheckedChange = { c ->
@@ -173,11 +185,11 @@ fun PresetSelector(
                                     selectedPrompts[serverId] = next
                                 }
                             )
-                            Column(modifier = Modifier.padding(top = 6.dp)) {
+                            Column(modifier = Modifier.padding(top = AppTheme.spacing.sm)) {
                                 Text(p.name, style = MaterialTheme.typography.bodyMedium)
                                 CapabilityArgumentList(
                                     arguments = p.arguments,
-                                    modifier = Modifier.padding(top = 2.dp)
+                                    modifier = Modifier.padding(top = AppTheme.spacing.xs)
                                 )
                                 Text(
                                     description,
@@ -187,13 +199,17 @@ fun PresetSelector(
                             }
                         }
                     }
-                    Spacer(Modifier.height(4.dp))
+                    Spacer(Modifier.height(AppTheme.spacing.xs))
                     // Resources
                     Text("Resources", style = MaterialTheme.typography.labelLarge)
                     snap.resources.forEach { resource ->
                         val checked = selectedResources[serverId]?.contains(resource.key) == true
                         val description = resource.description?.takeIf { it.isNotBlank() } ?: resource.key
-                        Row(Modifier.fillMaxWidth().padding(start = 8.dp)) {
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(start = AppTheme.spacing.sm)
+                        ) {
                             Checkbox(
                                 checked = checked,
                                 onCheckedChange = { c ->
@@ -202,11 +218,11 @@ fun PresetSelector(
                                     selectedResources[serverId] = next
                                 }
                             )
-                            Column(modifier = Modifier.padding(top = 6.dp)) {
+                            Column(modifier = Modifier.padding(top = AppTheme.spacing.sm)) {
                                 Text(resource.name, style = MaterialTheme.typography.bodyMedium)
                                 CapabilityArgumentList(
                                     arguments = resource.arguments,
-                                    modifier = Modifier.padding(top = 2.dp)
+                                    modifier = Modifier.padding(top = AppTheme.spacing.xs)
                                 )
                                 Text(
                                     description,
@@ -217,7 +233,7 @@ fun PresetSelector(
                         }
                     }
                 }
-                Divider(Modifier.padding(top = 8.dp))
+                Divider(Modifier.padding(top = AppTheme.spacing.sm))
             }
         }
     }

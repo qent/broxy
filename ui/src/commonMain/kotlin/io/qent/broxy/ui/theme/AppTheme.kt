@@ -1,15 +1,20 @@
 package io.qent.broxy.ui.theme
 
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.shape.CornerBasedShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.shape.RoundedCornerShape
 
 private val LightColors = lightColorScheme(
     primary = Color(0xFF4E7CF5),
@@ -41,27 +46,150 @@ private val DarkColors = darkColorScheme(
     outlineVariant = Color(0xFF353A46)
 )
 
-@Composable
-fun AppTheme(
-    content: @Composable () -> Unit
-) {
-    val dark = isSystemInDarkTheme()
+data class AppSpacing(
+    val none: Dp = 0.dp,
+    val xxs: Dp = 2.dp,
+    val xs: Dp = 4.dp,
+    val sm: Dp = 8.dp,
+    val md: Dp = 12.dp,
+    val lg: Dp = 16.dp,
+    val xl: Dp = 24.dp,
+    val xxl: Dp = 32.dp,
+    val gutter: Dp = 40.dp
+)
 
-    // Rounded shapes configurable via settings
-    val shapes = Shapes(
-        extraSmall = RoundedCornerShape(8.dp),
-        small = RoundedCornerShape(12.dp),
-        medium = RoundedCornerShape(16.dp),
-        large = RoundedCornerShape(18.dp),
-        extraLarge = RoundedCornerShape(20.dp)
-    )
+data class AppRadii(
+    val xs: Dp = 4.dp,
+    val sm: Dp = 8.dp,
+    val md: Dp = 12.dp,
+    val lg: Dp = 16.dp,
+    val xl: Dp = 20.dp,
+    val pill: Dp = 999.dp
+)
 
-    val typography = Typography()
+data class AppShapeTokens(
+    val chip: CornerBasedShape,
+    val surfaceSm: CornerBasedShape,
+    val surfaceMd: CornerBasedShape,
+    val surfaceLg: CornerBasedShape,
+    val dialog: CornerBasedShape,
+    val pill: CornerBasedShape
+)
 
-    MaterialTheme(
-        colorScheme = if (dark) DarkColors else LightColors,
-        shapes = shapes,
-        typography = typography,
-        content = content
-    )
+data class AppStrokeWidths(
+    val hairline: Dp = 0.5.dp,
+    val thin: Dp = 1.dp,
+    val thick: Dp = 2.dp
+)
+
+data class AppElevation(
+    val level0: Dp = 0.dp,
+    val level1: Dp = 1.dp,
+    val level2: Dp = 3.dp,
+    val level3: Dp = 6.dp
+)
+
+data class AppLayout(
+    val navigationRailWidth: Dp = 80.dp,
+    val scrollbarThickness: Dp = 12.dp,
+    val dialogMinWidth: Dp = 360.dp,
+    val dialogMaxHeight: Dp = 420.dp
+)
+
+private val DefaultSpacing = AppSpacing()
+private val DefaultRadii = AppRadii()
+private val DefaultShapes = AppShapeTokens(
+    chip = RoundedCornerShape(DefaultRadii.sm),
+    surfaceSm = RoundedCornerShape(DefaultRadii.md),
+    surfaceMd = RoundedCornerShape(DefaultRadii.lg),
+    surfaceLg = RoundedCornerShape(DefaultRadii.xl),
+    dialog = RoundedCornerShape(DefaultRadii.lg),
+    pill = RoundedCornerShape(DefaultRadii.pill)
+)
+private val DefaultStrokeWidths = AppStrokeWidths()
+private val DefaultElevation = AppElevation()
+private val DefaultLayout = AppLayout()
+
+private val LocalSpacing = staticCompositionLocalOf { DefaultSpacing }
+private val LocalRadii = staticCompositionLocalOf { DefaultRadii }
+private val LocalShapes = staticCompositionLocalOf { DefaultShapes }
+private val LocalStrokeWidths = staticCompositionLocalOf { DefaultStrokeWidths }
+private val LocalElevation = staticCompositionLocalOf { DefaultElevation }
+private val LocalLayout = staticCompositionLocalOf { DefaultLayout }
+
+object AppTheme {
+    val spacing: AppSpacing
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalSpacing.current
+
+    val radii: AppRadii
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalRadii.current
+
+    val shapes: AppShapeTokens
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalShapes.current
+
+    val strokeWidths: AppStrokeWidths
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalStrokeWidths.current
+
+    val elevation: AppElevation
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalElevation.current
+
+    val layout: AppLayout
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalLayout.current
+
+    val colors
+        @Composable
+        @ReadOnlyComposable
+        get() = MaterialTheme.colorScheme
+
+    val typography: Typography
+        @Composable
+        @ReadOnlyComposable
+        get() = MaterialTheme.typography
+
+    val materialShapes: Shapes
+        @Composable
+        @ReadOnlyComposable
+        get() = MaterialTheme.shapes
+
+    @Composable
+    operator fun invoke(
+        darkTheme: Boolean = isSystemInDarkTheme(),
+        content: @Composable () -> Unit
+    ) {
+        val materialShapes = Shapes(
+            extraSmall = RoundedCornerShape(DefaultRadii.xs),
+            small = RoundedCornerShape(DefaultRadii.sm),
+            medium = RoundedCornerShape(DefaultRadii.md),
+            large = RoundedCornerShape(DefaultRadii.lg),
+            extraLarge = RoundedCornerShape(DefaultRadii.xl)
+        )
+
+        CompositionLocalProvider(
+            LocalSpacing provides DefaultSpacing,
+            LocalRadii provides DefaultRadii,
+            LocalShapes provides DefaultShapes,
+            LocalStrokeWidths provides DefaultStrokeWidths,
+            LocalElevation provides DefaultElevation,
+            LocalLayout provides DefaultLayout
+        ) {
+            MaterialTheme(
+                colorScheme = if (darkTheme) DarkColors else LightColors,
+                shapes = materialShapes,
+                typography = Typography(),
+                content = content
+            )
+        }
+    }
 }

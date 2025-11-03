@@ -3,20 +3,21 @@ package io.qent.broxy.ui.components
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.adapter.models.UiHttpDraft
 import io.qent.broxy.ui.adapter.models.UiServerDraft
 import io.qent.broxy.ui.adapter.models.UiStdioDraft
 import io.qent.broxy.ui.adapter.models.UiWebSocketDraft
 import io.qent.broxy.ui.adapter.models.UiStreamableHttpDraft
+import io.qent.broxy.ui.theme.AppTheme
 
 data class ServerFormState(
     val name: String = "",
@@ -102,7 +103,10 @@ fun ServerForm(
     state: ServerFormState,
     onStateChange: (ServerFormState) -> Unit
 ) {
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(
+        Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)
+    ) {
         OutlinedTextField(
             value = state.name,
             onValueChange = { onStateChange(state.copy(name = it)) },
@@ -117,11 +121,11 @@ fun ServerForm(
         )
         Row {
             Text("Enabled")
-            androidx.compose.foundation.layout.Spacer(modifier = Modifier.padding(4.dp))
+            Spacer(modifier = Modifier.width(AppTheme.spacing.xs))
             Switch(checked = state.enabled, onCheckedChange = { onStateChange(state.copy(enabled = it)) })
         }
         Text("Transport")
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)) {
             listOf("STDIO", "HTTP", "STREAMABLE_HTTP", "WS").forEach { label ->
                 TextButton(onClick = { onStateChange(state.copy(transportType = label)) }) {
                     val pretty = when (label) {

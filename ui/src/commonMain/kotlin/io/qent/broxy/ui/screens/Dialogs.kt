@@ -33,7 +33,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.adapter.store.UIState
 import io.qent.broxy.ui.adapter.store.AppStore
 import io.qent.broxy.ui.viewmodels.AppState
@@ -53,6 +52,7 @@ import io.qent.broxy.ui.adapter.services.validateServerConnection
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CancellationException
+import io.qent.broxy.ui.theme.AppTheme
 
 @Composable
 fun AddServerDialog(ui: UIState, state: AppState, notify: (String) -> Unit) {
@@ -109,10 +109,16 @@ fun AddPresetDialog(ui: UIState, state: AppState, store: AppStore) {
         onDismissRequest = { state.showAddPresetDialog.value = false },
         title = { Text("Add preset") },
         text = {
-            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)
+            ) {
                 OutlinedTextField(value = name.value, onValueChange = { name.value = it }, label = { Text("Name") }, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = description.value, onValueChange = { description.value = it }, label = { Text("Description (optional)") }, modifier = Modifier.fillMaxWidth())
-                Text("Select tools/prompts/resources from connected servers", modifier = Modifier.padding(top = 4.dp))
+                Text(
+                    "Select tools/prompts/resources from connected servers",
+                    modifier = Modifier.padding(top = AppTheme.spacing.xs)
+                )
                 PresetSelector(store = store, onToolsChanged = { selectedTools.value = it })
             }
         },
@@ -200,11 +206,17 @@ fun EditPresetDialog(
         onDismissRequest = onClose,
         title = { Text("Edit preset") },
         text = {
-            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)
+            ) {
                 OutlinedTextField(value = name.value, onValueChange = { name.value = it }, label = { Text("Name") }, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = id.value, onValueChange = { id.value = it }, label = { Text("ID") }, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = description.value, onValueChange = { description.value = it }, label = { Text("Description") }, modifier = Modifier.fillMaxWidth())
-                Text("Select tools/prompts/resources from connected servers", modifier = Modifier.padding(top = 4.dp))
+                Text(
+                    "Select tools/prompts/resources from connected servers",
+                    modifier = Modifier.padding(top = AppTheme.spacing.xs)
+                )
                 PresetSelector(store = store, initialToolRefs = initial.tools, onToolsChanged = { selectedTools.value = it })
             }
         },
@@ -271,18 +283,18 @@ private fun ServerDetailsContent(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .widthIn(min = 360.dp)
-            .heightIn(max = 420.dp)
+            .widthIn(min = AppTheme.layout.dialogMinWidth)
+            .heightIn(max = AppTheme.layout.dialogMaxHeight)
     ) {
         LazyColumn(
             state = listState,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(end = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(end = AppTheme.spacing.md),
+            verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)
         ) {
             item {
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.xs)) {
                     Text(snapshot.name, style = MaterialTheme.typography.titleMedium)
                     Text(
                         "ID: ${snapshot.serverId}",
@@ -327,16 +339,21 @@ private fun ServerDetailsContent(
                     )
                 }
             }
-            item { Spacer(Modifier.height(4.dp)) }
+            item { Spacer(Modifier.height(AppTheme.spacing.xs)) }
         }
 
         Box(
             modifier = Modifier
                 .align(Alignment.CenterEnd)
                 .fillMaxHeight()
-                .width(12.dp)
-                .padding(end = 2.dp)
-                .clip(RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp))
+                .width(AppTheme.layout.scrollbarThickness)
+                .padding(end = AppTheme.spacing.xs)
+                .clip(
+                    RoundedCornerShape(
+                        topStart = AppTheme.radii.sm,
+                        bottomStart = AppTheme.radii.sm
+                    )
+                )
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
         )
         VerticalScrollbar(
@@ -344,8 +361,8 @@ private fun ServerDetailsContent(
             modifier = Modifier
                 .align(Alignment.CenterEnd)
                 .fillMaxHeight()
-                .width(12.dp)
-                .padding(end = 2.dp)
+                .width(AppTheme.layout.scrollbarThickness)
+                .padding(end = AppTheme.spacing.xs)
         )
     }
 }
@@ -362,7 +379,7 @@ private fun SectionHeader(label: String) {
 private fun SectionEmptyMessage(message: String) {
     Text(
         message,
-        modifier = Modifier.padding(start = 8.dp),
+        modifier = Modifier.padding(start = AppTheme.spacing.sm),
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant
     )
@@ -377,13 +394,13 @@ private fun CapabilityEntry(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(2.dp)
+            .padding(start = AppTheme.spacing.sm),
+        verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.xs)
     ) {
         Text(title, style = MaterialTheme.typography.bodyMedium)
         CapabilityArgumentList(
             arguments = arguments,
-            modifier = Modifier.padding(top = 2.dp)
+            modifier = Modifier.padding(top = AppTheme.spacing.xs)
         )
         Text(
             description,

@@ -31,25 +31,29 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.adapter.models.UiPreset
 import io.qent.broxy.ui.adapter.store.UIState
 import io.qent.broxy.ui.adapter.store.AppStore
 import io.qent.broxy.ui.viewmodels.AppState
+import io.qent.broxy.ui.theme.AppTheme
 
 @Composable
 fun PresetsScreen(ui: UIState, state: AppState, store: AppStore) {
     var query by rememberSaveable { mutableStateOf("") }
     var editing: UiPreset? by remember { mutableStateOf<UiPreset?>(null) }
 
-    Column(modifier = Modifier.fillMaxSize().padding(12.dp)) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(AppTheme.spacing.md)
+    ) {
         OutlinedTextField(
             value = query,
             onValueChange = { query = it },
             label = { Text("Search presets") },
             modifier = Modifier.fillMaxWidth()
         )
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(AppTheme.spacing.md))
 
         when (ui) {
             is UIState.Loading -> Text("Loading...", style = MaterialTheme.typography.bodyMedium)
@@ -67,7 +71,7 @@ fun PresetsScreen(ui: UIState, state: AppState, store: AppStore) {
                     }
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                        verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)
                     ) {
                         items(filtered, key = { it.id }) { preset ->
                             PresetCard(
@@ -102,11 +106,16 @@ private fun PresetCard(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
-        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .padding(AppTheme.spacing.lg),
+            verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)
+        ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(preset.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Spacer(Modifier.height(2.dp))
+                    Spacer(Modifier.height(AppTheme.spacing.xxs))
                     if (!preset.description.isNullOrBlank()) {
                         Text(preset.description ?: "", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     }
@@ -116,7 +125,7 @@ private fun PresetCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 TextButton(onClick = onEdit) {
                     Icon(Icons.Outlined.Edit, contentDescription = null)
-                    Spacer(Modifier.width(4.dp))
+                    Spacer(Modifier.width(AppTheme.spacing.xs))
                     Text("Edit")
                 }
                 Spacer(Modifier.weight(1f))
@@ -134,7 +143,7 @@ private fun EmptyState(title: String, subtitle: String) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(title, style = MaterialTheme.typography.titleLarge)
-        Spacer(Modifier.padding(6.dp))
+        Spacer(Modifier.height(AppTheme.spacing.sm))
         Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

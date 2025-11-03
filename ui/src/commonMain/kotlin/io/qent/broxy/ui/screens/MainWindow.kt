@@ -5,14 +5,11 @@ import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
@@ -36,7 +33,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.compose.animation.togetherWith
 import androidx.compose.ui.unit.sp
 import io.qent.broxy.ui.components.AppNavigationRail
@@ -82,12 +78,13 @@ fun MainWindow(
                 } else {
                     TopAppBarDefaults.topAppBarColors()
                 }
-                TopAppBar(
+                    TopAppBar(
                     modifier = topBarModifier,
                     title = { Text(
                         screen.title,
                         fontSize = 14.sp,
-                        modifier = Modifier.padding(start = 80.dp)) },
+                        modifier = Modifier.padding(start = AppTheme.layout.navigationRailWidth + AppTheme.spacing.md)
+                    ) },
                     colors = colors
                 )
             },
@@ -104,13 +101,17 @@ fun MainWindow(
                 }
             }
         ) { padding ->
-            Row(Modifier.fillMaxSize().padding(padding)) {
+            Row(
+                Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+            ) {
                 AppNavigationRail(
                     selected = screen,
                     onSelect = { state.currentScreen.value = it },
                     modifier = Modifier.fillMaxHeight()
                 )
-                Spacer(Modifier.width(12.dp))
+                Spacer(Modifier.width(AppTheme.spacing.md))
                 Box(Modifier.fillMaxSize()) {
                     AnimatedContent(
                         targetState = screen,

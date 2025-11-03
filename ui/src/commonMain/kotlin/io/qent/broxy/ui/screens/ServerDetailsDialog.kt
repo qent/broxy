@@ -8,8 +8,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.adapter.models.UiServer
+import io.qent.broxy.ui.theme.AppTheme
 
 @Composable
 fun ServerDetailsDialog(cfg: UiServer, onClose: () -> Unit) {
@@ -17,7 +17,10 @@ fun ServerDetailsDialog(cfg: UiServer, onClose: () -> Unit) {
         onDismissRequest = onClose,
         title = { Text("${cfg.name} • Details") },
         text = {
-            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)
+            ) {
                 Text("ID: ${cfg.id}", style = MaterialTheme.typography.bodyMedium)
                 Text("Transport: ${cfg.transportLabel}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }

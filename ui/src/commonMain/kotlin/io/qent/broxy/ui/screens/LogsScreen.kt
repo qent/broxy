@@ -17,10 +17,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollbarAdapter
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -35,10 +35,10 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.adapter.models.UiLogEntry
 import io.qent.broxy.ui.adapter.models.UiLogLevel
 import io.qent.broxy.ui.adapter.store.UIState
+import io.qent.broxy.ui.theme.AppTheme
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -80,9 +80,12 @@ private fun LogsContent(logs: List<UiLogEntry>) {
             state = listState,
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-            contentPadding = PaddingValues(top = 44.dp, bottom = 12.dp)
+                .padding(horizontal = AppTheme.spacing.lg, vertical = AppTheme.spacing.md),
+            verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
+            contentPadding = PaddingValues(
+                top = AppTheme.spacing.gutter + AppTheme.spacing.xs,
+                bottom = AppTheme.spacing.md
+            )
         ) {
             items(filteredLogs) { entry ->
                 LogRow(entry)
@@ -94,8 +97,8 @@ private fun LogsContent(logs: List<UiLogEntry>) {
             modifier = Modifier
                 .align(Alignment.TopStart)
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                .padding(horizontal = AppTheme.spacing.lg, vertical = AppTheme.spacing.sm),
+            horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm),
             verticalAlignment = Alignment.CenterVertically
         ) {
             listOf(UiLogLevel.ERROR, UiLogLevel.WARN, UiLogLevel.INFO, UiLogLevel.DEBUG).forEach { level ->
@@ -109,13 +112,13 @@ private fun LogsContent(logs: List<UiLogEntry>) {
                 Text(
                     level.name,
                     modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
+                        .clip(AppTheme.shapes.chip)
                         .background(color.copy(alpha = 0.18f))
                         .alpha(if (isActive) 1f else 0.3f)
                         .clickable {
                             activeLevelsState.value = if (isActive) activeLevels - level else activeLevels + level
                         }
-                        .padding(horizontal = 8.dp, vertical = 2.dp),
+                        .padding(horizontal = AppTheme.spacing.sm, vertical = AppTheme.spacing.xxs),
                     color = color,
                     style = MaterialTheme.typography.labelSmall
                 )
@@ -133,9 +136,14 @@ private fun LogsContent(logs: List<UiLogEntry>) {
             modifier = Modifier
                 .align(Alignment.CenterEnd)
                 .fillMaxHeight()
-                .width(12.dp)
-                .padding(end = 2.dp)
-                .clip(RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp))
+                .width(AppTheme.layout.scrollbarThickness)
+                .padding(end = AppTheme.spacing.xs)
+                .clip(
+                    RoundedCornerShape(
+                        topStart = AppTheme.radii.sm,
+                        bottomStart = AppTheme.radii.sm
+                    )
+                )
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
         )
 
@@ -144,8 +152,8 @@ private fun LogsContent(logs: List<UiLogEntry>) {
             modifier = Modifier
                 .align(Alignment.CenterEnd)
                 .fillMaxHeight()
-                .width(12.dp)
-                .padding(end = 2.dp)
+                .width(AppTheme.layout.scrollbarThickness)
+                .padding(end = AppTheme.spacing.xs)
         )
     }
 }
@@ -176,15 +184,15 @@ private fun LogRow(entry: UiLogEntry) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(AppTheme.shapes.surfaceSm)
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f))
-            .border(1.dp, levelColor.copy(alpha = 0.25f), RoundedCornerShape(12.dp))
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
+            .border(AppTheme.strokeWidths.thin, levelColor.copy(alpha = 0.25f), AppTheme.shapes.surfaceSm)
+            .padding(horizontal = AppTheme.spacing.md, vertical = AppTheme.spacing.sm),
+        verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
@@ -195,9 +203,9 @@ private fun LogRow(entry: UiLogEntry) {
             Text(
                 entry.level.name,
                 modifier = Modifier
-                    .clip(RoundedCornerShape(6.dp))
+                    .clip(AppTheme.shapes.chip)
                     .background(levelColor.copy(alpha = 0.18f))
-                    .padding(horizontal = 8.dp, vertical = 2.dp),
+                    .padding(horizontal = AppTheme.spacing.sm, vertical = AppTheme.spacing.xxs),
                 color = levelColor,
                 style = MaterialTheme.typography.labelSmall
             )

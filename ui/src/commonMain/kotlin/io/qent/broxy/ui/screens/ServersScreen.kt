@@ -30,13 +30,13 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.adapter.models.UiServer
 import io.qent.broxy.ui.adapter.store.UIState
 import io.qent.broxy.ui.viewmodels.AppState
 import io.qent.broxy.ui.adapter.store.AppStore
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import io.qent.broxy.ui.theme.AppTheme
 import kotlinx.coroutines.launch
 
 @Composable
@@ -46,7 +46,11 @@ fun ServersScreen(ui: UIState, state: AppState, store: AppStore, notify: (String
     var viewing: UiServer? by remember { mutableStateOf<UiServer?>(null) }
     val scope = rememberCoroutineScope()
 
-    Column(modifier = Modifier.fillMaxSize().padding(12.dp)) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(AppTheme.spacing.md)
+    ) {
 
         OutlinedTextField(
             value = query,
@@ -54,7 +58,7 @@ fun ServersScreen(ui: UIState, state: AppState, store: AppStore, notify: (String
             label = { Text("Search servers") },
             modifier = Modifier.fillMaxWidth()
         )
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(AppTheme.spacing.md))
 
         when (ui) {
             is UIState.Loading -> Text("Loading...", style = MaterialTheme.typography.bodyMedium)
@@ -74,7 +78,7 @@ fun ServersScreen(ui: UIState, state: AppState, store: AppStore, notify: (String
                     }
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                        verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)
                     ) {
                         items(filtered, key = { it.id }) { cfg ->
                             ServerCard(
@@ -148,11 +152,16 @@ private fun ServerCard(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
-        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .padding(AppTheme.spacing.lg),
+            verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)
+        ) {
             Row {
                 Column(Modifier.weight(1f)) {
                     Text(cfg.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Spacer(Modifier.height(2.dp))
+                    Spacer(Modifier.height(AppTheme.spacing.xxs))
                     Text("${cfg.id} • ${cfg.transportLabel}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     val status = when (cfg.status.name) {
                         "Disabled" -> "disabled"
@@ -184,7 +193,7 @@ private fun EmptyState(title: String, subtitle: String) {
         horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
     ) {
         Text(title, style = MaterialTheme.typography.titleLarge)
-        Spacer(Modifier.padding(6.dp))
+        Spacer(Modifier.height(AppTheme.spacing.sm))
         Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
