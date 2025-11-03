@@ -81,7 +81,7 @@ fun MainWindow(
                     TopAppBar(
                     modifier = topBarModifier,
                     title = { Text(
-                        screen.title,
+                        "",
                         fontSize = 14.sp,
                         modifier = Modifier.padding(start = AppTheme.layout.navigationRailWidth + AppTheme.spacing.md)
                     ) },
