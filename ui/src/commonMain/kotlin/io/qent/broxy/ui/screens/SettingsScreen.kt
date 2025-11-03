@@ -20,7 +20,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.Button
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -33,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.adapter.store.UIState
+import io.qent.broxy.ui.components.AppPrimaryButton
 import io.qent.broxy.ui.theme.AppTheme
 import io.qent.broxy.ui.theme.ThemeStyle
 
@@ -137,7 +137,7 @@ private fun TimeoutSetting(
         title = "Request timeout",
         description = "Set how long broxy waits for downstream MCP calls before timing out.",
         supportingContent = {
-            Button(
+            AppPrimaryButton(
                 onClick = onSave,
                 enabled = canSave
             ) {

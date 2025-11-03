@@ -5,11 +5,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -28,6 +26,8 @@ import io.qent.broxy.ui.adapter.services.validateServerConnection
 import io.qent.broxy.ui.adapter.store.AppStore
 import io.qent.broxy.ui.adapter.store.UIState
 import io.qent.broxy.ui.components.AppDialog
+import io.qent.broxy.ui.components.AppPrimaryButton
+import io.qent.broxy.ui.components.AppSecondaryButton
 import io.qent.broxy.ui.components.CapabilityArgumentList
 import io.qent.broxy.ui.components.PresetSelector
 import io.qent.broxy.ui.components.ServerForm
@@ -48,10 +48,10 @@ fun AddServerDialog(ui: UIState, state: AppState, notify: (String) -> Unit) {
         title = "Add server",
         onDismissRequest = { state.showAddServerDialog.value = false },
         dismissButton = {
-            TextButton(onClick = { state.showAddServerDialog.value = false }) { Text("Cancel") }
+            AppSecondaryButton(onClick = { state.showAddServerDialog.value = false }) { Text("Cancel") }
         },
         confirmButton = {
-            Button(onClick = {
+            AppPrimaryButton(onClick = {
                 if (ui is UIState.Ready) {
                     val draft: UiServerDraft = form.value.toDraft()
                     scope.launch {
@@ -96,10 +96,10 @@ fun AddPresetDialog(ui: UIState, state: AppState, store: AppStore) {
         title = "Add preset",
         onDismissRequest = { state.showAddPresetDialog.value = false },
         dismissButton = {
-            TextButton(onClick = { state.showAddPresetDialog.value = false }) { Text("Cancel") }
+            AppSecondaryButton(onClick = { state.showAddPresetDialog.value = false }) { Text("Cancel") }
         },
         confirmButton = {
-            Button(onClick = {
+            AppPrimaryButton(onClick = {
                 if (name.value.text.isNotBlank() && ui is UIState.Ready) {
                     val draft = UiPresetDraft(
                         id = name.value.text.trim().lowercase().replace(" ", "-"),
@@ -150,9 +150,9 @@ fun EditServerDialog(
     AppDialog(
         title = "Edit server",
         onDismissRequest = onClose,
-        dismissButton = { TextButton(onClick = onClose) { Text("Cancel") } },
+        dismissButton = { AppSecondaryButton(onClick = onClose) { Text("Cancel") } },
         confirmButton = {
-            Button(onClick = {
+            AppPrimaryButton(onClick = {
                 if (ui is UIState.Ready) {
                     val draft = form.value.toDraft()
                     scope.launch {
@@ -202,9 +202,9 @@ fun EditPresetDialog(
     AppDialog(
         title = "Edit preset",
         onDismissRequest = onClose,
-        dismissButton = { TextButton(onClick = onClose) { Text("Cancel") } },
+        dismissButton = { AppSecondaryButton(onClick = onClose) { Text("Cancel") } },
         confirmButton = {
-            Button(onClick = {
+            AppPrimaryButton(onClick = {
                 if (ui is UIState.Ready) {
                     val draft = UiPresetDraft(
                         id = id.value.text.trim(),
@@ -276,7 +276,7 @@ fun ServerDetailsDialog(
         title = "Server details",
         onDismissRequest = onClose,
         dismissButton = null,
-        confirmButton = { TextButton(onClick = onClose) { Text("Close") } }
+        confirmButton = { AppSecondaryButton(onClick = onClose) { Text("Close") } }
     ) {
         when (val state = loadState) {
             ServerDetailsState.Loading -> Text("Loading capabilities…")

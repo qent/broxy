@@ -5,11 +5,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import io.qent.broxy.ui.adapter.models.UiServer
 import io.qent.broxy.ui.components.AppDialog
+import io.qent.broxy.ui.components.AppSecondaryButton
 import io.qent.broxy.ui.theme.AppTheme
 
 @Composable
@@ -18,7 +18,7 @@ fun ServerDetailsDialog(cfg: UiServer, onClose: () -> Unit) {
         title = "${cfg.name} • Details",
         onDismissRequest = onClose,
         dismissButton = null,
-        confirmButton = { TextButton(onClick = onClose) { Text("Close") } }
+        confirmButton = { AppSecondaryButton(onClick = onClose) { Text("Close") } }
     ) {
         Text("ID: ${cfg.id}", style = MaterialTheme.typography.bodyMedium)
         Text(
