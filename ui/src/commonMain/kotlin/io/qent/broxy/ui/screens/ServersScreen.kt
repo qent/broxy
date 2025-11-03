@@ -43,6 +43,7 @@ import kotlinx.coroutines.launch
 fun ServersScreen(ui: UIState, state: AppState, store: AppStore, notify: (String) -> Unit = {}) {
     var query by rememberSaveable { mutableStateOf("") }
     var editing: UiServer? by remember { mutableStateOf<UiServer?>(null) }
+    var viewing: UiServer? by remember { mutableStateOf<UiServer?>(null) }
     val scope = rememberCoroutineScope()
 
     Column(modifier = Modifier.fillMaxSize().padding(12.dp)) {
@@ -78,6 +79,7 @@ fun ServersScreen(ui: UIState, state: AppState, store: AppStore, notify: (String
                         items(filtered, key = { it.id }) { cfg ->
                             ServerCard(
                                 cfg = cfg,
+                                onViewDetails = { viewing = cfg },
                                 onToggle = { id, enabled ->
                                     if (enabled) {
                                         // Optimistically enable to reflect "connecting" status immediately
@@ -126,17 +128,23 @@ fun ServersScreen(ui: UIState, state: AppState, store: AppStore, notify: (String
                 editing = null
             }
         }
+
+        viewing?.let { server ->
+            ServerDetailsDialog(server = server, store = store, onClose = { viewing = null })
+        }
     }
 }
 
 @Composable
 private fun ServerCard(
     cfg: UiServer,
+    onViewDetails: () -> Unit,
     onToggle: (String, Boolean) -> Unit,
     onDelete: (String) -> Unit,
     onEdit: () -> Unit
 ) {
     Card(
+        onClick = onViewDetails,
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {

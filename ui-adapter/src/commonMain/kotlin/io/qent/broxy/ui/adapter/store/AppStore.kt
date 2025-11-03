@@ -14,8 +14,8 @@ import io.qent.broxy.ui.adapter.models.UiPreset
 import io.qent.broxy.ui.adapter.models.UiPresetCore
 import io.qent.broxy.ui.adapter.models.UiPresetDraft
 import io.qent.broxy.ui.adapter.models.UiProxyStatus
-import io.qent.broxy.ui.adapter.models.UiServer
 import io.qent.broxy.ui.adapter.models.UiServerCapsSnapshot
+import io.qent.broxy.ui.adapter.models.UiServer
 import io.qent.broxy.ui.adapter.models.UiServerCapabilities
 import io.qent.broxy.ui.adapter.models.UiServerConnStatus
 import io.qent.broxy.ui.adapter.models.UiServerDraft
@@ -24,6 +24,9 @@ import io.qent.broxy.ui.adapter.models.UiStdioTransport
 import io.qent.broxy.ui.adapter.models.UiStreamableHttpDraft
 import io.qent.broxy.ui.adapter.models.UiStreamableHttpTransport
 import io.qent.broxy.ui.adapter.models.UiToolRef
+import io.qent.broxy.ui.adapter.models.UiToolSummary
+import io.qent.broxy.ui.adapter.models.UiPromptSummary
+import io.qent.broxy.ui.adapter.models.UiResourceSummary
 import io.qent.broxy.ui.adapter.models.UiTransportConfig
 import io.qent.broxy.ui.adapter.models.UiTransportDraft
 import io.qent.broxy.ui.adapter.models.UiWebSocketDraft
@@ -180,6 +183,17 @@ class AppStore(
         }
 
         enabled.mapNotNull { resolved[it.id] }
+    }
+
+    suspend fun getServerCaps(serverId: String, forceRefresh: Boolean = false): UiServerCapsSnapshot? {
+        val cfg = servers.firstOrNull { it.id == serverId } ?: return null
+        if (!forceRefresh) {
+            val cached = getCachedCaps(serverId)
+            if (cached != null) return cached
+        }
+        val snapshot = fetchAndCacheCapabilities(cfg)
+        publishReady()
+        return snapshot
     }
 
     private fun loadConfigurationSnapshot(): Result<Unit> = runCatching {
@@ -733,7 +747,28 @@ private fun UiTransportDraft.toTransportConfig(): UiTransportConfig = when (this
 private fun UiServerCapabilities.toSnapshot(config: UiMcpServerConfig): UiServerCapsSnapshot = UiServerCapsSnapshot(
     serverId = config.id,
     name = config.name,
-    tools = tools.map { it.name },
-    prompts = prompts.map { it.name },
-    resources = resources.map { it.uri ?: it.name }
+    tools = tools.map { descriptor ->
+        UiToolSummary(
+            name = descriptor.name,
+            description = descriptor.description.orNullIfBlank()
+                ?: descriptor.title.orNullIfBlank()
+        )
+    },
+    prompts = prompts.map { descriptor ->
+        UiPromptSummary(
+            name = descriptor.name,
+            description = descriptor.description.orNullIfBlank()
+        )
+    },
+    resources = resources.map { descriptor ->
+        UiResourceSummary(
+            key = descriptor.uri.orNullIfBlank() ?: descriptor.name,
+            name = descriptor.name,
+            description = descriptor.description.orNullIfBlank()
+                ?: descriptor.title.orNullIfBlank()
+                ?: descriptor.uri.orNullIfBlank()
+        )
+    }
 )
+
+private fun String?.orNullIfBlank(): String? = this?.takeIf { it.isNotBlank() }
