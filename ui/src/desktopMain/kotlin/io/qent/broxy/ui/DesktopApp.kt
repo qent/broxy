@@ -92,8 +92,10 @@ fun main(args: Array<String>) {
 
             if (isMacOs) {
                 SideEffect {
-                    val appearance = if (isDarkTheme) "dark" else "light"
+                    val appearance = if (isDarkTheme) "NSAppearanceNameDarkAqua" else "NSAppearanceNameAqua"
                     window.rootPane.putClientProperty("apple.awt.windowAppearance", appearance)
+                    window.rootPane.putClientProperty("apple.awt.application.appearance", appearance)
+                    System.setProperty("apple.awt.application.appearance", appearance)
                     window.rootPane.repaint()
                 }
             }
