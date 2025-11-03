@@ -197,7 +197,64 @@ class CapabilitiesCache {
 }
 ```
 
+#### 4. Управление таймаутами и повторными попытками
+- `core/src/commonMain/kotlin/io/qent/broxy/core/mcp/DefaultMcpServerConnection.kt` реализует экспоненциальный backoff, ограничение числа попыток и обёртку `withTimeout`. Метод `updateCallTimeout` позволяет динамически менять таймаут, что используется UI/CLI для синхронизации с настройками пользователя.
+- При сбое получения capabilities соединение возвращается к кэшу и логирует ошибку через `Logger`, не прерывая работу прокси (`Result`-контракты на всех публичных методах).
+
+#### 5. Пакетная работа с несколькими серверами
+- `MultiServerClient` (`core/src/commonMain/kotlin/io/qent/broxy/core/mcp/MultiServerClient.kt`) инкапсулирует параллельные запросы к downstream-серверам, поддерживает преобразование префиксованных имён инструментов и используется как в фильтрации (`ProxyMcpServer`), так и в `ToolRegistry`.
+- `DefaultRequestDispatcher` (`core/src/commonMain/kotlin/io/qent/broxy/core/proxy/RequestDispatcher.kt`) обеспечивает маршрутизацию batch-вызовов, prompt/resource запросов и строгую проверку разрешённых инструментов.
+
+## Конфигурация и наблюдение
+
+- `JsonConfigurationRepository` (`core/src/jvmMain/kotlin/io/qent/broxy/core/config/JsonConfigurationRepository.kt`) читает/пишет `mcp.json` и `preset_*.json`, валидирует транспорты, разрешает `${ENV}` и `{ENV}` плейсхолдеры через `EnvironmentVariableResolver`, проверяет наличие обязательных переменных окружения и логирует безопасные копии конфигураций.
+- JSON-схемы в `core/src/commonMain/resources/schemas/` фиксируют контракт конфигурации и пресетов; при изменениях структуры обновляйте схемы и документацию.
+- `ConfigurationWatcher` (`core/src/jvmMain/kotlin/io/qent/broxy/core/config/ConfigurationWatcher.kt`) отслеживает изменения файлов, применяет debounce, отправляет события наблюдателям (`ConfigurationObserver`). CLI и UI адаптер используют его для хот-релоада конфигурации без перезапуска процесса.
+- Для тестов и headless-режима предусмотрены ручные триггеры `triggerConfigReload/triggerPresetReload`, что упрощает имитацию событий файловой системы.
+
+## Логирование и телеметрия
+
+- `Logger` и `CollectingLogger` (`core/src/commonMain/kotlin/io/qent/broxy/core/utils/Logger.kt`, `CollectingLogger.kt`) формируют единый интерфейс логов. UI подписывается на `CollectingLogger.events`, отображая сообщения и ограничивая буфер (`AppStore` хранит максимум 500 записей).
+- JSON-формат логов (`core/src/commonMain/kotlin/io/qent/broxy/core/utils/JsonLogging.kt`) стандартизирует события: `infoJson`, `warnJson`, `errorJson` добавляют timestamp, event name и payload. Это используется в `RequestDispatcher`, `ProxyMcpServer`, `SdkServerFactory` для трассировки цепочки LLM → прокси → downstream.
+- Для CLI поддерживается установка минимального уровня логирования через `FilteredLogger` (`core/src/commonMain/kotlin/io/qent/broxy/core/utils/Logger.kt`), чтобы не засорять STDOUT.
+
+## Маршрутизация и пространства имён
+
+- `DefaultNamespaceManager` (`core/src/commonMain/kotlin/io/qent/broxy/core/proxy/NamespaceManager.kt`) отвечает за префиксы `serverId:tool`. Входящие вызовы без префикса считаются некорректными.
+- `DefaultToolFilter`/`DefaultPresetEngine` (`core/src/commonMain/kotlin/io/qent/broxy/core/proxy/ToolFilter.kt`, `PresetEngine.kt`) применяют пресеты: формируют список доступных инструментов, маршрутизируют prompts/resources, логируют отсутствующие инструменты.
+- `ToolRegistry` (`core/src/commonMain/kotlin/io/qent/broxy/core/proxy/ToolRegistry.kt`) строит индекс инструментов с TTL и предоставляет поиск. Используйте его для UI-автодополнений и инспекции пресетов.
+
+## Платформенные адаптеры
+
+- MCP клиенты абстрагированы через `McpClientProvider` (`core/src/commonMain/kotlin/io/qent/broxy/core/mcp/McpClientProvider.kt`) и `defaultMcpClientProvider()` с реализацией для JVM (`core/src/jvmMain/kotlin/io/qent/broxy/core/mcp/McpClientFactoryJvm.kt`). `StdioMcpClient` и `KtorMcpClient` покрывают STDIO/SSE/StreamableHttp/WebSocket транспорты.
+- Входящий трафик обслуживается `InboundServerFactory` и его реализациями (`core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/InboundServers.kt`): STDIO использует SDK transport, HTTP(SSE)/Streamable/WebSocket — встраиваемый Ktor Netty.
+- `buildSdkServer` (`core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/SdkServerFactory.kt`) проксирует прокси в MCP SDK, декодирует ответы, применяет fallback-логику и логирует события. Unit-тест `core/src/jvmTest/kotlin/io/qent/broxy/core/proxy/inbound/SdkServerFactoryTest.kt` фиксирует ожидаемое поведение.
+
+## UI-адаптер и AppStore
+
+- `AppStore` (`ui-adapter/src/commonMain/kotlin/io/qent/broxy/ui/adapter/store/AppStore.kt`) реализует UDF/MVI на корутинах: хранит конфигурацию, управляет `StateFlow<UIState>`, кэширует capabilities (TTL 5 минут), ограничивает количество логов и проксирует интенты (refresh, CRUD серверов/пресетов, запуск/остановка прокси, управление таймаутом и треем).
+- `ProxyController` (`ui-adapter/src/commonMain/kotlin/io/qent/broxy/ui/adapter/proxy/ProxyController.kt`) — `expect`-интерфейс; JVM-реализация (`ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/proxy/ProxyControllerJvm.kt`) создаёт downstream соединения, inbound сервер и управляет таймаутами.
+- `fetchServerCapabilities` (`ui-adapter/src/commonMain/kotlin/io/qent/broxy/ui/adapter/services/ToolService.kt`) используется UI для валидации серверов; JVM-версия (`ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/services/ToolServiceJvm.kt`) проводит одиночную попытку с таймаутом 5 секунд.
+- UI (`ui/src/commonMain/...`) остаётся декларативным слоем: `MainWindow`/`ServersScreen` подписываются на `UIState`, диалоги вызывают интенты из `Intents`.
+
+## CLI режим
+
+- Основная команда `broxy proxy` (`cli/src/main/kotlin/io/qent/broxy/cli/commands/ProxyCommand.kt`) поднимает прокси с указанным inbound, применяет пресет и запускает `ConfigurationWatcher` для хот-релоада.
+- CLI использует те же `DefaultMcpServerConnection`, `ProxyMcpServer`, `InboundServerFactory`; при изменении конфигурации пересоздаёт downstream и inbound, выполняя graceful shutdown предыдущих соединений.
+- Флаги `--inbound`, `--url`, `--log-level`, `--config-dir`, `--preset-id` должны поддерживаться и в документе (с учётом дефолтов STDIO/портов).
+
+## Сборка и зависимости
+
+- Модули подключены через Gradle KMP: `core`, `ui-adapter`, `ui`, `cli` (см. `settings.gradle.kts`). `core` и `ui-adapter` — multiplatform, `ui` — Compose Multiplatform Desktop, `cli` — JVM.
+- Ключевые зависимости: MCP Kotlin SDK (`io.modelcontextprotocol:kotlin-sdk`), Ktor server/client, Compose Multiplatform `material3`, Clikt CLI. Версии централизованы в `gradle.properties`.
+- `cli` собирается через ShadowJar и публикует `broxy-cli` fat-jar; при обновлении зависимостей и плагинов отражайте это здесь.
+- `./gradlew clean build` запускает ShadowJar и модульные тесты; не забывайте, что UI зависит от `ui-adapter`, поэтому изменения в адаптере автоматически тянут пересборку UI.
+
 ## Тестирование
+
+- Текущие тестовые наборы размещены в `core/src/jvmTest` и `ui-adapter/src/jvmTest`; пример — `core/src/jvmTest/kotlin/io/qent/broxy/core/proxy/inbound/SdkServerFactoryTest.kt`.
+- Для корутин используем `kotlinx-coroutines-test` (уже подключён в Gradle), избегаем `Thread.sleep`, переключаем диспетчеры через `runTest`.
+- UI-адаптер следует покрывать тестами `AppStore` и `ProxyController` с моками `ConfigurationRepository` и `ProxyController`, используя Mockito-Kotlin, как прописано ниже.
 
 ### 1. Unit тесты
 - Тестирование каждого класса в изоляции
