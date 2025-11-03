@@ -85,52 +85,48 @@ private fun LogsContent(logs: List<UiLogEntry>) {
     val filteredLogs = remember(logs, activeLevels) { logs.filter { it.level in activeLevels } }
 
     Box(Modifier.fillMaxSize()) {
-        LazyColumn(
-            state = listState,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = AppTheme.spacing.lg, vertical = AppTheme.spacing.md),
-            verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
-            contentPadding = PaddingValues(
-                top = AppTheme.spacing.gutter + AppTheme.spacing.xs,
-                bottom = AppTheme.spacing.md
-            )
-        ) {
-            items(filteredLogs) { entry ->
-                LogRow(entry)
-            }
-        }
-
-        // Top pinned filter bar with level badges
-        Row(
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .fillMaxWidth()
-                .padding(horizontal = AppTheme.spacing.lg, vertical = AppTheme.spacing.sm),
-            horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            listOf(UiLogLevel.ERROR, UiLogLevel.WARN, UiLogLevel.INFO, UiLogLevel.DEBUG).forEach { level ->
-                val color = when (level) {
-                    UiLogLevel.ERROR -> MaterialTheme.colorScheme.error
-                    UiLogLevel.WARN -> MaterialTheme.colorScheme.tertiary
-                    UiLogLevel.DEBUG -> MaterialTheme.colorScheme.outline
-                    UiLogLevel.INFO -> MaterialTheme.colorScheme.primary
+        Column(Modifier.fillMaxSize()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = AppTheme.spacing.lg)
+                    .padding(top = AppTheme.spacing.lg),
+                horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm),
+            ) {
+                listOf(UiLogLevel.ERROR, UiLogLevel.WARN, UiLogLevel.INFO, UiLogLevel.DEBUG).forEach { level ->
+                    val color = when (level) {
+                        UiLogLevel.ERROR -> MaterialTheme.colorScheme.error
+                        UiLogLevel.WARN -> MaterialTheme.colorScheme.tertiary
+                        UiLogLevel.DEBUG -> MaterialTheme.colorScheme.outline
+                        UiLogLevel.INFO -> MaterialTheme.colorScheme.primary
+                    }
+                    val isActive = level in activeLevels
+                    Text(
+                        level.name,
+                        modifier = Modifier
+                            .clip(AppTheme.shapes.chip)
+                            .background(color.copy(alpha = 0.18f))
+                            .alpha(if (isActive) 1f else 0.3f)
+                            .clickable {
+                                activeLevelsState.value = if (isActive) activeLevels - level else activeLevels + level
+                            }
+                            .padding(horizontal = AppTheme.spacing.sm, vertical = AppTheme.spacing.xxs),
+                        color = color,
+                        style = MaterialTheme.typography.labelSmall
+                    )
                 }
-                val isActive = level in activeLevels
-                Text(
-                    level.name,
-                    modifier = Modifier
-                        .clip(AppTheme.shapes.chip)
-                        .background(color.copy(alpha = 0.18f))
-                        .alpha(if (isActive) 1f else 0.3f)
-                        .clickable {
-                            activeLevelsState.value = if (isActive) activeLevels - level else activeLevels + level
-                        }
-                        .padding(horizontal = AppTheme.spacing.sm, vertical = AppTheme.spacing.xxs),
-                    color = color,
-                    style = MaterialTheme.typography.labelSmall
-                )
+            }
+            LazyColumn(
+                state = listState,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(all = AppTheme.spacing.md)
+                    .padding(end = AppTheme.spacing.xl),
+                verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)
+            ) {
+                items(filteredLogs) { entry ->
+                    LogRow(entry)
+                }
             }
         }
 
@@ -146,7 +142,6 @@ private fun LogsContent(logs: List<UiLogEntry>) {
                 modifier = Modifier
                     .align(Alignment.CenterEnd)
                     .fillMaxHeight()
-                    .padding(end = AppTheme.spacing.xs)
             )
         }
     }
@@ -154,7 +149,6 @@ private fun LogsContent(logs: List<UiLogEntry>) {
 
 @Composable
 private fun LogRow(entry: UiLogEntry) {
-    val clipboardManager = LocalClipboardManager.current
     val formattedTime = remember(entry.timestampMillis) {
         val instant = Instant.fromEpochMilliseconds(entry.timestampMillis)
         val local = instant.toLocalDateTime(TimeZone.currentSystemDefault())
@@ -163,9 +157,6 @@ private fun LogRow(entry: UiLogEntry) {
     val message = remember(entry) {
         if (entry.throwableMessage.isNullOrBlank()) entry.message
         else "${entry.message} (${entry.throwableMessage})"
-    }
-    val copyText = remember(entry, formattedTime) {
-        "[" + formattedTime + "] " + entry.level.name + ": " + message
     }
 
     val levelColor = when (entry.level) {
@@ -186,7 +177,7 @@ private fun LogRow(entry: UiLogEntry) {
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
+            horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.xs),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
@@ -203,15 +194,6 @@ private fun LogRow(entry: UiLogEntry) {
                 color = levelColor,
                 style = MaterialTheme.typography.labelSmall
             )
-            Spacer(Modifier.weight(1f))
-            TextButton(onClick = {
-                clipboardManager.setText(AnnotatedString(copyText))
-            }) {
-                Text(
-                    "Copy",
-                    style = MaterialTheme.typography.labelSmall
-                )
-            }
         }
         SelectionContainer {
             Text(
