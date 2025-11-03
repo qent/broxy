@@ -16,8 +16,9 @@ import androidx.compose.ui.window.Tray
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import androidx.compose.ui.unit.dp
-import io.qent.broxy.ui.adapter.headless.runStdioProxy
 import io.qent.broxy.ui.adapter.store.UIState
+import io.qent.broxy.ui.adapter.headless.runStdioProxy
+import io.qent.broxy.ui.adapter.models.UiProxyStatus
 import io.qent.broxy.ui.screens.MainWindow
 import io.qent.broxy.ui.viewmodels.AppState
 import io.qent.broxy.ui.adapter.store.createAppStore
@@ -116,14 +117,67 @@ fun main(args: Array<String>) {
                 }.build()
             }
             val trayPainter = rememberVectorPainter(trayVector)
+            val trayState = uiState
             Tray(
                 icon = trayPainter,
                 tooltip = "broxy",
                 onAction = { isWindowVisible = true }
             ) {
-                Item("Show broxy") {
+                when (val state = trayState) {
+                    UIState.Loading -> {
+                        Item("Loading presets...", enabled = false) {}
+                        Separator()
+                        Item("Server status: unknown", enabled = false) {}
+                    }
+                    is UIState.Error -> {
+                        Item("Failed to load presets", enabled = false) {}
+                        Separator()
+                        Item("Server status: unavailable", enabled = false) {}
+                    }
+                    is UIState.Ready -> {
+                        if (state.presets.isEmpty()) {
+                            Item("No presets available", enabled = false) {}
+                        } else {
+                            state.presets.forEach { preset ->
+                                val isActive = preset.id == state.selectedPresetId
+                                val label = buildString {
+                                    append(preset.name)
+                                    if (isActive) append(" \u2713")
+                                }
+                                Item(label) {
+                                    val wasActive = isActive
+                                    state.intents.selectProxyPreset(preset.id)
+                                    if (wasActive && state.proxyStatus is UiProxyStatus.Running) {
+                                        state.intents.startProxySimple(preset.id)
+                                    }
+                                }
+                            }
+                        }
+                        Separator()
+                        val running = state.proxyStatus is UiProxyStatus.Running
+                        val statusLabel = "Server status: ${if (running) "on" else "off"}"
+                        Item(statusLabel) {
+                            if (running) {
+                                state.intents.stopProxy()
+                            } else {
+                                val presetId = state.selectedPresetId
+                                    ?: state.presets.singleOrNull()?.id
+                                if (presetId != null) {
+                                    if (state.selectedPresetId != presetId) {
+                                        state.intents.selectProxyPreset(presetId)
+                                    }
+                                    state.intents.startProxySimple(presetId)
+                                } else {
+                                    isWindowVisible = true
+                                }
+                            }
+                        }
+                    }
+                }
+                Item("Show Broxy") {
                     isWindowVisible = true
                 }
+                Separator()
                 Item("Exit") {
                     isWindowVisible = false
                     exitApplication()
