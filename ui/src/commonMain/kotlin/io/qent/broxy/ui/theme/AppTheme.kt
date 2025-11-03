@@ -165,9 +165,14 @@ object AppTheme {
 
     @Composable
     operator fun invoke(
-        darkTheme: Boolean = isSystemInDarkTheme(),
+        themeStyle: ThemeStyle = ThemeStyle.System,
         content: @Composable () -> Unit
     ) {
+        val darkTheme = when (themeStyle) {
+            ThemeStyle.System -> isSystemInDarkTheme()
+            ThemeStyle.Light -> false
+            ThemeStyle.Dark -> true
+        }
         val materialShapes = Shapes(
             extraSmall = RoundedCornerShape(DefaultRadii.xs),
             small = RoundedCornerShape(DefaultRadii.sm),

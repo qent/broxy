@@ -52,7 +52,7 @@ fun MainWindow(
     topBarModifier: Modifier = Modifier,
     useTransparentTitleBar: Boolean = false
 ) {
-    AppTheme {
+    AppTheme(themeStyle = state.themeStyle.value) {
         val screen = state.currentScreen.value
         val snackbarHostState = remember { SnackbarHostState() }
         val scope = rememberCoroutineScope()
@@ -125,7 +125,12 @@ fun MainWindow(
                             Screen.Presets -> PresetsScreen(ui, state, store)
                             Screen.Proxy -> ProxyScreen(ui, state, notify)
                             Screen.Logs -> LogsScreen(ui)
-                            Screen.Settings -> SettingsScreen(ui, notify)
+                            Screen.Settings -> SettingsScreen(
+                                ui = ui,
+                                themeStyle = state.themeStyle.value,
+                                onThemeStyleChange = { state.themeStyle.value = it },
+                                notify = notify
+                            )
                         }
                     }
                 }
