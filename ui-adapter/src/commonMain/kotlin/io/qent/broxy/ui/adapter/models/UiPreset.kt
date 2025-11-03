@@ -4,6 +4,7 @@ data class UiPreset(
     val id: String,
     val name: String,
     val description: String? = null,
-    val toolsCount: Int = 0
+    val toolsCount: Int = 0,
+    val promptsCount: Int = 0,
+    val resourcesCount: Int = 0
 )
-

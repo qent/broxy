@@ -21,7 +21,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -103,33 +102,58 @@ private fun PresetCard(
     onDelete: () -> Unit
 ) {
     Card(
+        onClick = onEdit,
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
-        Column(
+        Row(
             Modifier
                 .fillMaxWidth()
                 .padding(AppTheme.spacing.lg),
-            verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text(preset.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Spacer(Modifier.height(AppTheme.spacing.xxs))
-                    if (!preset.description.isNullOrBlank()) {
-                        Text(preset.description ?: "", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    }
+            val descriptionLine = preset.description
+                ?.lineSequence()
+                ?.firstOrNull()
+                ?.takeIf { it.isNotBlank() }
+                ?.trim()
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.xxs)
+            ) {
+                Text(
+                    preset.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                descriptionLine?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
-                Text("Tools: ${preset.toolsCount}", style = MaterialTheme.typography.bodyMedium)
+                val countsText = buildString {
+                    append("tools ${preset.toolsCount}")
+                    append(" • prompts ${preset.promptsCount}")
+                    append(" • resources ${preset.resourcesCount}")
+                }
+                Text(
+                    countsText,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = onEdit) {
-                    Icon(Icons.Outlined.Edit, contentDescription = null)
-                    Spacer(Modifier.width(AppTheme.spacing.xs))
-                    Text("Edit")
-                }
-                Spacer(Modifier.weight(1f))
-                IconButton(onClick = onDelete) { Icon(Icons.Outlined.Delete, contentDescription = "Delete") }
+            Spacer(Modifier.width(AppTheme.spacing.sm))
+            IconButton(onClick = onEdit) {
+                Icon(Icons.Outlined.Edit, contentDescription = "Edit preset")
+            }
+            IconButton(onClick = onDelete) {
+                Icon(Icons.Outlined.Delete, contentDescription = "Delete preset")
             }
         }
     }

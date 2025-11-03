@@ -728,14 +728,18 @@ private fun UiPresetCore.toUiPresetSummary(): UiPreset = UiPreset(
     id = id,
     name = name,
     description = description.ifBlank { null },
-    toolsCount = tools.count { it.enabled }
+    toolsCount = tools.count { it.enabled },
+    promptsCount = 0,
+    resourcesCount = 0
 )
 
 private fun UiPresetCore.toUiPresetSummary(descriptionOverride: String?): UiPreset = UiPreset(
     id = id,
     name = name,
     description = descriptionOverride ?: description.ifBlank { null },
-    toolsCount = tools.count { it.enabled }
+    toolsCount = tools.count { it.enabled },
+    promptsCount = 0,
+    resourcesCount = 0
 )
 
 private fun UiPresetDraft.toCorePreset(): UiPresetCore = UiPresetCore(
