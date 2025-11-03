@@ -24,11 +24,12 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.style.TextOverflow
 import io.qent.broxy.ui.adapter.models.UiServer
 import io.qent.broxy.ui.adapter.store.UIState
@@ -152,35 +153,52 @@ private fun ServerCard(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
-        Column(
+        Row(
             Modifier
                 .fillMaxWidth()
                 .padding(AppTheme.spacing.lg),
-            verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row {
-                Column(Modifier.weight(1f)) {
-                    Text(cfg.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Spacer(Modifier.height(AppTheme.spacing.xxs))
-                    Text("${cfg.id} • ${cfg.transportLabel}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    val status = when (cfg.status.name) {
-                        "Disabled" -> "disabled"
-                        "Available" -> "available"
-                        "Error" -> "error"
-                        else -> "connecting"
-                    }
-                    val counts = if (cfg.enabled && cfg.toolsCount != null) {
-                        val tc = cfg.toolsCount ?: 0
-                        val pc = cfg.promptsCount ?: 0
-                        val rc = cfg.resourcesCount ?: 0
-                        " • tools $tc • prompts $pc • resources $rc"
-                    } else ""
-                    Text("status: $status$counts", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.xxs)
+            ) {
+                Text(
+                    cfg.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    "${cfg.id} • ${cfg.transportLabel}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                val status = when (cfg.status.name) {
+                    "Disabled" -> "disabled"
+                    "Available" -> "available"
+                    "Error" -> "error"
+                    else -> "connecting"
                 }
-                Switch(checked = cfg.enabled, onCheckedChange = { enabled -> onToggle(cfg.id, enabled) })
-                IconButton(onClick = onEdit) { Icon(Icons.Outlined.Edit, contentDescription = "Edit") }
-                IconButton(onClick = { onDelete(cfg.id) }) { Icon(Icons.Outlined.Delete, contentDescription = "Delete") }
+                val counts = if (cfg.enabled && cfg.toolsCount != null) {
+                    val tc = cfg.toolsCount ?: 0
+                    val pc = cfg.promptsCount ?: 0
+                    val rc = cfg.resourcesCount ?: 0
+                    " • tools $tc • prompts $pc • resources $rc"
+                } else ""
+                Text(
+                    "status: $status$counts",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
+            Spacer(Modifier.width(AppTheme.spacing.sm))
+            Switch(checked = cfg.enabled, onCheckedChange = { enabled -> onToggle(cfg.id, enabled) })
+            Spacer(Modifier.width(AppTheme.spacing.xs))
+            IconButton(onClick = onEdit) { Icon(Icons.Outlined.Edit, contentDescription = "Edit") }
+            IconButton(onClick = { onDelete(cfg.id) }) { Icon(Icons.Outlined.Delete, contentDescription = "Delete") }
         }
     }
 }
