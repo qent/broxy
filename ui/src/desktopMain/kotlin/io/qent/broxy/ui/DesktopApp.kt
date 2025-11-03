@@ -16,9 +16,10 @@ import androidx.compose.ui.window.Tray
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import androidx.compose.ui.unit.dp
-import io.qent.broxy.ui.adapter.store.UIState
+import io.qent.broxy.ui.adapter.headless.logStdioInfo
 import io.qent.broxy.ui.adapter.headless.runStdioProxy
 import io.qent.broxy.ui.adapter.models.UiProxyStatus
+import io.qent.broxy.ui.adapter.store.UIState
 import io.qent.broxy.ui.screens.MainWindow
 import io.qent.broxy.ui.viewmodels.AppState
 import io.qent.broxy.ui.adapter.store.createAppStore
@@ -31,12 +32,12 @@ fun main(args: Array<String>) {
         val presetId = args.indexOf("--preset-id").takeIf { it >= 0 }?.let { idx -> args.getOrNull(idx + 1) }
         val configDir = args.indexOf("--config-dir").takeIf { it >= 0 }?.let { idx -> args.getOrNull(idx + 1) }
         if (presetId.isNullOrBlank()) {
-            System.err.println("Usage: broxy --stdio-proxy --preset-id <id> [--config-dir <path>]")
+            logStdioInfo("Usage: broxy --stdio-proxy --preset-id <id> [--config-dir <path>]")
             kotlin.system.exitProcess(2)
         }
         val r = runStdioProxy(presetId, configDir)
         if (r.isFailure) {
-            System.err.println("[ERROR] Failed to start stdio proxy: ${r.exceptionOrNull()?.message}")
+            logStdioInfo("[ERROR] Failed to start stdio proxy: ${r.exceptionOrNull()?.message}")
             kotlin.system.exitProcess(1)
         }
         // If runStdioProxy returned successfully, the STDIO session ended gracefully.

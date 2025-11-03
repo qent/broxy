@@ -90,7 +90,9 @@ class AppStore(
                     logs += uiEntry
                     if (logs.size > maxLogs) logs.removeAt(0)
                 }
-                publishReady()
+                if (_state.value !is UIState.Error) {
+                    publishReady()
+                }
             }
         }
     }
@@ -100,7 +102,7 @@ class AppStore(
             val loadResult = loadConfigurationSnapshot()
             if (loadResult.isFailure) {
                 val msg = loadResult.exceptionOrNull()?.message ?: "Failed to load configuration"
-                println("[AppStore] load failed: $msg")
+                logger.info("[AppStore] load failed: $msg")
                 _state.value = UIState.Error(msg)
                 return@launch
             }
@@ -139,7 +141,7 @@ class AppStore(
                 )
             }
             .onFailure { error ->
-                println("[AppStore] getPresetDraft('$id') failed: ${error.message}")
+                logger.info("[AppStore] getPresetDraft('$id') failed: ${error.message}")
             }
             .getOrNull()
     }
@@ -333,7 +335,7 @@ class AppStore(
         val presetResult = presetOverride?.let { Result.success(it) } ?: runCatching { configurationRepository.loadPreset(presetId) }
         if (presetResult.isFailure) {
             val msg = presetResult.exceptionOrNull()?.message ?: "Failed to load preset for restart"
-            println("[AppStore] restartProxyWithPreset failed to load preset '$presetId': $msg")
+            logger.info("[AppStore] restartProxyWithPreset failed to load preset '$presetId': $msg")
             proxyStatus = UiProxyStatus.Error(msg)
             activeProxyPresetId = null
             activeInbound = null
@@ -347,7 +349,7 @@ class AppStore(
             proxyStatus = UiProxyStatus.Running
         } else {
             val msg = result.exceptionOrNull()?.message ?: "Failed to restart proxy"
-            println("[AppStore] restartProxyWithPreset failed for '$presetId': $msg")
+            logger.info("[AppStore] restartProxyWithPreset failed for '$presetId': $msg")
             proxyStatus = UiProxyStatus.Error(msg)
             activeProxyPresetId = null
             activeInbound = null
@@ -362,7 +364,7 @@ class AppStore(
         defaultMessage: String
     ) {
         val message = failure?.message ?: defaultMessage
-        println("[AppStore] $operation failed: $message")
+        logger.info("[AppStore] $operation failed: $message")
         servers.apply {
             clear()
             addAll(snapshot)
@@ -377,7 +379,7 @@ class AppStore(
         defaultMessage: String
     ) {
         val message = failure?.message ?: defaultMessage
-        println("[AppStore] $operation failed: $message")
+        logger.info("[AppStore] $operation failed: $message")
         presets.apply {
             clear()
             addAll(snapshot)
@@ -391,7 +393,7 @@ class AppStore(
                 val refreshResult = loadConfigurationSnapshot()
                 if (refreshResult.isFailure) {
                     val msg = refreshResult.exceptionOrNull()?.message ?: "Failed to refresh"
-                    println("[AppStore] refresh failed: $msg")
+                    logger.info("[AppStore] refresh failed: $msg")
                     _state.value = UIState.Error(msg)
                 }
                 publishReady()
@@ -515,7 +517,7 @@ class AppStore(
                 val saveResult = runCatching { configurationRepository.savePreset(preset) }
                 if (saveResult.isFailure) {
                     val msg = saveResult.exceptionOrNull()?.message ?: "Failed to save preset"
-                    println("[AppStore] upsertPreset failed: $msg")
+                    logger.info("[AppStore] upsertPreset failed: $msg")
                     _state.value = UIState.Error(msg)
                 }
                 val summary = preset.toUiPresetSummary(draft.description)
@@ -564,7 +566,7 @@ class AppStore(
                 val presetResult = runCatching { configurationRepository.loadPreset(presetId) }
                 if (presetResult.isFailure) {
                     val msg = presetResult.exceptionOrNull()?.message ?: "Failed to load preset"
-                    println("[AppStore] startProxySimple failed: $msg")
+                    logger.info("[AppStore] startProxySimple failed: $msg")
                     proxyStatus = UiProxyStatus.Error(msg)
                     selectedProxyPresetId = presetId
                     activeProxyPresetId = null
@@ -582,7 +584,7 @@ class AppStore(
                     activeInbound = inbound
                 } else {
                     val msg = result.exceptionOrNull()?.message ?: "Failed to start proxy"
-                    println("[AppStore] startProxySimple failed to start proxy: $msg")
+                    logger.info("[AppStore] startProxySimple failed to start proxy: $msg")
                     proxyStatus = UiProxyStatus.Error(msg)
                     activeProxyPresetId = null
                     activeInbound = null
@@ -596,7 +598,7 @@ class AppStore(
                 val presetResult = runCatching { configurationRepository.loadPreset(presetId) }
                 if (presetResult.isFailure) {
                     val msg = presetResult.exceptionOrNull()?.message ?: "Failed to load preset"
-                    println("[AppStore] startProxy failed: $msg")
+                    logger.info("[AppStore] startProxy failed: $msg")
                     proxyStatus = UiProxyStatus.Error(msg)
                     selectedProxyPresetId = presetId
                     activeProxyPresetId = null
@@ -614,7 +616,7 @@ class AppStore(
                     activeInbound = inboundTransport
                 } else {
                     val msg = result.exceptionOrNull()?.message ?: "Failed to start proxy"
-                    println("[AppStore] startProxy failed to start proxy: $msg")
+                    logger.info("[AppStore] startProxy failed to start proxy: $msg")
                     proxyStatus = UiProxyStatus.Error(msg)
                     activeProxyPresetId = null
                     activeInbound = null
@@ -644,7 +646,7 @@ class AppStore(
                 val result = runCatching { configurationRepository.saveMcpConfig(snapshotConfig()) }
                 if (result.isFailure) {
                     val msg = result.exceptionOrNull()?.message ?: "Failed to update timeout"
-                    println("[AppStore] updateRequestTimeout failed: $msg")
+                    logger.info("[AppStore] updateRequestTimeout failed: $msg")
                     requestTimeoutSeconds = previous
                     proxyController.updateCallTimeout(requestTimeoutSeconds)
                     _state.value = UIState.Error(msg)
@@ -661,7 +663,7 @@ class AppStore(
                 val result = runCatching { configurationRepository.saveMcpConfig(snapshotConfig()) }
                 if (result.isFailure) {
                     val msg = result.exceptionOrNull()?.message ?: "Failed to update tray preference"
-                    println("[AppStore] updateTrayIconVisibility failed: $msg")
+                    logger.info("[AppStore] updateTrayIconVisibility failed: $msg")
                     showTrayIcon = previous
                     _state.value = UIState.Error(msg)
                 }

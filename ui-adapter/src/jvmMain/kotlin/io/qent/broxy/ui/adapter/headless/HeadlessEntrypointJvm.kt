@@ -1,7 +1,6 @@
 package io.qent.broxy.ui.adapter.headless
 
 import io.qent.broxy.core.config.JsonConfigurationRepository
-import io.qent.broxy.core.mcp.ServerStatus
 import io.qent.broxy.core.models.TransportConfig
 import io.qent.broxy.core.utils.StdErrLogger
 import io.qent.broxy.ui.adapter.proxy.createStdioProxyController
@@ -31,4 +30,8 @@ fun runStdioProxy(presetId: String, configDir: String? = null): Result<Unit> = r
     // For STDIO inbound, controller.start() blocks inside InboundServers until the session ends.
     // When it returns successfully, we treat it as a graceful exit.
     Unit
+}
+
+fun logStdioInfo(message: String) {
+    StdErrLogger.info(message)
 }
