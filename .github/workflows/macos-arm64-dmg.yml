@@ -70,7 +70,7 @@ jobs:
       - name: Upload DMG artifact
         uses: actions/upload-artifact@v4
         with:
-          name: bro-macos-arm64-dmg
+          name: broxy-macos-arm64-dmg
           path: |
             ${{ steps.paths_macos.outputs.path }}/*.dmg
             ${{ steps.paths_macos.outputs.path }}/CHECKSUMS.txt

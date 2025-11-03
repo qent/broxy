@@ -43,13 +43,13 @@ kotlin {
 
 compose.desktop {
     application {
-        mainClass = "io.qent.bro.ui.DesktopAppKt"
+        mainClass = "io.qent.broxy.ui.DesktopAppKt"
 
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
-            packageName = "bro"
+            packageName = "broxy"
             vendor = "Qent"
-            description = "bro: manage and route MCP servers, tools and presets across clients."
+            description = "broxy: manage and route MCP servers, tools and presets across clients."
             // Compose Desktop installers require MAJOR > 0
             val rawVersion = project.version.toString()
             val parts = rawVersion.split('.')
@@ -62,14 +62,14 @@ compose.desktop {
             packageVersion = sanitizedVersion
             // Common icon files (optional, only set when present)
             val iconsDir = project.layout.projectDirectory.dir("src/desktopMain/resources/icons")
-            val icns = iconsDir.file("bro.icns").asFile
-            val ico = iconsDir.file("bro.ico").asFile
-            val png = iconsDir.file("bro.png").asFile
+            val icns = iconsDir.file("broxy.icns").asFile
+            val ico = iconsDir.file("broxy.ico").asFile
+            val png = iconsDir.file("broxy.png").asFile
 
             macOS {
                 packageVersion = sanitizedVersion
                 dmgPackageVersion = sanitizedVersion
-                bundleID = "io.qent.bro"
+                bundleID = "io.qent.broxy"
                 if (icns.exists()) {
                     iconFile.set(icns)
                 }
@@ -77,7 +77,7 @@ compose.desktop {
             windows {
                 packageVersion = sanitizedVersion
                 // Menu + shortcuts
-                menuGroup = "bro"
+                menuGroup = "broxy"
                 shortcut = true
                 // Stable upgrade UUID for MSI upgrades
                 upgradeUuid = "2b7e8e4c-0b20-4f7a-93b8-66f57d1f7f3a"
@@ -89,7 +89,7 @@ compose.desktop {
             linux {
                 packageVersion = sanitizedVersion
                 // Maintainer/email for .deb control file
-                debMaintainer = "Qent <support@bro.example.com>"
+                debMaintainer = "Qent <support@broxy.example.com>"
                 if (png.exists()) {
                     iconFile.set(png)
                 }

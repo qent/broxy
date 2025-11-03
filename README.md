@@ -1,10 +1,10 @@
-# bro - Мультиплатформенный прокси-сервер для Model Context Protocol
+# broxy - Мультиплатформенный прокси-сервер для Model Context Protocol
 
-[![Tests](https://github.com/qent/bro/actions/workflows/tests.yml/badge.svg)](https://github.com/qent/bro/actions/workflows/tests.yml) [![Build Installers](https://github.com/qent/bro/actions/workflows/release.yml/badge.svg)](https://github.com/qent/bro/actions/workflows/release.yml)
+[![Tests](https://github.com/qent/broxy/actions/workflows/tests.yml/badge.svg)](https://github.com/qent/broxy/actions/workflows/tests.yml) [![Build Installers](https://github.com/qent/broxy/actions/workflows/release.yml/badge.svg)](https://github.com/qent/broxy/actions/workflows/release.yml)
 
 ## 📋 Описание проекта
 
-bro - это мультиплатформенное приложение на Kotlin, которое выступает в роли интеллектуального прокси-сервера между AI-клиентами (такими как Claude Desktop) и множеством MCP-серверов. Основная идея - создание единой точки входа, которая агрегирует инструменты из различных MCP-серверов и предоставляет их в отфильтрованном виде на основе пресетов (ролей агентов).
+broxy - это мультиплатформенное приложение на Kotlin, которое выступает в роли интеллектуального прокси-сервера между AI-клиентами (такими как Claude Desktop) и множеством MCP-серверов. Основная идея - создание единой точки входа, которая агрегирует инструменты из различных MCP-серверов и предоставляет их в отфильтрованном виде на основе пресетов (ролей агентов).
 
 ### Ключевые возможности
 
@@ -27,7 +27,7 @@ bro - это мультиплатформенное приложение на Ko
          │ MCP Protocol
          ▼
 ┌─────────────────┐
-│   bro           │ ◄── Фильтрация на основе пресета
+│   broxy           │ ◄── Фильтрация на основе пресета
 │    (Server)     │
 └────────┬────────┘
          │
@@ -62,7 +62,7 @@ bro - это мультиплатформенное приложение на Ko
 
 Пользователь добавляет различные MCP серверы в конфигурацию. Каждый сервер может предоставлять свой набор инструментов (tools), ресурсов (resources) и промптов (prompts).
 
-Файл конфигурации по умолчанию: `~/.config/bro/mcp.json`
+Файл конфигурации по умолчанию: `~/.config/broxy/mcp.json`
 
 Поддерживаются транспорты: `stdio`, `http`, `websocket`. Формат — плоский (без вложенного объекта `transport`):
 
@@ -140,8 +140,8 @@ bro - это мультиплатформенное приложение на Ko
 
 **CLI запуск (реализовано):**
 ```bash
-java -jar cli/build/libs/bro-cli-0.1.0.jar proxy \
-  --config-dir ~/.config/bro \
+java -jar cli/build/libs/broxy-cli-0.1.0.jar proxy \
+  --config-dir ~/.config/broxy \
   --preset-id developer \
   --inbound stdio \
   --log-level info
@@ -150,22 +150,22 @@ java -jar cli/build/libs/bro-cli-0.1.0.jar proxy \
 Примеры inbound для сети:
 ```bash
 # HTTP + SSE
-java -jar cli/build/libs/bro-cli-0.1.0.jar proxy \
-  --config-dir ~/.config/bro \
+java -jar cli/build/libs/broxy-cli-0.1.0.jar proxy \
+  --config-dir ~/.config/broxy \
   --preset-id developer \
   --inbound http \
   --url http://0.0.0.0:3335/mcp
 
 # WebSocket
-java -jar cli/build/libs/bro-cli-0.1.0.jar proxy \
-  --config-dir ~/.config/bro \
+java -jar cli/build/libs/broxy-cli-0.1.0.jar proxy \
+  --config-dir ~/.config/broxy \
   --preset-id developer \
   --inbound ws \
   --url ws://0.0.0.0:3336/ws
 ```
 
 **Через UI:**
-1. Открыть приложение bro
+1. Открыть приложение broxy
 2. Выбрать пресет
 3. Нажать "Start Proxy"
 
@@ -181,12 +181,12 @@ macOS (DMG):
 ```json
 {
   "mcpServers": {
-    "bro": {
-      "command": "/Applications/bro.app/Contents/MacOS/bro",
+    "broxy": {
+      "command": "/Applications/broxy.app/Contents/MacOS/broxy",
       "args": [
         "--stdio-proxy",
         "--preset-id", "developer",
-        "--config-dir", "/Users/you/.config/bro"
+        "--config-dir", "/Users/you/.config/broxy"
       ]
     }
   }
@@ -197,12 +197,12 @@ Windows (MSI):
 ```json
 {
   "mcpServers": {
-    "bro": {
-      "command": "C:\\Program Files\\bro\\bro.exe",
+    "broxy": {
+      "command": "C:\\Program Files\\broxy\\broxy.exe",
       "args": [
         "--stdio-proxy",
         "--preset-id", "developer",
-        "--config-dir", "C:\\Users\\you\\.config\\bro"
+        "--config-dir", "C:\\Users\\you\\.config\\broxy"
       ]
     }
   }
@@ -213,13 +213,13 @@ Windows (MSI):
 ```json
 {
   "mcpServers": {
-    "bro": {
+    "broxy": {
       "command": "java",
       "args": [
         "-jar",
-        "/absolute/path/to/cli/build/libs/bro-cli-0.1.0.jar",
+        "/absolute/path/to/cli/build/libs/broxy-cli-0.1.0.jar",
         "proxy",
-        "--config-dir", "/Users/you/.config/bro",
+        "--config-dir", "/Users/you/.config/broxy",
         "--preset-id", "developer",
         "--inbound", "stdio",
         "--log-level", "info"
@@ -234,7 +234,7 @@ Windows (MSI):
 ### Логи на macOS
 
 - При запуске приложения из Gradle (`./gradlew :ui:run`) или из терминала все сообщения `ConsoleLogger` остаются в этой же консоли.
-- Для установленного `.app` пакет macOS перенаправляет stdout/stderr в каталог `~/Library/Logs/bro/`. Основной файл логов — `~/Library/Logs/bro/bro.log`; его можно просматривать из `Console.app` (дерево *~/Library/Logs/bro*) или напрямую командой `tail -f ~/Library/Logs/bro/bro.log`.
+- Для установленного `.app` пакет macOS перенаправляет stdout/stderr в каталог `~/Library/Logs/broxy/`. Основной файл логов — `~/Library/Logs/broxy/broxy.log`; его можно просматривать из `Console.app` (дерево *~/Library/Logs/broxy*) или напрямую командой `tail -f ~/Library/Logs/broxy/broxy.log`.
 - Если log-файл отсутствует, запустите приложение один раз — директория создаётся автоматически при первом выводе лога.
 
 ## 🎨 Пользовательский интерфейс
@@ -243,7 +243,7 @@ Windows (MSI):
 
 ```
 ┌─────────────────────────────────────────────────┐
-│ ☰ bro                                    🌙 ⚙️ │
+│ ☰ broxy                                    🌙 ⚙️ │
 ├─────────┬───────────────────────────────────────┤
 │         │  Servers                               │
 │ 📡 Servers │                                     │
@@ -374,12 +374,12 @@ Windows (MSI):
 ### Desktop приложение
 
 1. Скачать дистрибутив для вашей ОС:
-   - macOS: `bro-1.0.0.dmg`
-   - Windows: `bro-1.0.0.msi`
+   - macOS: `broxy-1.0.0.dmg`
+   - Windows: `broxy-1.0.0.msi`
 
 2. Установить приложение
 
-3. Запустить bro
+3. Запустить broxy
 
 4. Добавить MCP серверы в настройках
 
@@ -391,17 +391,17 @@ Windows (MSI):
 
 macOS:
 ```bash
-/Applications/bro.app/Contents/MacOS/bro --stdio-proxy --preset-id <preset> [--config-dir ~/.config/bro]
+/Applications/broxy.app/Contents/MacOS/broxy --stdio-proxy --preset-id <preset> [--config-dir ~/.config/broxy]
 ```
 
 Windows:
 ```powershell
-"C:\\Program Files\\bro\\bro.exe" --stdio-proxy --preset-id <preset> --config-dir "%APPDATA%\\bro"
+"C:\\Program Files\\broxy\\broxy.exe" --stdio-proxy --preset-id <preset> --config-dir "%APPDATA%\\broxy"
 ```
 
 Примечания:
 - `--preset-id` обязателен — это пресет, который будет применён для фильтрации инструментов.
-- `--config-dir` опционален. По умолчанию используется `~/.config/bro` на macOS/Linux и `%USERPROFILE%\\.config\\bro` на Windows.
+- `--config-dir` опционален. По умолчанию используется `~/.config/broxy` на macOS/Linux и `%USERPROFILE%\\.config\\broxy` на Windows.
 - Логи в этом режиме пишутся в stderr, а stdout используется только для MCP-протокола (не смешивается с логами).
 
 ### CLI режим
@@ -411,17 +411,17 @@ Windows:
 ./gradlew :cli:shadowJar
 ```
 
-2. Подготовить конфиги (по умолчанию используется `~/.config/bro`):
+2. Подготовить конфиги (по умолчанию используется `~/.config/broxy`):
 ```bash
-mkdir -p ~/.config/bro
-# ~/.config/bro/mcp.json — список MCP серверов (см. пример выше)
-# ~/.config/bro/preset_developer.json — пресет (см. примеры ниже)
+mkdir -p ~/.config/broxy
+# ~/.config/broxy/mcp.json — список MCP серверов (см. пример выше)
+# ~/.config/broxy/preset_developer.json — пресет (см. примеры ниже)
 ```
 
 3. Запустить прокси:
 ```bash
-java -jar cli/build/libs/bro-cli-0.1.0.jar proxy \
-  --config-dir ~/.config/bro \
+java -jar cli/build/libs/broxy-cli-0.1.0.jar proxy \
+  --config-dir ~/.config/broxy \
   --preset-id developer \
   --inbound stdio \
   --log-level info
@@ -502,8 +502,8 @@ export OPENAI_API_KEY="sk-xxxxxxxxxxxx"
 
 ```bash
 # Клонировать репозиторий
-git clone https://github.com/qent/bro.git
-cd bro
+git clone https://github.com/qent/broxy.git
+cd broxy
 
 # Сборка всех модулей
 ./gradlew build
@@ -534,9 +534,9 @@ cd bro
 
 - Команда: `./gradlew :ui:packageDistributionForCurrentOS` генерирует DMG (macOS), MSI (Windows) или DEB (Linux) в `ui/build/compose/binaries/main/<format>/`.
 - Иконки (опционально): положите файлы в `ui/src/desktopMain/resources/icons/`
-  - macOS: `bro.icns`
-  - Windows: `bro.ico`
-  - Linux: `bro.png`
+  - macOS: `broxy.icns`
+  - Windows: `broxy.ico`
+  - Linux: `broxy.png`
 - Подпись (по переменным окружения; по умолчанию отключена):
   - macOS: `MACOS_SIGN=true`, `MACOS_IDENTITY=Developer ID Application: ...`, `MACOS_NOTARY_APPLE_ID`, `MACOS_NOTARY_PASSWORD`, `MACOS_NOTARY_TEAM_ID`
   - Windows: `WIN_SIGN=true`, `WIN_CERT_PATH=/path/to/cert.pem` или `.p7b`, `WIN_KEY_PATH=/path/to/key.pem`, `WIN_CERT_PASSWORD=secret`, `WIN_TIMESTAMP_URL` (необязательно)
@@ -545,7 +545,7 @@ cd bro
 ### Структура проекта
 
 ```
-bro/
+broxy/
 ├── core/           # Бизнес-логика
 ├── ui/             # Desktop UI
 ├── cli/            # CLI приложение
@@ -568,7 +568,7 @@ MIT License - см. [LICENSE](LICENSE) для деталей.
 
 ## ❓ FAQ
 
-**Q: Можно ли использовать bro с другими AI клиентами, кроме Claude Desktop?**
+**Q: Можно ли использовать broxy с другими AI клиентами, кроме Claude Desktop?**
 A: Да, любой клиент, поддерживающий MCP протокол, может подключиться к прокси-серверу.
 
 **Q: Сколько серверов можно подключить одновременно?**
@@ -585,6 +585,6 @@ A: Скачайте новую сборку (инсталлятор для Deskt
 
 ## 📞 Поддержка
 
-- **Issues**: [GitHub Issues](https://github.com/qent/bro/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/qent/bro/discussions)
-- **Email**: support@bro.example.com
+- **Issues**: [GitHub Issues](https://github.com/qent/broxy/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/qent/broxy/discussions)
+- **Email**: support@broxy.example.com

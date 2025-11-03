@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://io.qent.bro/schemas/mcp.schema.json",
+  "$id": "https://io.qent.broxy/schemas/mcp.schema.json",
   "title": "MCP Servers Configuration",
   "type": "object",
   "additionalProperties": false,

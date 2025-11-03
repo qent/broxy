@@ -17,7 +17,7 @@ pluginManagement {
     }
 }
 
-rootProject.name = "bro"
+rootProject.name = "broxy"
 
 include(
     "core",

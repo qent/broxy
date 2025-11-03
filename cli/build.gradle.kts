@@ -18,11 +18,11 @@ dependencies {
 }
 
 application {
-    mainClass.set("io.qent.bro.cli.MainKt")
+    mainClass.set("io.qent.broxy.cli.MainKt")
 }
 
 tasks.withType<ShadowJar>().configureEach {
-    archiveBaseName.set("bro-cli")
+    archiveBaseName.set("broxy-cli")
     archiveClassifier.set("")
     mergeServiceFiles()
     manifest {

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://io.qent.bro/schemas/preset.schema.json",
+  "$id": "https://io.qent.broxy/schemas/preset.schema.json",
   "title": "Preset Configuration",
   "type": "object",
   "additionalProperties": false,

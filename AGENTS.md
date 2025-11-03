@@ -1,4 +1,4 @@
-# AGENTS.md - Руководство по разработке bro
+# AGENTS.md - Руководство по разработке broxy
 
 ## Архитектурные принципы
 
@@ -42,7 +42,7 @@
 ## Структура проекта
 
 ```
-bro/
+broxy/
 ├── core/                      # Платформенно-независимая логика
 │   ├── src/
 │   │   ├── commonMain/       # Общий код для всех платформ
@@ -360,7 +360,7 @@ class ToolRegistry {
 - Классы: PascalCase (`McpServerConfig`)
 - Функции и переменные: camelCase (`loadConfig`)
 - Константы: UPPER_SNAKE_CASE (`DEFAULT_TIMEOUT`)
-- Пакеты: lowercase (`io.qent.bro.core`)
+- Пакеты: lowercase (`io.qent.broxy.core`)
 
 ### 2. Структура класса
 ```kotlin
