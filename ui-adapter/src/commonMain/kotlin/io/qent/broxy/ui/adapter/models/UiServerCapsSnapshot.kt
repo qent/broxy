@@ -10,16 +10,25 @@ data class UiServerCapsSnapshot(
 
 data class UiToolSummary(
     val name: String,
-    val description: String? = null
+    val description: String? = null,
+    val arguments: List<UiCapabilityArgument> = emptyList()
 )
 
 data class UiPromptSummary(
     val name: String,
-    val description: String? = null
+    val description: String? = null,
+    val arguments: List<UiCapabilityArgument> = emptyList()
 )
 
 data class UiResourceSummary(
     val key: String,
     val name: String,
-    val description: String? = null
+    val description: String? = null,
+    val arguments: List<UiCapabilityArgument> = emptyList()
+)
+
+data class UiCapabilityArgument(
+    val name: String,
+    val type: String = "unspecified",
+    val required: Boolean = false
 )

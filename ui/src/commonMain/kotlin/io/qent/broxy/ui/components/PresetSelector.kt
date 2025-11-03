@@ -146,6 +146,10 @@ fun PresetSelector(
                             )
                             Column(modifier = Modifier.padding(top = 6.dp)) {
                                 Text(t.name, style = MaterialTheme.typography.bodyMedium)
+                                CapabilityArgumentList(
+                                    arguments = t.arguments,
+                                    modifier = Modifier.padding(top = 2.dp)
+                                )
                                 Text(
                                     description,
                                     style = MaterialTheme.typography.bodySmall,
@@ -159,6 +163,7 @@ fun PresetSelector(
                     Text("Prompts", style = MaterialTheme.typography.labelLarge)
                     snap.prompts.forEach { p ->
                         val checked = selectedPrompts[serverId]?.contains(p.name) == true
+                        val description = p.description?.takeIf { it.isNotBlank() } ?: "No description provided"
                         Row(Modifier.fillMaxWidth().padding(start = 8.dp)) {
                             Checkbox(
                                 checked = checked,
@@ -168,24 +173,47 @@ fun PresetSelector(
                                     selectedPrompts[serverId] = next
                                 }
                             )
-                            Text(p.name, modifier = Modifier.padding(top = 10.dp))
+                            Column(modifier = Modifier.padding(top = 6.dp)) {
+                                Text(p.name, style = MaterialTheme.typography.bodyMedium)
+                                CapabilityArgumentList(
+                                    arguments = p.arguments,
+                                    modifier = Modifier.padding(top = 2.dp)
+                                )
+                                Text(
+                                    description,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     }
                     Spacer(Modifier.height(4.dp))
                     // Resources
                     Text("Resources", style = MaterialTheme.typography.labelLarge)
-                    snap.resources.forEach { key ->
-                        val checked = selectedResources[serverId]?.contains(key.key) == true
+                    snap.resources.forEach { resource ->
+                        val checked = selectedResources[serverId]?.contains(resource.key) == true
+                        val description = resource.description?.takeIf { it.isNotBlank() } ?: resource.key
                         Row(Modifier.fillMaxWidth().padding(start = 8.dp)) {
                             Checkbox(
                                 checked = checked,
                                 onCheckedChange = { c ->
                                     val prev = selectedResources[serverId] ?: emptySet()
-                                    val next = if (c) prev + key.key else prev - key.key
+                                    val next = if (c) prev + resource.key else prev - resource.key
                                     selectedResources[serverId] = next
                                 }
                             )
-                            Text(key.name, modifier = Modifier.padding(top = 10.dp))
+                            Column(modifier = Modifier.padding(top = 6.dp)) {
+                                Text(resource.name, style = MaterialTheme.typography.bodyMedium)
+                                CapabilityArgumentList(
+                                    arguments = resource.arguments,
+                                    modifier = Modifier.padding(top = 2.dp)
+                                )
+                                Text(
+                                    description,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     }
                 }

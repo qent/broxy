@@ -34,15 +34,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
-import io.qent.broxy.ui.adapter.models.UiPreset
 import io.qent.broxy.ui.adapter.store.UIState
 import io.qent.broxy.ui.adapter.store.AppStore
 import io.qent.broxy.ui.viewmodels.AppState
 import io.qent.broxy.ui.adapter.models.UiServerDraft
 import io.qent.broxy.ui.adapter.models.UiPresetDraft
+import io.qent.broxy.ui.adapter.models.UiCapabilityArgument
 import io.qent.broxy.ui.adapter.models.UiToolRef
 import io.qent.broxy.ui.adapter.models.UiServer
 import io.qent.broxy.ui.adapter.models.UiServerCapsSnapshot
+import io.qent.broxy.ui.components.CapabilityArgumentList
 import io.qent.broxy.ui.components.ServerForm
 import io.qent.broxy.ui.components.ServerFormState
 import io.qent.broxy.ui.components.ServerFormStateFactory
@@ -297,7 +298,8 @@ private fun ServerDetailsContent(
                 items(snapshot.tools) { tool ->
                     CapabilityEntry(
                         title = tool.name,
-                        description = tool.description?.takeIf { it.isNotBlank() } ?: "No description provided"
+                        description = tool.description?.takeIf { it.isNotBlank() } ?: "No description provided",
+                        arguments = tool.arguments
                     )
                 }
             }
@@ -308,7 +310,8 @@ private fun ServerDetailsContent(
                 items(snapshot.resources) { resource ->
                     CapabilityEntry(
                         title = resource.name,
-                        description = resource.description?.takeIf { it.isNotBlank() } ?: resource.key
+                        description = resource.description?.takeIf { it.isNotBlank() } ?: resource.key,
+                        arguments = resource.arguments
                     )
                 }
             }
@@ -319,7 +322,8 @@ private fun ServerDetailsContent(
                 items(snapshot.prompts) { prompt ->
                     CapabilityEntry(
                         title = prompt.name,
-                        description = prompt.description?.takeIf { it.isNotBlank() } ?: "No description provided"
+                        description = prompt.description?.takeIf { it.isNotBlank() } ?: "No description provided",
+                        arguments = prompt.arguments
                     )
                 }
             }
@@ -365,7 +369,11 @@ private fun SectionEmptyMessage(message: String) {
 }
 
 @Composable
-private fun CapabilityEntry(title: String, description: String) {
+private fun CapabilityEntry(
+    title: String,
+    description: String,
+    arguments: List<UiCapabilityArgument> = emptyList()
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -373,6 +381,10 @@ private fun CapabilityEntry(title: String, description: String) {
         verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
         Text(title, style = MaterialTheme.typography.bodyMedium)
+        CapabilityArgumentList(
+            arguments = arguments,
+            modifier = Modifier.padding(top = 2.dp)
+        )
         Text(
             description,
             style = MaterialTheme.typography.bodySmall,

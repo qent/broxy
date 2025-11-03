@@ -14,6 +14,8 @@ kotlin {
                 // Do NOT expose core via API to UI
                 implementation(project(":core"))
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:${property("coroutinesVersion")}")
+                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:${property("serializationVersion")}")
+                implementation("io.modelcontextprotocol:kotlin-sdk-core:${property("mcpSdkVersion")}")
             }
         }
         val jvmMain by getting {
