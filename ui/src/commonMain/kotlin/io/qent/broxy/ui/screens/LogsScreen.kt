@@ -1,6 +1,5 @@
 package io.qent.broxy.ui.screens
 
-import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -10,8 +9,8 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -25,6 +24,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -35,6 +36,7 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import io.qent.broxy.ui.components.AppVerticalScrollbar
 import io.qent.broxy.ui.adapter.models.UiLogEntry
 import io.qent.broxy.ui.adapter.models.UiLogLevel
 import io.qent.broxy.ui.adapter.store.UIState
@@ -66,6 +68,13 @@ private fun LogsContent(logs: List<UiLogEntry>) {
     }
 
     val listState = rememberLazyListState()
+    val scrollbarAdapter = rememberScrollbarAdapter(listState)
+    val showScrollbar by remember {
+        derivedStateOf {
+            val layoutInfo = listState.layoutInfo
+            layoutInfo.totalItemsCount > layoutInfo.visibleItemsInfo.size
+        }
+    }
 
     val activeLevelsState = remember {
         mutableStateOf(setOf(
@@ -131,30 +140,15 @@ private fun LogsContent(logs: List<UiLogEntry>) {
             }
         }
 
-        // Track background to visually indicate draggable area
-        Box(
-            modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .fillMaxHeight()
-                .width(AppTheme.layout.scrollbarThickness)
-                .padding(end = AppTheme.spacing.xs)
-                .clip(
-                    RoundedCornerShape(
-                        topStart = AppTheme.radii.sm,
-                        bottomStart = AppTheme.radii.sm
-                    )
-                )
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
-        )
-
-        VerticalScrollbar(
-            adapter = rememberScrollbarAdapter(listState),
-            modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .fillMaxHeight()
-                .width(AppTheme.layout.scrollbarThickness)
-                .padding(end = AppTheme.spacing.xs)
-        )
+        if (showScrollbar) {
+            AppVerticalScrollbar(
+                adapter = scrollbarAdapter,
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .fillMaxHeight()
+                    .padding(end = AppTheme.spacing.xs)
+            )
+        }
     }
 }
 
