@@ -2,17 +2,25 @@ package io.qent.broxy.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.*
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.material3.Button
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -92,24 +100,16 @@ private fun SettingsContent(
         TrayIconSetting(checked = showTrayIcon, onToggle = onToggleTrayIcon)
         TimeoutSetting(
             value = timeoutInput,
+            canSave = canSave,
             onValueChange = { value ->
                 if (value.isEmpty() || value.all { it.isDigit() }) {
                     timeoutInput = value
                 }
+            },
+            onSave = {
+                resolved?.let { onTimeoutSave(it) }
             }
         )
-        Spacer(Modifier.height(AppTheme.spacing.md))
-        SettingsActionRow {
-            Button(
-                onClick = {
-                    val seconds = resolved ?: return@Button
-                    onTimeoutSave(seconds)
-                },
-                enabled = canSave
-            ) {
-                Text("Save timeout")
-            }
-        }
     }
 }
 
@@ -118,7 +118,7 @@ private fun TrayIconSetting(
     checked: Boolean,
     onToggle: (Boolean) -> Unit
 ) {
-    SettingRow(
+    SettingCard(
         title = "Show tray icon",
         description = "Display the broxy icon in the system tray (macOS menu bar)."
     ) {
@@ -129,16 +129,26 @@ private fun TrayIconSetting(
 @Composable
 private fun TimeoutSetting(
     value: String,
-    onValueChange: (String) -> Unit
+    canSave: Boolean,
+    onValueChange: (String) -> Unit,
+    onSave: () -> Unit
 ) {
-    SettingRow(
+    SettingCard(
         title = "Request timeout",
-        description = "Set how long broxy waits for downstream MCP calls before timing out."
+        description = "Set how long broxy waits for downstream MCP calls before timing out.",
+        supportingContent = {
+            Button(
+                onClick = onSave,
+                enabled = canSave
+            ) {
+                Text("Save")
+            }
+        }
     ) {
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
-            modifier = Modifier.widthIn(min = 96.dp, max = 140.dp),
+            modifier = Modifier.widthIn(min = SettingControlWidth, max = SettingControlWidth),
             singleLine = true,
             label = { Text("Seconds") }
         )
@@ -150,12 +160,12 @@ private fun ThemeStyleSetting(
     themeStyle: ThemeStyle,
     onThemeStyleChange: (ThemeStyle) -> Unit
 ) {
-    SettingRow(
+    SettingCard(
         title = "Appearance",
         description = "Choose whether broxy follows the system theme or forces light or dark mode."
     ) {
         ThemeStyleDropdown(
-            modifier = Modifier.widthIn(min = 180.dp),
+            modifier = Modifier.widthIn(min = SettingControlWidth, max = SettingControlWidth),
             selected = themeStyle,
             onSelected = onThemeStyleChange
         )
@@ -163,53 +173,41 @@ private fun ThemeStyleSetting(
 }
 
 @Composable
-private fun SettingsActionRow(
-    content: @Composable () -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.lg),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Spacer(modifier = Modifier.width(SettingLabelWidth))
-        Row(
-            modifier = Modifier.weight(1f),
-            horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm, Alignment.End),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            content()
-        }
-    }
-}
-
-@Composable
-private fun SettingRow(
+private fun SettingCard(
     title: String,
     description: String,
+    supportingContent: (@Composable ColumnScope.() -> Unit)? = null,
     control: @Composable RowScope.() -> Unit
 ) {
-    Row(
+    Card(
         modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.lg)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
-        Column(
-            modifier = Modifier.width(SettingLabelWidth),
-            verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.xs)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(AppTheme.spacing.lg),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.lg)
         ) {
-            Text(title, style = MaterialTheme.typography.titleMedium)
-            Text(
-                description,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.xs)
+            ) {
+                Text(title, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                supportingContent?.invoke(this)
+            }
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm, Alignment.End),
+                verticalAlignment = Alignment.CenterVertically,
+                content = control
             )
         }
-        Row(
-            modifier = Modifier.weight(1f),
-            horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm, Alignment.End),
-            verticalAlignment = Alignment.CenterVertically,
-            content = control
-        )
     }
 }
 
@@ -265,4 +263,4 @@ private fun ThemeStyleDropdown(
     }
 }
 
-private val SettingLabelWidth: Dp = 300.dp
+private val SettingControlWidth: Dp = 180.dp
