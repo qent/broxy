@@ -21,126 +21,127 @@ fun ProxyScreen(ui: UIState, state: AppState, notify: (String) -> Unit = {}) {
 
     Column(
         Modifier
-            .fillMaxWidth()
-            .padding(AppTheme.spacing.lg)
+            .fillMaxSize()
+            .padding(AppTheme.spacing.md)
     ) {
-        if (ui is UIState.Ready) {
-            val presets = ui.presets
-            if (presets.isEmpty()) {
-                Text("No presets available — create one on the Presets tab.")
-            } else {
-                val selectedPresetId = ui.selectedPresetId
-                val currentName = presets.firstOrNull { it.id == selectedPresetId }?.name
-                    ?: selectedPresetId ?: "(select)"
-                ExposedDropdownMenuBox(
-                    expanded = presetExpanded,
-                    onExpandedChange = { presetExpanded = !presetExpanded }
-                ) {
-                    OutlinedTextField(
-                        value = currentName,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Select preset") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = presetExpanded) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = AppTheme.spacing.xs)
-                            .menuAnchor()
-                    )
-                    DropdownMenu(
+        when (ui) {
+            is UIState.Loading -> Text("Loading...", style = MaterialTheme.typography.bodyMedium)
+            is UIState.Error -> Text("Error: ${ui.message}")
+            is UIState.Ready -> {
+                val presets = ui.presets
+                if (presets.isEmpty()) {
+                    Text("No presets available — create one on the Presets tab.")
+                } else {
+                    val selectedPresetId = ui.selectedPresetId
+                    val currentName = presets.firstOrNull { it.id == selectedPresetId }?.name
+                        ?: selectedPresetId ?: "(select)"
+                    ExposedDropdownMenuBox(
                         expanded = presetExpanded,
-                        onDismissRequest = { presetExpanded = false }
+                        onExpandedChange = { presetExpanded = !presetExpanded }
                     ) {
-                        presets.forEach { p ->
-                            val isSelected = p.id == selectedPresetId
-                            DropdownMenuItem(
-                                text = { Text(p.name) },
-                                onClick = {
-                                    presetExpanded = false
-                                    if (!isSelected) {
-                                        ui.intents.selectProxyPreset(p.id)
-                                        notify("Preset selected: ${p.name}")
-                                    }
-                                }
-                            )
-                        }
-                    }
-                }
-
-                Spacer(Modifier.height(AppTheme.spacing.md))
-                Row(horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)) {
-                    val options = listOf(localOption, remoteOption)
-                    options.forEach { opt ->
-                        val selected = inboundMode == opt
-                        val (bg, fg) = if (opt == localOption) {
-                            MaterialTheme.colorScheme.secondaryContainer to MaterialTheme.colorScheme.onSecondaryContainer
-                        } else {
-                            MaterialTheme.colorScheme.primaryContainer to MaterialTheme.colorScheme.onPrimaryContainer
-                        }
-                        FilledTonalButton(
-                            onClick = {
-                                inboundMode = opt
-                                if (opt == localOption) {
-                                    inboundUrl = ""
-                                } else if (inboundUrl.isBlank()) {
-                                    inboundUrl = "http://0.0.0.0:3335/mcp"
-                                }
-                            },
-                            shape = AppTheme.shapes.surfaceSm,
-                            colors = ButtonDefaults.filledTonalButtonColors(
-                                containerColor = if (selected) bg else MaterialTheme.colorScheme.surfaceVariant,
-                                contentColor = if (selected) fg else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                        OutlinedTextField(
+                            value = currentName,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Select preset") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = presetExpanded) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .menuAnchor()
+                        )
+                        DropdownMenu(
+                            expanded = presetExpanded,
+                            onDismissRequest = { presetExpanded = false }
                         ) {
-                            Text(opt)
+                            presets.forEach { p ->
+                                val isSelected = p.id == selectedPresetId
+                                DropdownMenuItem(
+                                    text = { Text(p.name) },
+                                    onClick = {
+                                        presetExpanded = false
+                                        if (!isSelected) {
+                                            ui.intents.selectProxyPreset(p.id)
+                                            notify("Preset selected: ${p.name}")
+                                        }
+                                    }
+                                )
+                            }
                         }
                     }
-                }
-                if (inboundMode != localOption) {
-                    Spacer(Modifier.height(AppTheme.spacing.xs))
-                    OutlinedTextField(
-                        value = inboundUrl,
-                        onValueChange = { inboundUrl = it },
-                        label = { Text("Remote (SSE) URL") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
 
-                Spacer(Modifier.height(AppTheme.spacing.sm))
-                val running = ui.proxyStatus is io.qent.broxy.ui.adapter.models.UiProxyStatus.Running
-                val statusText = when (val s = ui.proxyStatus) {
-                    is io.qent.broxy.ui.adapter.models.UiProxyStatus.Running -> "Running"
-                    is io.qent.broxy.ui.adapter.models.UiProxyStatus.Stopped -> "Stopped"
-                    is io.qent.broxy.ui.adapter.models.UiProxyStatus.Error -> "Error: ${s.message}"
-                }
-                Text(statusText, style = MaterialTheme.typography.bodyMedium)
-                Spacer(Modifier.height(AppTheme.spacing.sm))
-
-                Button(
-                    onClick = {
-                        val pid = ui.selectedPresetId
-                        if (!running) {
-                            if (pid == null) {
-                                notify("Select a preset first")
-                                return@Button
-                            }
-                            val inbound = if (inboundMode == localOption) {
-                                UiStdioDraft(command = "")
+                    Spacer(Modifier.height(AppTheme.spacing.md))
+                    Row(horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)) {
+                        val options = listOf(localOption, remoteOption)
+                        options.forEach { opt ->
+                            val selected = inboundMode == opt
+                            val (bg, fg) = if (opt == localOption) {
+                                MaterialTheme.colorScheme.secondaryContainer to MaterialTheme.colorScheme.onSecondaryContainer
                             } else {
-                                UiHttpDraft(url = inboundUrl)
+                                MaterialTheme.colorScheme.primaryContainer to MaterialTheme.colorScheme.onPrimaryContainer
                             }
-                            ui.intents.startProxy(pid, inbound)
-                            notify("Proxy started")
-                        } else {
-                            ui.intents.stopProxy()
-                            notify("Proxy stopped")
+                            FilledTonalButton(
+                                onClick = {
+                                    inboundMode = opt
+                                    if (opt == localOption) {
+                                        inboundUrl = ""
+                                    } else if (inboundUrl.isBlank()) {
+                                        inboundUrl = "http://0.0.0.0:3335/mcp"
+                                    }
+                                },
+                                shape = AppTheme.shapes.surfaceSm,
+                                colors = ButtonDefaults.filledTonalButtonColors(
+                                    containerColor = if (selected) bg else MaterialTheme.colorScheme.surfaceVariant,
+                                    contentColor = if (selected) fg else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            ) {
+                                Text(opt)
+                            }
                         }
-                    },
-                    shape = AppTheme.shapes.surfaceSm
-                ) { Text(if (running) "Stop proxy" else "Start proxy") }
+                    }
+                    if (inboundMode != localOption) {
+                        Spacer(Modifier.height(AppTheme.spacing.sm))
+                        OutlinedTextField(
+                            value = inboundUrl,
+                            onValueChange = { inboundUrl = it },
+                            label = { Text("Remote (SSE) URL") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    Spacer(Modifier.height(AppTheme.spacing.md))
+                    val running = ui.proxyStatus is io.qent.broxy.ui.adapter.models.UiProxyStatus.Running
+                    val statusText = when (val s = ui.proxyStatus) {
+                        is io.qent.broxy.ui.adapter.models.UiProxyStatus.Running -> "Running"
+                        is io.qent.broxy.ui.adapter.models.UiProxyStatus.Stopped -> "Stopped"
+                        is io.qent.broxy.ui.adapter.models.UiProxyStatus.Error -> "Error: ${s.message}"
+                    }
+                    Text(statusText, style = MaterialTheme.typography.bodyMedium)
+                    Spacer(Modifier.height(AppTheme.spacing.sm))
+
+                    Button(
+                        onClick = {
+                            val pid = ui.selectedPresetId
+                            if (!running) {
+                                if (pid == null) {
+                                    notify("Select a preset first")
+                                    return@Button
+                                }
+                                val inbound = if (inboundMode == localOption) {
+                                    UiStdioDraft(command = "")
+                                } else {
+                                    UiHttpDraft(url = inboundUrl)
+                                }
+                                ui.intents.startProxy(pid, inbound)
+                                notify("Proxy started")
+                            } else {
+                                ui.intents.stopProxy()
+                                notify("Proxy stopped")
+                            }
+                        },
+                        shape = AppTheme.shapes.surfaceSm
+                    ) { Text(if (running) "Stop proxy" else "Start proxy") }
+                }
             }
-        } else {
-            Text("Loading presets...", style = MaterialTheme.typography.bodyMedium)
         }
     }
 }
