@@ -3,29 +3,28 @@ package io.qent.broxy.ui.screens
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import io.qent.broxy.ui.adapter.models.UiServer
+import io.qent.broxy.ui.components.AppDialog
 import io.qent.broxy.ui.theme.AppTheme
 
 @Composable
 fun ServerDetailsDialog(cfg: UiServer, onClose: () -> Unit) {
-    AlertDialog(
+    AppDialog(
+        title = "${cfg.name} • Details",
         onDismissRequest = onClose,
-        title = { Text("${cfg.name} • Details") },
-        text = {
-            Column(
-                Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)
-            ) {
-                Text("ID: ${cfg.id}", style = MaterialTheme.typography.bodyMedium)
-                Text("Transport: ${cfg.transportLabel}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        },
-        confirmButton = { Text(" ") },
-        dismissButton = { Text(" ") }
-    )
+        dismissButton = null,
+        confirmButton = { TextButton(onClick = onClose) { Text("Close") } }
+    ) {
+        Text("ID: ${cfg.id}", style = MaterialTheme.typography.bodyMedium)
+        Text(
+            "Transport: ${cfg.transportLabel}",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
 }

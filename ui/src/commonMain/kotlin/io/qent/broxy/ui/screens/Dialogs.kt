@@ -1,69 +1,54 @@
 package io.qent.broxy.ui.screens
 
-import androidx.compose.foundation.VerticalScrollbar
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollbarAdapter
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.input.TextFieldValue
-import io.qent.broxy.ui.adapter.store.UIState
-import io.qent.broxy.ui.adapter.store.AppStore
-import io.qent.broxy.ui.viewmodels.AppState
-import io.qent.broxy.ui.adapter.models.UiServerDraft
-import io.qent.broxy.ui.adapter.models.UiPresetDraft
 import io.qent.broxy.ui.adapter.models.UiCapabilityArgument
-import io.qent.broxy.ui.adapter.models.UiToolRef
+import io.qent.broxy.ui.adapter.models.UiPresetDraft
 import io.qent.broxy.ui.adapter.models.UiServer
 import io.qent.broxy.ui.adapter.models.UiServerCapsSnapshot
+import io.qent.broxy.ui.adapter.models.UiServerDraft
+import io.qent.broxy.ui.adapter.models.UiToolRef
+import io.qent.broxy.ui.adapter.services.validateServerConnection
+import io.qent.broxy.ui.adapter.store.AppStore
+import io.qent.broxy.ui.adapter.store.UIState
+import io.qent.broxy.ui.components.AppDialog
 import io.qent.broxy.ui.components.CapabilityArgumentList
+import io.qent.broxy.ui.components.PresetSelector
 import io.qent.broxy.ui.components.ServerForm
 import io.qent.broxy.ui.components.ServerFormState
 import io.qent.broxy.ui.components.ServerFormStateFactory
 import io.qent.broxy.ui.components.toDraft
-import io.qent.broxy.ui.components.PresetSelector
-import io.qent.broxy.ui.adapter.services.validateServerConnection
-import androidx.compose.runtime.rememberCoroutineScope
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.CancellationException
 import io.qent.broxy.ui.theme.AppTheme
+import io.qent.broxy.ui.viewmodels.AppState
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 
 @Composable
 fun AddServerDialog(ui: UIState, state: AppState, notify: (String) -> Unit) {
     val form = remember { mutableStateOf(ServerFormState()) }
     val scope = rememberCoroutineScope()
 
-    AlertDialog(
+    AppDialog(
+        title = "Add server",
         onDismissRequest = { state.showAddServerDialog.value = false },
-        title = { Text("Add server") },
-        text = {
-            ServerForm(state = form.value, onStateChange = { form.value = it })
+        dismissButton = {
+            TextButton(onClick = { state.showAddServerDialog.value = false }) { Text("Cancel") }
         },
         confirmButton = {
             Button(onClick = {
@@ -79,9 +64,9 @@ fun AddServerDialog(ui: UIState, state: AppState, notify: (String) -> Unit) {
                                 if (isTimeout) {
                                     notify("Connection timed out. Saved as disabled.")
                                 } else {
-                                val errMsg = e?.message?.takeIf { it.isNotBlank() }
-                                val details = errMsg?.let { ": $it" } ?: ""
-                                notify("Connection failed$details. Saved as disabled.")
+                                    val errMsg = e?.message?.takeIf { it.isNotBlank() }
+                                    val details = errMsg?.let { ": $it" } ?: ""
+                                    notify("Connection failed$details. Saved as disabled.")
                                 }
                                 toSave = draft.copy(enabled = false)
                             }
@@ -92,11 +77,13 @@ fun AddServerDialog(ui: UIState, state: AppState, notify: (String) -> Unit) {
                     }
                 }
             }) { Text("Save") }
-        },
-        dismissButton = {
-            TextButton(onClick = { state.showAddServerDialog.value = false }) { Text("Cancel") }
         }
-    )
+    ) {
+        ServerForm(
+            state = form.value,
+            onStateChange = { form.value = it }
+        )
+    }
 }
 
 @Composable
@@ -105,22 +92,11 @@ fun AddPresetDialog(ui: UIState, state: AppState, store: AppStore) {
     val description = remember { mutableStateOf(TextFieldValue("")) }
     val selectedTools = remember { mutableStateOf<List<UiToolRef>>(emptyList()) }
 
-    AlertDialog(
+    AppDialog(
+        title = "Add preset",
         onDismissRequest = { state.showAddPresetDialog.value = false },
-        title = { Text("Add preset") },
-        text = {
-            Column(
-                Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)
-            ) {
-                OutlinedTextField(value = name.value, onValueChange = { name.value = it }, label = { Text("Name") }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = description.value, onValueChange = { description.value = it }, label = { Text("Description (optional)") }, modifier = Modifier.fillMaxWidth())
-                Text(
-                    "Select tools/prompts/resources from connected servers",
-                    modifier = Modifier.padding(top = AppTheme.spacing.xs)
-                )
-                PresetSelector(store = store, onToolsChanged = { selectedTools.value = it })
-            }
+        dismissButton = {
+            TextButton(onClick = { state.showAddPresetDialog.value = false }) { Text("Cancel") }
         },
         confirmButton = {
             Button(onClick = {
@@ -135,11 +111,30 @@ fun AddPresetDialog(ui: UIState, state: AppState, store: AppStore) {
                     state.showAddPresetDialog.value = false
                 }
             }) { Text("Add") }
-        },
-        dismissButton = {
-            Button(onClick = { state.showAddPresetDialog.value = false }) { Text("Cancel") }
         }
-    )
+    ) {
+        OutlinedTextField(
+            value = name.value,
+            onValueChange = { name.value = it },
+            label = { Text("Name") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        OutlinedTextField(
+            value = description.value,
+            onValueChange = { description.value = it },
+            label = { Text("Description (optional)") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Text(
+            "Select tools/prompts/resources from connected servers",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        PresetSelector(
+            store = store,
+            onToolsChanged = { selectedTools.value = it }
+        )
+    }
 }
 
 @Composable
@@ -152,12 +147,10 @@ fun EditServerDialog(
     val form = remember { mutableStateOf(ServerFormStateFactory.from(initial)) }
     val scope = rememberCoroutineScope()
 
-    AlertDialog(
+    AppDialog(
+        title = "Edit server",
         onDismissRequest = onClose,
-        title = { Text("Edit server") },
-        text = {
-            ServerForm(state = form.value, onStateChange = { form.value = it })
-        },
+        dismissButton = { TextButton(onClick = onClose) { Text("Cancel") } },
         confirmButton = {
             Button(onClick = {
                 if (ui is UIState.Ready) {
@@ -172,9 +165,9 @@ fun EditServerDialog(
                                 if (isTimeout) {
                                     notify("Connection timed out. Saved as disabled.")
                                 } else {
-                                val errMsg = e?.message?.takeIf { it.isNotBlank() }
-                                val details = errMsg?.let { ": $it" } ?: ""
-                                notify("Connection failed$details. Saved as disabled.")
+                                    val errMsg = e?.message?.takeIf { it.isNotBlank() }
+                                    val details = errMsg?.let { ": $it" } ?: ""
+                                    notify("Connection failed$details. Saved as disabled.")
                                 }
                                 toSave = draft.copy(enabled = false)
                             }
@@ -185,9 +178,13 @@ fun EditServerDialog(
                     }
                 }
             }) { Text("Save") }
-        },
-        dismissButton = { TextButton(onClick = onClose) { Text("Cancel") } }
-    )
+        }
+    ) {
+        ServerForm(
+            state = form.value,
+            onStateChange = { form.value = it }
+        )
+    }
 }
 
 @Composable
@@ -202,24 +199,10 @@ fun EditPresetDialog(
     val description = remember { mutableStateOf(TextFieldValue(initial.description ?: "")) }
     val selectedTools = remember { mutableStateOf<List<UiToolRef>>(initial.tools) }
 
-    AlertDialog(
+    AppDialog(
+        title = "Edit preset",
         onDismissRequest = onClose,
-        title = { Text("Edit preset") },
-        text = {
-            Column(
-                Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)
-            ) {
-                OutlinedTextField(value = name.value, onValueChange = { name.value = it }, label = { Text("Name") }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = id.value, onValueChange = { id.value = it }, label = { Text("ID") }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = description.value, onValueChange = { description.value = it }, label = { Text("Description") }, modifier = Modifier.fillMaxWidth())
-                Text(
-                    "Select tools/prompts/resources from connected servers",
-                    modifier = Modifier.padding(top = AppTheme.spacing.xs)
-                )
-                PresetSelector(store = store, initialToolRefs = initial.tools, onToolsChanged = { selectedTools.value = it })
-            }
-        },
+        dismissButton = { TextButton(onClick = onClose) { Text("Cancel") } },
         confirmButton = {
             Button(onClick = {
                 if (ui is UIState.Ready) {
@@ -233,9 +216,37 @@ fun EditPresetDialog(
                     onClose()
                 }
             }) { Text("Save") }
-        },
-        dismissButton = { TextButton(onClick = onClose) { Text("Cancel") } }
-    )
+        }
+    ) {
+        OutlinedTextField(
+            value = name.value,
+            onValueChange = { name.value = it },
+            label = { Text("Name") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        OutlinedTextField(
+            value = id.value,
+            onValueChange = { id.value = it },
+            label = { Text("ID") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        OutlinedTextField(
+            value = description.value,
+            onValueChange = { description.value = it },
+            label = { Text("Description") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Text(
+            "Select tools/prompts/resources from connected servers",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        PresetSelector(
+            store = store,
+            initialToolRefs = initial.tools,
+            onToolsChanged = { selectedTools.value = it }
+        )
+    }
 }
 
 @Composable
@@ -261,53 +272,41 @@ fun ServerDetailsDialog(
         }
     }
 
-    AlertDialog(
+    AppDialog(
+        title = "Server details",
         onDismissRequest = onClose,
-        title = { Text("Server details") },
-        text = {
-            when (val state = loadState) {
-                ServerDetailsState.Loading -> Text("Loading capabilities…")
-                is ServerDetailsState.Error -> Text("Failed to load capabilities: ${state.message}")
-                is ServerDetailsState.Ready -> ServerDetailsContent(snapshot = state.snapshot)
-            }
-        },
+        dismissButton = null,
         confirmButton = { TextButton(onClick = onClose) { Text("Close") } }
-    )
+    ) {
+        when (val state = loadState) {
+            ServerDetailsState.Loading -> Text("Loading capabilities…")
+            is ServerDetailsState.Error -> Text("Failed to load capabilities: ${state.message}")
+            is ServerDetailsState.Ready -> ServerDetailsContent(snapshot = state.snapshot)
+        }
+    }
 }
 
 @Composable
 private fun ServerDetailsContent(
     snapshot: UiServerCapsSnapshot
 ) {
-    val listState = rememberLazyListState()
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .widthIn(min = AppTheme.layout.dialogMinWidth)
-            .heightIn(max = AppTheme.layout.dialogMaxHeight)
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)
     ) {
-        LazyColumn(
-            state = listState,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(end = AppTheme.spacing.md),
-            verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)
-        ) {
-            item {
-                Column(verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.xs)) {
-                    Text(snapshot.name, style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        "ID: ${snapshot.serverId}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-            item { SectionHeader("Tools") }
+        Column(verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.xs)) {
+            Text(snapshot.name, style = MaterialTheme.typography.titleMedium)
+            Text(
+                "ID: ${snapshot.serverId}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        SectionBlock("Tools") {
             if (snapshot.tools.isEmpty()) {
-                item { SectionEmptyMessage("No tools available") }
+                SectionEmptyMessage("No tools available")
             } else {
-                items(snapshot.tools) { tool ->
+                snapshot.tools.forEach { tool ->
                     CapabilityEntry(
                         title = tool.name,
                         description = tool.description?.takeIf { it.isNotBlank() } ?: "No description provided",
@@ -315,11 +314,12 @@ private fun ServerDetailsContent(
                     )
                 }
             }
-            item { SectionHeader("Resources") }
+        }
+        SectionBlock("Resources") {
             if (snapshot.resources.isEmpty()) {
-                item { SectionEmptyMessage("No resources available") }
+                SectionEmptyMessage("No resources available")
             } else {
-                items(snapshot.resources) { resource ->
+                snapshot.resources.forEach { resource ->
                     CapabilityEntry(
                         title = resource.name,
                         description = resource.description?.takeIf { it.isNotBlank() } ?: resource.key,
@@ -327,11 +327,12 @@ private fun ServerDetailsContent(
                     )
                 }
             }
-            item { SectionHeader("Prompts") }
+        }
+        SectionBlock("Prompts") {
             if (snapshot.prompts.isEmpty()) {
-                item { SectionEmptyMessage("No prompts available") }
+                SectionEmptyMessage("No prompts available")
             } else {
-                items(snapshot.prompts) { prompt ->
+                snapshot.prompts.forEach { prompt ->
                     CapabilityEntry(
                         title = prompt.name,
                         description = prompt.description?.takeIf { it.isNotBlank() } ?: "No description provided",
@@ -339,31 +340,20 @@ private fun ServerDetailsContent(
                     )
                 }
             }
-            item { Spacer(Modifier.height(AppTheme.spacing.xs)) }
         }
+    }
+}
 
-        Box(
-            modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .fillMaxHeight()
-                .width(AppTheme.layout.scrollbarThickness)
-                .padding(end = AppTheme.spacing.xs)
-                .clip(
-                    RoundedCornerShape(
-                        topStart = AppTheme.radii.sm,
-                        bottomStart = AppTheme.radii.sm
-                    )
-                )
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
-        )
-        VerticalScrollbar(
-            adapter = rememberScrollbarAdapter(listState),
-            modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .fillMaxHeight()
-                .width(AppTheme.layout.scrollbarThickness)
-                .padding(end = AppTheme.spacing.xs)
-        )
+@Composable
+private fun SectionBlock(
+    title: String,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.xs)
+    ) {
+        SectionHeader(title)
+        content()
     }
 }
 
@@ -398,10 +388,12 @@ private fun CapabilityEntry(
         verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.xs)
     ) {
         Text(title, style = MaterialTheme.typography.bodyMedium)
-        CapabilityArgumentList(
-            arguments = arguments,
-            modifier = Modifier.padding(top = AppTheme.spacing.xs)
-        )
+        if (arguments.isNotEmpty()) {
+            CapabilityArgumentList(
+                arguments = arguments,
+                modifier = Modifier.padding(top = AppTheme.spacing.xs)
+            )
+        }
         Text(
             description,
             style = MaterialTheme.typography.bodySmall,

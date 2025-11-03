@@ -6,10 +6,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.width
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import io.qent.broxy.ui.adapter.models.UiHttpDraft
@@ -126,15 +128,28 @@ fun ServerForm(
         }
         Text("Transport")
         Row(horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)) {
-            listOf("STDIO", "HTTP", "STREAMABLE_HTTP", "WS").forEach { label ->
-                TextButton(onClick = { onStateChange(state.copy(transportType = label)) }) {
-                    val pretty = when (label) {
-                        "STDIO" -> "STDIO"
-                        "HTTP" -> "HTTP"
-                        "STREAMABLE_HTTP" -> "HTTP (Streamable)"
-                        else -> "WS"
-                    }
-                    Text(if (state.transportType == label) "[$pretty]" else pretty)
+            val transportOptions = listOf(
+                "STDIO" to "STDIO",
+                "HTTP" to "HTTP",
+                "STREAMABLE_HTTP" to "HTTP (Streamable)",
+                "WS" to "WebSocket"
+            )
+            transportOptions.forEach { (value, label) ->
+                val selected = state.transportType == value
+                val (selectedContainer, selectedContent) = if (value == "STDIO") {
+                    MaterialTheme.colorScheme.secondaryContainer to MaterialTheme.colorScheme.onSecondaryContainer
+                } else {
+                    MaterialTheme.colorScheme.primaryContainer to MaterialTheme.colorScheme.onPrimaryContainer
+                }
+                FilledTonalButton(
+                    onClick = { onStateChange(state.copy(transportType = value)) },
+                    shape = AppTheme.shapes.surfaceSm,
+                    colors = ButtonDefaults.filledTonalButtonColors(
+                        containerColor = if (selected) selectedContainer else MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = if (selected) selectedContent else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                ) {
+                    Text(label)
                 }
             }
         }
