@@ -200,21 +200,29 @@ fun main(args: Array<String>) {
                             }
                         }
                         Separator()
-                        val running = state.proxyStatus is UiProxyStatus.Running
-                        val statusLabel = "Server status: ${if (running) "on" else "off"}"
-                        Item(statusLabel) {
-                            if (running) {
-                                state.intents.stopProxy()
-                            } else {
-                                val presetId = state.selectedPresetId
-                                    ?: state.presets.singleOrNull()?.id
-                                if (presetId != null) {
-                                    if (state.selectedPresetId != presetId) {
-                                        state.intents.selectProxyPreset(presetId)
+                        val trayStatusText = when (state.proxyStatus) {
+                            UiProxyStatus.Starting -> "starting"
+                            UiProxyStatus.Running -> "on"
+                            UiProxyStatus.Stopping -> "stopping"
+                            UiProxyStatus.Stopped -> "off"
+                            is UiProxyStatus.Error -> "error"
+                        }
+                        val busy = state.proxyStatus is UiProxyStatus.Starting || state.proxyStatus is UiProxyStatus.Stopping
+                        Item("Server status: $trayStatusText", enabled = !busy) {
+                            when (state.proxyStatus) {
+                                UiProxyStatus.Running -> state.intents.stopProxy()
+                                UiProxyStatus.Starting, UiProxyStatus.Stopping -> Unit
+                                UiProxyStatus.Stopped, is UiProxyStatus.Error -> {
+                                    val presetId = state.selectedPresetId
+                                        ?: state.presets.singleOrNull()?.id
+                                    if (presetId != null) {
+                                        if (state.selectedPresetId != presetId) {
+                                            state.intents.selectProxyPreset(presetId)
+                                        }
+                                        state.intents.startProxySimple(presetId)
+                                    } else {
+                                        isWindowVisible = true
                                     }
-                                    state.intents.startProxySimple(presetId)
-                                } else {
-                                    isWindowVisible = true
                                 }
                             }
                         }

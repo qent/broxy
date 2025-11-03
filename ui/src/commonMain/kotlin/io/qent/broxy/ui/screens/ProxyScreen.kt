@@ -4,8 +4,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import io.qent.broxy.ui.adapter.models.UiHttpDraft
 import io.qent.broxy.ui.adapter.models.UiStdioDraft
+import io.qent.broxy.ui.adapter.models.UiProxyStatus
 import io.qent.broxy.ui.adapter.store.UIState
 import io.qent.broxy.ui.theme.AppTheme
 import io.qent.broxy.ui.viewmodels.AppState
@@ -109,15 +112,30 @@ fun ProxyScreen(ui: UIState, state: AppState, notify: (String) -> Unit = {}) {
                     }
 
                     Spacer(Modifier.height(AppTheme.spacing.md))
-                    val running = ui.proxyStatus is io.qent.broxy.ui.adapter.models.UiProxyStatus.Running
-                    val statusText = when (val s = ui.proxyStatus) {
-                        is io.qent.broxy.ui.adapter.models.UiProxyStatus.Running -> "Running"
-                        is io.qent.broxy.ui.adapter.models.UiProxyStatus.Stopped -> "Stopped"
-                        is io.qent.broxy.ui.adapter.models.UiProxyStatus.Error -> "Error: ${s.message}"
+                    val colorScheme = MaterialTheme.colorScheme
+                    val isDark = colorScheme.background.luminance() < 0.5f
+                    val (statusText, statusColor) = when (val s = ui.proxyStatus) {
+                        UiProxyStatus.Starting -> "Starting" to if (isDark) Color(0xFF4DD0E1) else Color(0xFF00838F)
+                        UiProxyStatus.Running -> "Running" to if (isDark) Color(0xFF66BB6A) else Color(0xFF2E7D32)
+                        UiProxyStatus.Stopping -> "Stopping" to if (isDark) Color(0xFFFFB74D) else Color(0xFFEF6C00)
+                        UiProxyStatus.Stopped -> "Stopped" to if (isDark) Color(0xFFFF8A80) else Color(0xFFD32F2F)
+                        is UiProxyStatus.Error -> "Error: ${s.message}" to colorScheme.error
                     }
-                    Text(statusText, style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        statusText,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = statusColor
+                    )
                     Spacer(Modifier.height(AppTheme.spacing.sm))
 
+                    val running = ui.proxyStatus is UiProxyStatus.Running
+                    val busy = ui.proxyStatus is UiProxyStatus.Starting || ui.proxyStatus is UiProxyStatus.Stopping
+                    val buttonLabel = when (ui.proxyStatus) {
+                        UiProxyStatus.Starting -> "Starting..."
+                        UiProxyStatus.Running -> "Stop proxy"
+                        UiProxyStatus.Stopping -> "Stopping..."
+                        else -> "Start proxy"
+                    }
                     Button(
                         onClick = {
                             val pid = ui.selectedPresetId
@@ -132,14 +150,15 @@ fun ProxyScreen(ui: UIState, state: AppState, notify: (String) -> Unit = {}) {
                                     UiHttpDraft(url = inboundUrl)
                                 }
                                 ui.intents.startProxy(pid, inbound)
-                                notify("Proxy started")
+                                notify("Starting proxy...")
                             } else {
                                 ui.intents.stopProxy()
-                                notify("Proxy stopped")
+                                notify("Stopping proxy...")
                             }
                         },
+                        enabled = !busy,
                         shape = AppTheme.shapes.surfaceSm
-                    ) { Text(if (running) "Stop proxy" else "Start proxy") }
+                    ) { Text(buttonLabel) }
                 }
             }
         }

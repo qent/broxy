@@ -365,6 +365,8 @@ class AppStore(
             return
         }
         val preset = presetResult.getOrThrow()
+        proxyStatus = UiProxyStatus.Starting
+        publishReady()
         val result = proxyController.start(servers.toList(), preset, inboundTransport, requestTimeoutSeconds)
         if (result.isSuccess) {
             activeProxyPresetId = presetId
@@ -598,6 +600,8 @@ class AppStore(
                 }
                 val preset = presetResult.getOrThrow()
                 val inbound = UiHttpTransport("http://0.0.0.0:3335/mcp")
+                proxyStatus = UiProxyStatus.Starting
+                publishReady()
                 val result = proxyController.start(servers.toList(), preset, inbound, requestTimeoutSeconds)
                 selectedProxyPresetId = presetId
                 if (result.isSuccess) {
@@ -640,6 +644,8 @@ class AppStore(
                     publishReady()
                     return@launch
                 }
+                proxyStatus = UiProxyStatus.Starting
+                publishReady()
                 val result = proxyController.start(servers.toList(), preset, inboundTransport, requestTimeoutSeconds)
                 if (result.isSuccess) {
                     proxyStatus = UiProxyStatus.Running
@@ -658,6 +664,8 @@ class AppStore(
 
         override fun stopProxy() {
             scope.launch {
+                proxyStatus = UiProxyStatus.Stopping
+                publishReady()
                 val result = proxyController.stop()
                 proxyStatus = if (result.isSuccess) UiProxyStatus.Stopped
                 else UiProxyStatus.Error(result.exceptionOrNull()?.message ?: "Failed to stop proxy")
