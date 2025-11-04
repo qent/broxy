@@ -14,8 +14,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -36,7 +34,9 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.lazy.rememberLazyListState
 import io.qent.broxy.ui.components.AppVerticalScrollbar
+import io.qent.broxy.ui.components.rememberStableScrollbarAdapter
 import io.qent.broxy.ui.adapter.models.UiLogEntry
 import io.qent.broxy.ui.adapter.models.UiLogLevel
 import io.qent.broxy.ui.adapter.store.UIState
@@ -68,7 +68,7 @@ private fun LogsContent(logs: List<UiLogEntry>) {
     }
 
     val listState = rememberLazyListState()
-    val scrollbarAdapter = rememberScrollbarAdapter(listState)
+    val scrollbarAdapter = rememberStableScrollbarAdapter(listState)
     val showScrollbar by remember {
         derivedStateOf {
             val layoutInfo = listState.layoutInfo
