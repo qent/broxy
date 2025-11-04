@@ -1,0 +1,86 @@
+name: Linux DEB (x86_64)
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: linux-deb-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deb:
+    name: Build DEB (x86_64)
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Print runner info
+        run: |
+          uname -a
+          lscpu || true
+
+      - name: Setup Java 17 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Clean and build (runs tests)
+        run: ./gradlew --no-daemon clean build
+        shell: bash
+
+      - name: Package DEB
+        run: ./gradlew --no-daemon :ui:packageDistributionForCurrentOS
+        shell: bash
+
+      - name: Locate DEB path
+        id: paths_linux
+        run: echo "path=ui/build/compose/binaries/main/deb" >> $GITHUB_OUTPUT
+
+      - name: Show produced files
+        run: |
+          echo "Artifacts in $ART_PATH" && ls -la "$ART_PATH"
+        env:
+          ART_PATH: ${{ steps.paths_linux.outputs.path }}
+
+      - name: Generate SHA256 checksums
+        run: |
+          cd "$ART_PATH"
+          shopt -s nullglob
+          : > CHECKSUMS.txt
+          for f in *.deb; do
+            [ -f "$f" ] || continue
+            sha256sum "$f" >> CHECKSUMS.txt || shasum -a 256 "$f" >> CHECKSUMS.txt || true
+          done
+          cat CHECKSUMS.txt || true
+        env:
+          ART_PATH: ${{ steps.paths_linux.outputs.path }}
+
+      - name: Upload DEB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: broxy-linux-x86_64-deb
+          path: |
+            ${{ steps.paths_linux.outputs.path }}/*.deb
+            ${{ steps.paths_linux.outputs.path }}/CHECKSUMS.txt
+
+      - name: Publish GitHub Release (tag only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ${{ steps.paths_linux.outputs.path }}/*.deb
+            ${{ steps.paths_linux.outputs.path }}/CHECKSUMS.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
