@@ -25,7 +25,13 @@ fun runStdioProxy(presetId: String, configDir: String? = null): Result<Unit> = r
 
     val controller = createStdioProxyController()
     val inbound = TransportConfig.StdioTransport(command = "", args = emptyList())
-    val r = controller.start(cfg.servers, preset, inbound, cfg.requestTimeoutSeconds)
+    val r = controller.start(
+        servers = cfg.servers,
+        preset = preset,
+        inbound = inbound,
+        callTimeoutSeconds = cfg.requestTimeoutSeconds,
+        capabilitiesTimeoutSeconds = cfg.capabilitiesTimeoutSeconds
+    )
     if (r.isFailure) throw r.exceptionOrNull() ?: IllegalStateException("Failed to start proxy")
     // For STDIO inbound, controller.start() blocks inside InboundServers until the session ends.
     // When it returns successfully, we treat it as a graceful exit.

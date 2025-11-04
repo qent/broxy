@@ -74,7 +74,11 @@ class DefaultMcpServerConnectionMoreTest {
                 override suspend fun readResource(uri: String): Result<JsonObject> = Result.success(JsonObject(emptyMap()))
             }
 
-            val conn = DefaultMcpServerConnection(config(), client = slowClient, callTimeoutMillis = 10)
+            val conn = DefaultMcpServerConnection(
+                config(),
+                client = slowClient,
+                initialCallTimeoutMillis = 10
+            )
             val res = conn.callTool("slow", JsonObject(emptyMap()))
             assertTrue(res.isFailure)
             assertIs<io.qent.broxy.core.mcp.errors.McpError.TimeoutError>(res.exceptionOrNull())

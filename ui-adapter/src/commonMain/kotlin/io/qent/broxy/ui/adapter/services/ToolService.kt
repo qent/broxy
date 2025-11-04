@@ -18,7 +18,7 @@ import io.qent.broxy.ui.adapter.models.UiServerCapabilities
  * Provides access to server tools/capabilities for UI components.
  * Implementations live per-platform.
  */
-expect suspend fun fetchServerCapabilities(config: UiMcpServerConfig, logger: Logger? = null): Result<UiServerCapabilities>
+expect suspend fun fetchServerCapabilities(config: UiMcpServerConfig, timeoutSeconds: Int, logger: Logger? = null): Result<UiServerCapabilities>
 
 /** Validates connectivity by attempting to fetch capabilities for a draft config. */
 suspend fun validateServerConnection(draft: UiServerDraft, logger: Logger? = null): Result<Unit> {
@@ -36,5 +36,5 @@ suspend fun validateServerConnection(draft: UiServerDraft, logger: Logger? = nul
         transport = transport,
         env = draft.env
     )
-    return fetchServerCapabilities(cfg, logger).map { }
+    return fetchServerCapabilities(cfg, timeoutSeconds = 5, logger = logger).map { }
 }

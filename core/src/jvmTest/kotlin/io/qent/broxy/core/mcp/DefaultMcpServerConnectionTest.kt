@@ -26,7 +26,11 @@ class DefaultMcpServerConnectionTest {
         enabled = true
     )
 
-    private fun newConnection(client: FakeMcpClient, callTimeoutMillis: Long = 1_000L): DefaultMcpServerConnection =
+    private fun newConnection(
+        client: FakeMcpClient,
+        callTimeoutMillis: Long = 1_000L,
+        capabilitiesTimeoutMillis: Long = 1_000L
+    ): DefaultMcpServerConnection =
         DefaultMcpServerConnection(
             config = config,
             logger = NoopLogger,
@@ -34,7 +38,9 @@ class DefaultMcpServerConnectionTest {
             maxRetries = 1,
             client = client,
             cache = CapabilitiesCache(ttlMillis = Long.MAX_VALUE),
-            callTimeoutMillis = callTimeoutMillis
+            initialCallTimeoutMillis = callTimeoutMillis,
+            initialCapabilitiesTimeoutMillis = capabilitiesTimeoutMillis,
+            initialConnectTimeoutMillis = capabilitiesTimeoutMillis
         )
 
     @org.junit.Test
@@ -115,6 +121,45 @@ class DefaultMcpServerConnectionTest {
         assertEquals(1, client.callToolCalls)
     }
 
+    @org.junit.Test
+    fun capabilitiesTimeoutFailsWithoutCache() = runTest {
+        val caps = ServerCapabilities(tools = listOf(ToolDescriptor(name = "alpha")))
+        val client = FakeMcpClient(
+            capabilityResults = ArrayDeque(listOf(Result.success(caps)))
+        ).apply {
+            capabilityDelayMillis = 50
+        }
+        val connection = newConnection(client, capabilitiesTimeoutMillis = 10)
+        connection.connect()
+
+        val result = connection.getCapabilities(forceRefresh = true)
+
+        assertTrue(result.isFailure)
+        val error = result.exceptionOrNull()
+        assertIs<McpError.TimeoutError>(error)
+        assertEquals(1, client.capabilitiesCalls)
+    }
+
+    @org.junit.Test
+    fun capabilitiesTimeoutFallsBackToCache() = runTest {
+        val caps = ServerCapabilities(tools = listOf(ToolDescriptor(name = "alpha")))
+        val client = FakeMcpClient(
+            capabilityResults = ArrayDeque(listOf(Result.success(caps), Result.success(caps)))
+        )
+        val connection = newConnection(client, capabilitiesTimeoutMillis = 10)
+        connection.connect()
+
+        val initial = connection.getCapabilities(forceRefresh = true)
+        assertTrue(initial.isSuccess)
+
+        client.capabilityDelayMillis = 50
+        val refreshed = connection.getCapabilities(forceRefresh = true)
+
+        assertTrue(refreshed.isSuccess)
+        assertEquals(caps, refreshed.getOrThrow())
+        assertEquals(2, client.capabilitiesCalls)
+    }
+
     private class FakeMcpClient(
         connectResults: ArrayDeque<Result<Unit>> = ArrayDeque(listOf(Result.success(Unit))),
         capabilityResults: ArrayDeque<Result<ServerCapabilities>> = ArrayDeque(listOf(Result.success(ServerCapabilities())))
@@ -124,6 +169,7 @@ class DefaultMcpServerConnectionTest {
         private var lastCaps: Result<ServerCapabilities> = capabilityResults.firstOrNull() ?: Result.success(ServerCapabilities())
 
         var callToolDelayMillis: Long = 0
+        var capabilityDelayMillis: Long = 0
         var callToolResult: Result<JsonElement> = Result.success(JsonNull)
 
         var connectCalls: Int = 0
@@ -143,6 +189,9 @@ class DefaultMcpServerConnectionTest {
 
         override suspend fun fetchCapabilities(): Result<ServerCapabilities> {
             capabilitiesCalls += 1
+            if (capabilityDelayMillis > 0) {
+                delay(capabilityDelayMillis)
+            }
             val result = if (capsQueue.isEmpty()) lastCaps else capsQueue.removeFirst()
             lastCaps = result
             return result

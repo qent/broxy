@@ -13,9 +13,16 @@ import kotlinx.coroutines.flow.Flow
  */
 interface ProxyController {
     val logs: Flow<LogEvent>
-    fun start(servers: List<UiMcpServerConfig>, preset: UiPresetCore, inbound: UiTransportConfig, callTimeoutSeconds: Int): Result<Unit>
+    fun start(
+        servers: List<UiMcpServerConfig>,
+        preset: UiPresetCore,
+        inbound: UiTransportConfig,
+        callTimeoutSeconds: Int,
+        capabilitiesTimeoutSeconds: Int
+    ): Result<Unit>
     fun stop(): Result<Unit>
     fun updateCallTimeout(seconds: Int)
+    fun updateCapabilitiesTimeout(seconds: Int)
 }
 
 expect fun createProxyController(logger: CollectingLogger): ProxyController

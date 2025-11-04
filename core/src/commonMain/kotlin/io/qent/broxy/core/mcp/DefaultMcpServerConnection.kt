@@ -1,6 +1,7 @@
 package io.qent.broxy.core.mcp
 
 import io.qent.broxy.core.mcp.errors.McpError
+import io.qent.broxy.core.mcp.TimeoutConfigurableMcpClient
 import io.qent.broxy.core.models.McpServerConfig
 import io.qent.broxy.core.utils.ConsoleLogger
 import io.qent.broxy.core.utils.ExponentialBackoff
@@ -24,7 +25,9 @@ class DefaultMcpServerConnection(
         logger
     ),
     private val cache: CapabilitiesCache = CapabilitiesCache(ttlMillis = cacheTtlMs),
-    callTimeoutMillis: Long = 60_000
+    initialCallTimeoutMillis: Long = 60_000,
+    initialCapabilitiesTimeoutMillis: Long = 30_000,
+    initialConnectTimeoutMillis: Long = initialCapabilitiesTimeoutMillis
 ) : McpServerConnection {
     override val serverId: String = config.id
     @Volatile
@@ -32,11 +35,30 @@ class DefaultMcpServerConnection(
         private set
 
     @Volatile
-    private var callTimeoutMillis: Long = callTimeoutMillis.coerceAtLeast(1)
+    private var callTimeoutMillis: Long = initialCallTimeoutMillis.coerceAtLeast(1)
+    @Volatile
+    private var capabilitiesTimeoutMillis: Long = initialCapabilitiesTimeoutMillis.coerceAtLeast(1)
+    @Volatile
+    private var connectTimeoutMillis: Long = initialConnectTimeoutMillis.coerceAtLeast(1)
+
+    init {
+        applyClientTimeouts()
+    }
 
     fun updateCallTimeout(millis: Long) {
         callTimeoutMillis = millis.coerceAtLeast(1)
         logger.info("Updated call timeout for '${config.name}' to ${callTimeoutMillis}ms")
+    }
+
+    fun updateCapabilitiesTimeout(millis: Long) {
+        capabilitiesTimeoutMillis = millis.coerceAtLeast(1)
+        connectTimeoutMillis = capabilitiesTimeoutMillis
+        applyClientTimeouts()
+        logger.info("Updated capabilities timeout for '${config.name}' to ${capabilitiesTimeoutMillis}ms")
+    }
+
+    private fun applyClientTimeouts() {
+        (client as? TimeoutConfigurableMcpClient)?.updateTimeouts(connectTimeoutMillis, capabilitiesTimeoutMillis)
     }
 
     private val connectMutex = Mutex()
@@ -47,7 +69,12 @@ class DefaultMcpServerConnection(
         val backoff = ExponentialBackoff()
         var lastError: Throwable? = null
         for (attempt in 1..maxRetries) {
-            val result = client.connect()
+            val result = try {
+                withTimeout(connectTimeoutMillis) { client.connect() }
+            } catch (t: TimeoutCancellationException) {
+                val err = McpError.TimeoutError("Connect timed out after ${connectTimeoutMillis}ms", t)
+                Result.failure(err)
+            }
             if (result.isSuccess) {
                 status = ServerStatus.Running
                 logger.info("Connected to MCP server '${config.name}' (${config.id})")
@@ -83,7 +110,11 @@ class DefaultMcpServerConnection(
                 return Result.failure(conn.exceptionOrNull()!!)
             }
         }
-        val result = client.fetchCapabilities()
+        val result = try {
+            withTimeout(capabilitiesTimeoutMillis) { client.fetchCapabilities() }
+        } catch (t: TimeoutCancellationException) {
+            Result.failure(McpError.TimeoutError("Capabilities fetch timed out after ${capabilitiesTimeoutMillis}ms", t))
+        }
         if (result.isSuccess) {
             val caps = result.getOrThrow()
             cache.put(caps)

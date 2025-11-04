@@ -48,6 +48,7 @@ class AppStoreTest {
         val config = McpServersConfig(
             servers = listOf(server),
             requestTimeoutSeconds = 42,
+            capabilitiesTimeoutSeconds = 24,
             showTrayIcon = true
         )
         val preset = Preset(
@@ -93,8 +94,11 @@ class AppStoreTest {
         assertEquals(UiServerConnStatus.Available, uiServer.status)
         assertEquals(1, uiServer.toolsCount)
         assertEquals(42, ready.requestTimeoutSeconds)
-        assertEquals(listOf(42), proxyController.timeoutUpdates)
+        assertEquals(24, ready.capabilitiesTimeoutSeconds)
+        assertEquals(listOf(42), proxyController.callTimeoutUpdates)
+        assertEquals(listOf(24), proxyController.capabilityTimeoutUpdates)
         assertEquals(listOf("s1"), capabilityFetcher.requestedIds)
+        assertEquals(listOf(24), capabilityFetcher.requestedTimeouts)
 
         storeScope.cancel()
     }
@@ -192,6 +196,7 @@ class AppStoreTest {
         assertEquals("main", params.preset.id)
         assertIs<TransportConfig.HttpTransport>(params.inbound)
         assertEquals(config.requestTimeoutSeconds, params.callTimeoutSeconds)
+        assertEquals(config.capabilitiesTimeoutSeconds, params.capabilitiesTimeoutSeconds)
 
         val updatedState = store.state.value
         assertTrue(updatedState is UIState.Ready, "Expected Ready state after starting proxy, got $updatedState")
@@ -236,24 +241,28 @@ class AppStoreTest {
             val preset: io.qent.broxy.core.models.Preset,
             val inbound: UiTransportConfig,
             val callTimeoutSeconds: Int,
+            val capabilitiesTimeoutSeconds: Int,
             val logsSubscriptionActive: Boolean
         )
 
         var startResult: Result<Unit> = Result.success(Unit)
         val startCalls = mutableListOf<StartParams>()
-        val timeoutUpdates = mutableListOf<Int>()
+        val callTimeoutUpdates = mutableListOf<Int>()
+        val capabilityTimeoutUpdates = mutableListOf<Int>()
 
         override fun start(
             servers: List<UiMcpServerConfig>,
             preset: io.qent.broxy.core.models.Preset,
             inbound: UiTransportConfig,
-            callTimeoutSeconds: Int
+            callTimeoutSeconds: Int,
+            capabilitiesTimeoutSeconds: Int
         ): Result<Unit> {
             startCalls += StartParams(
                 servers = servers,
                 preset = preset,
                 inbound = inbound,
                 callTimeoutSeconds = callTimeoutSeconds,
+                capabilitiesTimeoutSeconds = capabilitiesTimeoutSeconds,
                 logsSubscriptionActive = true
             )
             return startResult
@@ -262,7 +271,11 @@ class AppStoreTest {
         override fun stop(): Result<Unit> = Result.success(Unit)
 
         override fun updateCallTimeout(seconds: Int) {
-            timeoutUpdates += seconds
+            callTimeoutUpdates += seconds
+        }
+
+        override fun updateCapabilitiesTimeout(seconds: Int) {
+            capabilityTimeoutUpdates += seconds
         }
     }
 
@@ -270,9 +283,11 @@ class AppStoreTest {
         private val result: Result<UiServerCapabilities>
     ) {
         val requestedIds = mutableListOf<String>()
+        val requestedTimeouts = mutableListOf<Int>()
 
-        suspend fun invoke(config: UiMcpServerConfig): Result<UiServerCapabilities> {
+        suspend fun invoke(config: UiMcpServerConfig, timeoutSeconds: Int): Result<UiServerCapabilities> {
             requestedIds += config.id
+            requestedTimeouts += timeoutSeconds
             return result
         }
     }

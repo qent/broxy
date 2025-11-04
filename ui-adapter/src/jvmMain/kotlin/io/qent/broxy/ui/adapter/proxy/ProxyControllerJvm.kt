@@ -23,6 +23,8 @@ private class JvmProxyController(
     private var inbound: InboundServer? = null
     @Volatile
     private var callTimeoutMillis: Long = 60_000
+    @Volatile
+    private var capabilitiesTimeoutMillis: Long = 30_000
 
     override val logs: Flow<LogEvent> get() = logger.events
 
@@ -30,13 +32,20 @@ private class JvmProxyController(
         servers: List<UiMcpServerConfig>,
         preset: UiPresetCore,
         inbound: UiTransportConfig,
-        callTimeoutSeconds: Int
+        callTimeoutSeconds: Int,
+        capabilitiesTimeoutSeconds: Int
     ): Result<Unit> = runCatching {
         runCatching { stop() }
         callTimeoutMillis = callTimeoutSeconds.toLong() * 1000L
+        capabilitiesTimeoutMillis = capabilitiesTimeoutSeconds.toLong() * 1000L
 
         downstreams = servers.filter { it.enabled }.map { cfg ->
-            DefaultMcpServerConnection(cfg, logger = logger, callTimeoutMillis = callTimeoutMillis)
+            DefaultMcpServerConnection(
+                config = cfg,
+                logger = logger,
+                initialCallTimeoutMillis = callTimeoutMillis,
+                initialCapabilitiesTimeoutMillis = capabilitiesTimeoutMillis
+            )
         }
         val p = ProxyMcpServer(downstreams, logger = logger)
         p.start(preset, inbound)
@@ -62,6 +71,13 @@ private class JvmProxyController(
         callTimeoutMillis = seconds.toLong() * 1000L
         downstreams.forEach { conn ->
             (conn as? DefaultMcpServerConnection)?.updateCallTimeout(callTimeoutMillis)
+        }
+    }
+
+    override fun updateCapabilitiesTimeout(seconds: Int) {
+        capabilitiesTimeoutMillis = seconds.toLong() * 1000L
+        downstreams.forEach { conn ->
+            (conn as? DefaultMcpServerConnection)?.updateCapabilitiesTimeout(capabilitiesTimeoutMillis)
         }
     }
 }

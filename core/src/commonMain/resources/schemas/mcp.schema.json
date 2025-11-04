@@ -21,6 +21,12 @@
       "description": "Timeout for MCP requests in seconds.",
       "default": 60
     },
+    "capabilitiesTimeoutSeconds": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Timeout for listing tools/resources/prompts from servers in seconds.",
+      "default": 30
+    },
     "showTrayIcon": {
       "type": "boolean",
       "description": "Whether the desktop UI should display a system tray icon.",

@@ -18,6 +18,7 @@ sealed class UIState {
         val selectedPresetId: String?,
         val proxyStatus: UiProxyStatus,
         val requestTimeoutSeconds: Int,
+        val capabilitiesTimeoutSeconds: Int,
         val showTrayIcon: Boolean,
         val logs: List<UiLogEntry>,
         val intents: Intents
@@ -42,5 +43,6 @@ interface Intents {
     fun startProxy(presetId: String, inbound: UiTransportDraft)
     fun stopProxy()
     fun updateRequestTimeout(seconds: Int)
+    fun updateCapabilitiesTimeout(seconds: Int)
     fun updateTrayIconVisibility(visible: Boolean)
 }

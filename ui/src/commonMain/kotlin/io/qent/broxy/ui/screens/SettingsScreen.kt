@@ -53,12 +53,17 @@ fun SettingsScreen(
             UIState.Loading -> Text("Loading...", style = MaterialTheme.typography.bodyMedium)
             is UIState.Error -> Text("Error: ${ui.message}", style = MaterialTheme.typography.bodyMedium)
             is UIState.Ready -> SettingsContent(
-                timeoutSeconds = ui.requestTimeoutSeconds,
+                requestTimeoutSeconds = ui.requestTimeoutSeconds,
+                capabilitiesTimeoutSeconds = ui.capabilitiesTimeoutSeconds,
                 showTrayIcon = ui.showTrayIcon,
                 themeStyle = themeStyle,
-                onTimeoutSave = { seconds ->
+                onRequestTimeoutSave = { seconds ->
                     ui.intents.updateRequestTimeout(seconds)
                     notify("Timeout saved: ${seconds}s")
+                },
+                onCapabilitiesTimeoutSave = { seconds ->
+                    ui.intents.updateCapabilitiesTimeout(seconds)
+                    notify("Capabilities timeout saved: ${seconds}s")
                 },
                 onToggleTrayIcon = { enabled ->
                     ui.intents.updateTrayIconVisibility(enabled)
@@ -72,22 +77,33 @@ fun SettingsScreen(
 
 @Composable
 private fun SettingsContent(
-    timeoutSeconds: Int,
+    requestTimeoutSeconds: Int,
+    capabilitiesTimeoutSeconds: Int,
     showTrayIcon: Boolean,
     themeStyle: ThemeStyle,
-    onTimeoutSave: (Int) -> Unit,
+    onRequestTimeoutSave: (Int) -> Unit,
+    onCapabilitiesTimeoutSave: (Int) -> Unit,
     onToggleTrayIcon: (Boolean) -> Unit,
     onThemeStyleChange: (ThemeStyle) -> Unit
 ) {
-    var timeoutInput by rememberSaveable(timeoutSeconds) { mutableStateOf(timeoutSeconds.toString()) }
+    var requestTimeoutInput by rememberSaveable(requestTimeoutSeconds) { mutableStateOf(requestTimeoutSeconds.toString()) }
+    var capabilitiesTimeoutInput by rememberSaveable(capabilitiesTimeoutSeconds) { mutableStateOf(capabilitiesTimeoutSeconds.toString()) }
 
-    LaunchedEffect(timeoutSeconds) {
-        timeoutInput = timeoutSeconds.toString()
+    LaunchedEffect(requestTimeoutSeconds) {
+        requestTimeoutInput = requestTimeoutSeconds.toString()
     }
 
-    val parsed = timeoutInput.toLongOrNull()
-    val resolved = parsed?.takeIf { it > 0 && it <= Int.MAX_VALUE }?.toInt()
-    val canSave = resolved != null && resolved != timeoutSeconds
+    LaunchedEffect(capabilitiesTimeoutSeconds) {
+        capabilitiesTimeoutInput = capabilitiesTimeoutSeconds.toString()
+    }
+
+    val parsedRequest = requestTimeoutInput.toLongOrNull()
+    val resolvedRequest = parsedRequest?.takeIf { it > 0 && it <= Int.MAX_VALUE }?.toInt()
+    val canSaveRequest = resolvedRequest != null && resolvedRequest != requestTimeoutSeconds
+
+    val parsedCapabilities = capabilitiesTimeoutInput.toLongOrNull()
+    val resolvedCapabilities = parsedCapabilities?.takeIf { it > 0 && it <= Int.MAX_VALUE }?.toInt()
+    val canSaveCapabilities = resolvedCapabilities != null && resolvedCapabilities != capabilitiesTimeoutSeconds
 
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -99,15 +115,33 @@ private fun SettingsContent(
         )
         TrayIconSetting(checked = showTrayIcon, onToggle = onToggleTrayIcon)
         TimeoutSetting(
-            value = timeoutInput,
-            canSave = canSave,
+            title = "Request timeout",
+            description = "Set how long broxy waits for downstream MCP calls before timing out.",
+            label = "Seconds",
+            value = requestTimeoutInput,
+            canSave = canSaveRequest,
             onValueChange = { value ->
                 if (value.isEmpty() || value.all { it.isDigit() }) {
-                    timeoutInput = value
+                    requestTimeoutInput = value
                 }
             },
             onSave = {
-                resolved?.let { onTimeoutSave(it) }
+                resolvedRequest?.let { onRequestTimeoutSave(it) }
+            }
+        )
+        TimeoutSetting(
+            title = "Capabilities timeout",
+            description = "Limit how long broxy waits for tool/resource/prompt listings when connecting to servers.",
+            label = "Seconds",
+            value = capabilitiesTimeoutInput,
+            canSave = canSaveCapabilities,
+            onValueChange = { value ->
+                if (value.isEmpty() || value.all { it.isDigit() }) {
+                    capabilitiesTimeoutInput = value
+                }
+            },
+            onSave = {
+                resolvedCapabilities?.let { onCapabilitiesTimeoutSave(it) }
             }
         )
     }
@@ -128,14 +162,17 @@ private fun TrayIconSetting(
 
 @Composable
 private fun TimeoutSetting(
+    title: String,
+    description: String,
+    label: String,
     value: String,
     canSave: Boolean,
     onValueChange: (String) -> Unit,
     onSave: () -> Unit
 ) {
     SettingCard(
-        title = "Request timeout",
-        description = "Set how long broxy waits for downstream MCP calls before timing out.",
+        title = title,
+        description = description,
         supportingContent = {
             AppPrimaryButton(
                 onClick = onSave,
@@ -150,7 +187,7 @@ private fun TimeoutSetting(
             onValueChange = onValueChange,
             modifier = Modifier.widthIn(min = SettingControlWidth, max = SettingControlWidth),
             singleLine = true,
-            label = { Text("Seconds") }
+            label = { Text(label) }
         )
     }
 }

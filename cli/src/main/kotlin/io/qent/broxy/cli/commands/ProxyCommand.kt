@@ -54,7 +54,14 @@ class ProxyCommand : CliktCommand(name = "proxy", help = "Run broxy server") {
 
         fun buildDownstreams(cfg: McpServersConfig): List<McpServerConnection> = cfg.servers
             .filter { it.enabled }
-            .map { DefaultMcpServerConnection(config = it, logger = logger) }
+            .map {
+                DefaultMcpServerConnection(
+                    config = it,
+                    logger = logger,
+                    initialCallTimeoutMillis = cfg.requestTimeoutSeconds.toLong() * 1_000L,
+                    initialCapabilitiesTimeoutMillis = cfg.capabilitiesTimeoutSeconds.toLong() * 1_000L
+                )
+            }
 
         var downstreams: List<McpServerConnection> = buildDownstreams(serversCfg)
         var proxy = ProxyMcpServer(downstreams, logger = logger)

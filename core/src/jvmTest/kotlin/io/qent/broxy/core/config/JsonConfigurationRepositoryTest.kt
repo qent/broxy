@@ -23,6 +23,7 @@ class JsonConfigurationRepositoryTest {
             val mcpJson = """
             {
               "requestTimeoutSeconds": 90,
+              "capabilitiesTimeoutSeconds": 25,
               "mcpServers": {
                 "github": {
                   "transport": "stdio",
@@ -48,6 +49,7 @@ class JsonConfigurationRepositoryTest {
             assertTrue(s.transport is TransportConfig.StdioTransport)
             assertEquals("t", s.env["GITHUB_TOKEN"]) // resolved
             assertEquals(90, cfg.requestTimeoutSeconds)
+            assertEquals(25, cfg.capabilitiesTimeoutSeconds)
             assertTrue(cfg.showTrayIcon)
         } finally {
             tmp.toFile().deleteRecursively()
@@ -93,13 +95,15 @@ class JsonConfigurationRepositoryTest {
         val tmp = Files.createTempDirectory("cfgtest4")
         try {
             val repo = JsonConfigurationRepository(baseDir = tmp)
-            val cfg = McpServersConfig(requestTimeoutSeconds = 1_200, showTrayIcon = false)
+            val cfg = McpServersConfig(requestTimeoutSeconds = 1_200, capabilitiesTimeoutSeconds = 45, showTrayIcon = false)
             repo.saveMcpConfig(cfg)
             val raw = tmp.resolve("mcp.json").readText()
             assertTrue(raw.contains("\"requestTimeoutSeconds\": 1200"))
+            assertTrue(raw.contains("\"capabilitiesTimeoutSeconds\": 45"))
             assertTrue(raw.contains("\"showTrayIcon\": false"))
             val loaded = repo.loadMcpConfig()
             assertEquals(1_200, loaded.requestTimeoutSeconds)
+            assertEquals(45, loaded.capabilitiesTimeoutSeconds)
             assertFalse(loaded.showTrayIcon)
         } finally {
             tmp.toFile().deleteRecursively()

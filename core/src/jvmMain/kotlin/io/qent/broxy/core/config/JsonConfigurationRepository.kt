@@ -28,6 +28,7 @@ class JsonConfigurationRepository(
 ) : ConfigurationRepository {
     companion object {
         private const val DEFAULT_TIMEOUT_SECONDS = 60
+        private const val DEFAULT_CAPABILITIES_TIMEOUT_SECONDS = 30
     }
 
     private val dir: Path = baseDir
@@ -108,11 +109,13 @@ class JsonConfigurationRepository(
         validateServers(servers)
 
         val timeoutSeconds = root.requestTimeoutSeconds ?: DEFAULT_TIMEOUT_SECONDS
+        val capabilitiesTimeoutSeconds = root.capabilitiesTimeoutSeconds ?: DEFAULT_CAPABILITIES_TIMEOUT_SECONDS
         val showTrayIcon = root.showTrayIcon ?: true
 
         return McpServersConfig(
             servers = servers,
             requestTimeoutSeconds = timeoutSeconds,
+            capabilitiesTimeoutSeconds = capabilitiesTimeoutSeconds,
             showTrayIcon = showTrayIcon
         )
     }
@@ -120,6 +123,7 @@ class JsonConfigurationRepository(
     override fun saveMcpConfig(config: McpServersConfig) {
         val root = FileMcpRoot(
             requestTimeoutSeconds = config.requestTimeoutSeconds,
+            capabilitiesTimeoutSeconds = config.capabilitiesTimeoutSeconds,
             showTrayIcon = config.showTrayIcon,
             mcpServers = config.servers.associate { s ->
                 s.id to when (val t = s.transport) {
@@ -244,6 +248,7 @@ class JsonConfigurationRepository(
     @Serializable
     private data class FileMcpRoot(
         val requestTimeoutSeconds: Int? = null,
+        val capabilitiesTimeoutSeconds: Int? = null,
         val showTrayIcon: Boolean? = null,
         val mcpServers: Map<String, FileMcpServer>
     )

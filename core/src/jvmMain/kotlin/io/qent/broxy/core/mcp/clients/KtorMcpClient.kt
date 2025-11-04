@@ -13,8 +13,11 @@ import io.modelcontextprotocol.kotlin.sdk.client.mcpStreamableHttp
 import io.modelcontextprotocol.kotlin.sdk.client.mcpWebSocket
 import io.qent.broxy.core.mcp.McpClient
 import io.qent.broxy.core.mcp.ServerCapabilities
+import io.qent.broxy.core.mcp.TimeoutConfigurableMcpClient
 import io.qent.broxy.core.utils.ConsoleLogger
 import io.qent.broxy.core.utils.Logger
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.Json
@@ -30,12 +33,21 @@ class KtorMcpClient(
     private val headersMap: Map<String, String> = emptyMap(),
     private val logger: Logger = ConsoleLogger,
     private val connector: SdkConnector? = null
-) : McpClient {
+) : McpClient, TimeoutConfigurableMcpClient {
     enum class Mode { Sse, StreamableHttp, WebSocket }
 
     private var ktor: HttpClient? = null
     private var client: SdkClientFacade? = null
     private val json = Json { ignoreUnknownKeys = true }
+    @Volatile
+    private var connectTimeoutMillis: Long = DEFAULT_CONNECT_TIMEOUT_MILLIS
+    @Volatile
+    private var capabilitiesTimeoutMillis: Long = DEFAULT_CAPABILITIES_TIMEOUT_MILLIS
+
+    override fun updateTimeouts(connectTimeoutMillis: Long, capabilitiesTimeoutMillis: Long) {
+        this.connectTimeoutMillis = connectTimeoutMillis.coerceAtLeast(1)
+        this.capabilitiesTimeoutMillis = capabilitiesTimeoutMillis.coerceAtLeast(1)
+    }
 
     override suspend fun connect(): Result<Unit> = runCatching {
         if (client != null) return@runCatching
@@ -46,13 +58,14 @@ class KtorMcpClient(
             return@runCatching
         }
 
+        val connectTimeout = connectTimeoutMillis.coerceAtLeast(1)
         ktor = HttpClient(CIO) {
             if (mode == Mode.Sse || mode == Mode.StreamableHttp) install(SSE)
             if (mode == Mode.WebSocket) install(WebSockets)
             install(HttpTimeout) {
-                requestTimeoutMillis = 60_000
-                socketTimeoutMillis = 60_000
-                connectTimeoutMillis = 30_000
+                requestTimeoutMillis = connectTimeout
+                socketTimeoutMillis = connectTimeout
+                this.connectTimeoutMillis = connectTimeout
             }
         }
 
@@ -81,15 +94,10 @@ class KtorMcpClient(
 
     override suspend fun fetchCapabilities(): Result<ServerCapabilities> = runCatching {
         val c = client ?: throw IllegalStateException("Not connected")
-        val tools = kotlin.runCatching { c.getTools() }
-            .onFailure { logger.warn("listTools not available; treating as empty.", it) }
-            .getOrDefault(emptyList())
-        val resources = kotlin.runCatching { c.getResources() }
-            .onFailure { logger.warn("listResources not available; treating as empty.", it) }
-            .getOrDefault(emptyList())
-        val prompts = kotlin.runCatching { c.getPrompts() }
-            .onFailure { logger.warn("listPrompts not available; treating as empty.", it) }
-            .getOrDefault(emptyList())
+        val timeoutMillis = capabilitiesTimeoutMillis.coerceAtLeast(1)
+        val tools = listWithTimeout("listTools", timeoutMillis, emptyList()) { c.getTools() }
+        val resources = listWithTimeout("listResources", timeoutMillis, emptyList()) { c.getResources() }
+        val prompts = listWithTimeout("listPrompts", timeoutMillis, emptyList()) { c.getPrompts() }
         ServerCapabilities(tools = tools, resources = resources, prompts = prompts)
     }
 
@@ -116,5 +124,24 @@ class KtorMcpClient(
         val r = c.readResource(uri)
         val el = kotlinx.serialization.json.Json.encodeToJsonElement(io.modelcontextprotocol.kotlin.sdk.ReadResourceResult.serializer(), r)
         el as JsonObject
+    }
+
+    private suspend fun <T> listWithTimeout(
+        operation: String,
+        timeoutMillis: Long,
+        defaultValue: T,
+        fetch: suspend () -> T
+    ): T {
+        return runCatching {
+            withTimeout(timeoutMillis) { fetch() }
+        }.onFailure { ex ->
+            val kind = if (ex is TimeoutCancellationException) "timed out after ${timeoutMillis}ms" else ex.message ?: ex::class.simpleName
+            logger.warn("$operation $kind; treating as empty.", ex)
+        }.getOrDefault(defaultValue)
+    }
+
+    companion object {
+        private const val DEFAULT_CONNECT_TIMEOUT_MILLIS = 30_000L
+        private const val DEFAULT_CAPABILITIES_TIMEOUT_MILLIS = 30_000L
     }
 }

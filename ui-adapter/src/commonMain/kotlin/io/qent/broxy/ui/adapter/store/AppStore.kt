@@ -55,7 +55,7 @@ import kotlinx.serialization.json.JsonPrimitive
 private const val DEFAULT_CAPS_CACHE_TTL_MILLIS = 5 * 60 * 1000L
 private const val DEFAULT_MAX_LOGS = 500
 
-private typealias CapabilityFetcher = suspend (UiMcpServerConfig) -> Result<UiServerCapabilities>
+private typealias CapabilityFetcher = suspend (UiMcpServerConfig, Int) -> Result<UiServerCapabilities>
 
 /**
  * AppStore implements UDF for the app: exposes Flow<UIState> and side-effecting intents.
@@ -83,6 +83,7 @@ class AppStore(
     private var activeProxyPresetId: String? = null
     private var activeInbound: UiTransportConfig? = null
     private var requestTimeoutSeconds: Int = 60
+    private var capabilitiesTimeoutSeconds: Int = 30
     private var showTrayIcon: Boolean = true
     private val logs = mutableListOf<UiLogEntry>()
     private val capsCache = mutableMapOf<String, CachedCaps>()
@@ -207,8 +208,10 @@ class AppStore(
     private fun loadConfigurationSnapshot(): Result<Unit> = runCatching {
         val config = configurationRepository.loadMcpConfig()
         requestTimeoutSeconds = config.requestTimeoutSeconds
+        capabilitiesTimeoutSeconds = config.capabilitiesTimeoutSeconds
         showTrayIcon = config.showTrayIcon
         proxyController.updateCallTimeout(requestTimeoutSeconds)
+        proxyController.updateCapabilitiesTimeout(capabilitiesTimeoutSeconds)
 
         val loadedPresets = configurationRepository.listPresets()
         servers.apply {
@@ -228,7 +231,7 @@ class AppStore(
     }
 
     private suspend fun fetchAndCacheCapabilities(cfg: UiMcpServerConfig): UiServerCapsSnapshot? {
-        val result = capabilityFetcher(cfg)
+        val result = capabilityFetcher(cfg, capabilitiesTimeoutSeconds)
         return if (result.isSuccess) {
             val snapshot = result.getOrThrow().toSnapshot(cfg)
             putCachedCaps(cfg.id, snapshot)
@@ -285,6 +288,7 @@ class AppStore(
             selectedPresetId = selectedProxyPresetId,
             proxyStatus = proxyStatus,
             requestTimeoutSeconds = requestTimeoutSeconds,
+            capabilitiesTimeoutSeconds = capabilitiesTimeoutSeconds,
             showTrayIcon = showTrayIcon,
             logs = synchronized(logs) { logs.asReversed().toList() },
             intents = intents
@@ -294,6 +298,7 @@ class AppStore(
     private fun snapshotConfig(): UiMcpServersConfig = UiMcpServersConfig(
         servers = servers.toList(),
         requestTimeoutSeconds = requestTimeoutSeconds,
+        capabilitiesTimeoutSeconds = capabilitiesTimeoutSeconds,
         showTrayIcon = showTrayIcon
     )
 
@@ -367,7 +372,13 @@ class AppStore(
         val preset = presetResult.getOrThrow()
         proxyStatus = UiProxyStatus.Starting
         publishReady()
-        val result = proxyController.start(servers.toList(), preset, inboundTransport, requestTimeoutSeconds)
+        val result = proxyController.start(
+            servers = servers.toList(),
+            preset = preset,
+            inbound = inboundTransport,
+            callTimeoutSeconds = requestTimeoutSeconds,
+            capabilitiesTimeoutSeconds = capabilitiesTimeoutSeconds
+        )
         if (result.isSuccess) {
             activeProxyPresetId = presetId
             proxyStatus = UiProxyStatus.Running
@@ -602,7 +613,13 @@ class AppStore(
                 val inbound = UiHttpTransport("http://0.0.0.0:3335/mcp")
                 proxyStatus = UiProxyStatus.Starting
                 publishReady()
-                val result = proxyController.start(servers.toList(), preset, inbound, requestTimeoutSeconds)
+                val result = proxyController.start(
+                    servers = servers.toList(),
+                    preset = preset,
+                    inbound = inbound,
+                    callTimeoutSeconds = requestTimeoutSeconds,
+                    capabilitiesTimeoutSeconds = capabilitiesTimeoutSeconds
+                )
                 selectedProxyPresetId = presetId
                 if (result.isSuccess) {
                     proxyStatus = UiProxyStatus.Running
@@ -646,7 +663,13 @@ class AppStore(
                 }
                 proxyStatus = UiProxyStatus.Starting
                 publishReady()
-                val result = proxyController.start(servers.toList(), preset, inboundTransport, requestTimeoutSeconds)
+                val result = proxyController.start(
+                    servers = servers.toList(),
+                    preset = preset,
+                    inbound = inboundTransport,
+                    callTimeoutSeconds = requestTimeoutSeconds,
+                    capabilitiesTimeoutSeconds = capabilitiesTimeoutSeconds
+                )
                 if (result.isSuccess) {
                     proxyStatus = UiProxyStatus.Running
                     activeProxyPresetId = presetId
@@ -694,6 +717,23 @@ class AppStore(
             }
         }
 
+        override fun updateCapabilitiesTimeout(seconds: Int) {
+            scope.launch {
+                val previous = capabilitiesTimeoutSeconds
+                capabilitiesTimeoutSeconds = seconds
+                proxyController.updateCapabilitiesTimeout(capabilitiesTimeoutSeconds)
+                val result = runCatching { configurationRepository.saveMcpConfig(snapshotConfig()) }
+                if (result.isFailure) {
+                    val msg = result.exceptionOrNull()?.message ?: "Failed to update capabilities timeout"
+                    logger.info("[AppStore] updateCapabilitiesTimeout failed: $msg")
+                    capabilitiesTimeoutSeconds = previous
+                    proxyController.updateCapabilitiesTimeout(capabilitiesTimeoutSeconds)
+                    _state.value = UIState.Error(msg)
+                }
+                publishReady()
+            }
+        }
+
         override fun updateTrayIconVisibility(visible: Boolean) {
             scope.launch {
                 if (showTrayIcon == visible) return@launch
@@ -717,7 +757,7 @@ fun createAppStore(
     logger: CollectingLogger = CollectingLogger(),
     repository: ConfigurationRepository = provideConfigurationRepository(),
     proxyFactory: (CollectingLogger) -> ProxyController = { createProxyController(it) },
-    capabilityFetcher: CapabilityFetcher = { config -> fetchServerCapabilities(config, logger) },
+    capabilityFetcher: CapabilityFetcher = { config, timeout -> fetchServerCapabilities(config, timeout, logger) },
     now: () -> Long = { System.currentTimeMillis() },
     capsCacheTtlMillis: Long = DEFAULT_CAPS_CACHE_TTL_MILLIS,
     maxLogs: Int = DEFAULT_MAX_LOGS

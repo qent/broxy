@@ -7,10 +7,18 @@ import io.modelcontextprotocol.kotlin.sdk.LIB_VERSION
 import io.modelcontextprotocol.kotlin.sdk.shared.IMPLEMENTATION_NAME
 import io.qent.broxy.core.mcp.McpClient
 import io.qent.broxy.core.mcp.ServerCapabilities
+import io.qent.broxy.core.mcp.TimeoutConfigurableMcpClient
+import io.qent.broxy.core.mcp.errors.McpError
 import io.qent.broxy.core.utils.ConsoleLogger
 import io.qent.broxy.core.utils.Logger
 import io.qent.broxy.core.config.EnvironmentVariableResolver
 import io.qent.broxy.core.utils.ConfigurationException
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withTimeout
 import kotlinx.io.buffered
 import kotlinx.io.asSink
 import kotlinx.io.asSource
@@ -26,15 +34,25 @@ class StdioMcpClient(
     private val env: Map<String, String>,
     private val logger: Logger = ConsoleLogger,
     private val connector: SdkConnector? = null
-) : McpClient {
+) : McpClient, TimeoutConfigurableMcpClient {
     private var process: Process? = null
     private var client: SdkClientFacade? = null
     private var stderrThread: Thread? = null
     private val json = Json { ignoreUnknownKeys = true }
     private val envResolver = EnvironmentVariableResolver(logger = logger)
+    @Volatile
+    private var connectTimeoutMillis: Long = DEFAULT_CONNECT_TIMEOUT_MILLIS
+    @Volatile
+    private var capabilitiesTimeoutMillis: Long = DEFAULT_CAPABILITIES_TIMEOUT_MILLIS
 
-    override suspend fun connect(): Result<Unit> = runCatching {
-        if (client != null || process?.isAlive == true) return@runCatching
+    override fun updateTimeouts(connectTimeoutMillis: Long, capabilitiesTimeoutMillis: Long) {
+        this.connectTimeoutMillis = connectTimeoutMillis.coerceAtLeast(1)
+        this.capabilitiesTimeoutMillis = capabilitiesTimeoutMillis.coerceAtLeast(1)
+    }
+
+    override suspend fun connect(): Result<Unit> = coroutineScope {
+        runCatching {
+            if (client != null || process?.isAlive == true) return@runCatching
         if (connector != null) {
             client = connector.connect()
             logger.info("Connected via test connector for stdio client")
@@ -53,9 +71,9 @@ class StdioMcpClient(
         val proc = runCatching { pb.start() }
             .onFailure { ex -> logger.error("Failed to launch stdio MCP process '$command'", ex) }
             .getOrThrow()
-        process = proc
-        stderrThread?.takeIf { it.isAlive }?.interrupt()
-        stderrThread = thread(name = "StdioMcpClient-stderr-$command") {
+            process = proc
+            stderrThread?.takeIf { it.isAlive }?.interrupt()
+            stderrThread = thread(name = "StdioMcpClient-stderr-$command") {
             runCatching {
                 proc.errorStream.bufferedReader().useLines { lines ->
                     lines.forEach { line ->
@@ -71,13 +89,30 @@ class StdioMcpClient(
             }
         }
 
-        val source = proc.inputStream.asSource().buffered()
-        val sink = proc.outputStream.asSink().buffered()
-        val transport = StdioClientTransport(source, sink)
-        val sdk = Client(io.modelcontextprotocol.kotlin.sdk.Implementation(IMPLEMENTATION_NAME, LIB_VERSION))
-        sdk.connect(transport)
-        client = RealSdkClientFacade(sdk)
-        logger.info("Connected stdio MCP process: $command ${args.joinToString(" ")}")
+            val handshake = async(Dispatchers.IO) {
+                val source = proc.inputStream.asSource().buffered()
+                val sink = proc.outputStream.asSink().buffered()
+                val transport = StdioClientTransport(source, sink)
+                val sdk = Client(io.modelcontextprotocol.kotlin.sdk.Implementation(IMPLEMENTATION_NAME, LIB_VERSION))
+                sdk.connect(transport)
+                RealSdkClientFacade(sdk)
+            }
+
+            try {
+                val timeoutMillis = resolveConnectTimeout()
+                val facade = withTimeout(timeoutMillis) { handshake.await() }
+                client = facade
+                logger.info("Connected stdio MCP process: $command ${args.joinToString(" ")}")
+            } catch (t: TimeoutCancellationException) {
+                handshake.cancel(CancellationException("Handshake timed out", t))
+                handleConnectFailure(proc)
+                throw McpError.TimeoutError("STDIO connect timed out after ${resolveConnectTimeout()}ms", t)
+            } catch (t: Throwable) {
+                handshake.cancel(CancellationException("Handshake failed", t))
+                handleConnectFailure(proc)
+                throw t
+            }
+        }
     }
 
     override suspend fun disconnect() {
@@ -93,15 +128,22 @@ class StdioMcpClient(
 
     override suspend fun fetchCapabilities(): Result<ServerCapabilities> = runCatching {
         val c = client ?: throw IllegalStateException("Not connected")
-        val tools = kotlin.runCatching { c.getTools() }
-            .onFailure { logger.warn("listTools not available; treating as empty.", it) }
-            .getOrDefault(emptyList())
-        val resources = kotlin.runCatching { c.getResources() }
-            .onFailure { logger.warn("listResources not available; treating as empty.", it) }
-            .getOrDefault(emptyList())
-        val prompts = kotlin.runCatching { c.getPrompts() }
-            .onFailure { logger.warn("listPrompts not available; treating as empty.", it) }
-            .getOrDefault(emptyList())
+        val timeoutMillis = resolveCapabilitiesTimeout()
+        val tools = listWithTimeout(
+            operation = "listTools",
+            timeoutMillis = timeoutMillis,
+            defaultValue = emptyList()
+        ) { c.getTools() }
+        val resources = listWithTimeout(
+            operation = "listResources",
+            timeoutMillis = timeoutMillis,
+            defaultValue = emptyList()
+        ) { c.getResources() }
+        val prompts = listWithTimeout(
+            operation = "listPrompts",
+            timeoutMillis = timeoutMillis,
+            defaultValue = emptyList()
+        ) { c.getPrompts() }
         ServerCapabilities(tools = tools, resources = resources, prompts = prompts)
     }
 
@@ -131,4 +173,38 @@ class StdioMcpClient(
     }
 
     // Uses SdkConnector for test-time injection
+
+    private fun resolveConnectTimeout(): Long = connectTimeoutMillis.coerceAtLeast(1)
+
+    private fun resolveCapabilitiesTimeout(): Long = capabilitiesTimeoutMillis.coerceAtLeast(1)
+
+    private fun handleConnectFailure(proc: Process) {
+        runCatching { proc.destroyForcibly() }
+        stderrThread?.let { thread ->
+            thread.interrupt()
+            runCatching { thread.join(500) }
+        }
+        stderrThread = null
+        process = null
+        client = null
+    }
+
+    private suspend fun <T> listWithTimeout(
+        operation: String,
+        timeoutMillis: Long,
+        defaultValue: T,
+        fetch: suspend () -> T
+    ): T {
+        return runCatching {
+            withTimeout(timeoutMillis) { fetch() }
+        }.onFailure { ex ->
+            val kind = if (ex is TimeoutCancellationException) "timed out after ${timeoutMillis}ms" else ex.message ?: ex::class.simpleName
+            logger.warn("$operation $kind; treating as empty.", ex)
+        }.getOrDefault(defaultValue)
+    }
+
+    companion object {
+        private const val DEFAULT_CONNECT_TIMEOUT_MILLIS = 30_000L
+        private const val DEFAULT_CAPABILITIES_TIMEOUT_MILLIS = 30_000L
+    }
 }
