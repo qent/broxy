@@ -1,10 +1,17 @@
 package io.qent.broxy.core.mcp.clients
 
-import io.modelcontextprotocol.kotlin.sdk.client.Client
-import io.modelcontextprotocol.kotlin.sdk.client.StdioClientTransport
 import io.modelcontextprotocol.kotlin.sdk.CallToolResultBase
 import io.modelcontextprotocol.kotlin.sdk.LIB_VERSION
+import io.modelcontextprotocol.kotlin.sdk.JSONRPCMessage
+import io.modelcontextprotocol.kotlin.sdk.JSONRPCNotification
+import io.modelcontextprotocol.kotlin.sdk.JSONRPCRequest
+import io.modelcontextprotocol.kotlin.sdk.JSONRPCResponse
+import io.modelcontextprotocol.kotlin.sdk.Method
 import io.modelcontextprotocol.kotlin.sdk.shared.IMPLEMENTATION_NAME
+import io.modelcontextprotocol.kotlin.sdk.shared.Transport
+import io.modelcontextprotocol.kotlin.sdk.shared.serializeMessage
+import io.modelcontextprotocol.kotlin.sdk.client.Client
+import io.modelcontextprotocol.kotlin.sdk.client.StdioClientTransport
 import io.qent.broxy.core.mcp.McpClient
 import io.qent.broxy.core.mcp.ServerCapabilities
 import io.qent.broxy.core.mcp.TimeoutConfigurableMcpClient
@@ -27,6 +34,8 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlin.concurrent.thread
+import java.util.Collections
+import java.util.concurrent.ConcurrentHashMap
 
 class StdioMcpClient(
     private val command: String,
@@ -92,7 +101,7 @@ class StdioMcpClient(
             val handshake = async(Dispatchers.IO) {
                 val source = proc.inputStream.asSource().buffered()
                 val sink = proc.outputStream.asSink().buffered()
-                val transport = StdioClientTransport(source, sink)
+                val transport = LoggingTransport(StdioClientTransport(source, sink), logger)
                 val sdk = Client(io.modelcontextprotocol.kotlin.sdk.Implementation(IMPLEMENTATION_NAME, LIB_VERSION))
                 sdk.connect(transport)
                 RealSdkClientFacade(sdk)
@@ -206,5 +215,62 @@ class StdioMcpClient(
     companion object {
         private const val DEFAULT_CONNECT_TIMEOUT_MILLIS = 30_000L
         private const val DEFAULT_CAPABILITIES_TIMEOUT_MILLIS = 30_000L
+    }
+}
+
+private class LoggingTransport(
+    private val delegate: Transport,
+    private val logger: Logger
+) : Transport {
+    private val resourceListRequests = Collections.newSetFromMap(ConcurrentHashMap<io.modelcontextprotocol.kotlin.sdk.RequestId, Boolean>())
+
+    override suspend fun start() {
+        delegate.start()
+    }
+
+    override suspend fun send(message: JSONRPCMessage) {
+        if (message is JSONRPCRequest && message.method == Method.Defined.ResourcesList.value) {
+            resourceListRequests.add(message.id)
+            logger.info("STDIO resources/list request id=${message.id}")
+        }
+        delegate.send(message)
+    }
+
+    override suspend fun close() {
+        resourceListRequests.clear()
+        delegate.close()
+    }
+
+    override fun onClose(block: () -> Unit) {
+        delegate.onClose(block)
+    }
+
+    override fun onError(block: (Throwable) -> Unit) {
+        delegate.onError(block)
+    }
+
+    override fun onMessage(block: suspend (JSONRPCMessage) -> Unit) {
+        delegate.onMessage { message ->
+            when (message) {
+                is JSONRPCResponse -> {
+                    if (resourceListRequests.remove(message.id)) {
+                        logRaw("resources/list response", message)
+                    }
+                }
+                is JSONRPCNotification -> {
+                    if (message.method == Method.Defined.NotificationsResourcesListChanged.value) {
+                        logRaw("resources/list_changed notification", message)
+                    }
+                }
+                else -> Unit
+            }
+            block(message)
+        }
+    }
+
+    private fun logRaw(label: String, message: JSONRPCMessage) {
+        val raw = runCatching { serializeMessage(message).trimEnd() }
+            .getOrElse { "unable to serialize: ${it.message}" }
+        logger.warn("STDIO raw $label: $raw")
     }
 }
