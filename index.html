@@ -84,6 +84,13 @@
         /* Footer */
         footer { border-top: 1px solid var(--border); padding: 24px 0; color: var(--muted); }
 
+        /* Footer nav spacing fix */
+        .footer-nav { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+        /* Fallback for browsers without flex gap */
+        .footer-nav a + a { margin-left: 12px; }
+        .footer-nav a { color: inherit; text-decoration: none; }
+        .footer-nav a:hover { text-decoration: underline; }
+
         /* Responsive */
         @media (max-width: 768px) {
           .hero h1 { font-size: 34px; }
@@ -128,15 +135,18 @@
             grid-auto-rows: 1fr; /* equal row heights */
           }
         }
+        /* Ensure first-row cards in features grid start at the same height */
+        .features-grid > li.card { margin-top: 0; }
+        .features-grid .card + .card { margin-top: 0; }
 
         /* Lucide icon sizing */
         .lucide { width: 16px; height: 16px; vertical-align: -3px; }
         .btn-large .lucide, .btn.btn-large .lucide { width: 20px; height: 20px; vertical-align: -4px; }
 
         /* CTA buttons spacing */
-        .cta-buttons { gap: 16px; }
+        .cta-buttons { gap: 8px; }
         @media (min-width: 768px) {
-          .cta-buttons { gap: 20px; }
+          .cta-buttons { gap: 10px; }
         }
     </style>
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -353,10 +363,13 @@ java -jar cli/build/libs/broxy-cli-0.1.0.jar proxy \
         <div>
             <strong>Broxy</strong> — MCP proxy with presets. MIT licensed.
         </div>
-        <nav class="d-flex gap-3">
+        <nav class="footer-nav">
             <a href="#examples">Examples</a>
             <a href="#downloads">Downloads</a>
             <a href="https://github.com/qent/broxy" target="_blank" rel="noopener">GitHub</a>
+            <a href="mailto:to.dolfin@gmail.com" aria-label="Email">
+                <i data-lucide="mail" class="lucide"></i>
+            </a>
         </nav>
     </div>
 </footer>
