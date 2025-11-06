@@ -6,10 +6,7 @@ import io.modelcontextprotocol.kotlin.sdk.JSONRPCNotification
 import io.modelcontextprotocol.kotlin.sdk.JSONRPCRequest
 import io.modelcontextprotocol.kotlin.sdk.JSONRPCResponse
 import io.modelcontextprotocol.kotlin.sdk.LIB_VERSION
-import io.modelcontextprotocol.kotlin.sdk.ListResourcesResult
-import io.modelcontextprotocol.kotlin.sdk.ReadResourceResult
 import io.modelcontextprotocol.kotlin.sdk.Method
-import io.modelcontextprotocol.kotlin.sdk.Resource
 import io.modelcontextprotocol.kotlin.sdk.shared.IMPLEMENTATION_NAME
 import io.modelcontextprotocol.kotlin.sdk.shared.Transport
 import io.modelcontextprotocol.kotlin.sdk.shared.serializeMessage
@@ -39,7 +36,6 @@ import kotlinx.serialization.json.JsonElement
 import kotlin.concurrent.thread
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.atomic.AtomicBoolean
 
 class StdioMcpClient(
     private val command: String,
@@ -227,7 +223,6 @@ private class LoggingTransport(
     private val logger: Logger
 ) : Transport {
     private val resourceListRequests = Collections.newSetFromMap(ConcurrentHashMap<io.modelcontextprotocol.kotlin.sdk.RequestId, Boolean>())
-    private val resourceShimWarningEmitted = AtomicBoolean(false)
 
     override suspend fun start() {
         delegate.start()
@@ -260,10 +255,8 @@ private class LoggingTransport(
                 is JSONRPCResponse -> {
                     if (resourceListRequests.remove(message.id)) {
                         logRaw("resources/list response", message)
-                        patchResourceListResponse(message) ?: message
-                    } else {
-                        message
                     }
+                    message
                 }
                 is JSONRPCNotification -> {
                     if (message.method == Method.Defined.NotificationsResourcesListChanged.value) {
@@ -281,41 +274,5 @@ private class LoggingTransport(
         val raw = runCatching { serializeMessage(message).trimEnd() }
             .getOrElse { "unable to serialize: ${it.message}" }
         logger.warn("STDIO raw $label: $raw")
-    }
-
-    private fun patchResourceListResponse(response: JSONRPCResponse): JSONRPCResponse? {
-        val result = response.result as? ReadResourceResult ?: return null
-        if (resourceShimWarningEmitted.compareAndSet(false, true)) {
-            logger.warn(
-                "resources/list returned 'contents' payload; applying temporary compatibility shim. " +
-                    "Please update the remote server or MCP SDK when possible."
-            )
-        }
-        val resources = result.contents.mapIndexed { index, contents ->
-            Resource(
-                uri = contents.uri,
-                name = deriveResourceName(contents.uri, index),
-                description = null,
-                mimeType = contents.mimeType,
-                title = null,
-                size = null,
-                annotations = null
-            )
-        }
-        if (resources.isNotEmpty()) {
-            logger.warn("Converted ${resources.size} resources from inline contents for request id=${response.id}.")
-        }
-        return response.copy(
-            result = ListResourcesResult(
-                resources = resources,
-                nextCursor = null,
-                _meta = result._meta
-            )
-        )
-    }
-
-    private fun deriveResourceName(uri: String, index: Int): String {
-        val candidate = uri.substringAfterLast('/', uri).substringAfterLast('\\', uri).ifBlank { uri }
-        return candidate.ifBlank { "resource-$index" }
     }
 }
