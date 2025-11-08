@@ -1,0 +1,57 @@
+name: CLI ShadowJar
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'cli/**'
+      - 'core/**'
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
+      - 'gradle.properties'
+      - 'gradle/**'
+      - '.github/workflows/cli-jar.yml'
+  pull_request:
+    branches: [ main, master ]
+    paths:
+      - 'cli/**'
+      - 'core/**'
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
+      - 'gradle.properties'
+      - 'gradle/**'
+      - '.github/workflows/cli-jar.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cli-jar-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-cli-jar:
+    name: Build CLI ShadowJar
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build broxy CLI ShadowJar
+        run: ./gradlew --no-daemon :cli:shadowJar
+
+      - name: Upload broxy-cli.jar artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: broxy-cli-jar
+          path: cli/build/libs/broxy-cli.jar
