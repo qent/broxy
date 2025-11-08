@@ -1,0 +1,22 @@
+{
+    "requestTimeoutSeconds": 60,
+    "showTrayIcon": true,
+    "mcpServers": {
+        "time": {
+            "name": "Time",
+            "enabled": true,
+            "transport": "stdio",
+            "command": "/opt/homebrew/bin/uvx",
+            "args": [
+                "mcp-server-time",
+                "--local-timezone=America/New_York"
+            ]
+        },
+        "exa-search": {
+            "name": "Exa Search",
+            "enabled": true,
+            "transport": "streamable-http",
+            "url": "https://mcp.exa.ai/mcp?api_key=9efa64ed-152c-4a74-8d13-547972b41407&profile=annoyed-dingo-BOSBS2"
+        }
+    }
+}

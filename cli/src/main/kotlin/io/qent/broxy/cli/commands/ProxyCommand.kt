@@ -92,15 +92,16 @@ class ProxyCommand : CliktCommand(name = "proxy", help = "Run broxy server") {
                 val newProxy = ProxyMcpServer(newDownstreams, logger = logger)
                 newProxy.start(currentPreset, inboundTransport)
                 val newInbound = InboundServerFactory.create(inboundTransport, newProxy, logger)
+
+                runCatching { oldInbound.stop() }
+                runBlocking { oldDownstreams.forEach { runCatching { it.disconnect() } } }
+
                 newInbound.start()
 
                 downstreams = newDownstreams
                 proxy = newProxy
                 inboundServer = newInbound
                 serversCfg = config
-
-                runCatching { oldInbound.stop() }
-                runBlocking { oldDownstreams.forEach { runCatching { it.disconnect() } } }
             }
 
             override fun onPresetChanged(preset: Preset) {

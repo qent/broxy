@@ -1,4 +1,7 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import org.gradle.api.tasks.SourceSetContainer
+import org.gradle.api.tasks.testing.Test
+import org.gradle.kotlin.dsl.get
 
 plugins {
     kotlin("jvm")
@@ -15,6 +18,8 @@ dependencies {
     implementation("com.github.ajalt.clikt:clikt:${property("cliktVersion")}")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:${property("serializationVersion")}")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:${property("coroutinesVersion")}")
+
+    testImplementation(kotlin("test"))
 }
 
 application {
@@ -32,4 +37,34 @@ tasks.withType<ShadowJar>().configureEach {
 
 tasks.named("build") {
     dependsOn(tasks.named("shadowJar"))
+}
+
+val sourceSets = extensions.getByType(SourceSetContainer::class.java)
+val integrationTestSourceSet = sourceSets.create("integrationTest") {
+    compileClasspath += sourceSets["main"].output + configurations["testRuntimeClasspath"]
+    runtimeClasspath += output + compileClasspath
+}
+
+configurations["integrationTestImplementation"].extendsFrom(configurations["testImplementation"])
+configurations["integrationTestRuntimeOnly"].extendsFrom(configurations["testRuntimeOnly"])
+
+val shadowJarTask = tasks.named<ShadowJar>("shadowJar")
+
+val integrationTest = tasks.register<Test>("integrationTest") {
+    description = "Runs broxy CLI jar integration tests (STDIO + HTTP SSE)."
+    group = "verification"
+    testClassesDirs = integrationTestSourceSet.output.classesDirs
+    classpath = integrationTestSourceSet.runtimeClasspath
+    shouldRunAfter(tasks.named("test"))
+    dependsOn(shadowJarTask)
+    useJUnitPlatform()
+    val jarFile = shadowJarTask.flatMap { it.archiveFile }
+    systemProperty("broxy.cliJar", jarFile.get().asFile.absolutePath)
+    // Hard timeout per test to avoid hanging MCP e2e runs
+    systemProperty("junit.jupiter.execution.timeout.default", "PT1M")
+}
+
+tasks.withType<Test>().configureEach {
+    useJUnitPlatform()
+    systemProperty("junit.jupiter.execution.timeout.default", "PT1M")
 }

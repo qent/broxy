@@ -1,0 +1,27 @@
+{
+    "id": "test",
+    "name": "test",
+    "description": "test agent",
+    "tools": [
+        {
+            "serverId": "exa-search",
+            "toolName": "web_search_exa"
+        },
+        {
+            "serverId": "time",
+            "toolName": "get_current_time"
+        }
+    ],
+    "prompts": [
+        {
+            "serverId": "exa-search",
+            "promptName": "web_search_help"
+        }
+    ],
+    "resources": [
+        {
+            "serverId": "exa-search",
+            "resourceKey": "exa://tools/list"
+        }
+    ]
+}
