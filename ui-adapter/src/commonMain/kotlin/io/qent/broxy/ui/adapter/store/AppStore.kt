@@ -4,6 +4,8 @@ import io.qent.broxy.core.mcp.PromptDescriptor
 import io.qent.broxy.core.mcp.ResourceDescriptor
 import io.qent.broxy.core.mcp.ToolDescriptor
 import io.qent.broxy.core.models.ToolReference
+import io.qent.broxy.core.models.PromptReference
+import io.qent.broxy.core.models.ResourceReference
 import io.qent.broxy.core.repository.ConfigurationRepository
 import io.qent.broxy.core.utils.CollectingLogger
 import io.qent.broxy.ui.adapter.data.provideConfigurationRepository
@@ -18,6 +20,7 @@ import io.qent.broxy.ui.adapter.models.UiPreset
 import io.qent.broxy.ui.adapter.models.UiPresetCore
 import io.qent.broxy.ui.adapter.models.UiPresetDraft
 import io.qent.broxy.ui.adapter.models.UiProxyStatus
+import io.qent.broxy.ui.adapter.models.UiPromptRef
 import io.qent.broxy.ui.adapter.models.UiServerCapsSnapshot
 import io.qent.broxy.ui.adapter.models.UiServer
 import io.qent.broxy.ui.adapter.models.UiServerCapabilities
@@ -30,6 +33,7 @@ import io.qent.broxy.ui.adapter.models.UiStreamableHttpTransport
 import io.qent.broxy.ui.adapter.models.UiToolRef
 import io.qent.broxy.ui.adapter.models.UiToolSummary
 import io.qent.broxy.ui.adapter.models.UiPromptSummary
+import io.qent.broxy.ui.adapter.models.UiResourceRef
 import io.qent.broxy.ui.adapter.models.UiResourceSummary
 import io.qent.broxy.ui.adapter.models.UiTransportConfig
 import io.qent.broxy.ui.adapter.models.UiTransportDraft
@@ -149,7 +153,15 @@ class AppStore(
                     description = preset.description.ifBlank { null },
                     tools = preset.tools.map { tool ->
                         UiToolRef(serverId = tool.serverId, toolName = tool.toolName, enabled = tool.enabled)
-                    }
+                    },
+                    prompts = preset.prompts.orEmpty().map { prompt ->
+                        UiPromptRef(serverId = prompt.serverId, promptName = prompt.promptName, enabled = prompt.enabled)
+                    },
+                    resources = preset.resources.orEmpty().map { resource ->
+                        UiResourceRef(serverId = resource.serverId, resourceKey = resource.resourceKey, enabled = resource.enabled)
+                    },
+                    promptsConfigured = preset.prompts != null,
+                    resourcesConfigured = preset.resources != null
                 )
             }
             .onFailure { error ->
@@ -535,7 +547,9 @@ class AppStore(
                         id = preset.id,
                         name = preset.name,
                         description = preset.description ?: "",
-                        tools = emptyList()
+                        tools = emptyList(),
+                        prompts = null,
+                        resources = null
                     )
                     configurationRepository.savePreset(presetCore)
                 }
@@ -777,8 +791,8 @@ private fun UiPresetCore.toUiPresetSummary(): UiPreset = UiPreset(
     name = name,
     description = description.ifBlank { null },
     toolsCount = tools.count { it.enabled },
-    promptsCount = 0,
-    resourcesCount = 0
+    promptsCount = prompts?.count { it.enabled } ?: 0,
+    resourcesCount = resources?.count { it.enabled } ?: 0
 )
 
 private fun UiPresetCore.toUiPresetSummary(descriptionOverride: String?): UiPreset = UiPreset(
@@ -786,15 +800,31 @@ private fun UiPresetCore.toUiPresetSummary(descriptionOverride: String?): UiPres
     name = name,
     description = descriptionOverride ?: description.ifBlank { null },
     toolsCount = tools.count { it.enabled },
-    promptsCount = 0,
-    resourcesCount = 0
+    promptsCount = prompts?.count { it.enabled } ?: 0,
+    resourcesCount = resources?.count { it.enabled } ?: 0
 )
 
 private fun UiPresetDraft.toCorePreset(): UiPresetCore = UiPresetCore(
     id = id,
     name = name,
     description = description ?: "",
-    tools = tools.map { tool -> ToolReference(serverId = tool.serverId, toolName = tool.toolName, enabled = tool.enabled) }
+    tools = tools.map { tool ->
+        ToolReference(serverId = tool.serverId, toolName = tool.toolName, enabled = tool.enabled)
+    },
+    prompts = if (promptsConfigured) {
+        prompts.map { prompt ->
+            PromptReference(serverId = prompt.serverId, promptName = prompt.promptName, enabled = prompt.enabled)
+        }
+    } else {
+        null
+    },
+    resources = if (resourcesConfigured) {
+        resources.map { resource ->
+            ResourceReference(serverId = resource.serverId, resourceKey = resource.resourceKey, enabled = resource.enabled)
+        }
+    } else {
+        null
+    }
 )
 
 private fun UiTransportDraft.toTransportConfig(): UiTransportConfig = when (this) {

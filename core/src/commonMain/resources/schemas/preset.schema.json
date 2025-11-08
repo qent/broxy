@@ -12,6 +12,16 @@
     "tools": {
       "type": "array",
       "items": { "$ref": "#/definitions/ToolReference" }
+    },
+    "prompts": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/PromptReference" },
+      "default": []
+    },
+    "resources": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/ResourceReference" },
+      "default": []
     }
   },
   "definitions": {
@@ -22,6 +32,26 @@
       "properties": {
         "serverId": { "type": "string", "minLength": 1 },
         "toolName": { "type": "string", "minLength": 1 },
+        "enabled": { "type": "boolean" }
+      }
+    },
+    "PromptReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["serverId", "promptName", "enabled"],
+      "properties": {
+        "serverId": { "type": "string", "minLength": 1 },
+        "promptName": { "type": "string", "minLength": 1 },
+        "enabled": { "type": "boolean" }
+      }
+    },
+    "ResourceReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["serverId", "resourceKey", "enabled"],
+      "properties": {
+        "serverId": { "type": "string", "minLength": 1 },
+        "resourceKey": { "type": "string", "minLength": 1 },
         "enabled": { "type": "boolean" }
       }
     }

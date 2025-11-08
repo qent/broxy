@@ -6,6 +6,8 @@ import io.qent.broxy.core.mcp.ServerCapabilities
 import io.qent.broxy.core.mcp.ToolDescriptor
 import io.qent.broxy.core.models.Preset
 import io.qent.broxy.core.models.ToolReference
+import io.qent.broxy.core.models.PromptReference
+import io.qent.broxy.core.models.ResourceReference
 import io.qent.broxy.core.utils.ConsoleLogger
 import io.qent.broxy.core.utils.Logger
 
@@ -43,9 +45,21 @@ class DefaultToolFilter(
         val desiredByServer: Map<String, List<ToolReference>> = preset.tools
             .filter { it.enabled }
             .groupBy { it.serverId }
+        val desiredPromptsByServer: Map<String, List<PromptReference>> = preset.prompts
+            ?.filter { it.enabled }
+            ?.groupBy { it.serverId }
+            .orEmpty()
+        val desiredResourcesByServer: Map<String, List<ResourceReference>> = preset.resources
+            ?.filter { it.enabled }
+            ?.groupBy { it.serverId }
+            .orEmpty()
 
-        // Determine which servers are in scope (by presence in preset)
-        val inScopeServers: Set<String> = desiredByServer.keys
+        // Determine which servers are in scope (referenced by tools/prompts/resources)
+        val inScopeServers: Set<String> = buildSet {
+            addAll(desiredByServer.keys)
+            addAll(desiredPromptsByServer.keys)
+            addAll(desiredResourcesByServer.keys)
+        }
 
         val allowedPrefixed = mutableSetOf<String>()
         val missing = mutableListOf<ToolReference>()
@@ -81,13 +95,33 @@ class DefaultToolFilter(
             }
         }
 
-        // Resources/Prompts: include everything from servers that appear in the preset
+        val restrictPrompts = preset.prompts != null
+        val restrictResources = preset.resources != null
+
+        // Resources/Prompts: include selected entries (or everything if not explicitly defined)
         inScopeServers.forEach { serverId ->
             val caps = all[serverId] ?: return@forEach
-            filteredResources += caps.resources
-            filteredPrompts += caps.prompts
-            caps.prompts.forEach { p -> promptServer.putIfAbsent(p.name, serverId) }
-            caps.resources.forEach { r ->
+            val promptAllowList = desiredPromptsByServer[serverId]?.map { it.promptName }?.toSet().orEmpty()
+            val resourceAllowList = desiredResourcesByServer[serverId]?.map { it.resourceKey }?.toSet().orEmpty()
+
+            val promptsToInclude = if (restrictPrompts) {
+                if (promptAllowList.isEmpty()) emptyList()
+                else caps.prompts.filter { it.name in promptAllowList }
+            } else {
+                caps.prompts
+            }
+            val resourcesToInclude = if (restrictResources) {
+                if (resourceAllowList.isEmpty()) emptyList()
+                else caps.resources.filter { (it.uri ?: it.name) in resourceAllowList }
+            } else {
+                caps.resources
+            }
+
+            filteredPrompts += promptsToInclude
+            filteredResources += resourcesToInclude
+
+            promptsToInclude.forEach { p -> promptServer.putIfAbsent(p.name, serverId) }
+            resourcesToInclude.forEach { r ->
                 val key = r.uri ?: r.name
                 resourceServer.putIfAbsent(key, serverId)
             }

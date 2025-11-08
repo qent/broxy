@@ -22,6 +22,8 @@ import io.qent.broxy.ui.adapter.models.UiServer
 import io.qent.broxy.ui.adapter.models.UiServerCapsSnapshot
 import io.qent.broxy.ui.adapter.models.UiServerDraft
 import io.qent.broxy.ui.adapter.models.UiToolRef
+import io.qent.broxy.ui.adapter.models.UiPromptRef
+import io.qent.broxy.ui.adapter.models.UiResourceRef
 import io.qent.broxy.ui.adapter.services.validateServerConnection
 import io.qent.broxy.ui.adapter.store.AppStore
 import io.qent.broxy.ui.adapter.store.UIState
@@ -91,6 +93,10 @@ fun AddPresetDialog(ui: UIState, state: AppState, store: AppStore) {
     val name = remember { mutableStateOf(TextFieldValue("")) }
     val description = remember { mutableStateOf(TextFieldValue("")) }
     val selectedTools = remember { mutableStateOf<List<UiToolRef>>(emptyList()) }
+    val selectedPrompts = remember { mutableStateOf<List<UiPromptRef>>(emptyList()) }
+    val selectedResources = remember { mutableStateOf<List<UiResourceRef>>(emptyList()) }
+    val promptsConfigured = remember { mutableStateOf(true) }
+    val resourcesConfigured = remember { mutableStateOf(true) }
 
     AppDialog(
         title = "Add preset",
@@ -105,7 +111,11 @@ fun AddPresetDialog(ui: UIState, state: AppState, store: AppStore) {
                         id = name.value.text.trim().lowercase().replace(" ", "-"),
                         name = name.value.text.trim(),
                         description = description.value.text.ifBlank { null },
-                        tools = selectedTools.value
+                        tools = selectedTools.value,
+                        prompts = selectedPrompts.value,
+                        resources = selectedResources.value,
+                        promptsConfigured = promptsConfigured.value,
+                        resourcesConfigured = resourcesConfigured.value
                     )
                     ui.intents.upsertPreset(draft)
                     state.showAddPresetDialog.value = false
@@ -132,7 +142,15 @@ fun AddPresetDialog(ui: UIState, state: AppState, store: AppStore) {
         )
         PresetSelector(
             store = store,
-            onToolsChanged = { selectedTools.value = it }
+            promptsConfigured = promptsConfigured.value,
+            resourcesConfigured = resourcesConfigured.value,
+            onSelectionChanged = { tools, prompts, resources ->
+                selectedTools.value = tools
+                selectedPrompts.value = prompts
+                selectedResources.value = resources
+            },
+            onPromptsConfiguredChange = { promptsConfigured.value = it },
+            onResourcesConfiguredChange = { resourcesConfigured.value = it }
         )
     }
 }
@@ -198,6 +216,10 @@ fun EditPresetDialog(
     val id = remember { mutableStateOf(TextFieldValue(initial.id)) }
     val description = remember { mutableStateOf(TextFieldValue(initial.description ?: "")) }
     val selectedTools = remember { mutableStateOf<List<UiToolRef>>(initial.tools) }
+    val selectedPrompts = remember { mutableStateOf<List<UiPromptRef>>(initial.prompts) }
+    val selectedResources = remember { mutableStateOf<List<UiResourceRef>>(initial.resources) }
+    val promptsConfigured = remember { mutableStateOf(initial.promptsConfigured) }
+    val resourcesConfigured = remember { mutableStateOf(initial.resourcesConfigured) }
 
     AppDialog(
         title = "Edit preset",
@@ -210,7 +232,11 @@ fun EditPresetDialog(
                         id = id.value.text.trim(),
                         name = name.value.text.trim(),
                         description = description.value.text.ifBlank { null },
-                        tools = selectedTools.value
+                        tools = selectedTools.value,
+                        prompts = selectedPrompts.value,
+                        resources = selectedResources.value,
+                        promptsConfigured = promptsConfigured.value,
+                        resourcesConfigured = resourcesConfigured.value
                     )
                     ui.intents.upsertPreset(draft)
                     onClose()
@@ -244,7 +270,17 @@ fun EditPresetDialog(
         PresetSelector(
             store = store,
             initialToolRefs = initial.tools,
-            onToolsChanged = { selectedTools.value = it }
+            initialPromptRefs = initial.prompts,
+            initialResourceRefs = initial.resources,
+            promptsConfigured = promptsConfigured.value,
+            resourcesConfigured = resourcesConfigured.value,
+            onSelectionChanged = { tools, prompts, resources ->
+                selectedTools.value = tools
+                selectedPrompts.value = prompts
+                selectedResources.value = resources
+            },
+            onPromptsConfiguredChange = { promptsConfigured.value = it },
+            onResourcesConfiguredChange = { resourcesConfigured.value = it }
         )
     }
 }

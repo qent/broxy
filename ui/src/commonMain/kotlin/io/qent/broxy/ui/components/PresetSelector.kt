@@ -20,23 +20,28 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import io.qent.broxy.ui.adapter.models.UiPromptRef
+import io.qent.broxy.ui.adapter.models.UiResourceRef
 import io.qent.broxy.ui.adapter.models.UiServerCapsSnapshot
 import io.qent.broxy.ui.adapter.models.UiToolRef
 import io.qent.broxy.ui.adapter.store.AppStore
 import io.qent.broxy.ui.theme.AppTheme
 
-data class PresetSelectionState(
-    val selectedServers: Set<String> = emptySet(),
-    val selectedTools: Set<Pair<String, String>> = emptySet(), // (serverId, toolName)
-    val selectedPrompts: Set<Pair<String, String>> = emptySet(), // (serverId, promptName)
-    val selectedResources: Set<Pair<String, String>> = emptySet() // (serverId, resourceKey)
-)
-
 @Composable
 fun PresetSelector(
     store: AppStore,
     initialToolRefs: List<UiToolRef> = emptyList(),
-    onToolsChanged: (List<UiToolRef>) -> Unit = {}
+    initialPromptRefs: List<UiPromptRef> = emptyList(),
+    initialResourceRefs: List<UiResourceRef> = emptyList(),
+    promptsConfigured: Boolean = true,
+    resourcesConfigured: Boolean = true,
+    onSelectionChanged: (
+        tools: List<UiToolRef>,
+        prompts: List<UiPromptRef>,
+        resources: List<UiResourceRef>
+    ) -> Unit = { _, _, _ -> },
+    onPromptsConfiguredChange: (Boolean) -> Unit = {},
+    onResourcesConfiguredChange: (Boolean) -> Unit = {}
 ) {
     var loading by remember { mutableStateOf(true) }
     val snaps = remember { mutableStateOf<List<UiServerCapsSnapshot>>(emptyList()) }
@@ -49,27 +54,82 @@ fun PresetSelector(
     val selectedPrompts = remember { mutableStateMapOf<String, Set<String>>() }
     val selectedResources = remember { mutableStateMapOf<String, Set<String>>() }
 
+    fun hasSelection(serverId: String): Boolean {
+        val toolsSelected = selectedTools[serverId]?.isNotEmpty() == true
+        val promptsSelected = selectedPrompts[serverId]?.isNotEmpty() == true
+        val resourcesSelected = selectedResources[serverId]?.isNotEmpty() == true
+        return toolsSelected || promptsSelected || resourcesSelected
+    }
+
+    fun updateServerSelection(serverId: String) {
+        selectedServers[serverId] = hasSelection(serverId)
+    }
+
+    fun emitSelection() {
+        val tools = selectedTools.flatMap { (sid, names) ->
+            names.map { name -> UiToolRef(serverId = sid, toolName = name, enabled = true) }
+        }
+        val prompts = selectedPrompts.flatMap { (sid, names) ->
+            names.map { name -> UiPromptRef(serverId = sid, promptName = name, enabled = true) }
+        }
+        val resources = selectedResources.flatMap { (sid, keys) ->
+            keys.map { key -> UiResourceRef(serverId = sid, resourceKey = key, enabled = true) }
+        }
+        onSelectionChanged(tools, prompts, resources)
+    }
+
     LaunchedEffect(Unit) {
         loading = true
         val data = store.listEnabledServerCaps()
         snaps.value = data
-        data.forEach { snap -> serverNames[snap.serverId] = snap.name; expanded[snap.serverId] = false }
-        // Initialize selection from initialToolRefs (tools only)
-        initialToolRefs.filter { it.enabled }.forEach { ref ->
-            selectedServers[ref.serverId] = true
+        val availableServers = data.map { it.serverId }.toSet()
+        data.forEach { snap ->
+            serverNames[snap.serverId] = snap.name
+            expanded[snap.serverId] = false
+        }
+        // Initialize selection from provided refs
+        initialToolRefs.filter { it.enabled && it.serverId in availableServers }.forEach { ref ->
             val prev = selectedTools[ref.serverId] ?: emptySet()
             selectedTools[ref.serverId] = prev + ref.toolName
         }
+        initialPromptRefs.filter { it.enabled && it.serverId in availableServers }.forEach { ref ->
+            val prev = selectedPrompts[ref.serverId] ?: emptySet()
+            selectedPrompts[ref.serverId] = prev + ref.promptName
+        }
+        initialResourceRefs.filter { it.enabled && it.serverId in availableServers }.forEach { ref ->
+            val prev = selectedResources[ref.serverId] ?: emptySet()
+            selectedResources[ref.serverId] = prev + ref.resourceKey
+        }
+        val preselectedServers = mutableSetOf<String>().apply {
+            addAll(selectedTools.keys)
+            addAll(selectedPrompts.keys)
+            addAll(selectedResources.keys)
+        }
+        if (!promptsConfigured) {
+            data.forEach { snap ->
+                val serverId = snap.serverId
+                if (serverId in preselectedServers && snap.prompts.isNotEmpty()) {
+                    selectedPrompts[serverId] = snap.prompts.map { it.name }.toSet()
+                }
+            }
+        }
+        if (!resourcesConfigured) {
+            data.forEach { snap ->
+                val serverId = snap.serverId
+                if (serverId in preselectedServers && snap.resources.isNotEmpty()) {
+                    selectedResources[serverId] = snap.resources.map { it.key }.toSet()
+                }
+            }
+        }
+        preselectedServers += selectedPrompts.keys
+        preselectedServers += selectedResources.keys
+        preselectedServers.forEach { serverId ->
+            if (serverId in availableServers) {
+                updateServerSelection(serverId)
+            }
+        }
         loading = false
-        // Push initial mapping to consumer
-        onToolsChanged(selectedTools.flatMap { (sid, tools) ->
-            tools.map { t -> UiToolRef(serverId = sid, toolName = t, enabled = true) }
-        })
-    }
-
-    fun recomputeAndEmit() {
-        val refs = selectedTools.flatMap { (sid, tools) -> tools.map { t -> UiToolRef(serverId = sid, toolName = t, enabled = true) } }
-        onToolsChanged(refs)
+        emitSelection()
     }
 
     Column(
@@ -98,18 +158,19 @@ fun PresetSelector(
                         Checkbox(
                             checked = srvChecked,
                             onCheckedChange = { checked ->
-                                selectedServers[serverId] = checked
                                 if (checked) {
                                     // FIX: присваиваем новые set'ы
                                     selectedTools[serverId] = snap.tools.map { it.name }.toSet()
                                     selectedPrompts[serverId] = snap.prompts.map { it.name }.toSet()
                                     selectedResources[serverId] = snap.resources.map { it.key }.toSet()
+                                    updateServerSelection(serverId)
                                 } else {
                                     selectedTools.remove(serverId)
                                     selectedPrompts.remove(serverId)
                                     selectedResources.remove(serverId)
+                                    selectedServers[serverId] = false
                                 }
-                                recomputeAndEmit()
+                                emitSelection()
                             }
                         )
                         Text(
@@ -142,8 +203,8 @@ fun PresetSelector(
                                     val next = if (c) prev + t.name else prev - t.name
                                     selectedTools[serverId] = next
                                     // Maintain server checkbox if any item selected
-                                    selectedServers[serverId] = next.isNotEmpty()
-                                    recomputeAndEmit()
+                                    updateServerSelection(serverId)
+                                    emitSelection()
                                 }
                             )
                             Column(modifier = Modifier.padding(top = AppTheme.spacing.sm)) {
@@ -177,6 +238,9 @@ fun PresetSelector(
                                     val prev = selectedPrompts[serverId] ?: emptySet()
                                     val next = if (c) prev + p.name else prev - p.name
                                     selectedPrompts[serverId] = next
+                                    updateServerSelection(serverId)
+                                    onPromptsConfiguredChange(true)
+                                    emitSelection()
                                 }
                             )
                             Column(modifier = Modifier.padding(top = AppTheme.spacing.sm)) {
@@ -210,6 +274,9 @@ fun PresetSelector(
                                     val prev = selectedResources[serverId] ?: emptySet()
                                     val next = if (c) prev + resource.key else prev - resource.key
                                     selectedResources[serverId] = next
+                                    updateServerSelection(serverId)
+                                    onResourcesConfiguredChange(true)
+                                    emitSelection()
                                 }
                             )
                             Column(modifier = Modifier.padding(top = AppTheme.spacing.sm)) {
