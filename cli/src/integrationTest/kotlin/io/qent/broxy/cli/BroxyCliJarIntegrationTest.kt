@@ -34,25 +34,96 @@ import kotlinx.serialization.json.put
 
 class BroxyCliJarIntegrationTest {
     @Test
-    fun stdioInbound_proxiesAndFiltersPreset() = runBlocking {
-        withTimeout(TEST_TIMEOUT_MILLIS) {
-            log("Running STDIO integration scenario")
-            withStdioClient { client ->
-                val caps = awaitFilteredCapabilities(client)
-                assertExpectedCapabilities(caps)
-                executeAllCapabilities(client)
-            }
-        }
+    fun stdio_toolsCapabilitiesMatchPreset() = stdioTest("tool capabilities") { client ->
+        val caps = awaitFilteredCapabilities(client)
+        assertExpectedToolCapabilities(caps)
     }
 
     @Test
-    fun httpSseInbound_proxiesAndFiltersPreset() = runBlocking {
+    fun stdio_toolCallsSucceed() = stdioTest("tool invocation") { client ->
+        awaitFilteredCapabilities(client)
+        callExpectedTools(client)
+    }
+
+    @Test
+    fun stdio_promptsCapabilitiesMatchPreset() = stdioTest("prompt capabilities") { client ->
+        val caps = awaitFilteredCapabilities(client)
+        assertExpectedPromptCapabilities(caps)
+    }
+
+    @Test
+    fun stdio_promptFetchesSucceed() = stdioTest("prompt fetch") { client ->
+        awaitFilteredCapabilities(client)
+        fetchExpectedPrompts(client)
+    }
+
+    @Test
+    fun stdio_resourcesCapabilitiesMatchPreset() = stdioTest("resource capabilities") { client ->
+        val caps = awaitFilteredCapabilities(client)
+        assertExpectedResourceCapabilities(caps)
+    }
+
+    @Test
+    fun stdio_resourceReadsSucceed() = stdioTest("resource read") { client ->
+        awaitFilteredCapabilities(client)
+        readExpectedResources(client)
+    }
+
+    @Test
+    fun httpSse_toolsCapabilitiesMatchPreset() = httpSseTest("tool capabilities") { client ->
+        val caps = awaitFilteredCapabilities(client)
+        assertExpectedToolCapabilities(caps)
+    }
+
+    @Test
+    fun httpSse_toolCallsSucceed() = httpSseTest("tool invocation") { client ->
+        awaitFilteredCapabilities(client)
+        callExpectedTools(client)
+    }
+
+    @Test
+    fun httpSse_promptsCapabilitiesMatchPreset() = httpSseTest("prompt capabilities") { client ->
+        val caps = awaitFilteredCapabilities(client)
+        assertExpectedPromptCapabilities(caps)
+    }
+
+    @Test
+    fun httpSse_promptFetchesSucceed() = httpSseTest("prompt fetch") { client ->
+        awaitFilteredCapabilities(client)
+        fetchExpectedPrompts(client)
+    }
+
+    @Test
+    fun httpSse_resourcesCapabilitiesMatchPreset() = httpSseTest("resource capabilities") { client ->
+        val caps = awaitFilteredCapabilities(client)
+        assertExpectedResourceCapabilities(caps)
+    }
+
+    @Test
+    fun httpSse_resourceReadsSucceed() = httpSseTest("resource read") { client ->
+        awaitFilteredCapabilities(client)
+        readExpectedResources(client)
+    }
+
+    private fun stdioTest(description: String, block: suspend (McpClient) -> Unit) =
+        runInboundTest(InboundScenario.STDIO, description, block)
+
+    private fun httpSseTest(description: String, block: suspend (McpClient) -> Unit) =
+        runInboundTest(InboundScenario.HTTP_SSE, description, block)
+
+    private fun runInboundTest(
+        inboundScenario: InboundScenario,
+        description: String,
+        block: suspend (McpClient) -> Unit
+    ) = runBlocking {
         withTimeout(TEST_TIMEOUT_MILLIS) {
-            log("Running HTTP SSE integration scenario")
-            withHttpSseClient { client ->
-                val caps = awaitFilteredCapabilities(client)
-                assertExpectedCapabilities(caps)
-                executeAllCapabilities(client)
+            val runner: suspend (suspend (McpClient) -> Unit) -> Unit = when (inboundScenario) {
+                InboundScenario.STDIO -> { clientBlock -> withStdioClient(clientBlock) }
+                InboundScenario.HTTP_SSE -> { clientBlock -> withHttpSseClient(clientBlock) }
+            }
+            runner { client ->
+                log("Running ${inboundScenario.description} scenario: $description")
+                block(client)
             }
         }
     }
@@ -134,9 +205,15 @@ class BroxyCliJarIntegrationTest {
         )
     }
 
-    private fun assertExpectedCapabilities(caps: ServerCapabilities) {
+    private fun assertExpectedToolCapabilities(caps: ServerCapabilities) {
         assertEquals(EXPECTED_TOOLS, caps.tools.map { it.name }.toSet(), "Tool list should match preset")
+    }
+
+    private fun assertExpectedPromptCapabilities(caps: ServerCapabilities) {
         assertEquals(EXPECTED_PROMPTS, caps.prompts.map { it.name }.toSet(), "Prompt list should match preset")
+    }
+
+    private fun assertExpectedResourceCapabilities(caps: ServerCapabilities) {
         assertEquals(
             EXPECTED_RESOURCES,
             caps.resources.map { it.uri ?: it.name }.toSet(),
@@ -144,14 +221,7 @@ class BroxyCliJarIntegrationTest {
         )
     }
 
-    private suspend fun executeAllCapabilities(client: McpClient) {
-        log("Executing all allowed capabilities")
-        executeTools(client)
-        executePrompts(client)
-        executeResources(client)
-    }
-
-    private suspend fun executeTools(client: McpClient) {
+    private suspend fun callExpectedTools(client: McpClient) {
         EXPECTED_TOOLS.forEach { tool ->
             log("Invoking tool $tool")
             val args = when (tool) {
@@ -170,7 +240,7 @@ class BroxyCliJarIntegrationTest {
         }
     }
 
-    private suspend fun executePrompts(client: McpClient) {
+    private suspend fun fetchExpectedPrompts(client: McpClient) {
         EXPECTED_PROMPTS.forEach { prompt ->
             log("Fetching prompt $prompt")
             val response = client.getPrompt(prompt).getOrFail("getPrompt $prompt")
@@ -178,7 +248,7 @@ class BroxyCliJarIntegrationTest {
         }
     }
 
-    private suspend fun executeResources(client: McpClient) {
+    private suspend fun readExpectedResources(client: McpClient) {
         EXPECTED_RESOURCES.forEach { uri ->
             log("Reading resource $uri")
             val response = client.readResource(uri).getOrFail("readResource $uri")
@@ -324,6 +394,11 @@ class BroxyCliJarIntegrationTest {
 
     private fun JsonElement.asJsonObject(operation: String): JsonObject =
         this as? JsonObject ?: fail("$operation should return JsonObject but was ${this::class.simpleName}")
+
+    private enum class InboundScenario(val description: String) {
+        STDIO("STDIO inbound"),
+        HTTP_SSE("HTTP SSE inbound")
+    }
 
     companion object {
         private const val PRESET_ID = "test"
