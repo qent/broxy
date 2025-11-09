@@ -31,6 +31,7 @@ import io.modelcontextprotocol.kotlin.sdk.server.ServerOptions
 import io.modelcontextprotocol.kotlin.sdk.server.StdioServerTransport
 import io.modelcontextprotocol.kotlin.sdk.server.SseServerTransport
 import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
 import kotlinx.io.asSink
 import kotlinx.io.asSource
@@ -60,13 +61,21 @@ class SimpleTestMcpServer(
             System.`in`.asSource().buffered(),
             System.out.asSink().buffered()
         )
+        val shutdownSignal = CompletableDeferred<Unit>()
+        transport.onClose {
+            if (!shutdownSignal.isCompleted) {
+                shutdownSignal.complete(Unit)
+            }
+        }
         System.err.println("SimpleTestMcpServer: waiting for STDIO client")
         try {
             server.connect(transport)
+            shutdownSignal.await()
         } catch (t: Throwable) {
             System.err.println("SimpleTestMcpServer: STDIO connection failed - ${t.message}")
             throw t
         } finally {
+            runCatching { transport.close() }
             System.err.println("SimpleTestMcpServer: STDIO connection closed")
         }
     }

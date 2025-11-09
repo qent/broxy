@@ -11,7 +11,6 @@ import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
-import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -43,7 +42,6 @@ class SimpleTestMcpServerIntegrationTest {
         .absolutePath
 
     @Test
-    @Ignore("STDIO mode currently closes the transport immediately (MCP error -1)")
     fun stdioMode_exposesToolsPromptsAndResources() = runBlocking {
         val client = StdioMcpClient(
             command = serverExecutable,
