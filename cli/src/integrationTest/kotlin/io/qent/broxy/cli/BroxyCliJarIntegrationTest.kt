@@ -226,13 +226,8 @@ class BroxyCliJarIntegrationTest {
         EXPECTED_TOOLS.forEach { tool ->
             log("Invoking tool $tool")
             val args = when (tool) {
-                EXA_SEARCH_TOOL -> buildJsonObject {
-                    put("query", JsonPrimitive("broxy integration smoke test"))
-                    put("num_results", JsonPrimitive(1))
-                }
-                TIME_TOOL -> buildJsonObject {
-                    put("timezone", JsonPrimitive("America/New_York"))
-                }
+                "$TEST_SERVER_ID:$ADD_TOOL_NAME" -> buildArithmeticArguments()
+                "$EXA_SERVER_ID:$EXA_TOOL_NAME" -> buildExaSearchArguments()
                 else -> JsonObject(emptyMap())
             }
             val payload = client.callTool(tool, args).getOrFail("callTool $tool").asJsonObject("callTool $tool")
@@ -259,6 +254,16 @@ class BroxyCliJarIntegrationTest {
         val requiredArgs = descriptor.arguments.orEmpty().filter { it.required == true }
         if (requiredArgs.isEmpty()) return emptyMap()
         return requiredArgs.associate { arg -> arg.name to PROMPT_ARGUMENT_PLACEHOLDER }
+    }
+
+    private fun buildArithmeticArguments(a: Int = 2, b: Int = 3): JsonObject = buildJsonObject {
+        put("a", JsonPrimitive(a))
+        put("b", JsonPrimitive(b))
+    }
+
+    private fun buildExaSearchArguments(): JsonObject = buildJsonObject {
+        put("query", JsonPrimitive("broxy integration smoke test"))
+        put("num_results", JsonPrimitive(1))
     }
 
     private suspend fun readExpectedResources(client: McpClient) {
@@ -327,10 +332,24 @@ class BroxyCliJarIntegrationTest {
 
     private fun prepareConfigDir(): Path {
         val dir = Files.createTempDirectory("broxy-cli-it-")
-        copyResource("/integration/mcp.json", dir.resolve("mcp.json"))
+        writeTestServerConfig(dir.resolve("mcp.json"))
         copyResource("/integration/preset_test.json", dir.resolve("preset_test.json"))
         log("Wrote integration config to ${dir.pathString}")
         return dir
+    }
+
+    private fun writeTestServerConfig(destination: Path) {
+        val template = readResource("/integration/mcp.json")
+        val command = jsonEscape(resolveTestServerCommand())
+        val resolved = template.replace(TEST_SERVER_COMMAND_PLACEHOLDER, command)
+        Files.writeString(destination, resolved)
+    }
+
+    private fun readResource(resource: String): String {
+        val stream: InputStream = requireNotNull(javaClass.getResourceAsStream(resource)) {
+            "Missing classpath resource $resource"
+        }
+        return stream.use { it.bufferedReader().readText() }
     }
 
     private fun copyResource(resource: String, destination: Path) {
@@ -339,6 +358,35 @@ class BroxyCliJarIntegrationTest {
         }
         stream.use {
             Files.copy(it, destination, StandardCopyOption.REPLACE_EXISTING)
+        }
+    }
+
+    private fun resolveTestServerCommand(): String {
+        val home = System.getProperty(TEST_SERVER_HOME_PROPERTY)?.takeIf { it.isNotBlank() }
+            ?: fail("System property '$TEST_SERVER_HOME_PROPERTY' must point to the test MCP server install dir")
+        val binDir = Paths.get(home, "bin")
+        val scriptName = if (isWindows()) "test-mcp-server.bat" else "test-mcp-server"
+        val path = binDir.resolve(scriptName)
+        if (!path.exists()) {
+            fail("Test MCP server executable not found at ${path.pathString}")
+        }
+        return path.toAbsolutePath().pathString
+    }
+
+    private fun isWindows(): Boolean = System.getProperty("os.name").lowercase().contains("win")
+
+    private fun jsonEscape(value: String): String = buildString {
+        value.forEach { ch ->
+            when (ch) {
+                '\\' -> append("\\\\")
+                '"' -> append("\\\"")
+                '\b' -> append("\\b")
+                '\u000C' -> append("\\f")
+                '\n' -> append("\\n")
+                '\r' -> append("\\r")
+                '\t' -> append("\\t")
+                else -> append(ch)
+            }
         }
     }
 
@@ -421,11 +469,20 @@ class BroxyCliJarIntegrationTest {
     companion object {
         private const val PRESET_ID = "test"
         private const val TEST_TIMEOUT_MILLIS = 60_000L
-        private const val EXA_SEARCH_TOOL = "exa-search:web_search_exa"
-        private const val TIME_TOOL = "time:get_current_time"
-        private val EXPECTED_TOOLS = setOf(EXA_SEARCH_TOOL, TIME_TOOL)
-        private val EXPECTED_PROMPTS = setOf("web_search_help")
-        private val EXPECTED_RESOURCES = setOf("exa://tools/list")
+        private const val TEST_SERVER_HOME_PROPERTY = "broxy.testMcpServerHome"
+        private const val TEST_SERVER_COMMAND_PLACEHOLDER = "__TEST_MCP_SERVER_COMMAND__"
+        private const val TEST_SERVER_ID = "test-arithmetic"
+        private const val ADD_TOOL_NAME = "add"
+        private const val EXA_SERVER_ID = "exa-search"
+        private const val EXA_TOOL_NAME = "web_search_exa"
+        private const val EXA_PROMPT_NAME = "web_search_help"
+        private const val EXA_RESOURCE_URI = "exa://tools/list"
+        private val EXPECTED_TOOLS = setOf(
+            "$TEST_SERVER_ID:$ADD_TOOL_NAME",
+            "$EXA_SERVER_ID:$EXA_TOOL_NAME"
+        )
+        private val EXPECTED_PROMPTS = setOf("hello", EXA_PROMPT_NAME)
+        private val EXPECTED_RESOURCES = setOf("test://resource/alpha", EXA_RESOURCE_URI)
         private const val PROMPT_ARGUMENT_PLACEHOLDER = "integration-test"
         private val TEST_LOGGER = FilteredLogger(LogLevel.WARN)
 

@@ -50,16 +50,20 @@ configurations["integrationTestRuntimeOnly"].extendsFrom(configurations["testRun
 
 val shadowJarTask = tasks.named<ShadowJar>("shadowJar")
 
+val testServerProject = project(":test-mcp-server")
+val testServerHome = testServerProject.layout.buildDirectory.dir("install/test-mcp-server")
+
 val integrationTest = tasks.register<Test>("integrationTest") {
     description = "Runs broxy CLI jar integration tests (STDIO + HTTP SSE)."
     group = "verification"
     testClassesDirs = integrationTestSourceSet.output.classesDirs
     classpath = integrationTestSourceSet.runtimeClasspath
     shouldRunAfter(tasks.named("test"))
-    dependsOn(shadowJarTask)
+    dependsOn(shadowJarTask, ":test-mcp-server:installDist")
     useJUnitPlatform()
     val jarFile = shadowJarTask.flatMap { it.archiveFile }
     systemProperty("broxy.cliJar", jarFile.get().asFile.absolutePath)
+    systemProperty("broxy.testMcpServerHome", testServerHome.get().asFile.absolutePath)
     // Hard timeout per test to avoid hanging MCP e2e runs
     systemProperty("junit.jupiter.execution.timeout.default", "PT1M")
 }

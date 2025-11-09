@@ -23,5 +23,6 @@ include(
     "core",
     "ui-adapter",
     "ui",
-    "cli"
+    "cli",
+    "test-mcp-server"
 )

@@ -4,21 +4,29 @@
     "description": "test agent",
     "tools": [
         {
-            "serverId": "exa-search",
-            "toolName": "web_search_exa"
+            "serverId": "test-arithmetic",
+            "toolName": "add"
         },
         {
-            "serverId": "time",
-            "toolName": "get_current_time"
+            "serverId": "exa-search",
+            "toolName": "web_search_exa"
         }
     ],
     "prompts": [
+        {
+            "serverId": "test-arithmetic",
+            "promptName": "hello"
+        },
         {
             "serverId": "exa-search",
             "promptName": "web_search_help"
         }
     ],
     "resources": [
+        {
+            "serverId": "test-arithmetic",
+            "resourceKey": "test://resource/alpha"
+        },
         {
             "serverId": "exa-search",
             "resourceKey": "exa://tools/list"

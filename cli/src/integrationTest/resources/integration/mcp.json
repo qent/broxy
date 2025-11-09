@@ -2,15 +2,12 @@
     "requestTimeoutSeconds": 60,
     "showTrayIcon": true,
     "mcpServers": {
-        "time": {
-            "name": "Time",
+        "test-arithmetic": {
+            "name": "Test Arithmetic",
             "enabled": true,
             "transport": "stdio",
-            "command": "/opt/homebrew/bin/uvx",
-            "args": [
-                "mcp-server-time",
-                "--local-timezone=America/New_York"
-            ]
+            "command": "__TEST_MCP_SERVER_COMMAND__",
+            "args": []
         },
         "exa-search": {
             "name": "Exa Search",
