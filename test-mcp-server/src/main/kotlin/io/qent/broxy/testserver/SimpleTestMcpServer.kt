@@ -60,7 +60,15 @@ class SimpleTestMcpServer(
             System.`in`.asSource().buffered(),
             System.out.asSink().buffered()
         )
-        server.connect(transport)
+        System.err.println("SimpleTestMcpServer: waiting for STDIO client")
+        try {
+            server.connect(transport)
+        } catch (t: Throwable) {
+            System.err.println("SimpleTestMcpServer: STDIO connection failed - ${t.message}")
+            throw t
+        } finally {
+            System.err.println("SimpleTestMcpServer: STDIO connection closed")
+        }
     }
 
     private fun startHttpSse() {
