@@ -28,7 +28,7 @@ data class ToolCallRequest(val name: String, val arguments: JsonObject = JsonObj
 interface RequestDispatcher {
     suspend fun dispatchToolCall(request: ToolCallRequest): Result<JsonElement>
     suspend fun dispatchBatch(requests: List<ToolCallRequest>): List<Result<JsonElement>>
-    suspend fun dispatchPrompt(name: String): Result<JsonObject>
+    suspend fun dispatchPrompt(name: String, arguments: Map<String, String>? = null): Result<JsonObject>
     suspend fun dispatchResource(uri: String): Result<JsonObject>
 }
 
@@ -90,11 +90,11 @@ class DefaultRequestDispatcher(
         requests.map { req -> async { dispatchToolCall(req) } }.awaitAll()
     }
 
-    override suspend fun dispatchPrompt(name: String): Result<JsonObject> {
+    override suspend fun dispatchPrompt(name: String, arguments: Map<String, String>?): Result<JsonObject> {
         val server = resolveServerForPrompt(name)
             ?: return Result.failure(IllegalArgumentException("Unknown prompt: $name"))
         logger.info("Routing prompt '$name' to server '${server.serverId}'")
-        val result = server.getPrompt(name)
+        val result = server.getPrompt(name, arguments)
         if (result.isSuccess) {
             logger.info("Server '${server.serverId}' returned prompt '$name'")
         } else {

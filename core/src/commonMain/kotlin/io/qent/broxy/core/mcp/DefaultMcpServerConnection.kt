@@ -146,14 +146,14 @@ class DefaultMcpServerConnection(
         }
     }
 
-    override suspend fun getPrompt(name: String): Result<JsonObject> {
+    override suspend fun getPrompt(name: String, arguments: Map<String, String>?): Result<JsonObject> {
         if (status != ServerStatus.Running) {
             val r = connect()
             if (r.isFailure) return Result.failure(r.exceptionOrNull()!!)
         }
         return try {
             withTimeout(callTimeoutMillis) {
-                client.getPrompt(name)
+                client.getPrompt(name, arguments)
             }
         } catch (t: TimeoutCancellationException) {
             val err = McpError.TimeoutError("Prompt '$name' timed out after ${callTimeoutMillis}ms", t)

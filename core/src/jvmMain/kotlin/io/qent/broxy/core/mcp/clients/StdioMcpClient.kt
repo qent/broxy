@@ -167,9 +167,9 @@ class StdioMcpClient(
         json.encodeToJsonElement(CallToolResultBase.serializer(), result) as JsonObject
     }
 
-    override suspend fun getPrompt(name: String): Result<JsonObject> = runCatching {
+    override suspend fun getPrompt(name: String, arguments: Map<String, String>?): Result<JsonObject> = runCatching {
         val c = client ?: throw IllegalStateException("Not connected")
-        val r = c.getPrompt(name)
+        val r = c.getPrompt(name, arguments)
         val el = kotlinx.serialization.json.Json.encodeToJsonElement(io.modelcontextprotocol.kotlin.sdk.GetPromptResult.serializer(), r)
         el as JsonObject
     }

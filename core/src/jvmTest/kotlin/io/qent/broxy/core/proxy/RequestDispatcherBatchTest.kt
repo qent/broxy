@@ -39,7 +39,7 @@ private class DServer(
             put("isError", JsonPrimitive(false))
             put("_meta", JsonObject(emptyMap()))
         })
-    override suspend fun getPrompt(name: String): Result<JsonObject> =
+    override suspend fun getPrompt(name: String, arguments: Map<String, String>?): Result<JsonObject> =
         Result.success(buildJsonObject { put("description", "desc-$name"); put("messages", "[]") })
     override suspend fun readResource(uri: String): Result<JsonObject> =
         Result.success(buildJsonObject { put("contents", "[]"); put("_meta", "{}") })

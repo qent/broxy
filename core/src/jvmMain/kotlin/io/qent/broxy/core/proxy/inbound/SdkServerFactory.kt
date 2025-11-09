@@ -128,7 +128,7 @@ fun buildSdkServer(proxy: ProxyMcpServer, logger: Logger = ConsoleLogger): Serve
         )
         server.addPrompt(prompt) { req ->
             logger.info("Received prompt request from LLM: name='${req.name}'")
-            val json = kotlinx.coroutines.runBlocking { proxy.getPrompt(req.name) }
+            val json = kotlinx.coroutines.runBlocking { proxy.getPrompt(req.name, req.arguments) }
             if (json.isSuccess) {
                 val el = json.getOrThrow()
                 logger.info("Forwarding prompt '${req.name}' result from downstream to LLM")

@@ -8,6 +8,6 @@ interface McpClient {
     suspend fun disconnect()
     suspend fun fetchCapabilities(): Result<ServerCapabilities>
     suspend fun callTool(name: String, arguments: JsonObject = JsonObject(emptyMap())): Result<JsonElement>
-    suspend fun getPrompt(name: String): Result<JsonObject>
+    suspend fun getPrompt(name: String, arguments: Map<String, String>? = null): Result<JsonObject>
     suspend fun readResource(uri: String): Result<JsonObject>
 }

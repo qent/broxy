@@ -2,11 +2,12 @@ package io.qent.broxy.core.mcp.clients
 
 import io.modelcontextprotocol.kotlin.sdk.CallToolRequest
 import io.modelcontextprotocol.kotlin.sdk.CallToolResultBase
+import io.modelcontextprotocol.kotlin.sdk.GetPromptRequest
 import io.modelcontextprotocol.kotlin.sdk.ListPromptsRequest
 import io.modelcontextprotocol.kotlin.sdk.ListResourcesRequest
 import io.modelcontextprotocol.kotlin.sdk.ListToolsRequest
-import io.modelcontextprotocol.kotlin.sdk.ReadResourceRequest
 import io.modelcontextprotocol.kotlin.sdk.Prompt
+import io.modelcontextprotocol.kotlin.sdk.ReadResourceRequest
 import io.modelcontextprotocol.kotlin.sdk.Resource
 import io.modelcontextprotocol.kotlin.sdk.Tool
 import io.qent.broxy.core.mcp.PromptDescriptor
@@ -29,8 +30,8 @@ class RealSdkClientFacade(
     override suspend fun callTool(name: String, arguments: JsonObject): CallToolResultBase? =
         client.callTool(CallToolRequest(name, arguments, JsonObject(emptyMap())))
 
-    override suspend fun getPrompt(name: String): io.modelcontextprotocol.kotlin.sdk.GetPromptResult =
-        client.getPrompt(io.modelcontextprotocol.kotlin.sdk.GetPromptRequest(name, arguments = null, _meta = JsonObject(emptyMap())))
+    override suspend fun getPrompt(name: String, arguments: Map<String, String>?): io.modelcontextprotocol.kotlin.sdk.GetPromptResult =
+        client.getPrompt(GetPromptRequest(name, arguments = arguments, _meta = JsonObject(emptyMap())))
 
     override suspend fun readResource(uri: String): io.modelcontextprotocol.kotlin.sdk.ReadResourceResult =
         client.readResource(ReadResourceRequest(uri))

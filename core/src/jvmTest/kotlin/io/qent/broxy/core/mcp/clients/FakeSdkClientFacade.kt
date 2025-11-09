@@ -5,9 +5,7 @@ import io.qent.broxy.core.mcp.ResourceDescriptor
 import io.qent.broxy.core.mcp.ToolDescriptor
 import io.modelcontextprotocol.kotlin.sdk.CallToolResult
 import io.modelcontextprotocol.kotlin.sdk.CallToolResultBase
-import io.modelcontextprotocol.kotlin.sdk.GetPromptRequest
 import io.modelcontextprotocol.kotlin.sdk.GetPromptResult
-import io.modelcontextprotocol.kotlin.sdk.ReadResourceRequest
 import io.modelcontextprotocol.kotlin.sdk.ReadResourceResult
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
@@ -33,7 +31,7 @@ class FakeSdkClientFacade(
             _meta = JsonObject(mapOf("source" to JsonPrimitive("fake")))
         )
 
-    override suspend fun getPrompt(name: String): GetPromptResult =
+    override suspend fun getPrompt(name: String, arguments: Map<String, String>?): GetPromptResult =
         GetPromptResult(description = "desc", messages = emptyList(), _meta = JsonObject(emptyMap()))
 
     override suspend fun readResource(uri: String): ReadResourceResult =

@@ -168,7 +168,7 @@ class ProxyMcpServerTest {
             return callResults[toolName] ?: Result.success(JsonNull)
         }
 
-        override suspend fun getPrompt(name: String): Result<JsonObject> {
+        override suspend fun getPrompt(name: String, arguments: Map<String, String>?): Result<JsonObject> {
             promptRequests += name
             return promptResults[name] ?: Result.failure(IllegalArgumentException("prompt $name missing"))
         }

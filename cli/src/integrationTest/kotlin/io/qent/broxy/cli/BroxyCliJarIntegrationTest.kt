@@ -1,6 +1,7 @@
 package io.qent.broxy.cli
 
 import io.qent.broxy.core.mcp.McpClient
+import io.qent.broxy.core.mcp.PromptDescriptor
 import io.qent.broxy.core.mcp.ServerCapabilities
 import io.qent.broxy.core.mcp.TimeoutConfigurableMcpClient
 import io.qent.broxy.core.mcp.clients.KtorMcpClient
@@ -53,8 +54,8 @@ class BroxyCliJarIntegrationTest {
 
     @Test
     fun stdio_promptFetchesSucceed() = stdioTest("prompt fetch") { client ->
-        awaitFilteredCapabilities(client)
-        fetchExpectedPrompts(client)
+        val caps = awaitFilteredCapabilities(client)
+        fetchExpectedPrompts(client, caps)
     }
 
     @Test
@@ -89,8 +90,8 @@ class BroxyCliJarIntegrationTest {
 
     @Test
     fun httpSse_promptFetchesSucceed() = httpSseTest("prompt fetch") { client ->
-        awaitFilteredCapabilities(client)
-        fetchExpectedPrompts(client)
+        val caps = awaitFilteredCapabilities(client)
+        fetchExpectedPrompts(client, caps)
     }
 
     @Test
@@ -240,19 +241,36 @@ class BroxyCliJarIntegrationTest {
         }
     }
 
-    private suspend fun fetchExpectedPrompts(client: McpClient) {
+    private suspend fun fetchExpectedPrompts(client: McpClient, caps: ServerCapabilities) {
+        val descriptors = caps.prompts.associateBy { it.name }
         EXPECTED_PROMPTS.forEach { prompt ->
             log("Fetching prompt $prompt")
-            val response = client.getPrompt(prompt).getOrFail("getPrompt $prompt")
-            assertTrue(response["prompt"] != null, "Prompt $prompt should include 'prompt' field: $response")
+            val arguments = buildPromptArguments(descriptors[prompt])
+            val response = client.getPrompt(prompt, arguments).getOrFail("getPrompt $prompt")
+            assertTrue(
+                response["messages"] != null,
+                "Prompt $prompt should include 'messages' field: $response"
+            )
         }
+    }
+
+    private fun buildPromptArguments(descriptor: PromptDescriptor?): Map<String, String> {
+        if (descriptor == null) return emptyMap()
+        val requiredArgs = descriptor.arguments.orEmpty().filter { it.required == true }
+        if (requiredArgs.isEmpty()) return emptyMap()
+        return requiredArgs.associate { arg -> arg.name to PROMPT_ARGUMENT_PLACEHOLDER }
     }
 
     private suspend fun readExpectedResources(client: McpClient) {
         EXPECTED_RESOURCES.forEach { uri ->
             log("Reading resource $uri")
             val response = client.readResource(uri).getOrFail("readResource $uri")
-            assertTrue(response["resource"] != null, "Resource $uri should include 'resource' field: $response")
+            val hasResourceObject = response["resource"] != null
+            val hasContents = response["contents"] != null
+            assertTrue(
+                hasResourceObject || hasContents,
+                "Resource $uri should include 'resource' or 'contents' field: $response"
+            )
         }
     }
 
@@ -408,6 +426,7 @@ class BroxyCliJarIntegrationTest {
         private val EXPECTED_TOOLS = setOf(EXA_SEARCH_TOOL, TIME_TOOL)
         private val EXPECTED_PROMPTS = setOf("web_search_help")
         private val EXPECTED_RESOURCES = setOf("exa://tools/list")
+        private const val PROMPT_ARGUMENT_PLACEHOLDER = "integration-test"
         private val TEST_LOGGER = FilteredLogger(LogLevel.WARN)
 
         private fun log(message: String) {

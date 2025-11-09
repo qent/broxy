@@ -17,7 +17,7 @@ interface McpServerConnection {
 
     suspend fun callTool(toolName: String, arguments: JsonObject = JsonObject(emptyMap())): Result<JsonElement>
 
-    suspend fun getPrompt(name: String): Result<JsonObject>
+    suspend fun getPrompt(name: String, arguments: Map<String, String>? = null): Result<JsonObject>
 
     suspend fun readResource(uri: String): Result<JsonObject>
 }

@@ -29,7 +29,7 @@ class DefaultMcpServerConnectionMoreTest {
         runBlocking {
             val client: McpClient = mock()
             whenever(client.connect()).thenReturn(Result.success(Unit))
-            whenever(client.getPrompt("p1")).thenReturn(Result.success(buildJsonObject { put("description", "d"); put("messages", "[]") }))
+            whenever(client.getPrompt("p1", null)).thenReturn(Result.success(buildJsonObject { put("description", "d"); put("messages", "[]") }))
             whenever(client.readResource("u1")).thenReturn(Result.success(buildJsonObject { put("contents", "[]"); put("_meta", "{}") }))
 
             val conn = DefaultMcpServerConnection(config(), client = client)
@@ -37,7 +37,7 @@ class DefaultMcpServerConnectionMoreTest {
             val pr = conn.getPrompt("p1")
             assertTrue(pr.isSuccess)
             verify(client).connect()
-            verify(client).getPrompt("p1")
+            verify(client).getPrompt("p1", null)
 
             val rr = conn.readResource("u1")
             assertTrue(rr.isSuccess)
@@ -70,7 +70,8 @@ class DefaultMcpServerConnectionMoreTest {
                     return Result.success(buildJsonObject { put("ok", true) })
                 }
 
-                override suspend fun getPrompt(name: String): Result<JsonObject> = Result.success(JsonObject(emptyMap()))
+                override suspend fun getPrompt(name: String, arguments: Map<String, String>?): Result<JsonObject> =
+                    Result.success(JsonObject(emptyMap()))
                 override suspend fun readResource(uri: String): Result<JsonObject> = Result.success(JsonObject(emptyMap()))
             }
 

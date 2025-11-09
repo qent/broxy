@@ -34,7 +34,7 @@ class ProxyMcpServerMockitoTest {
                 )
             )
         ) }
-        runBlocking { whenever(s1.getPrompt("p1")).thenReturn(Result.success(buildJsonObject { put("description", "d"); put("messages", "[]") })) }
+        runBlocking { whenever(s1.getPrompt("p1", null)).thenReturn(Result.success(buildJsonObject { put("description", "d"); put("messages", "[]") })) }
         runBlocking { whenever(s1.readResource("u1")).thenReturn(Result.success(buildJsonObject { put("contents", "[]"); put("_meta", "{}") })) }
 
         val proxy = ProxyMcpServer(listOf(s1))
@@ -43,7 +43,7 @@ class ProxyMcpServerMockitoTest {
 
         val pr = kotlinx.coroutines.runBlocking { proxy.getPrompt("p1") }
         assertTrue(pr.isSuccess)
-        runBlocking { verify(s1).getPrompt("p1") }
+        runBlocking { verify(s1).getPrompt("p1", null) }
 
         val rr = kotlinx.coroutines.runBlocking { proxy.readResource("u1") }
         assertTrue(rr.isSuccess)

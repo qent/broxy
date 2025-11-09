@@ -32,7 +32,8 @@ private class Srv(
             put("isError", JsonPrimitive(false))
             put("_meta", JsonObject(emptyMap()))
         })
-    override suspend fun getPrompt(name: String): Result<JsonObject> = Result.failure(UnsupportedOperationException())
+    override suspend fun getPrompt(name: String, arguments: Map<String, String>?): Result<JsonObject> =
+        Result.failure(UnsupportedOperationException())
     override suspend fun readResource(uri: String): Result<JsonObject> = Result.failure(UnsupportedOperationException())
 }
 

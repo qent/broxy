@@ -11,7 +11,7 @@ interface SdkClientFacade {
     suspend fun getResources(): List<ResourceDescriptor>
     suspend fun getPrompts(): List<PromptDescriptor>
     suspend fun callTool(name: String, arguments: JsonObject): CallToolResultBase?
-    suspend fun getPrompt(name: String): io.modelcontextprotocol.kotlin.sdk.GetPromptResult
+    suspend fun getPrompt(name: String, arguments: Map<String, String>? = null): io.modelcontextprotocol.kotlin.sdk.GetPromptResult
     suspend fun readResource(uri: String): io.modelcontextprotocol.kotlin.sdk.ReadResourceResult
     suspend fun close()
 }

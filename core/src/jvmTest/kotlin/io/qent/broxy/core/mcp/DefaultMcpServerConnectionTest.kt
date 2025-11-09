@@ -205,7 +205,7 @@ class DefaultMcpServerConnectionTest {
             return callToolResult
         }
 
-        override suspend fun getPrompt(name: String): Result<JsonObject> = Result.success(JsonObject(emptyMap()))
+        override suspend fun getPrompt(name: String, arguments: Map<String, String>?): Result<JsonObject> = Result.success(JsonObject(emptyMap()))
 
         override suspend fun readResource(uri: String): Result<JsonObject> = Result.success(JsonObject(emptyMap()))
     }
