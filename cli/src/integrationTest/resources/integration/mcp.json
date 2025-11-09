@@ -12,7 +12,7 @@
         "test-arithmetic-http": {
             "name": "Test Arithmetic HTTP",
             "enabled": true,
-            "transport": "streamable-http",
+            "transport": "http",
             "url": "__TEST_MCP_SERVER_HTTP_URL__"
         }
     }

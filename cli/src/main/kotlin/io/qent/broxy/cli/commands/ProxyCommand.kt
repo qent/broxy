@@ -5,6 +5,7 @@ import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.file
+import io.qent.broxy.cli.support.StderrLogger
 import io.qent.broxy.core.mcp.DefaultMcpServerConnection
 import io.qent.broxy.core.mcp.McpServerConnection
 import io.qent.broxy.core.models.McpServersConfig
@@ -133,6 +134,6 @@ class ProxyCommand : CliktCommand(name = "proxy", help = "Run broxy server") {
             "error" -> LogLevel.ERROR
             else -> LogLevel.INFO
         }
-        return FilteredLogger(min)
+        return FilteredLogger(min, StderrLogger)
     }
 }

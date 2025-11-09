@@ -128,21 +128,18 @@ fun buildSdkServer(proxy: ProxyMcpServer, logger: Logger = ConsoleLogger): Serve
         )
         server.addPrompt(prompt) { req ->
             logger.info("Received prompt request from LLM: name='${req.name}'")
-            val json = kotlinx.coroutines.runBlocking { proxy.getPrompt(req.name, req.arguments) }
-            if (json.isSuccess) {
-                val el = json.getOrThrow()
+            val promptResult = kotlinx.coroutines.runBlocking { proxy.getPrompt(req.name, req.arguments) }
+            if (promptResult.isSuccess) {
+                val el = promptResult.getOrThrow()
                 logger.info("Forwarding prompt '${req.name}' result from downstream to LLM")
-                kotlinx.serialization.json.Json.decodeFromJsonElement(
-                    io.modelcontextprotocol.kotlin.sdk.GetPromptResult.serializer(),
-                    el
-                )
+                decodePromptResult(json, el)
             } else {
                 // Fallback to empty prompt result with error flag in meta
-                logger.error("Prompt '${req.name}' failed: ${json.exceptionOrNull()?.message}", json.exceptionOrNull())
+                logger.error("Prompt '${req.name}' failed: ${promptResult.exceptionOrNull()?.message}", promptResult.exceptionOrNull())
                 GetPromptResult(
                     description = prompt.description,
                     messages = emptyList(),
-                    _meta = JsonObject(mapOf("error" to JsonPrimitive(json.exceptionOrNull()?.message ?: "getPrompt failed")))
+                    _meta = JsonObject(mapOf("error" to JsonPrimitive(promptResult.exceptionOrNull()?.message ?: "getPrompt failed")))
                 )
             }
         }
@@ -197,13 +194,68 @@ private fun normalizeCallToolResult(original: JsonObject): JsonObject? {
     val content = original["content"] as? JsonArray ?: return null
     var changed = false
     val normalizedContent = JsonArray(content.map { item ->
-        val obj = item as? JsonObject ?: return@map item
-        if ("type" in obj) return@map obj
-        val inferredType = inferContentType(obj) ?: return@map obj
-        changed = true
-        JsonObject(obj + ("type" to JsonPrimitive(inferredType)))
+        val normalized = normalizeContentElement(item)
+        if (normalized != null) {
+            changed = true
+            normalized
+        } else item
     })
     return if (changed) JsonObject(original + ("content" to normalizedContent)) else null
+}
+
+internal fun decodePromptResult(json: Json, element: JsonElement): GetPromptResult {
+    return try {
+        json.decodeFromJsonElement(GetPromptResult.serializer(), element)
+    } catch (original: Exception) {
+        val normalized = (element as? JsonObject)?.let { normalizePromptResult(it) }
+        if (normalized != null) {
+            json.decodeFromJsonElement(GetPromptResult.serializer(), normalized)
+        } else {
+            throw original
+        }
+    }
+}
+
+private fun normalizePromptResult(original: JsonObject): JsonObject? {
+    val messages = original["messages"] as? JsonArray ?: return null
+    var changed = false
+    val normalizedMessages = JsonArray(messages.map { messageElement ->
+        val messageObject = messageElement as? JsonObject ?: return@map messageElement
+        val currentContent = messageObject["content"]
+        val normalizedContent = currentContent?.let { normalizeContentElement(it) }
+        if (normalizedContent != null) {
+            changed = true
+            JsonObject(messageObject + ("content" to normalizedContent))
+        } else {
+            messageElement
+        }
+    })
+    return if (changed) JsonObject(original + ("messages" to normalizedMessages)) else null
+}
+
+private fun normalizeContentElement(element: JsonElement): JsonElement? = when (element) {
+    is JsonObject -> addTypeIfMissing(element)
+    is JsonArray -> {
+        var changed = false
+        val normalizedItems = element.map { entry ->
+            val obj = entry as? JsonObject ?: return@map entry
+            val normalized = addTypeIfMissing(obj)
+            if (normalized != null) {
+                changed = true
+                normalized
+            } else {
+                obj
+            }
+        }
+        if (changed) JsonArray(normalizedItems) else null
+    }
+    else -> null
+}
+
+private fun addTypeIfMissing(obj: JsonObject): JsonObject? {
+    if ("type" in obj) return null
+    val inferredType = inferContentType(obj) ?: return null
+    return JsonObject(obj + ("type" to JsonPrimitive(inferredType)))
 }
 
 private fun inferContentType(obj: JsonObject): String? = when {

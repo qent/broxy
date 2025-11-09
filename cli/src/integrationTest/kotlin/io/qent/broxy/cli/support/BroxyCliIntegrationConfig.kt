@@ -25,7 +25,7 @@ internal object BroxyCliIntegrationConfig {
     const val CAPABILITIES_REQUEST_TIMEOUT_MILLIS = 1000L
     const val CAPABILITIES_TIMEOUT_MILLIS = 9_000L
     const val CAPABILITIES_WARMUP_TIMEOUT_MILLIS = 60_000L
-    const val CONNECT_ATTEMPTS = 20
+    const val CONNECT_ATTEMPTS = 60
     const val CONNECT_DELAY_MILLIS = 150L
     const val HTTP_SERVER_ATTEMPTS = 50
     const val HTTP_SERVER_DELAY_MILLIS = 100L
