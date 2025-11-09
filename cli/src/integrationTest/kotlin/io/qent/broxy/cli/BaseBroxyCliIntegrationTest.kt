@@ -8,37 +8,28 @@ import io.qent.broxy.cli.support.ScenarioHandle
 import io.qent.broxy.core.mcp.McpClient
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
-import org.junit.jupiter.api.AfterAll
-import org.junit.jupiter.api.BeforeAll
-import org.junit.jupiter.api.TestInstance
 
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
-abstract class BaseBroxyCliIntegrationTest(
+internal abstract class BaseBroxyCliIntegrationTest(
     private val inboundScenario: InboundScenario
 ) {
-    private lateinit var scenarioHandle: ScenarioHandle
-
-    @BeforeAll
-    fun setUpScenario() = runBlocking {
-        scenarioHandle = BroxyCliTestEnvironment.startScenario(inboundScenario)
-        warmUpClient()
-    }
-
-    @AfterAll
-    fun tearDownScenario() {
-        scenarioHandle.close()
-    }
+    protected val clientInteractions = McpClientInteractions()
 
     protected fun runScenarioTest(description: String, block: suspend (McpClient) -> Unit) =
         runBlocking {
-            withTimeout(BroxyCliIntegrationConfig.TEST_TIMEOUT_MILLIS) {
-                scenarioHandle.run(description, block)
+            val scenarioHandle = BroxyCliTestEnvironment.startScenario(inboundScenario)
+            try {
+                warmUpClient(scenarioHandle)
+                withTimeout(BroxyCliIntegrationConfig.TEST_TIMEOUT_MILLIS) {
+                    scenarioHandle.run(description, block)
+                }
+            } finally {
+                scenarioHandle.close()
+            }
         }
-    }
 
-    private suspend fun warmUpClient() {
+    private suspend fun warmUpClient(scenarioHandle: ScenarioHandle) {
         scenarioHandle.run("warmup capabilities") { client ->
-            McpClientInteractions.awaitFilteredCapabilities(
+            clientInteractions.awaitFilteredCapabilities(
                 client,
                 BroxyCliIntegrationConfig.CAPABILITIES_WARMUP_TIMEOUT_MILLIS
             )

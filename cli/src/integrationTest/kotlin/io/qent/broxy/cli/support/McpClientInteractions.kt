@@ -17,27 +17,29 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 
-internal object McpClientInteractions {
+internal class McpClientInteractions(
+    private val config: BroxyCliIntegrationConfig = BroxyCliIntegrationConfig
+) {
     suspend fun awaitFilteredCapabilities(
         client: McpClient,
-        timeoutMillis: Long = BroxyCliIntegrationConfig.CAPABILITIES_TIMEOUT_MILLIS
+        timeoutMillis: Long = config.CAPABILITIES_TIMEOUT_MILLIS
     ): ServerCapabilities {
         var lastSnapshot: ServerCapabilities? = null
         val deadline = System.nanoTime() + timeoutMillis * 1_000_000
         var attempt = 0
         while (System.nanoTime() < deadline) {
             attempt += 1
-            BroxyCliIntegrationConfig.log("Fetching filtered capabilities attempt $attempt")
+            config.log("Fetching filtered capabilities attempt $attempt")
             val result = fetchCapabilitiesWithTimeout(client) ?: continue
             if (result.isSuccess) {
                 val caps = result.getOrThrow()
                 lastSnapshot = caps
                 if (hasExpectedCapabilities(caps)) {
-                    BroxyCliIntegrationConfig.log("Received expected filtered capabilities")
+                    config.log("Received expected filtered capabilities")
                     return caps
                 }
             }
-            delay(BroxyCliIntegrationConfig.CAPABILITIES_DELAY_MILLIS)
+            delay(config.CAPABILITIES_DELAY_MILLIS)
         }
         val snapshotMsg = buildString {
             append("Timed out waiting for filtered capabilities.")
@@ -45,13 +47,13 @@ internal object McpClientInteractions {
                 append(" Last snapshot tools=${it.tools.map { tool -> tool.name }} prompts=${it.prompts.map { prompt -> prompt.name }} resources=${it.resources.map { res -> res.uri ?: res.name }}")
             }
         }
-        BroxyCliIntegrationConfig.log(snapshotMsg)
+        config.log(snapshotMsg)
         fail(snapshotMsg)
     }
 
     fun assertExpectedToolCapabilities(caps: ServerCapabilities) {
         assertEquals(
-            BroxyCliIntegrationConfig.EXPECTED_TOOLS,
+            config.EXPECTED_TOOLS,
             caps.tools.map { it.name }.toSet(),
             "Tool list should match preset"
         )
@@ -59,7 +61,7 @@ internal object McpClientInteractions {
 
     fun assertExpectedPromptCapabilities(caps: ServerCapabilities) {
         assertEquals(
-            BroxyCliIntegrationConfig.EXPECTED_PROMPTS,
+            config.EXPECTED_PROMPTS,
             caps.prompts.map { it.name }.toSet(),
             "Prompt list should match preset"
         )
@@ -67,18 +69,18 @@ internal object McpClientInteractions {
 
     fun assertExpectedResourceCapabilities(caps: ServerCapabilities) {
         assertEquals(
-            BroxyCliIntegrationConfig.EXPECTED_RESOURCES,
+            config.EXPECTED_RESOURCES,
             caps.resources.map { it.uri ?: it.name }.toSet(),
             "Resource list should match preset"
         )
     }
 
     suspend fun callExpectedTools(client: McpClient) {
-        BroxyCliIntegrationConfig.EXPECTED_TOOLS.forEach { tool ->
-            BroxyCliIntegrationConfig.log("Invoking tool $tool")
+        config.EXPECTED_TOOLS.forEach { tool ->
+            config.log("Invoking tool $tool")
             val args = when (tool) {
-                "${BroxyCliIntegrationConfig.STDIO_SERVER_ID}:${BroxyCliIntegrationConfig.ADD_TOOL_NAME}" -> buildArithmeticArguments()
-                "${BroxyCliIntegrationConfig.HTTP_SERVER_ID}:${BroxyCliIntegrationConfig.SUBTRACT_TOOL_NAME}" -> buildArithmeticArguments(a = 5, b = 2)
+                "${config.STDIO_SERVER_ID}:${config.ADD_TOOL_NAME}" -> buildArithmeticArguments()
+                "${config.HTTP_SERVER_ID}:${config.SUBTRACT_TOOL_NAME}" -> buildArithmeticArguments(a = 5, b = 2)
                 else -> JsonObject(emptyMap())
             }
             val payload = client.callTool(tool, args).getOrFail("callTool $tool").asJsonObject("callTool $tool")
@@ -89,8 +91,8 @@ internal object McpClientInteractions {
 
     suspend fun fetchExpectedPrompts(client: McpClient, caps: ServerCapabilities) {
         val descriptors = caps.prompts.associateBy { it.name }
-        BroxyCliIntegrationConfig.EXPECTED_PROMPTS.forEach { prompt ->
-            BroxyCliIntegrationConfig.log("Fetching prompt $prompt")
+        config.EXPECTED_PROMPTS.forEach { prompt ->
+            config.log("Fetching prompt $prompt")
             val arguments = buildPromptArguments(descriptors[prompt])
             val response = client.getPrompt(prompt, arguments).getOrFail("getPrompt $prompt")
             assertTrue(
@@ -101,8 +103,8 @@ internal object McpClientInteractions {
     }
 
     suspend fun readExpectedResources(client: McpClient) {
-        BroxyCliIntegrationConfig.EXPECTED_RESOURCES.forEach { uri ->
-            BroxyCliIntegrationConfig.log("Reading resource $uri")
+        config.EXPECTED_RESOURCES.forEach { uri ->
+            config.log("Reading resource $uri")
             val response = client.readResource(uri).getOrFail("readResource $uri")
             val hasResourceObject = response["resource"] != null
             val hasContents = response["contents"] != null
@@ -117,9 +119,9 @@ internal object McpClientInteractions {
         val toolNames = caps.tools.map { it.name }.toSet()
         val promptNames = caps.prompts.map { it.name }.toSet()
         val resourceKeys = caps.resources.map { it.uri ?: it.name }.toSet()
-        return toolNames == BroxyCliIntegrationConfig.EXPECTED_TOOLS &&
-            promptNames == BroxyCliIntegrationConfig.EXPECTED_PROMPTS &&
-            resourceKeys == BroxyCliIntegrationConfig.EXPECTED_RESOURCES
+        return toolNames == config.EXPECTED_TOOLS &&
+            promptNames == config.EXPECTED_PROMPTS &&
+            resourceKeys == config.EXPECTED_RESOURCES
     }
 
     private fun buildPromptArguments(descriptor: PromptDescriptor?): Map<String, String> {
@@ -127,7 +129,7 @@ internal object McpClientInteractions {
         val requiredArgs = descriptor.arguments.orEmpty().filter { it.required == true }
         if (requiredArgs.isEmpty()) return emptyMap()
         return requiredArgs.associate { arg ->
-            arg.name to BroxyCliIntegrationConfig.PROMPT_ARGUMENT_PLACEHOLDER
+            arg.name to config.PROMPT_ARGUMENT_PLACEHOLDER
         }
     }
 
@@ -144,7 +146,7 @@ internal object McpClientInteractions {
 
     private suspend fun fetchCapabilitiesWithTimeout(client: McpClient): Result<ServerCapabilities>? =
         try {
-            withTimeout(BroxyCliIntegrationConfig.CAPABILITIES_REQUEST_TIMEOUT_MILLIS) {
+            withTimeout(config.CAPABILITIES_REQUEST_TIMEOUT_MILLIS) {
                 client.fetchCapabilities()
             }
         } catch (ex: TimeoutCancellationException) {
