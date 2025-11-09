@@ -30,6 +30,7 @@ internal object BroxyCliIntegrationConfig {
     const val HTTP_SERVER_ATTEMPTS = 50
     const val HTTP_SERVER_DELAY_MILLIS = 100L
     const val HTTP_INBOUND_PATH = "/mcp"
+    const val HTTP_INBOUND_ATTEMPTS = 3
 
     val EXPECTED_TOOLS = setOf(
         "$STDIO_SERVER_ID:$ADD_TOOL_NAME",

@@ -9,11 +9,15 @@ import kotlin.test.fail
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.doubleOrNull
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 
@@ -115,6 +119,49 @@ internal class McpClientInteractions(
         }
     }
 
+    suspend fun assertExpectedToolResults(client: McpClient) {
+        val addTool = "${config.STDIO_SERVER_ID}:${config.ADD_TOOL_NAME}"
+        val subtractTool = "${config.HTTP_SERVER_ID}:${config.SUBTRACT_TOOL_NAME}"
+        val addPayload = client.callTool(addTool, buildArithmeticArguments(a = 2, b = 3))
+            .getOrFail("callTool $addTool")
+            .asJsonObject("callTool $addTool")
+        val subtractPayload = client.callTool(subtractTool, buildArithmeticArguments(a = 5, b = 2))
+            .getOrFail("callTool $subtractTool")
+            .asJsonObject("callTool $subtractTool")
+
+        assertStructuredResult(addPayload, expectedOperation = "addition", expectedResult = 5.0)
+        assertStructuredResult(subtractPayload, expectedOperation = "subtraction", expectedResult = 3.0)
+    }
+
+    suspend fun assertPromptPersonalizedResponses(client: McpClient) {
+        val name = config.PROMPT_ARGUMENT_PLACEHOLDER
+        val expectations = mapOf(
+            config.HELLO_PROMPT to "Hello $name!",
+            config.BYE_PROMPT to "Bye $name!"
+        )
+
+        expectations.forEach { (prompt, expectedText) ->
+            config.log("Validating prompt payload for $prompt")
+            val payload = client.getPrompt(prompt, mapOf("name" to name)).getOrFail("getPrompt $prompt")
+            val actualText = extractPromptText(payload)
+            assertEquals(expectedText, actualText, "Prompt $prompt should render expected text")
+        }
+    }
+
+    suspend fun assertResourceContentsMatch(client: McpClient) {
+        val expectations = mapOf(
+            config.RESOURCE_ALPHA to "Alpha resource content",
+            config.RESOURCE_BETA to "Beta resource content"
+        )
+
+        expectations.forEach { (uri, expectedText) ->
+            config.log("Validating resource payload for $uri")
+            val payload = client.readResource(uri).getOrFail("readResource $uri")
+            val text = extractResourceText(payload)
+            assertEquals(expectedText, text, "Resource $uri should match expected text")
+        }
+    }
+
     private fun hasExpectedCapabilities(caps: ServerCapabilities): Boolean {
         val toolNames = caps.tools.map { it.name }.toSet()
         val promptNames = caps.prompts.map { it.name }.toSet()
@@ -143,6 +190,37 @@ internal class McpClientInteractions(
 
     private fun JsonElement.asJsonObject(operation: String): JsonObject =
         this as? JsonObject ?: fail("$operation should return JsonObject but was ${this::class.simpleName}")
+
+    private fun assertStructuredResult(payload: JsonObject, expectedOperation: String, expectedResult: Double) {
+        val structured = payload["structuredContent"]?.jsonObject
+            ?: fail("structuredContent block is missing: $payload")
+        val operation = structured["operation"]?.jsonPrimitive?.content
+            ?: fail("Tool result missing operation field: $payload")
+        assertEquals(expectedOperation, operation, "Tool result should report $expectedOperation operation")
+        val actualResult = structured["result"]?.jsonPrimitive?.doubleOrNull
+            ?: fail("Tool result missing numeric value: $payload")
+        assertEquals(expectedResult, actualResult, 0.0001, "Tool result value mismatch for $expectedOperation")
+        val isError = payload["isError"]?.jsonPrimitive?.booleanOrNull ?: false
+        assertTrue(!isError, "Tool call should not indicate error: $payload")
+    }
+
+    private fun extractPromptText(payload: JsonObject): String {
+        val messages = payload["messages"]?.jsonArray ?: fail("Prompt payload missing messages: $payload")
+        val firstMessage = messages.firstOrNull()?.jsonObject ?: fail("Prompt payload has empty messages: $payload")
+        val content = firstMessage["content"] ?: fail("Prompt message missing content: $payload")
+        val text = when (content) {
+            is JsonArray -> content.firstOrNull()?.jsonObject?.get("text")?.jsonPrimitive?.content
+            is JsonObject -> content["text"]?.jsonPrimitive?.content
+            else -> null
+        } ?: fail("Prompt content missing text: $payload")
+        return text
+    }
+
+    private fun extractResourceText(payload: JsonObject): String {
+        val contents = payload["contents"]?.jsonArray ?: fail("Resource payload missing contents: $payload")
+        val firstEntry = contents.firstOrNull()?.jsonObject ?: fail("Resource contents missing text entry: $payload")
+        return firstEntry["text"]?.jsonPrimitive?.content ?: fail("Resource text missing: $payload")
+    }
 
     private suspend fun fetchCapabilitiesWithTimeout(client: McpClient): Result<ServerCapabilities>? =
         try {

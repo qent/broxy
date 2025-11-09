@@ -58,34 +58,48 @@ internal object BroxyCliTestEnvironment {
     }
 
     private suspend fun createHttpSseHandle(configDir: Path, server: TestServerInstance): ScenarioHandle {
-        val port = nextFreePort()
-        val url = "http://127.0.0.1:$port${BroxyCliIntegrationConfig.HTTP_INBOUND_PATH}"
-        val command = BroxyCliIntegrationFiles.buildCliCommand(
-            configDir,
-            listOf("--inbound", "http", "--url", url)
-        )
-        BroxyCliIntegrationConfig.log("Launching broxy CLI (HTTP SSE) listening at $url")
-        val cliProcess = BroxyCliProcesses.startCliProcess(command)
-        val client = KtorMcpClient(
-            mode = KtorMcpClient.Mode.Sse,
-            url = url,
-            logger = BroxyCliIntegrationConfig.TEST_LOGGER
-        )
-        configureTimeouts(client)
-        return try {
-            connectWithRetries(client) { cliProcess.logs() }
-            ScenarioHandle(
-                inboundScenario = InboundScenario.HTTP_SSE,
-                client = client,
-                configDir = configDir,
-                cliProcess = cliProcess,
-                testServerProcess = server.process
+        var lastError: Throwable? = null
+        repeat(BroxyCliIntegrationConfig.HTTP_INBOUND_ATTEMPTS) loop@{ attempt ->
+            val port = nextFreePort()
+            val url = "http://127.0.0.1:$port${BroxyCliIntegrationConfig.HTTP_INBOUND_PATH}"
+            val command = BroxyCliIntegrationFiles.buildCliCommand(
+                configDir,
+                listOf("--inbound", "http", "--url", url)
             )
-        } catch (error: Throwable) {
-            client.disconnect()
-            cliProcess.close()
-            throw error
+            BroxyCliIntegrationConfig.log(
+                "Launching broxy CLI (HTTP SSE) listening at $url (attempt ${attempt + 1})"
+            )
+            val cliProcess = BroxyCliProcesses.startCliProcess(command)
+            val client = KtorMcpClient(
+                mode = KtorMcpClient.Mode.Sse,
+                url = url,
+                logger = BroxyCliIntegrationConfig.TEST_LOGGER
+            )
+            configureTimeouts(client)
+            try {
+                connectWithRetries(client) { cliProcess.logs() }
+                return ScenarioHandle(
+                    inboundScenario = InboundScenario.HTTP_SSE,
+                    client = client,
+                    configDir = configDir,
+                    cliProcess = cliProcess,
+                    testServerProcess = server.process
+                )
+            } catch (error: Throwable) {
+                lastError = error
+                client.disconnect()
+                cliProcess.close()
+                val isPortInUse = error.message?.contains("Address already in use") == true
+                val hasAttemptsRemaining = attempt + 1 < BroxyCliIntegrationConfig.HTTP_INBOUND_ATTEMPTS
+                if (isPortInUse && hasAttemptsRemaining) {
+                    BroxyCliIntegrationConfig.log("Inbound port $port unavailable, retrying with a new port")
+                    delay(BroxyCliIntegrationConfig.HTTP_SERVER_DELAY_MILLIS)
+                    return@loop
+                }
+                throw error
+            }
         }
+        throw lastError ?: IllegalStateException("Failed to launch HTTP SSE scenario after retries")
     }
 
     private suspend fun startTestServer(): TestServerInstance {

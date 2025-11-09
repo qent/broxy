@@ -17,6 +17,12 @@ internal class BroxyCliStdioIntegrationTest : BaseBroxyCliIntegrationTest(Inboun
     }
 
     @Test
+    fun toolResultsMatchExpectedValues() = runScenarioTest("tool result values") { client ->
+        clientInteractions.awaitFilteredCapabilities(client)
+        clientInteractions.assertExpectedToolResults(client)
+    }
+
+    @Test
     fun promptsCapabilitiesMatchPreset() = runScenarioTest("prompt capabilities") { client ->
         val caps = clientInteractions.awaitFilteredCapabilities(client)
         clientInteractions.assertExpectedPromptCapabilities(caps)
@@ -29,6 +35,12 @@ internal class BroxyCliStdioIntegrationTest : BaseBroxyCliIntegrationTest(Inboun
     }
 
     @Test
+    fun promptResponsesIncludeProvidedName() = runScenarioTest("prompt personalization") { client ->
+        clientInteractions.awaitFilteredCapabilities(client)
+        clientInteractions.assertPromptPersonalizedResponses(client)
+    }
+
+    @Test
     fun resourcesCapabilitiesMatchPreset() = runScenarioTest("resource capabilities") { client ->
         val caps = clientInteractions.awaitFilteredCapabilities(client)
         clientInteractions.assertExpectedResourceCapabilities(caps)
@@ -38,5 +50,11 @@ internal class BroxyCliStdioIntegrationTest : BaseBroxyCliIntegrationTest(Inboun
     fun resourceReadsSucceed() = runScenarioTest("resource read") { client ->
         clientInteractions.awaitFilteredCapabilities(client)
         clientInteractions.readExpectedResources(client)
+    }
+
+    @Test
+    fun resourceContentsMatchExpectedValues() = runScenarioTest("resource content values") { client ->
+        clientInteractions.awaitFilteredCapabilities(client)
+        clientInteractions.assertResourceContentsMatch(client)
     }
 }
