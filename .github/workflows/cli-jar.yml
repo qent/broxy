@@ -2,26 +2,6 @@ name: CLI ShadowJar
 
 on:
   workflow_dispatch:
-  push:
-    branches: [ main, master ]
-    paths:
-      - 'cli/**'
-      - 'core/**'
-      - 'build.gradle.kts'
-      - 'settings.gradle.kts'
-      - 'gradle.properties'
-      - 'gradle/**'
-      - '.github/workflows/cli-jar.yml'
-  pull_request:
-    branches: [ main, master ]
-    paths:
-      - 'cli/**'
-      - 'core/**'
-      - 'build.gradle.kts'
-      - 'settings.gradle.kts'
-      - 'gradle.properties'
-      - 'gradle/**'
-      - '.github/workflows/cli-jar.yml'
 
 permissions:
   contents: read
