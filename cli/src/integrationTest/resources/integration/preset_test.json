@@ -8,8 +8,8 @@
             "toolName": "add"
         },
         {
-            "serverId": "exa-search",
-            "toolName": "web_search_exa"
+            "serverId": "test-arithmetic-http",
+            "toolName": "subtract"
         }
     ],
     "prompts": [
@@ -18,8 +18,8 @@
             "promptName": "hello"
         },
         {
-            "serverId": "exa-search",
-            "promptName": "web_search_help"
+            "serverId": "test-arithmetic-http",
+            "promptName": "bye"
         }
     ],
     "resources": [
@@ -28,8 +28,8 @@
             "resourceKey": "test://resource/alpha"
         },
         {
-            "serverId": "exa-search",
-            "resourceKey": "exa://tools/list"
+            "serverId": "test-arithmetic-http",
+            "resourceKey": "test://resource/beta"
         }
     ]
 }

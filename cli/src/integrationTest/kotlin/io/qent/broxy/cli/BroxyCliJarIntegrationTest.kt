@@ -9,7 +9,9 @@ import io.qent.broxy.core.mcp.clients.StdioMcpClient
 import io.qent.broxy.core.utils.FilteredLogger
 import io.qent.broxy.core.utils.LogLevel
 import java.io.InputStream
+import java.net.InetSocketAddress
 import java.net.ServerSocket
+import java.net.Socket
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -118,19 +120,49 @@ class BroxyCliJarIntegrationTest {
         block: suspend (McpClient) -> Unit
     ) = runBlocking {
         withTimeout(TEST_TIMEOUT_MILLIS) {
-            val runner: suspend (suspend (McpClient) -> Unit) -> Unit = when (inboundScenario) {
-                InboundScenario.STDIO -> { clientBlock -> withStdioClient(clientBlock) }
-                InboundScenario.HTTP_SSE -> { clientBlock -> withHttpSseClient(clientBlock) }
-            }
-            runner { client ->
-                log("Running ${inboundScenario.description} scenario: $description")
-                block(client)
+            withHttpTestServer { testServerUrl ->
+                val runner: suspend (suspend (McpClient) -> Unit) -> Unit = when (inboundScenario) {
+                    InboundScenario.STDIO -> { clientBlock -> withStdioClient(testServerUrl, clientBlock) }
+                    InboundScenario.HTTP_SSE -> { clientBlock -> withHttpSseClient(testServerUrl, clientBlock) }
+                }
+                runner { client ->
+                    log("Running ${inboundScenario.description} scenario: $description")
+                    block(client)
+                }
             }
         }
     }
 
-    private suspend fun withStdioClient(block: suspend (McpClient) -> Unit) {
-        val configDir = prepareConfigDir()
+    private suspend fun withHttpTestServer(block: suspend (String) -> Unit) {
+        val port = nextFreePort()
+        val url = "http://$TEST_SERVER_HTTP_HOST:$port$TEST_SERVER_HTTP_PATH"
+        val command = buildList {
+            add(resolveTestServerCommand())
+            add("--mode")
+            add("http-sse")
+            add("--host")
+            add(TEST_SERVER_HTTP_HOST)
+            add("--port")
+            add(port.toString())
+            add("--path")
+            add(TEST_SERVER_HTTP_PATH)
+        }
+        log("Launching test MCP server (HTTP SSE) at $url")
+        val process = startTestServerProcess(command)
+        try {
+            waitForHttpServer(TEST_SERVER_HTTP_HOST, port)
+            block(url)
+        } catch (t: Throwable) {
+            log("Test MCP server failed to start. Logs:\n${process.logs()}")
+            throw t
+        } finally {
+            process.close()
+            log("HTTP SSE test server cleanup complete")
+        }
+    }
+
+    private suspend fun withStdioClient(httpServerUrl: String, block: suspend (McpClient) -> Unit) {
+        val configDir = prepareConfigDir(httpServerUrl)
         val command = buildCliCommand(configDir, listOf("--inbound", "stdio"))
         log("Launching broxy CLI (STDIO) with config ${configDir.pathString}")
         val client = StdioMcpClient(
@@ -150,8 +182,8 @@ class BroxyCliJarIntegrationTest {
         }
     }
 
-    private suspend fun withHttpSseClient(block: suspend (McpClient) -> Unit) {
-        val configDir = prepareConfigDir()
+    private suspend fun withHttpSseClient(httpServerUrl: String, block: suspend (McpClient) -> Unit) {
+        val configDir = prepareConfigDir(httpServerUrl)
         val port = nextFreePort()
         val url = "http://127.0.0.1:$port/mcp"
         val command = buildCliCommand(
@@ -226,8 +258,8 @@ class BroxyCliJarIntegrationTest {
         EXPECTED_TOOLS.forEach { tool ->
             log("Invoking tool $tool")
             val args = when (tool) {
-                "$TEST_SERVER_ID:$ADD_TOOL_NAME" -> buildArithmeticArguments()
-                "$EXA_SERVER_ID:$EXA_TOOL_NAME" -> buildExaSearchArguments()
+                "$STDIO_SERVER_ID:$ADD_TOOL_NAME" -> buildArithmeticArguments()
+                "$HTTP_SERVER_ID:$SUBTRACT_TOOL_NAME" -> buildArithmeticArguments(a = 5, b = 2)
                 else -> JsonObject(emptyMap())
             }
             val payload = client.callTool(tool, args).getOrFail("callTool $tool").asJsonObject("callTool $tool")
@@ -259,11 +291,6 @@ class BroxyCliJarIntegrationTest {
     private fun buildArithmeticArguments(a: Int = 2, b: Int = 3): JsonObject = buildJsonObject {
         put("a", JsonPrimitive(a))
         put("b", JsonPrimitive(b))
-    }
-
-    private fun buildExaSearchArguments(): JsonObject = buildJsonObject {
-        put("query", JsonPrimitive("broxy integration smoke test"))
-        put("num_results", JsonPrimitive(1))
     }
 
     private suspend fun readExpectedResources(client: McpClient) {
@@ -330,18 +357,20 @@ class BroxyCliJarIntegrationTest {
         addAll(inboundArgs)
     }
 
-    private fun prepareConfigDir(): Path {
+    private fun prepareConfigDir(httpServerUrl: String): Path {
         val dir = Files.createTempDirectory("broxy-cli-it-")
-        writeTestServerConfig(dir.resolve("mcp.json"))
+        writeTestServerConfig(dir.resolve("mcp.json"), httpServerUrl)
         copyResource("/integration/preset_test.json", dir.resolve("preset_test.json"))
         log("Wrote integration config to ${dir.pathString}")
         return dir
     }
 
-    private fun writeTestServerConfig(destination: Path) {
+    private fun writeTestServerConfig(destination: Path, httpServerUrl: String) {
         val template = readResource("/integration/mcp.json")
         val command = jsonEscape(resolveTestServerCommand())
-        val resolved = template.replace(TEST_SERVER_COMMAND_PLACEHOLDER, command)
+        val resolved = template
+            .replace(TEST_SERVER_COMMAND_PLACEHOLDER, command)
+            .replace(TEST_SERVER_HTTP_URL_PLACEHOLDER, jsonEscape(httpServerUrl))
         Files.writeString(destination, resolved)
     }
 
@@ -406,6 +435,14 @@ class BroxyCliJarIntegrationTest {
         return RunningProcess(process)
     }
 
+    private fun startTestServerProcess(command: List<String>): RunningProcess {
+        val process = ProcessBuilder(command)
+            .redirectErrorStream(true)
+            .start()
+        log("Started test MCP server process pid=${process.pid()}")
+        return RunningProcess(process)
+    }
+
     private class RunningProcess(
         private val process: Process
     ) : AutoCloseable {
@@ -441,6 +478,23 @@ class BroxyCliJarIntegrationTest {
         }
     }
 
+    private suspend fun waitForHttpServer(host: String, port: Int, attempts: Int = 50, delayMillis: Long = 200) {
+        repeat(attempts) {
+            if (isPortOpen(host, port)) {
+                return
+            }
+            delay(delayMillis.toLong())
+        }
+        fail("Test MCP HTTP server did not start on $host:$port")
+    }
+
+    private fun isPortOpen(host: String, port: Int): Boolean =
+        runCatching {
+            Socket().use { socket ->
+                socket.connect(InetSocketAddress(host, port), 250)
+            }
+        }.isSuccess
+
     private fun nextFreePort(): Int = ServerSocket(0).use { it.localPort }
 
     private fun jarPath(): Path = Paths.get(
@@ -468,21 +522,26 @@ class BroxyCliJarIntegrationTest {
 
     companion object {
         private const val PRESET_ID = "test"
-        private const val TEST_TIMEOUT_MILLIS = 60_000L
+        private const val TEST_TIMEOUT_MILLIS = 120_000L
         private const val TEST_SERVER_HOME_PROPERTY = "broxy.testMcpServerHome"
         private const val TEST_SERVER_COMMAND_PLACEHOLDER = "__TEST_MCP_SERVER_COMMAND__"
-        private const val TEST_SERVER_ID = "test-arithmetic"
+        private const val TEST_SERVER_HTTP_URL_PLACEHOLDER = "__TEST_MCP_SERVER_HTTP_URL__"
+        private const val STDIO_SERVER_ID = "test-arithmetic"
+        private const val HTTP_SERVER_ID = "test-arithmetic-http"
+        private const val TEST_SERVER_HTTP_HOST = "127.0.0.1"
+        private const val TEST_SERVER_HTTP_PATH = "/mcp"
         private const val ADD_TOOL_NAME = "add"
-        private const val EXA_SERVER_ID = "exa-search"
-        private const val EXA_TOOL_NAME = "web_search_exa"
-        private const val EXA_PROMPT_NAME = "web_search_help"
-        private const val EXA_RESOURCE_URI = "exa://tools/list"
+        private const val SUBTRACT_TOOL_NAME = "subtract"
+        private const val HELLO_PROMPT = "hello"
+        private const val BYE_PROMPT = "bye"
+        private const val RESOURCE_ALPHA = "test://resource/alpha"
+        private const val RESOURCE_BETA = "test://resource/beta"
         private val EXPECTED_TOOLS = setOf(
-            "$TEST_SERVER_ID:$ADD_TOOL_NAME",
-            "$EXA_SERVER_ID:$EXA_TOOL_NAME"
+            "$STDIO_SERVER_ID:$ADD_TOOL_NAME",
+            "$HTTP_SERVER_ID:$SUBTRACT_TOOL_NAME"
         )
-        private val EXPECTED_PROMPTS = setOf("hello", EXA_PROMPT_NAME)
-        private val EXPECTED_RESOURCES = setOf("test://resource/alpha", EXA_RESOURCE_URI)
+        private val EXPECTED_PROMPTS = setOf(HELLO_PROMPT, BYE_PROMPT)
+        private val EXPECTED_RESOURCES = setOf(RESOURCE_ALPHA, RESOURCE_BETA)
         private const val PROMPT_ARGUMENT_PLACEHOLDER = "integration-test"
         private val TEST_LOGGER = FilteredLogger(LogLevel.WARN)
 

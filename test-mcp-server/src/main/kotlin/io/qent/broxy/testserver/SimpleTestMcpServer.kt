@@ -1,5 +1,19 @@
 package io.qent.broxy.testserver
 
+import io.ktor.http.HttpStatusCode
+import io.ktor.server.application.call
+import io.ktor.server.application.install
+import io.ktor.server.engine.embeddedServer
+import io.ktor.server.netty.Netty
+import io.ktor.server.plugins.calllogging.CallLogging
+import io.ktor.server.response.respond
+import io.ktor.server.routing.Route
+import io.ktor.server.routing.post
+import io.ktor.server.routing.route
+import io.ktor.server.routing.routing
+import io.ktor.server.sse.SSE
+import io.ktor.server.sse.ServerSSESession
+import io.ktor.server.sse.sse
 import io.modelcontextprotocol.kotlin.sdk.CallToolResult
 import io.modelcontextprotocol.kotlin.sdk.GetPromptResult
 import io.modelcontextprotocol.kotlin.sdk.Implementation
@@ -15,6 +29,8 @@ import io.modelcontextprotocol.kotlin.sdk.Tool
 import io.modelcontextprotocol.kotlin.sdk.server.Server
 import io.modelcontextprotocol.kotlin.sdk.server.ServerOptions
 import io.modelcontextprotocol.kotlin.sdk.server.StdioServerTransport
+import io.modelcontextprotocol.kotlin.sdk.server.SseServerTransport
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.runBlocking
 import kotlinx.io.asSink
 import kotlinx.io.asSource
@@ -24,18 +40,83 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.jsonPrimitive
 
-fun main() {
-    SimpleTestMcpServer().start()
+fun main(args: Array<String>) {
+    SimpleTestMcpServer(ServerCliOptions.parse(args)).start()
 }
 
-class SimpleTestMcpServer {
-    fun start() = runBlocking {
+class SimpleTestMcpServer(
+    private val options: ServerCliOptions = ServerCliOptions()
+) {
+    fun start() {
+        when (options.mode) {
+            ServerCliOptions.Mode.STDIO -> runBlocking { startStdio() }
+            ServerCliOptions.Mode.HTTP_SSE -> startHttpSse()
+        }
+    }
+
+    private suspend fun startStdio() {
         val server = buildServer()
         val transport = StdioServerTransport(
             System.`in`.asSource().buffered(),
             System.out.asSink().buffered()
         )
         server.connect(transport)
+    }
+
+    private fun startHttpSse() {
+        val normalizedPath = normalizePath(options.path)
+        val registry = OutboundSseRegistry()
+        println("Starting HTTP SSE test server on http://${options.host}:${options.port}${normalizedPath.display}")
+        embeddedServer(
+            Netty,
+            host = options.host,
+            port = options.port
+        ) {
+            install(CallLogging)
+            install(SSE)
+            routing {
+                val serverFactory: ServerSSESession.() -> Server = { buildServer() }
+                if (normalizedPath.routeSegments.isBlank()) {
+                    mountHttpEndpoints("", serverFactory, registry)
+                } else {
+                    route("/${normalizedPath.routeSegments}") {
+                        mountHttpEndpoints(normalizedPath.routeSegments, serverFactory, registry)
+                    }
+                }
+            }
+        }.start(wait = true)
+    }
+
+    private fun Route.mountHttpEndpoints(
+        endpointSegments: String,
+        serverFactory: ServerSSESession.() -> Server,
+        registry: OutboundSseRegistry
+    ) {
+        sse {
+            val transport = SseServerTransport(endpointSegments, this)
+            registry.add(transport)
+            val server = serverFactory(this)
+            server.onClose { registry.remove(transport.sessionId) }
+            try {
+                server.connect(transport)
+            } catch (t: Throwable) {
+                registry.remove(transport.sessionId)
+                throw t
+            }
+        }
+        post {
+            val sessionId = call.request.queryParameters[SESSION_ID_PARAM]
+            if (sessionId.isNullOrBlank()) {
+                call.respond(HttpStatusCode.BadRequest, "sessionId query parameter is required")
+                return@post
+            }
+            val transport = registry[sessionId]
+            if (transport == null) {
+                call.respond(HttpStatusCode.NotFound, "Session '$sessionId' not found")
+                return@post
+            }
+            transport.handlePostMessage(call)
+        }
     }
 
     private fun buildServer(): Server {
@@ -196,6 +277,14 @@ class SimpleTestMcpServer {
         return primitive.doubleOrNull ?: primitive.content.toDoubleOrNull() ?: 0.0
     }
 
+    private fun normalizePath(rawPath: String): NormalizedPath {
+        val trimmed = rawPath.trim().ifBlank { "/" }
+        val withoutPrefix = trimmed.removePrefix("/")
+        val routeSegments = withoutPrefix.trim()
+        val display = if (routeSegments.isBlank()) "/" else "/$routeSegments"
+        return NormalizedPath(display = display, routeSegments = routeSegments)
+    }
+
     companion object {
         private const val SERVER_NAME = "broxy-test-mcp"
         private const val SERVER_VERSION = "0.0.1"
@@ -205,5 +294,81 @@ class SimpleTestMcpServer {
         private const val RESOURCE_BETA_URI = "test://resource/beta"
         private const val HELLO_PROMPT = "hello"
         private const val BYE_PROMPT = "bye"
+        private const val SESSION_ID_PARAM = "sessionId"
+    }
+}
+
+private data class NormalizedPath(
+    val display: String,
+    val routeSegments: String
+)
+
+private class OutboundSseRegistry {
+    private val transports = ConcurrentHashMap<String, SseServerTransport>()
+
+    fun add(transport: SseServerTransport) {
+        transports[transport.sessionId] = transport
+    }
+
+    operator fun get(sessionId: String?): SseServerTransport? =
+        sessionId?.let { transports[it] }
+
+    fun remove(sessionId: String?) {
+        if (sessionId.isNullOrBlank()) return
+        transports.remove(sessionId)
+    }
+}
+
+data class ServerCliOptions(
+    val mode: Mode = Mode.STDIO,
+    val host: String = DEFAULT_HOST,
+    val port: Int = DEFAULT_PORT,
+    val path: String = DEFAULT_PATH
+) {
+    enum class Mode {
+        STDIO,
+        HTTP_SSE
+    }
+
+    companion object {
+        private const val DEFAULT_HOST = "127.0.0.1"
+        private const val DEFAULT_PORT = 8080
+        private const val DEFAULT_PATH = "/mcp"
+
+        fun parse(args: Array<String>): ServerCliOptions {
+            var mode = Mode.STDIO
+            var host = DEFAULT_HOST
+            var port = DEFAULT_PORT
+            var path = DEFAULT_PATH
+
+            var index = 0
+            while (index < args.size) {
+                when (val arg = args[index]) {
+                    "--mode" -> {
+                        val value = args.getOrNull(++index) ?: error("Missing value for --mode")
+                        mode = when (value.lowercase()) {
+                            "stdio" -> Mode.STDIO
+                            "http-sse", "http" -> Mode.HTTP_SSE
+                            else -> error("Unsupported mode '$value'. Use 'stdio' or 'http-sse'.")
+                        }
+                    }
+                    "--host" -> host = args.getOrNull(++index) ?: error("Missing value for --host")
+                    "--port" -> {
+                        val value = args.getOrNull(++index) ?: error("Missing value for --port")
+                        port = value.toIntOrNull() ?: error("Invalid port '$value'")
+                    }
+                    "--path" -> path = args.getOrNull(++index) ?: error("Missing value for --path")
+                    else -> error("Unknown argument '$arg'")
+                }
+                index++
+            }
+
+            return ServerCliOptions(
+                mode = mode,
+                host = host,
+                port = port,
+                path = path.ifBlank { DEFAULT_PATH }
+            )
+        }
     }
 }

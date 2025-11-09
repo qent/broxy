@@ -9,11 +9,11 @@
             "command": "__TEST_MCP_SERVER_COMMAND__",
             "args": []
         },
-        "exa-search": {
-            "name": "Exa Search",
+        "test-arithmetic-http": {
+            "name": "Test Arithmetic HTTP",
             "enabled": true,
             "transport": "streamable-http",
-            "url": "https://mcp.exa.ai/mcp?api_key=9efa64ed-152c-4a74-8d13-547972b41407&profile=annoyed-dingo-BOSBS2"
+            "url": "__TEST_MCP_SERVER_HTTP_URL__"
         }
     }
 }
