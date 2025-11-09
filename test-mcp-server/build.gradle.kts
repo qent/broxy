@@ -18,8 +18,19 @@ dependencies {
     implementation("io.ktor:ktor-server-call-logging-jvm:${property("ktorVersion")}")
     implementation("io.ktor:ktor-server-sse-jvm:${property("ktorVersion")}")
     implementation("io.ktor:ktor-server-netty-jvm:${property("ktorVersion")}")
+
+    testImplementation(kotlin("test"))
+    testImplementation(project(":core"))
 }
 
 application {
     mainClass.set("io.qent.broxy.testserver.SimpleTestMcpServerKt")
+}
+
+val testServerHome = layout.buildDirectory.dir("install/test-mcp-server")
+
+tasks.test {
+    dependsOn(tasks.named("installDist"))
+    useJUnitPlatform()
+    systemProperty("test.mcpServerHome", testServerHome.get().asFile.absolutePath)
 }
