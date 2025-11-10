@@ -81,7 +81,8 @@ class ProxyCommand : CliktCommand(name = "proxy", help = "Run broxy server") {
         val watcher = ConfigurationWatcher(
             baseDir = Paths.get(configDir.absolutePath),
             repo = repo,
-            logger = logger
+            logger = logger,
+            emitInitialState = false
         )
         watcher.addObserver(object : ConfigurationObserver {
             override fun onConfigurationChanged(config: McpServersConfig) {

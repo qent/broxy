@@ -18,7 +18,8 @@ class ConfigurationWatcher(
     private val repo: ConfigurationRepository,
     private val logger: Logger? = null,
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.IO),
-    private val debounceMillis: Long = 300
+    private val debounceMillis: Long = 300,
+    private val emitInitialState: Boolean = true
 ) : AutoCloseable {
 
     private var watchService: WatchService? = null
@@ -51,9 +52,10 @@ class ConfigurationWatcher(
         }
 
         logger?.info("Watching configuration directory ${baseDir.toAbsolutePath()}")
-
-        // Emit initial state after debounce
-        markConfigDirtyAndSchedule()
+        if (emitInitialState) {
+            // Emit initial state after debounce when explicitly requested
+            markConfigDirtyAndSchedule()
+        }
 
         watchJob = scope.launch {
             // Watcher loop
