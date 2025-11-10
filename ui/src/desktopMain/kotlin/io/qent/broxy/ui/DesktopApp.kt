@@ -19,24 +19,25 @@ import io.qent.broxy.ui.adapter.headless.logStdioInfo
 import io.qent.broxy.ui.adapter.headless.runStdioProxy
 import io.qent.broxy.ui.adapter.models.UiProxyStatus
 import io.qent.broxy.ui.adapter.store.UIState
+import io.qent.broxy.ui.adapter.store.createAppStore
+import io.qent.broxy.ui.icons.createLetterBImage
+import io.qent.broxy.ui.icons.letterBAwtColor
+import io.qent.broxy.ui.icons.rememberLetterBPainter
 import io.qent.broxy.ui.screens.MainWindow
 import io.qent.broxy.ui.viewmodels.AppState
-import io.qent.broxy.ui.adapter.store.createAppStore
 import io.qent.broxy.ui.windowDrag
 import java.awt.AWTException
-import java.awt.AlphaComposite
 import java.awt.Dimension
 import java.awt.EventQueue
 import java.awt.Frame
 import java.awt.Image
 import java.awt.MenuItem
 import java.awt.PopupMenu
-import java.awt.RenderingHints
 import java.awt.SystemTray
+import java.awt.Taskbar
 import java.awt.TrayIcon
 import java.awt.event.ActionEvent
 import java.awt.event.ActionListener
-import java.awt.image.BufferedImage
 import java.awt.Color as AwtColor
 
 fun main(args: Array<String>) {
@@ -72,6 +73,13 @@ fun main(args: Array<String>) {
         val trayActive = traySupported && trayPreference
         val isMacOs = remember { System.getProperty("os.name")?.contains("Mac", ignoreCase = true) == true }
         val isDarkTheme = isSystemInDarkTheme()
+        val windowIconPainter = rememberLetterBPainter(isDarkTheme)
+        val applicationIconImage = remember(isDarkTheme) {
+            createLetterBImage(
+                fillColor = letterBAwtColor(isDarkTheme),
+                size = 256
+            )
+        }
 
         LaunchedEffect(trayActive) {
             if (!trayActive) {
@@ -93,12 +101,15 @@ fun main(args: Array<String>) {
                     exitApplication()
                 }
             },
-            title = "broxy"
+            title = "broxy",
+            icon = windowIconPainter
         ) {
             val window = this.window
             // Set minimum window height (in pixels). Width left unconstrained.
             SideEffect {
                 window.minimumSize = Dimension(720, 640)
+                (window as? Frame)?.iconImage = applicationIconImage
+                updateTaskbarIcon(applicationIconImage)
             }
             val topBarModifier = remember(isMacOs, window) {
                 if (isMacOs) {
@@ -149,7 +160,12 @@ fun main(args: Array<String>) {
         }
 
         if (trayActive && traySupported) {
-            val trayIconImage = remember(isDarkTheme) { createTrayImage(isDarkTheme) }
+            val trayIconImage = remember(isDarkTheme) {
+                createLetterBImage(
+                    fillColor = letterBAwtColor(isDarkTheme),
+                    size = 22
+                )
+            }
             val trayModel = createTrayModel(
                 uiState = uiState,
                 trayIconImage = trayIconImage,
@@ -170,31 +186,11 @@ fun main(args: Array<String>) {
     }
 }
 
-private fun createTrayImage(isDarkTheme: Boolean): Image {
-    val size = 22
-    val image = BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB)
-    val graphics = image.createGraphics()
-    graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
-    graphics.background = AwtColor(0, 0, 0, 0)
-    graphics.composite = AlphaComposite.Clear
-    graphics.fillRect(0, 0, size, size)
-    graphics.composite = AlphaComposite.SrcOver
-
-    val outer = if (isDarkTheme) AwtColor(0xEC, 0xF2, 0xFC) else AwtColor(0x1A, 0x23, 0x7E)
-    val inner = if (isDarkTheme) AwtColor(0x16, 0x23, 0x50) else AwtColor(0xFF, 0xFF, 0xFF)
-
-    graphics.color = outer
-    graphics.fillOval(1, 1, size - 2, size - 2)
-
-    graphics.color = inner
-    val barWidth = 4
-    val barHeight = size - 8
-    graphics.fillRoundRect((size - barWidth) / 2, 4, barWidth, barHeight, 4, 4)
-    val dotSize = 6
-    graphics.fillOval((size - dotSize) / 2, (size - dotSize) / 2, dotSize, dotSize)
-
-    graphics.dispose()
-    return image
+private fun updateTaskbarIcon(image: Image) {
+    val taskbar = runCatching { Taskbar.getTaskbar() }.getOrNull() ?: return
+    if (taskbar.isSupported(Taskbar.Feature.ICON_IMAGE)) {
+        runCatching { taskbar.iconImage = image }
+    }
 }
 
 private fun createTrayModel(
