@@ -25,7 +25,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -38,14 +37,12 @@ import io.qent.broxy.ui.adapter.store.AppStore
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import io.qent.broxy.ui.theme.AppTheme
-import kotlinx.coroutines.launch
 
 @Composable
 fun ServersScreen(ui: UIState, state: AppState, store: AppStore, notify: (String) -> Unit = {}) {
     var query by rememberSaveable { mutableStateOf("") }
     var editing: UiServer? by remember { mutableStateOf<UiServer?>(null) }
     var viewing: UiServer? by remember { mutableStateOf<UiServer?>(null) }
-    val scope = rememberCoroutineScope()
 
     Column(
         modifier = Modifier
@@ -86,35 +83,7 @@ fun ServersScreen(ui: UIState, state: AppState, store: AppStore, notify: (String
                                 cfg = cfg,
                                 onViewDetails = { viewing = cfg },
                                 onToggle = { id, enabled ->
-                                    if (enabled) {
-                                        // Optimistically enable to reflect "connecting" status immediately
-                                        ui.intents.toggleServer(id, true)
-                                        scope.launch {
-                                            val draft = store.getServerDraft(id)
-                                            if (draft == null) {
-                                                notify("Failed to load server config for '${cfg.name}'")
-                                                // Revert enable if draft missing
-                                                ui.intents.toggleServer(id, false)
-                                                return@launch
-                                            }
-                                            val result = io.qent.broxy.ui.adapter.services.validateServerConnection(draft)
-                                            if (result.isFailure) {
-                                                val e = result.exceptionOrNull()
-                                                val isTimeout = e?.message?.contains("timed out", ignoreCase = true) == true
-                                                if (isTimeout) {
-                                                    notify("Connection timed out for '${cfg.name}'")
-                                                } else {
-                                                    val errMsg = e?.message?.takeIf { it.isNotBlank() }
-                                                    val details = errMsg?.let { ": $it" } ?: ""
-                                                    notify("Connection failed for '${cfg.name}'$details")
-                                                }
-                                                // Revert if validation fails
-                                                ui.intents.toggleServer(id, false)
-                                            }
-                                        }
-                                    } else {
-                                        ui.intents.toggleServer(id, false)
-                                    }
+                                    ui.intents.toggleServer(id, enabled)
                                 },
                                 onEdit = { editing = cfg },
                                 onDelete = { id -> ui.intents.removeServer(id) }

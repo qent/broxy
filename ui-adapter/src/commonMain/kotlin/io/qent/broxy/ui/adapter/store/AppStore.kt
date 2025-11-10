@@ -92,6 +92,7 @@ class AppStore(
     private val logs = mutableListOf<UiLogEntry>()
     private val capsCache = mutableMapOf<String, CachedCaps>()
     private val serverStatus = mutableMapOf<String, UiServerConnStatus>()
+    private val autoRefreshInFlight = mutableSetOf<String>()
 
     init {
         scope.launch {
@@ -269,6 +270,7 @@ class AppStore(
 
     private fun publishReady() {
         reconcilePresetSelection()
+        val autoRefreshTargets = mutableSetOf<String>()
         val uiServers = servers.map { server ->
             val label = when (server.transport) {
                 is UiStdioTransport -> "STDIO"
@@ -277,11 +279,15 @@ class AppStore(
                 is UiWebSocketTransport -> "WebSocket"
             }
             val snapshot = getCachedCaps(server.id)
+            val statusFromMap = serverStatus[server.id]
             val status = when {
                 !server.enabled -> UiServerConnStatus.Disabled
                 snapshot != null -> UiServerConnStatus.Available
-                serverStatus[server.id] == UiServerConnStatus.Error -> UiServerConnStatus.Error
+                statusFromMap != null -> statusFromMap
                 else -> UiServerConnStatus.Connecting
+            }
+            if (server.enabled && snapshot == null && status == UiServerConnStatus.Available) {
+                autoRefreshTargets += server.id
             }
             UiServer(
                 id = server.id,
@@ -305,6 +311,24 @@ class AppStore(
             logs = synchronized(logs) { logs.asReversed().toList() },
             intents = intents
         )
+        scheduleAutoRefresh(autoRefreshTargets)
+    }
+
+    private fun scheduleAutoRefresh(targets: Set<String>) {
+        if (targets.isEmpty()) return
+        val idsToRefresh = synchronized(autoRefreshInFlight) {
+            targets.filter { autoRefreshInFlight.add(it) }
+        }
+        if (idsToRefresh.isEmpty()) return
+        scope.launch {
+            try {
+                refreshServerCapsAndPublish(idsToRefresh)
+            } finally {
+                synchronized(autoRefreshInFlight) {
+                    autoRefreshInFlight.removeAll(idsToRefresh)
+                }
+            }
+        }
     }
 
     private fun snapshotConfig(): UiMcpServersConfig = UiMcpServersConfig(
