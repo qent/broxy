@@ -55,6 +55,7 @@ fun SettingsScreen(
             is UIState.Ready -> SettingsContent(
                 requestTimeoutSeconds = ui.requestTimeoutSeconds,
                 capabilitiesTimeoutSeconds = ui.capabilitiesTimeoutSeconds,
+                capabilitiesRefreshIntervalSeconds = ui.capabilitiesRefreshIntervalSeconds,
                 showTrayIcon = ui.showTrayIcon,
                 themeStyle = themeStyle,
                 onRequestTimeoutSave = { seconds ->
@@ -64,6 +65,10 @@ fun SettingsScreen(
                 onCapabilitiesTimeoutSave = { seconds ->
                     ui.intents.updateCapabilitiesTimeout(seconds)
                     notify("Capabilities timeout saved: ${seconds}s")
+                },
+                onCapabilitiesRefreshIntervalSave = { seconds ->
+                    ui.intents.updateCapabilitiesRefreshInterval(seconds)
+                    notify("Refresh interval saved: ${seconds}s")
                 },
                 onToggleTrayIcon = { enabled ->
                     ui.intents.updateTrayIconVisibility(enabled)
@@ -79,15 +84,18 @@ fun SettingsScreen(
 private fun SettingsContent(
     requestTimeoutSeconds: Int,
     capabilitiesTimeoutSeconds: Int,
+    capabilitiesRefreshIntervalSeconds: Int,
     showTrayIcon: Boolean,
     themeStyle: ThemeStyle,
     onRequestTimeoutSave: (Int) -> Unit,
     onCapabilitiesTimeoutSave: (Int) -> Unit,
+    onCapabilitiesRefreshIntervalSave: (Int) -> Unit,
     onToggleTrayIcon: (Boolean) -> Unit,
     onThemeStyleChange: (ThemeStyle) -> Unit
 ) {
     var requestTimeoutInput by rememberSaveable(requestTimeoutSeconds) { mutableStateOf(requestTimeoutSeconds.toString()) }
     var capabilitiesTimeoutInput by rememberSaveable(capabilitiesTimeoutSeconds) { mutableStateOf(capabilitiesTimeoutSeconds.toString()) }
+    var capabilitiesRefreshInput by rememberSaveable(capabilitiesRefreshIntervalSeconds) { mutableStateOf(capabilitiesRefreshIntervalSeconds.toString()) }
 
     LaunchedEffect(requestTimeoutSeconds) {
         requestTimeoutInput = requestTimeoutSeconds.toString()
@@ -97,6 +105,10 @@ private fun SettingsContent(
         capabilitiesTimeoutInput = capabilitiesTimeoutSeconds.toString()
     }
 
+    LaunchedEffect(capabilitiesRefreshIntervalSeconds) {
+        capabilitiesRefreshInput = capabilitiesRefreshIntervalSeconds.toString()
+    }
+
     val parsedRequest = requestTimeoutInput.toLongOrNull()
     val resolvedRequest = parsedRequest?.takeIf { it > 0 && it <= Int.MAX_VALUE }?.toInt()
     val canSaveRequest = resolvedRequest != null && resolvedRequest != requestTimeoutSeconds
@@ -104,6 +116,10 @@ private fun SettingsContent(
     val parsedCapabilities = capabilitiesTimeoutInput.toLongOrNull()
     val resolvedCapabilities = parsedCapabilities?.takeIf { it > 0 && it <= Int.MAX_VALUE }?.toInt()
     val canSaveCapabilities = resolvedCapabilities != null && resolvedCapabilities != capabilitiesTimeoutSeconds
+
+    val parsedRefresh = capabilitiesRefreshInput.toLongOrNull()
+    val resolvedRefresh = parsedRefresh?.takeIf { it >= 30 && it <= Int.MAX_VALUE }?.toInt()
+    val canSaveRefresh = resolvedRefresh != null && resolvedRefresh != capabilitiesRefreshIntervalSeconds
 
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -142,6 +158,21 @@ private fun SettingsContent(
             },
             onSave = {
                 resolvedCapabilities?.let { onCapabilitiesTimeoutSave(it) }
+            }
+        )
+        TimeoutSetting(
+            title = "Capabilities refresh interval",
+            description = "Control how often cached MCP server capabilities are refreshed in the background.",
+            label = "Seconds",
+            value = capabilitiesRefreshInput,
+            canSave = canSaveRefresh,
+            onValueChange = { value ->
+                if (value.isEmpty() || value.all { it.isDigit() }) {
+                    capabilitiesRefreshInput = value
+                }
+            },
+            onSave = {
+                resolvedRefresh?.let { onCapabilitiesRefreshIntervalSave(it) }
             }
         )
     }

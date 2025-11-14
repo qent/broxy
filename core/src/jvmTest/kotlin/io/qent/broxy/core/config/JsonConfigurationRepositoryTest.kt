@@ -24,6 +24,7 @@ class JsonConfigurationRepositoryTest {
             {
               "requestTimeoutSeconds": 90,
               "capabilitiesTimeoutSeconds": 25,
+              "capabilitiesRefreshIntervalSeconds": 180,
               "mcpServers": {
                 "github": {
                   "transport": "stdio",
@@ -50,6 +51,7 @@ class JsonConfigurationRepositoryTest {
             assertEquals("t", s.env["GITHUB_TOKEN"]) // resolved
             assertEquals(90, cfg.requestTimeoutSeconds)
             assertEquals(25, cfg.capabilitiesTimeoutSeconds)
+            assertEquals(180, cfg.capabilitiesRefreshIntervalSeconds)
             assertTrue(cfg.showTrayIcon)
         } finally {
             tmp.toFile().deleteRecursively()
@@ -95,16 +97,23 @@ class JsonConfigurationRepositoryTest {
         val tmp = Files.createTempDirectory("cfgtest4")
         try {
             val repo = JsonConfigurationRepository(baseDir = tmp)
-            val cfg = McpServersConfig(requestTimeoutSeconds = 1_200, capabilitiesTimeoutSeconds = 45, showTrayIcon = false)
+            val cfg = McpServersConfig(
+                requestTimeoutSeconds = 1_200,
+                capabilitiesTimeoutSeconds = 45,
+                showTrayIcon = false,
+                capabilitiesRefreshIntervalSeconds = 180
+            )
             repo.saveMcpConfig(cfg)
             val raw = tmp.resolve("mcp.json").readText()
             assertTrue(raw.contains("\"requestTimeoutSeconds\": 1200"))
             assertTrue(raw.contains("\"capabilitiesTimeoutSeconds\": 45"))
             assertTrue(raw.contains("\"showTrayIcon\": false"))
+            assertTrue(raw.contains("\"capabilitiesRefreshIntervalSeconds\": 180"))
             val loaded = repo.loadMcpConfig()
             assertEquals(1_200, loaded.requestTimeoutSeconds)
             assertEquals(45, loaded.capabilitiesTimeoutSeconds)
             assertFalse(loaded.showTrayIcon)
+            assertEquals(180, loaded.capabilitiesRefreshIntervalSeconds)
         } finally {
             tmp.toFile().deleteRecursively()
         }

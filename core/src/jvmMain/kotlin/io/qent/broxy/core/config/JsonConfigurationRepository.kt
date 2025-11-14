@@ -29,6 +29,7 @@ class JsonConfigurationRepository(
     companion object {
         private const val DEFAULT_TIMEOUT_SECONDS = 60
         private const val DEFAULT_CAPABILITIES_TIMEOUT_SECONDS = 30
+        private const val DEFAULT_CAPABILITIES_REFRESH_INTERVAL_SECONDS = 300
     }
 
     private val dir: Path = baseDir
@@ -111,12 +112,15 @@ class JsonConfigurationRepository(
         val timeoutSeconds = root.requestTimeoutSeconds ?: DEFAULT_TIMEOUT_SECONDS
         val capabilitiesTimeoutSeconds = root.capabilitiesTimeoutSeconds ?: DEFAULT_CAPABILITIES_TIMEOUT_SECONDS
         val showTrayIcon = root.showTrayIcon ?: true
+        val capabilitiesRefreshIntervalSeconds = root.capabilitiesRefreshIntervalSeconds
+            ?: DEFAULT_CAPABILITIES_REFRESH_INTERVAL_SECONDS
 
         return McpServersConfig(
             servers = servers,
             requestTimeoutSeconds = timeoutSeconds,
             capabilitiesTimeoutSeconds = capabilitiesTimeoutSeconds,
-            showTrayIcon = showTrayIcon
+            showTrayIcon = showTrayIcon,
+            capabilitiesRefreshIntervalSeconds = capabilitiesRefreshIntervalSeconds
         )
     }
 
@@ -125,6 +129,7 @@ class JsonConfigurationRepository(
             requestTimeoutSeconds = config.requestTimeoutSeconds,
             capabilitiesTimeoutSeconds = config.capabilitiesTimeoutSeconds,
             showTrayIcon = config.showTrayIcon,
+            capabilitiesRefreshIntervalSeconds = config.capabilitiesRefreshIntervalSeconds,
             mcpServers = config.servers.associate { s ->
                 s.id to when (val t = s.transport) {
                     is TransportConfig.StdioTransport -> FileMcpServer(
@@ -250,6 +255,7 @@ class JsonConfigurationRepository(
         val requestTimeoutSeconds: Int? = null,
         val capabilitiesTimeoutSeconds: Int? = null,
         val showTrayIcon: Boolean? = null,
+        val capabilitiesRefreshIntervalSeconds: Int? = null,
         val mcpServers: Map<String, FileMcpServer>
     )
 

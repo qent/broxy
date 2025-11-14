@@ -49,7 +49,8 @@ class AppStoreTest {
             servers = listOf(server),
             requestTimeoutSeconds = 42,
             capabilitiesTimeoutSeconds = 24,
-            showTrayIcon = true
+            showTrayIcon = true,
+            capabilitiesRefreshIntervalSeconds = 180
         )
         val preset = Preset(
             id = "dev",
@@ -78,8 +79,8 @@ class AppStoreTest {
             logger = logger,
             scope = storeScope,
             now = { testScheduler.currentTime },
-            capsCacheTtlMillis = Long.MAX_VALUE,
-            maxLogs = 10
+            maxLogs = 10,
+            enableBackgroundRefresh = false
         )
 
         store.start()
@@ -95,6 +96,7 @@ class AppStoreTest {
         assertEquals(1, uiServer.toolsCount)
         assertEquals(42, ready.requestTimeoutSeconds)
         assertEquals(24, ready.capabilitiesTimeoutSeconds)
+        assertEquals(180, ready.capabilitiesRefreshIntervalSeconds)
         assertEquals(listOf(42), proxyController.callTimeoutUpdates)
         assertEquals(listOf(24), proxyController.capabilityTimeoutUpdates)
         assertEquals(listOf("s1"), capabilityFetcher.requestedIds)
@@ -128,7 +130,8 @@ class AppStoreTest {
             capabilityFetcher = capabilityFetcher::invoke,
             logger = logger,
             scope = storeScope,
-            now = { testScheduler.currentTime }
+            now = { testScheduler.currentTime },
+            enableBackgroundRefresh = false
         )
 
         store.start()
@@ -178,7 +181,8 @@ class AppStoreTest {
             capabilityFetcher = capabilityFetcher::invoke,
             logger = logger,
             scope = storeScope,
-            now = { testScheduler.currentTime }
+            now = { testScheduler.currentTime },
+            enableBackgroundRefresh = false
         )
 
         store.start()

@@ -1,15 +1,13 @@
 package io.qent.broxy.core.mcp
 
-import io.qent.broxy.core.mcp.errors.McpError
 import io.qent.broxy.core.mcp.TimeoutConfigurableMcpClient
+import io.qent.broxy.core.mcp.errors.McpError
 import io.qent.broxy.core.models.McpServerConfig
 import io.qent.broxy.core.utils.ConsoleLogger
 import io.qent.broxy.core.utils.ExponentialBackoff
 import io.qent.broxy.core.utils.Logger
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -19,11 +17,13 @@ class DefaultMcpServerConnection(
     private val logger: Logger = ConsoleLogger,
     private val cacheTtlMs: Long = 5 * 60 * 1000,
     private val maxRetries: Int = 5,
-    private val client: McpClient = McpClientFactory(defaultMcpClientProvider()).create(
-        config.transport,
-        config.env,
-        logger
-    ),
+    private val clientFactory: () -> McpClient = {
+        McpClientFactory(defaultMcpClientProvider()).create(
+            config.transport,
+            config.env,
+            logger
+        )
+    },
     private val cache: CapabilitiesCache = CapabilitiesCache(ttlMillis = cacheTtlMs),
     initialCallTimeoutMillis: Long = 60_000,
     initialCapabilitiesTimeoutMillis: Long = 30_000,
@@ -41,10 +41,6 @@ class DefaultMcpServerConnection(
     @Volatile
     private var connectTimeoutMillis: Long = initialConnectTimeoutMillis.coerceAtLeast(1)
 
-    init {
-        applyClientTimeouts()
-    }
-
     fun updateCallTimeout(millis: Long) {
         callTimeoutMillis = millis.coerceAtLeast(1)
         logger.info("Updated call timeout for '${config.name}' to ${callTimeoutMillis}ms")
@@ -53,48 +49,12 @@ class DefaultMcpServerConnection(
     fun updateCapabilitiesTimeout(millis: Long) {
         capabilitiesTimeoutMillis = millis.coerceAtLeast(1)
         connectTimeoutMillis = capabilitiesTimeoutMillis
-        applyClientTimeouts()
         logger.info("Updated capabilities timeout for '${config.name}' to ${capabilitiesTimeoutMillis}ms")
     }
 
-    private fun applyClientTimeouts() {
-        (client as? TimeoutConfigurableMcpClient)?.updateTimeouts(connectTimeoutMillis, capabilitiesTimeoutMillis)
-    }
-
-    private val connectMutex = Mutex()
-
-    override suspend fun connect(): Result<Unit> = connectMutex.withLock {
-        if (status == ServerStatus.Running) return Result.success(Unit)
-        status = ServerStatus.Starting
-        val backoff = ExponentialBackoff()
-        var lastError: Throwable? = null
-        for (attempt in 1..maxRetries) {
-            val result = try {
-                withTimeout(connectTimeoutMillis) { client.connect() }
-            } catch (t: TimeoutCancellationException) {
-                val err = McpError.TimeoutError("Connect timed out after ${connectTimeoutMillis}ms", t)
-                Result.failure(err)
-            }
-            if (result.isSuccess) {
-                status = ServerStatus.Running
-                logger.info("Connected to MCP server '${config.name}' (${config.id})")
-                return Result.success(Unit)
-            } else {
-                lastError = result.exceptionOrNull()
-                logger.warn("Failed to connect to '${config.name}' (attempt $attempt/$maxRetries)", lastError)
-                status = ServerStatus.Error(lastError?.message)
-                delay(backoff.delayForAttempt(attempt))
-            }
-        }
-        status = ServerStatus.Error(lastError?.message)
-        return Result.failure(McpError.ConnectionError("Failed to connect after $maxRetries attempts", lastError))
-    }
+    override suspend fun connect(): Result<Unit> = withSession { Result.success(Unit) }
 
     override suspend fun disconnect() {
-        if (status == ServerStatus.Stopped || status == ServerStatus.Stopping) return
-        status = ServerStatus.Stopping
-        runCatching { client.disconnect() }
-            .onFailure { logger.warn("Error while disconnecting from '${config.name}'", it) }
         status = ServerStatus.Stopped
     }
 
@@ -102,18 +62,12 @@ class DefaultMcpServerConnection(
         if (!forceRefresh) {
             cache.get()?.let { return Result.success(it) }
         }
-        if (status != ServerStatus.Running) {
-            val conn = connect()
-            if (conn.isFailure) {
-                val cached = cache.get()
-                if (cached != null) return Result.success(cached)
-                return Result.failure(conn.exceptionOrNull()!!)
+        val result = withSession { client ->
+            try {
+                withTimeout(capabilitiesTimeoutMillis) { client.fetchCapabilities() }
+            } catch (t: TimeoutCancellationException) {
+                Result.failure(McpError.TimeoutError("Capabilities fetch timed out after ${capabilitiesTimeoutMillis}ms", t))
             }
-        }
-        val result = try {
-            withTimeout(capabilitiesTimeoutMillis) { client.fetchCapabilities() }
-        } catch (t: TimeoutCancellationException) {
-            Result.failure(McpError.TimeoutError("Capabilities fetch timed out after ${capabilitiesTimeoutMillis}ms", t))
         }
         if (result.isSuccess) {
             val caps = result.getOrThrow()
@@ -130,51 +84,92 @@ class DefaultMcpServerConnection(
         return Result.failure(error ?: McpError.TransportError("Unknown error fetching capabilities"))
     }
 
-    override suspend fun callTool(toolName: String, arguments: JsonObject): Result<JsonElement> {
-        if (status != ServerStatus.Running) {
-            val r = connect()
-            if (r.isFailure) return Result.failure(r.exceptionOrNull()!!)
-        }
-        return try {
-            withTimeout(callTimeoutMillis) {
-                client.callTool(toolName, arguments)
+    override suspend fun callTool(toolName: String, arguments: JsonObject): Result<JsonElement> =
+        withSession { client ->
+            try {
+                withTimeout(callTimeoutMillis) { client.callTool(toolName, arguments) }
+            } catch (t: TimeoutCancellationException) {
+                val err = McpError.TimeoutError("Tool '$toolName' timed out after ${callTimeoutMillis}ms", t)
+                logger.warn("Timed out calling tool '$toolName' on '${config.name}'", t)
+                Result.failure(err)
             }
-        } catch (t: TimeoutCancellationException) {
-            val err = McpError.TimeoutError("Tool '$toolName' timed out after ${callTimeoutMillis}ms", t)
-            logger.warn("Timed out calling tool '$toolName' on '${config.name}'", t)
-            Result.failure(err)
         }
+
+    override suspend fun getPrompt(name: String, arguments: Map<String, String>?): Result<JsonObject> =
+        withSession { client ->
+            try {
+                withTimeout(callTimeoutMillis) { client.getPrompt(name, arguments) }
+            } catch (t: TimeoutCancellationException) {
+                val err = McpError.TimeoutError("Prompt '$name' timed out after ${callTimeoutMillis}ms", t)
+                logger.warn("Timed out fetching prompt '$name' from '${config.name}'", t)
+                Result.failure(err)
+            }
+        }
+
+    override suspend fun readResource(uri: String): Result<JsonObject> =
+        withSession { client ->
+            try {
+                withTimeout(callTimeoutMillis) { client.readResource(uri) }
+            } catch (t: TimeoutCancellationException) {
+                val err = McpError.TimeoutError("Resource '$uri' timed out after ${callTimeoutMillis}ms", t)
+                logger.warn("Timed out reading resource '$uri' from '${config.name}'", t)
+                Result.failure(err)
+            }
+        }
+
+    private fun newClient(): McpClient = clientFactory().also { configureClientTimeouts(it) }
+
+    private fun configureClientTimeouts(client: McpClient) {
+        (client as? TimeoutConfigurableMcpClient)?.updateTimeouts(connectTimeoutMillis, capabilitiesTimeoutMillis)
     }
 
-    override suspend fun getPrompt(name: String, arguments: Map<String, String>?): Result<JsonObject> {
-        if (status != ServerStatus.Running) {
-            val r = connect()
-            if (r.isFailure) return Result.failure(r.exceptionOrNull()!!)
+    private suspend fun <T> withSession(block: suspend (McpClient) -> Result<T>): Result<T> {
+        val client = newClient()
+        status = ServerStatus.Starting
+        val connectResult = connectClient(client)
+        if (connectResult.isFailure) {
+            val error = connectResult.exceptionOrNull()
+            status = ServerStatus.Error(error?.message)
+            runCatching { client.disconnect() }
+                .onFailure { logger.warn("Error while disconnecting from '${config.name}'", it) }
+            return Result.failure(error ?: McpError.ConnectionError("Failed to connect", null))
         }
-        return try {
-            withTimeout(callTimeoutMillis) {
-                client.getPrompt(name, arguments)
-            }
-        } catch (t: TimeoutCancellationException) {
-            val err = McpError.TimeoutError("Prompt '$name' timed out after ${callTimeoutMillis}ms", t)
-            logger.warn("Timed out fetching prompt '$name' from '${config.name}'", t)
-            Result.failure(err)
+        status = ServerStatus.Running
+        val result = try {
+            block(client)
+        } catch (t: Throwable) {
+            Result.failure(t)
         }
+        if (result.isFailure) {
+            status = ServerStatus.Error(result.exceptionOrNull()?.message)
+        }
+        runCatching { client.disconnect() }
+            .onFailure { logger.warn("Error while disconnecting from '${config.name}'", it) }
+        if (status !is ServerStatus.Error) {
+            status = ServerStatus.Stopped
+        }
+        return result
     }
 
-    override suspend fun readResource(uri: String): Result<JsonObject> {
-        if (status != ServerStatus.Running) {
-            val r = connect()
-            if (r.isFailure) return Result.failure(r.exceptionOrNull()!!)
-        }
-        return try {
-            withTimeout(callTimeoutMillis) {
-                client.readResource(uri)
+    private suspend fun connectClient(client: McpClient): Result<Unit> {
+        val backoff = ExponentialBackoff()
+        var lastError: Throwable? = null
+        for (attempt in 1..maxRetries) {
+            val result = try {
+                withTimeout(connectTimeoutMillis) { client.connect() }
+            } catch (t: TimeoutCancellationException) {
+                Result.failure(McpError.TimeoutError("Connect timed out after ${connectTimeoutMillis}ms", t))
             }
-        } catch (t: TimeoutCancellationException) {
-            val err = McpError.TimeoutError("Resource '$uri' timed out after ${callTimeoutMillis}ms", t)
-            logger.warn("Timed out reading resource '$uri' from '${config.name}'", t)
-            Result.failure(err)
+            if (result.isSuccess) {
+                return Result.success(Unit)
+            } else {
+                lastError = result.exceptionOrNull()
+                logger.warn("Failed to connect to '${config.name}' (attempt $attempt/$maxRetries)", lastError)
+                if (attempt < maxRetries) {
+                    delay(backoff.delayForAttempt(attempt))
+                }
+            }
         }
+        return Result.failure(McpError.ConnectionError("Failed to connect after $maxRetries attempts", lastError))
     }
 }

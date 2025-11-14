@@ -199,6 +199,7 @@ class CapabilitiesCache {
 
 #### 4. Управление таймаутами и повторными попытками
 - `core/src/commonMain/kotlin/io/qent/broxy/core/mcp/DefaultMcpServerConnection.kt` реализует экспоненциальный backoff, ограничение числа попыток и обёртку `withTimeout`. Методы `updateCallTimeout` и `updateCapabilitiesTimeout` позволяют синхронизировать таймауты RPC-вызовов и загрузки capabilities с пользовательскими настройками.
+- Соединения с downstream MCP серверами держатся только на время конкретного RPC: `DefaultMcpServerConnection` создаёт клиент по требованию, коннектится с retry/backoff, выполняет запрос (tools/prompts/resources/capabilities) и сразу вызывает `disconnect()`, обновляя статус по результату последней сессии.
 - При сбое получения capabilities соединение возвращается к кэшу и логирует ошибку через `Logger`, не прерывая работу прокси (`Result`-контракты на всех публичных методах).
 
 #### 5. Пакетная работа с несколькими серверами
@@ -207,7 +208,7 @@ class CapabilitiesCache {
 
 ## Конфигурация и наблюдение
 
-- `JsonConfigurationRepository` (`core/src/jvmMain/kotlin/io/qent/broxy/core/config/JsonConfigurationRepository.kt`) читает/пишет `mcp.json` и `preset_*.json`, валидирует транспорты, разрешает `${ENV}` и `{ENV}` плейсхолдеры через `EnvironmentVariableResolver`, проверяет наличие обязательных переменных окружения и логирует безопасные копии конфигураций. Поддерживаются глобальные ключи `requestTimeoutSeconds` и `capabilitiesTimeoutSeconds` для управления таймаутами вызовов и загрузки capabilities.
+- `JsonConfigurationRepository` (`core/src/jvmMain/kotlin/io/qent/broxy/core/config/JsonConfigurationRepository.kt`) читает/пишет `mcp.json` и `preset_*.json`, валидирует транспорты, разрешает `${ENV}` и `{ENV}` плейсхолдеры через `EnvironmentVariableResolver`, проверяет наличие обязательных переменных окружения и логирует безопасные копии конфигураций. Поддерживаются глобальные ключи `requestTimeoutSeconds`, `capabilitiesTimeoutSeconds` и `capabilitiesRefreshIntervalSeconds` (частота фонового обновления сведений о серверах) для управления таймаутами и актуальностью capabilities.
 - JSON-схемы в `core/src/commonMain/resources/schemas/` фиксируют контракт конфигурации и пресетов; при изменениях структуры обновляйте схемы и документацию.
 - `ConfigurationWatcher` (`core/src/jvmMain/kotlin/io/qent/broxy/core/config/ConfigurationWatcher.kt`) отслеживает изменения файлов, применяет debounce, отправляет события наблюдателям (`ConfigurationObserver`). CLI и UI адаптер используют его для хот-релоада конфигурации без перезапуска процесса.
 - Для тестов и headless-режима предусмотрены ручные триггеры `triggerConfigReload/triggerPresetReload`, что упрощает имитацию событий файловой системы.
@@ -232,7 +233,7 @@ class CapabilitiesCache {
 
 ## UI-адаптер и AppStore
 
-- `AppStore` (`ui-adapter/src/commonMain/kotlin/io/qent/broxy/ui/adapter/store/AppStore.kt`) реализует UDF/MVI на корутинах: хранит конфигурацию, управляет `StateFlow<UIState>`, кэширует capabilities (TTL 5 минут), ограничивает количество логов и проксирует интенты (refresh, CRUD серверов/пресетов, запуск/остановка прокси, управление таймаутом и треем).
+- `AppStore` (`ui-adapter/src/commonMain/kotlin/io/qent/broxy/ui/adapter/store/AppStore.kt`) реализует UDF/MVI на корутинах: хранит конфигурацию, управляет `StateFlow<UIState>`, кэширует snapshots capabilities при включении сервера и пересканирует их по расписанию `capabilitiesRefreshIntervalSeconds` (по умолчанию 5 минут, настраивается через UI/конфиг), ограничивает количество логов и проксирует интенты (refresh, CRUD серверов/пресетов, запуск/остановка прокси, управление таймаутом, фоновым обновлением и треем).
 - `ProxyController` (`ui-adapter/src/commonMain/kotlin/io/qent/broxy/ui/adapter/proxy/ProxyController.kt`) — `expect`-интерфейс; JVM-реализация (`ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/proxy/ProxyControllerJvm.kt`) создаёт downstream соединения, inbound сервер и управляет таймаутами.
 - `fetchServerCapabilities` (`ui-adapter/src/commonMain/kotlin/io/qent/broxy/ui/adapter/services/ToolService.kt`) используется UI для валидации серверов; JVM-версия (`ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/services/ToolServiceJvm.kt`) уважает пользовательский таймаут capabilities и выполняет одну попытку.
 - UI (`ui/src/commonMain/...`) остаётся декларативным слоем: `MainWindow`/`ServersScreen` подписываются на `UIState`, диалоги вызывают интенты из `Intents`.

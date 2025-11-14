@@ -27,6 +27,12 @@
       "description": "Timeout for listing tools/resources/prompts from servers in seconds.",
       "default": 30
     },
+    "capabilitiesRefreshIntervalSeconds": {
+      "type": "integer",
+      "minimum": 30,
+      "description": "How often (in seconds) broxy refreshes cached server capabilities in the background.",
+      "default": 300
+    },
     "showTrayIcon": {
       "type": "boolean",
       "description": "Whether the desktop UI should display a system tray icon.",

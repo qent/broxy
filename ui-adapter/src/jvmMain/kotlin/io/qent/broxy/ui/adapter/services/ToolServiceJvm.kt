@@ -27,11 +27,6 @@ actual suspend fun fetchServerCapabilities(
     )
     return try {
         withTimeout(timeoutMillis) {
-            val connect = conn.connect()
-            if (connect.isFailure) {
-                val ex = connect.exceptionOrNull() ?: IllegalStateException("Failed to connect")
-                return@withTimeout Result.failure(ex)
-            }
             conn.getCapabilities(forceRefresh = true)
         }
     } catch (t: TimeoutCancellationException) {

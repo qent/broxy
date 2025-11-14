@@ -11,6 +11,7 @@ import kotlinx.serialization.json.put
 import org.mockito.kotlin.any
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
+import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import kotlin.test.Test
@@ -32,7 +33,7 @@ class DefaultMcpServerConnectionMoreTest {
             whenever(client.getPrompt("p1", null)).thenReturn(Result.success(buildJsonObject { put("description", "d"); put("messages", "[]") }))
             whenever(client.readResource("u1")).thenReturn(Result.success(buildJsonObject { put("contents", "[]"); put("_meta", "{}") }))
 
-            val conn = DefaultMcpServerConnection(config(), client = client)
+            val conn = DefaultMcpServerConnection(config(), clientFactory = { client })
 
             val pr = conn.getPrompt("p1")
             assertTrue(pr.isSuccess)
@@ -41,6 +42,7 @@ class DefaultMcpServerConnectionMoreTest {
 
             val rr = conn.readResource("u1")
             assertTrue(rr.isSuccess)
+            verify(client, times(2)).connect()
             verify(client).readResource("u1")
         }
     }
@@ -51,7 +53,7 @@ class DefaultMcpServerConnectionMoreTest {
             val client: McpClient = mock()
             whenever(client.connect()).thenReturn(Result.failure(IllegalStateException("nope")))
 
-            val conn = DefaultMcpServerConnection(config(), client = client)
+            val conn = DefaultMcpServerConnection(config(), clientFactory = { client })
             val res = conn.callTool("echo", JsonObject(emptyMap()))
             assertTrue(res.isFailure)
             verify(client, never()).callTool(any(), any())
@@ -77,7 +79,7 @@ class DefaultMcpServerConnectionMoreTest {
 
             val conn = DefaultMcpServerConnection(
                 config(),
-                client = slowClient,
+                clientFactory = { slowClient },
                 initialCallTimeoutMillis = 10
             )
             val res = conn.callTool("slow", JsonObject(emptyMap()))

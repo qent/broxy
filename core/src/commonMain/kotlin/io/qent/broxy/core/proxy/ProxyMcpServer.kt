@@ -142,7 +142,6 @@ class ProxyMcpServer(
         // Ensure downstream servers are connected, then fetch caps
         downstreams.map { s ->
             async {
-                s.connect()
                 val caps = s.getCapabilities()
                 if (caps.isSuccess) s.serverId to caps.getOrThrow() else null
             }

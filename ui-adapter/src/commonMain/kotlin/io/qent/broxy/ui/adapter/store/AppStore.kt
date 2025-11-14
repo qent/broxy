@@ -44,19 +44,19 @@ import io.qent.broxy.ui.adapter.proxy.createProxyController
 import io.qent.broxy.ui.adapter.services.fetchServerCapabilities
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 
-private const val DEFAULT_CAPS_CACHE_TTL_MILLIS = 5 * 60 * 1000L
+private const val DEFAULT_CAPS_REFRESH_INTERVAL_SECONDS = 300
 private const val DEFAULT_MAX_LOGS = 500
 
 private typealias CapabilityFetcher = suspend (UiMcpServerConfig, Int) -> Result<UiServerCapabilities>
@@ -72,8 +72,8 @@ class AppStore(
     private val logger: CollectingLogger,
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.Default),
     private val now: () -> Long = { System.currentTimeMillis() },
-    private val capsCacheTtlMillis: Long = DEFAULT_CAPS_CACHE_TTL_MILLIS,
-    private val maxLogs: Int = DEFAULT_MAX_LOGS
+    private val maxLogs: Int = DEFAULT_MAX_LOGS,
+    private val enableBackgroundRefresh: Boolean = true
 ) {
     private data class CachedCaps(val snapshot: UiServerCapsSnapshot, val timestampMillis: Long)
 
@@ -92,7 +92,8 @@ class AppStore(
     private val logs = mutableListOf<UiLogEntry>()
     private val capsCache = mutableMapOf<String, CachedCaps>()
     private val serverStatus = mutableMapOf<String, UiServerConnStatus>()
-    private val autoRefreshInFlight = mutableSetOf<String>()
+    private var capabilitiesRefreshIntervalSeconds: Int = DEFAULT_CAPS_REFRESH_INTERVAL_SECONDS
+    private var capsRefreshJob: Job? = null
 
     init {
         scope.launch {
@@ -124,7 +125,8 @@ class AppStore(
                 return@launch
             }
             publishReady()
-            scope.launch { refreshServerCapsAndPublish() }
+            refreshEnabledServerCaps(force = true)
+            restartCapsRefreshJob()
         }
     }
 
@@ -173,39 +175,8 @@ class AppStore(
 
     fun listServerConfigs(): List<UiMcpServerConfig> = servers.toList()
 
-    suspend fun listEnabledServerCaps(): List<UiServerCapsSnapshot> = coroutineScope {
-        val enabled = servers.filter { it.enabled }
-        if (enabled.isEmpty()) return@coroutineScope emptyList()
-
-        val resolved = mutableMapOf<String, UiServerCapsSnapshot>()
-        val missing = mutableListOf<UiMcpServerConfig>()
-
-        enabled.forEach { cfg ->
-            val cached = getCachedCaps(cfg.id)
-            if (cached != null) {
-                resolved[cfg.id] = cached
-            } else {
-                missing += cfg
-            }
-        }
-
-        if (missing.isNotEmpty()) {
-            val fetched = missing.map { cfg ->
-                async { fetchAndCacheCapabilities(cfg) }
-            }.awaitAll()
-
-            fetched.forEachIndexed { index, snapshot ->
-                val cfg = missing[index]
-                if (snapshot != null) {
-                    resolved[cfg.id] = snapshot
-                }
-            }
-
-            publishReady()
-        }
-
-        enabled.mapNotNull { resolved[it.id] }
-    }
+    suspend fun listEnabledServerCaps(): List<UiServerCapsSnapshot> =
+        servers.filter { it.enabled }.mapNotNull { getCachedCaps(it.id) }
 
     suspend fun getServerCaps(serverId: String, forceRefresh: Boolean = false): UiServerCapsSnapshot? {
         val cfg = servers.firstOrNull { it.id == serverId } ?: return null
@@ -213,9 +184,9 @@ class AppStore(
             val cached = getCachedCaps(serverId)
             if (cached != null) return cached
         }
-        val snapshot = fetchAndCacheCapabilities(cfg)
+        fetchAndCacheCapabilities(cfg)
         publishReady()
-        return snapshot
+        return getCachedCaps(serverId)
     }
 
     private fun loadConfigurationSnapshot(): Result<Unit> = runCatching {
@@ -223,6 +194,7 @@ class AppStore(
         requestTimeoutSeconds = config.requestTimeoutSeconds
         capabilitiesTimeoutSeconds = config.capabilitiesTimeoutSeconds
         showTrayIcon = config.showTrayIcon
+        capabilitiesRefreshIntervalSeconds = config.capabilitiesRefreshIntervalSeconds.coerceAtLeast(30)
         proxyController.updateCallTimeout(requestTimeoutSeconds)
         proxyController.updateCapabilitiesTimeout(capabilitiesTimeoutSeconds)
 
@@ -243,17 +215,16 @@ class AppStore(
         }
     }
 
-    private suspend fun fetchAndCacheCapabilities(cfg: UiMcpServerConfig): UiServerCapsSnapshot? {
+    private suspend fun fetchAndCacheCapabilities(cfg: UiMcpServerConfig): Boolean {
         val result = capabilityFetcher(cfg, capabilitiesTimeoutSeconds)
         return if (result.isSuccess) {
             val snapshot = result.getOrThrow().toSnapshot(cfg)
             putCachedCaps(cfg.id, snapshot)
             serverStatus[cfg.id] = UiServerConnStatus.Available
-            snapshot
+            true
         } else {
-            removeCachedCaps(cfg.id)
             serverStatus[cfg.id] = UiServerConnStatus.Error
-            null
+            false
         }
     }
 
@@ -270,7 +241,6 @@ class AppStore(
 
     private fun publishReady() {
         reconcilePresetSelection()
-        val autoRefreshTargets = mutableSetOf<String>()
         val uiServers = servers.map { server ->
             val label = when (server.transport) {
                 is UiStdioTransport -> "STDIO"
@@ -285,9 +255,6 @@ class AppStore(
                 snapshot != null -> UiServerConnStatus.Available
                 statusFromMap != null -> statusFromMap
                 else -> UiServerConnStatus.Connecting
-            }
-            if (server.enabled && snapshot == null && status == UiServerConnStatus.Available) {
-                autoRefreshTargets += server.id
             }
             UiServer(
                 id = server.id,
@@ -307,50 +274,85 @@ class AppStore(
             proxyStatus = proxyStatus,
             requestTimeoutSeconds = requestTimeoutSeconds,
             capabilitiesTimeoutSeconds = capabilitiesTimeoutSeconds,
+            capabilitiesRefreshIntervalSeconds = capabilitiesRefreshIntervalSeconds,
             showTrayIcon = showTrayIcon,
             logs = synchronized(logs) { logs.asReversed().toList() },
             intents = intents
         )
-        scheduleAutoRefresh(autoRefreshTargets)
-    }
-
-    private fun scheduleAutoRefresh(targets: Set<String>) {
-        if (targets.isEmpty()) return
-        val idsToRefresh = synchronized(autoRefreshInFlight) {
-            targets.filter { autoRefreshInFlight.add(it) }
-        }
-        if (idsToRefresh.isEmpty()) return
-        scope.launch {
-            try {
-                refreshServerCapsAndPublish(idsToRefresh)
-            } finally {
-                synchronized(autoRefreshInFlight) {
-                    autoRefreshInFlight.removeAll(idsToRefresh)
-                }
-            }
-        }
     }
 
     private fun snapshotConfig(): UiMcpServersConfig = UiMcpServersConfig(
         servers = servers.toList(),
         requestTimeoutSeconds = requestTimeoutSeconds,
         capabilitiesTimeoutSeconds = capabilitiesTimeoutSeconds,
-        showTrayIcon = showTrayIcon
+        showTrayIcon = showTrayIcon,
+        capabilitiesRefreshIntervalSeconds = capabilitiesRefreshIntervalSeconds
     )
 
     private fun getCachedCaps(serverId: String): UiServerCapsSnapshot? = synchronized(capsCache) {
-        val entry = capsCache[serverId] ?: return@synchronized null
-        return if (now() - entry.timestampMillis <= capsCacheTtlMillis) {
-            entry.snapshot
-        } else {
-            capsCache.remove(serverId)
-            null
-        }
+        capsCache[serverId]?.snapshot
     }
 
     private fun putCachedCaps(serverId: String, snapshot: UiServerCapsSnapshot) {
         val entry = CachedCaps(snapshot = snapshot, timestampMillis = now())
         synchronized(capsCache) { capsCache[serverId] = entry }
+    }
+
+    private fun hasCachedCaps(serverId: String): Boolean = synchronized(capsCache) {
+        capsCache.containsKey(serverId)
+    }
+
+    private fun shouldRefreshNow(serverId: String, intervalMillis: Long): Boolean = synchronized(capsCache) {
+        val entry = capsCache[serverId] ?: return@synchronized true
+        now() - entry.timestampMillis >= intervalMillis
+    }
+
+    private fun refreshIntervalMillis(): Long = capabilitiesRefreshIntervalSeconds.coerceAtLeast(30) * 1_000L
+
+    private fun restartCapsRefreshJob() {
+        if (!enableBackgroundRefresh) {
+            capsRefreshJob?.cancel()
+            capsRefreshJob = null
+            return
+        }
+        capsRefreshJob?.cancel()
+        val intervalMillis = refreshIntervalMillis()
+        capsRefreshJob = scope.launch {
+            while (isActive) {
+                delay(intervalMillis)
+                refreshEnabledServerCaps(force = false)
+            }
+        }
+    }
+
+    private suspend fun refreshEnabledServerCaps(force: Boolean) {
+        val intervalMillis = refreshIntervalMillis()
+        val targets = servers.filter { it.enabled }
+            .filter { force || shouldRefreshNow(it.id, intervalMillis) }
+        refreshServers(targets)
+    }
+
+    private suspend fun refreshServersById(targetIds: Set<String>, force: Boolean) {
+        if (targetIds.isEmpty()) return
+        val intervalMillis = refreshIntervalMillis()
+        val targets = servers.filter { it.id in targetIds && it.enabled }
+            .filter { force || shouldRefreshNow(it.id, intervalMillis) }
+        refreshServers(targets)
+    }
+
+    private suspend fun refreshServers(targets: List<UiMcpServerConfig>) {
+        if (targets.isEmpty()) return
+        targets.forEach { cfg ->
+            serverStatus[cfg.id] = UiServerConnStatus.Connecting
+        }
+        publishReady()
+        targets.forEach { cfg ->
+            val success = fetchAndCacheCapabilities(cfg)
+            if (!success && !hasCachedCaps(cfg.id)) {
+                removeCachedCaps(cfg.id)
+            }
+            publishReady()
+        }
     }
 
     private fun removeCachedCaps(serverId: String) {
@@ -361,34 +363,6 @@ class AppStore(
         synchronized(capsCache) {
             val entry = capsCache[serverId] ?: return@synchronized
             capsCache[serverId] = entry.copy(snapshot = entry.snapshot.copy(name = name))
-        }
-    }
-
-    private suspend fun refreshServerCapsAndPublish(targetServerIds: Collection<String>? = null) {
-        val targetSet = targetServerIds?.toSet()
-        if (targetSet != null) {
-            val existingIds = servers.mapTo(mutableSetOf()) { it.id }
-            val removedIds = targetSet - existingIds
-            removedIds.forEach { id ->
-                serverStatus.remove(id)
-                removeCachedCaps(id)
-            }
-        }
-        val targets = if (targetSet == null) servers.toList() else servers.filter { it.id in targetSet }
-        if (targets.isEmpty()) {
-            publishReady()
-            return
-        }
-        targets.forEach { cfg ->
-            val status = if (!cfg.enabled) UiServerConnStatus.Disabled else UiServerConnStatus.Connecting
-            serverStatus[cfg.id] = status
-        }
-        publishReady()
-        targets.filter { it.enabled }.forEach { cfg ->
-            scope.launch {
-                fetchAndCacheCapabilities(cfg)
-                publishReady()
-            }
         }
     }
 
@@ -468,7 +442,8 @@ class AppStore(
                     _state.value = UIState.Error(msg)
                 }
                 publishReady()
-                refreshServerCapsAndPublish()
+                refreshEnabledServerCaps(force = true)
+                restartCapsRefreshJob()
             }
         }
 
@@ -490,7 +465,7 @@ class AppStore(
                     revertServersOnFailure("addOrUpdateServerUi", snapshot, result.exceptionOrNull(), "Failed to save servers")
                 }
                 publishReady()
-                refreshServerCapsAndPublish(setOf(ui.id))
+                scope.launch { refreshServersById(setOf(ui.id), force = true) }
             }
         }
 
@@ -512,7 +487,7 @@ class AppStore(
                     revertServersOnFailure("upsertServer", snapshot, result.exceptionOrNull(), "Failed to save servers")
                 }
                 publishReady()
-                refreshServerCapsAndPublish(setOf(cfg.id))
+                scope.launch { refreshServersById(setOf(cfg.id), force = true) }
             }
         }
 
@@ -527,7 +502,7 @@ class AppStore(
                     revertServersOnFailure("addServerBasic", snapshot, result.exceptionOrNull(), "Failed to save servers")
                 }
                 publishReady()
-                refreshServerCapsAndPublish(setOf(cfg.id))
+                scope.launch { refreshServersById(setOf(cfg.id), force = true) }
             }
         }
 
@@ -536,12 +511,12 @@ class AppStore(
                 val snapshot = servers.toList()
                 servers.removeAll { it.id == id }
                 removeCachedCaps(id)
+                serverStatus.remove(id)
                 val result = runCatching { configurationRepository.saveMcpConfig(snapshotConfig()) }
                 if (result.isFailure) {
                     revertServersOnFailure("removeServer", snapshot, result.exceptionOrNull(), "Failed to save servers")
                 }
                 publishReady()
-                refreshServerCapsAndPublish(setOf(id))
             }
         }
 
@@ -555,9 +530,15 @@ class AppStore(
                     if (result.isFailure) {
                         revertServersOnFailure("toggleServer", snapshot, result.exceptionOrNull(), "Failed to save server state")
                     }
+                    if (!enabled) {
+                        removeCachedCaps(id)
+                        serverStatus[id] = UiServerConnStatus.Disabled
+                    }
                 }
                 publishReady()
-                refreshServerCapsAndPublish(setOf(id))
+                if (enabled) {
+                    scope.launch { refreshServersById(setOf(id), force = true) }
+                }
             }
         }
 
@@ -772,6 +753,26 @@ class AppStore(
             }
         }
 
+        override fun updateCapabilitiesRefreshInterval(seconds: Int) {
+            scope.launch {
+                val clamped = seconds.coerceAtLeast(30)
+                if (capabilitiesRefreshIntervalSeconds == clamped) return@launch
+                val previous = capabilitiesRefreshIntervalSeconds
+                capabilitiesRefreshIntervalSeconds = clamped
+                val result = runCatching { configurationRepository.saveMcpConfig(snapshotConfig()) }
+                if (result.isFailure) {
+                    val msg = result.exceptionOrNull()?.message ?: "Failed to update refresh interval"
+                    logger.info("[AppStore] updateCapabilitiesRefreshInterval failed: $msg")
+                    capabilitiesRefreshIntervalSeconds = previous
+                    _state.value = UIState.Error(msg)
+                } else {
+                    restartCapsRefreshJob()
+                    refreshEnabledServerCaps(force = true)
+                }
+                publishReady()
+            }
+        }
+
         override fun updateTrayIconVisibility(visible: Boolean) {
             scope.launch {
                 if (showTrayIcon == visible) return@launch
@@ -797,8 +798,8 @@ fun createAppStore(
     proxyFactory: (CollectingLogger) -> ProxyController = { createProxyController(it) },
     capabilityFetcher: CapabilityFetcher = { config, timeout -> fetchServerCapabilities(config, timeout, logger) },
     now: () -> Long = { System.currentTimeMillis() },
-    capsCacheTtlMillis: Long = DEFAULT_CAPS_CACHE_TTL_MILLIS,
-    maxLogs: Int = DEFAULT_MAX_LOGS
+    maxLogs: Int = DEFAULT_MAX_LOGS,
+    enableBackgroundRefresh: Boolean = true
 ): AppStore = AppStore(
     configurationRepository = repository,
     proxyController = proxyFactory(logger),
@@ -806,8 +807,8 @@ fun createAppStore(
     logger = logger,
     scope = scope,
     now = now,
-    capsCacheTtlMillis = capsCacheTtlMillis,
-    maxLogs = maxLogs
+    maxLogs = maxLogs,
+    enableBackgroundRefresh = enableBackgroundRefresh
 )
 
 private fun UiPresetCore.toUiPresetSummary(): UiPreset = UiPreset(

@@ -36,7 +36,7 @@ class DefaultMcpServerConnectionTest {
             logger = NoopLogger,
             cacheTtlMs = Long.MAX_VALUE,
             maxRetries = 1,
-            client = client,
+            clientFactory = { client },
             cache = CapabilitiesCache(ttlMillis = Long.MAX_VALUE),
             initialCallTimeoutMillis = callTimeoutMillis,
             initialCapabilitiesTimeoutMillis = capabilitiesTimeoutMillis,
@@ -44,15 +44,16 @@ class DefaultMcpServerConnectionTest {
         )
 
     @org.junit.Test
-    fun connectMovesStatusToRunning() = runTest {
+    fun connectOpensAndClosesSession() = runTest {
         val client = FakeMcpClient()
         val connection = newConnection(client)
 
         val result = connection.connect()
 
         assertTrue(result.isSuccess)
-        assertEquals(ServerStatus.Running, connection.status)
+        assertEquals(ServerStatus.Stopped, connection.status)
         assertEquals(1, client.connectCalls)
+        assertEquals(1, client.disconnectCalls)
     }
 
     @org.junit.Test
@@ -67,7 +68,6 @@ class DefaultMcpServerConnectionTest {
             capabilityResults = ArrayDeque(listOf(Result.success(caps1), Result.success(caps2)))
         )
         val connection = newConnection(client)
-        connection.connect()
 
         val first = connection.getCapabilities()
         val second = connection.getCapabilities()
@@ -92,7 +92,6 @@ class DefaultMcpServerConnectionTest {
             )
         )
         val connection = newConnection(client)
-        connection.connect()
 
         val initial = connection.getCapabilities()
         val refreshed = connection.getCapabilities(forceRefresh = true)
@@ -110,7 +109,6 @@ class DefaultMcpServerConnectionTest {
             callToolResult = Result.success(JsonPrimitive("ok"))
         }
         val connection = newConnection(client, callTimeoutMillis = 10)
-        connection.connect()
         connection.updateCallTimeout(10)
 
         val result = connection.callTool("slow", JsonObject(emptyMap()))
@@ -130,7 +128,6 @@ class DefaultMcpServerConnectionTest {
             capabilityDelayMillis = 50
         }
         val connection = newConnection(client, capabilitiesTimeoutMillis = 10)
-        connection.connect()
 
         val result = connection.getCapabilities(forceRefresh = true)
 
@@ -147,7 +144,6 @@ class DefaultMcpServerConnectionTest {
             capabilityResults = ArrayDeque(listOf(Result.success(caps), Result.success(caps)))
         )
         val connection = newConnection(client, capabilitiesTimeoutMillis = 10)
-        connection.connect()
 
         val initial = connection.getCapabilities(forceRefresh = true)
         assertTrue(initial.isSuccess)
@@ -173,6 +169,7 @@ class DefaultMcpServerConnectionTest {
         var callToolResult: Result<JsonElement> = Result.success(JsonNull)
 
         var connectCalls: Int = 0
+        var disconnectCalls: Int = 0
         var capabilitiesCalls: Int = 0
         var callToolCalls: Int = 0
 
@@ -185,7 +182,9 @@ class DefaultMcpServerConnectionTest {
             }
         }
 
-        override suspend fun disconnect() = Unit
+        override suspend fun disconnect() {
+            disconnectCalls += 1
+        }
 
         override suspend fun fetchCapabilities(): Result<ServerCapabilities> {
             capabilitiesCalls += 1
