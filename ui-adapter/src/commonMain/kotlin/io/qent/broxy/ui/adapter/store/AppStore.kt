@@ -45,6 +45,9 @@ import io.qent.broxy.ui.adapter.services.fetchServerCapabilities
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -92,6 +95,7 @@ class AppStore(
     private val logs = mutableListOf<UiLogEntry>()
     private val capsCache = mutableMapOf<String, CachedCaps>()
     private val serverStatus = mutableMapOf<String, UiServerConnStatus>()
+    private val statusLock = Any()
     private var capabilitiesRefreshIntervalSeconds: Int = DEFAULT_CAPS_REFRESH_INTERVAL_SECONDS
     private var capsRefreshJob: Job? = null
 
@@ -184,9 +188,14 @@ class AppStore(
             val cached = getCachedCaps(serverId)
             if (cached != null) return cached
         }
-        fetchAndCacheCapabilities(cfg)
+        val snapshot = runCatching { fetchAndCacheCapabilities(cfg) }
+            .onFailure { error -> logger.info("[AppStore] getServerCaps('$serverId') failed: ${error.message}") }
+            .getOrNull()
+        val finalSnapshot = snapshot ?: getCachedCaps(serverId)
+        val status = if (finalSnapshot != null) UiServerConnStatus.Available else UiServerConnStatus.Error
+        setServerStatus(serverId, status)
         publishReady()
-        return getCachedCaps(serverId)
+        return finalSnapshot
     }
 
     private fun loadConfigurationSnapshot(): Result<Unit> = runCatching {
@@ -209,22 +218,22 @@ class AppStore(
         }
 
         val validIds = servers.mapTo(mutableSetOf()) { it.id }
-        serverStatus.keys.retainAll(validIds)
+        synchronized(statusLock) {
+            serverStatus.keys.retainAll(validIds)
+        }
         synchronized(capsCache) {
             capsCache.keys.retainAll(validIds)
         }
     }
 
-    private suspend fun fetchAndCacheCapabilities(cfg: UiMcpServerConfig): Boolean {
+    private suspend fun fetchAndCacheCapabilities(cfg: UiMcpServerConfig): UiServerCapsSnapshot? {
         val result = capabilityFetcher(cfg, capabilitiesTimeoutSeconds)
         return if (result.isSuccess) {
             val snapshot = result.getOrThrow().toSnapshot(cfg)
             putCachedCaps(cfg.id, snapshot)
-            serverStatus[cfg.id] = UiServerConnStatus.Available
-            true
+            snapshot
         } else {
-            serverStatus[cfg.id] = UiServerConnStatus.Error
-            false
+            null
         }
     }
 
@@ -249,7 +258,7 @@ class AppStore(
                 is UiWebSocketTransport -> "WebSocket"
             }
             val snapshot = getCachedCaps(server.id)
-            val statusFromMap = serverStatus[server.id]
+            val statusFromMap = getServerStatus(server.id)
             val status = when {
                 !server.enabled -> UiServerConnStatus.Disabled
                 snapshot != null -> UiServerConnStatus.Available
@@ -309,6 +318,21 @@ class AppStore(
 
     private fun refreshIntervalMillis(): Long = capabilitiesRefreshIntervalSeconds.coerceAtLeast(30) * 1_000L
 
+    private fun setServerStatus(serverId: String, status: UiServerConnStatus) {
+        synchronized(statusLock) { serverStatus[serverId] = status }
+    }
+
+    private fun setServerStatuses(serverIds: Collection<String>, status: UiServerConnStatus) {
+        if (serverIds.isEmpty()) return
+        synchronized(statusLock) { serverIds.forEach { serverStatus[it] = status } }
+    }
+
+    private fun getServerStatus(serverId: String): UiServerConnStatus? = synchronized(statusLock) { serverStatus[serverId] }
+
+    private fun removeServerStatus(serverId: String) {
+        synchronized(statusLock) { serverStatus.remove(serverId) }
+    }
+
     private fun restartCapsRefreshJob() {
         if (!enableBackgroundRefresh) {
             capsRefreshJob?.cancel()
@@ -342,17 +366,36 @@ class AppStore(
 
     private suspend fun refreshServers(targets: List<UiMcpServerConfig>) {
         if (targets.isEmpty()) return
-        targets.forEach { cfg ->
-            serverStatus[cfg.id] = UiServerConnStatus.Connecting
+        val targetIds = targets.map { it.id }
+        setServerStatuses(targetIds, UiServerConnStatus.Connecting)
+        publishReady()
+
+        val results = coroutineScope {
+            targets.map { cfg ->
+                async {
+                    val snapshot = runCatching { fetchAndCacheCapabilities(cfg) }
+                        .onFailure { error ->
+                            logger.info("[AppStore] refresh server '${cfg.id}' failed: ${error.message}")
+                        }
+                        .getOrNull()
+                    if (snapshot == null && !hasCachedCaps(cfg.id)) {
+                        removeCachedCaps(cfg.id)
+                    }
+                    cfg.id to (snapshot ?: getCachedCaps(cfg.id))
+                }
+            }.awaitAll()
+        }
+
+        results.forEach { (serverId, snapshot) ->
+            val enabled = servers.firstOrNull { it.id == serverId }?.enabled == true
+            val status = when {
+                !enabled -> UiServerConnStatus.Disabled
+                snapshot != null -> UiServerConnStatus.Available
+                else -> UiServerConnStatus.Error
+            }
+            setServerStatus(serverId, status)
         }
         publishReady()
-        targets.forEach { cfg ->
-            val success = fetchAndCacheCapabilities(cfg)
-            if (!success && !hasCachedCaps(cfg.id)) {
-                removeCachedCaps(cfg.id)
-            }
-            publishReady()
-        }
     }
 
     private fun removeCachedCaps(serverId: String) {
@@ -511,7 +554,7 @@ class AppStore(
                 val snapshot = servers.toList()
                 servers.removeAll { it.id == id }
                 removeCachedCaps(id)
-                serverStatus.remove(id)
+                removeServerStatus(id)
                 val result = runCatching { configurationRepository.saveMcpConfig(snapshotConfig()) }
                 if (result.isFailure) {
                     revertServersOnFailure("removeServer", snapshot, result.exceptionOrNull(), "Failed to save servers")
@@ -532,7 +575,7 @@ class AppStore(
                     }
                     if (!enabled) {
                         removeCachedCaps(id)
-                        serverStatus[id] = UiServerConnStatus.Disabled
+                        setServerStatus(id, UiServerConnStatus.Disabled)
                     }
                 }
                 publishReady()
