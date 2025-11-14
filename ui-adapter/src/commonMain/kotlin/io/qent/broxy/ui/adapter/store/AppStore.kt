@@ -8,6 +8,7 @@ import io.qent.broxy.core.models.PromptReference
 import io.qent.broxy.core.models.ResourceReference
 import io.qent.broxy.core.repository.ConfigurationRepository
 import io.qent.broxy.core.utils.CollectingLogger
+import io.qent.broxy.core.utils.LogEvent
 import io.qent.broxy.ui.adapter.data.provideConfigurationRepository
 import io.qent.broxy.ui.adapter.models.UiHttpDraft
 import io.qent.broxy.ui.adapter.models.UiHttpTransport
@@ -42,6 +43,12 @@ import io.qent.broxy.ui.adapter.models.UiWebSocketTransport
 import io.qent.broxy.ui.adapter.proxy.ProxyController
 import io.qent.broxy.ui.adapter.proxy.createProxyController
 import io.qent.broxy.ui.adapter.services.fetchServerCapabilities
+import io.qent.broxy.ui.adapter.store.internal.CapabilityCache
+import io.qent.broxy.ui.adapter.store.internal.LogsBuffer
+import io.qent.broxy.ui.adapter.store.internal.ServerStatusTracker
+import io.qent.broxy.ui.adapter.store.internal.StoreSnapshot
+import io.qent.broxy.ui.adapter.store.internal.toUiState
+import io.qent.broxy.ui.adapter.store.internal.withPresets
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -75,48 +82,22 @@ class AppStore(
     private val logger: CollectingLogger,
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.Default),
     private val now: () -> Long = { System.currentTimeMillis() },
-    private val maxLogs: Int = DEFAULT_MAX_LOGS,
+    maxLogs: Int = DEFAULT_MAX_LOGS,
     private val enableBackgroundRefresh: Boolean = true
 ) {
-    private data class CachedCaps(val snapshot: UiServerCapsSnapshot, val timestampMillis: Long)
+    private val capabilityCache = CapabilityCache(now)
+    private val statusTracker = ServerStatusTracker()
+    private val logsBuffer = LogsBuffer(maxLogs)
 
     private val _state = MutableStateFlow<UIState>(UIState.Loading)
     val state: StateFlow<UIState> = _state
 
-    private val servers = mutableListOf<UiMcpServerConfig>()
-    private val presets = mutableListOf<UiPreset>()
-    private var proxyStatus: UiProxyStatus = UiProxyStatus.Stopped
-    private var selectedProxyPresetId: String? = null
-    private var activeProxyPresetId: String? = null
-    private var activeInbound: UiTransportConfig? = null
-    private var requestTimeoutSeconds: Int = 60
-    private var capabilitiesTimeoutSeconds: Int = 30
-    private var showTrayIcon: Boolean = true
-    private val logs = mutableListOf<UiLogEntry>()
-    private val capsCache = mutableMapOf<String, CachedCaps>()
-    private val serverStatus = mutableMapOf<String, UiServerConnStatus>()
-    private val statusLock = Any()
-    private var capabilitiesRefreshIntervalSeconds: Int = DEFAULT_CAPS_REFRESH_INTERVAL_SECONDS
+    private var snapshot = StoreSnapshot()
     private var capsRefreshJob: Job? = null
+    private val intents: Intents = StoreIntents()
 
     init {
-        scope.launch {
-            logger.events.collect { event ->
-                val uiEntry = UiLogEntry(
-                    timestampMillis = event.timestampMillis,
-                    level = UiLogLevel.valueOf(event.level.name),
-                    message = event.message,
-                    throwableMessage = event.throwableMessage
-                )
-                synchronized(logs) {
-                    logs += uiEntry
-                    if (logs.size > maxLogs) logs.removeAt(0)
-                }
-                if (_state.value !is UIState.Error) {
-                    publishReady()
-                }
-            }
-        }
+        observeLogs()
     }
 
     fun start() {
@@ -125,7 +106,7 @@ class AppStore(
             if (loadResult.isFailure) {
                 val msg = loadResult.exceptionOrNull()?.message ?: "Failed to load configuration"
                 logger.info("[AppStore] load failed: $msg")
-                _state.value = UIState.Error(msg)
+                setErrorState(msg)
                 return@launch
             }
             publishReady()
@@ -135,7 +116,7 @@ class AppStore(
     }
 
     fun getServerDraft(id: String): UiServerDraft? {
-        val cfg = servers.firstOrNull { it.id == id } ?: return null
+        val cfg = snapshot.servers.firstOrNull { it.id == id } ?: return null
         val draftTransport = when (val transport = cfg.transport) {
             is UiStdioTransport -> UiStdioDraft(command = transport.command, args = transport.args)
             is UiHttpTransport -> UiHttpDraft(url = transport.url, headers = transport.headers)
@@ -177,161 +158,87 @@ class AppStore(
             .getOrNull()
     }
 
-    fun listServerConfigs(): List<UiMcpServerConfig> = servers.toList()
+    fun listServerConfigs(): List<UiMcpServerConfig> = snapshot.servers.toList()
 
-    suspend fun listEnabledServerCaps(): List<UiServerCapsSnapshot> =
-        servers.filter { it.enabled }.mapNotNull { getCachedCaps(it.id) }
+    suspend fun listEnabledServerCaps(): List<UiServerCapsSnapshot> {
+        val enabledIds = snapshot.servers.filter { it.enabled }.map { it.id }
+        return capabilityCache.list(enabledIds)
+    }
 
     suspend fun getServerCaps(serverId: String, forceRefresh: Boolean = false): UiServerCapsSnapshot? {
-        val cfg = servers.firstOrNull { it.id == serverId } ?: return null
+        val cfg = snapshot.servers.firstOrNull { it.id == serverId } ?: return null
         if (!forceRefresh) {
-            val cached = getCachedCaps(serverId)
+            val cached = capabilityCache.snapshot(serverId)
             if (cached != null) return cached
         }
-        val snapshot = runCatching { fetchAndCacheCapabilities(cfg) }
+        val snapshotResult = runCatching { fetchAndCacheCapabilities(cfg) }
             .onFailure { error -> logger.info("[AppStore] getServerCaps('$serverId') failed: ${error.message}") }
             .getOrNull()
-        val finalSnapshot = snapshot ?: getCachedCaps(serverId)
+        val finalSnapshot = snapshotResult ?: capabilityCache.snapshot(serverId)
         val status = if (finalSnapshot != null) UiServerConnStatus.Available else UiServerConnStatus.Error
-        setServerStatus(serverId, status)
+        statusTracker.set(serverId, status)
         publishReady()
         return finalSnapshot
     }
 
-    private fun loadConfigurationSnapshot(): Result<Unit> = runCatching {
+    private fun observeLogs() {
+        scope.launch {
+            logger.events.collect { event ->
+                logsBuffer.append(event.toUiEntry())
+                publishReadyIfNotError()
+            }
+        }
+    }
+
+    private fun updateSnapshot(transform: StoreSnapshot.() -> StoreSnapshot) {
+        snapshot = snapshot.transform()
+    }
+
+    private suspend fun loadConfigurationSnapshot(): Result<Unit> = try {
         val config = configurationRepository.loadMcpConfig()
-        requestTimeoutSeconds = config.requestTimeoutSeconds
-        capabilitiesTimeoutSeconds = config.capabilitiesTimeoutSeconds
-        showTrayIcon = config.showTrayIcon
-        capabilitiesRefreshIntervalSeconds = config.capabilitiesRefreshIntervalSeconds.coerceAtLeast(30)
-        proxyController.updateCallTimeout(requestTimeoutSeconds)
-        proxyController.updateCapabilitiesTimeout(capabilitiesTimeoutSeconds)
-
-        val loadedPresets = configurationRepository.listPresets()
-        servers.apply {
-            clear()
-            addAll(config.servers)
+        val loadedPresets = configurationRepository.listPresets().map { it.toUiPresetSummary() }
+        capabilityCache.retain(config.servers.map { it.id }.toSet())
+        statusTracker.retain(config.servers.map { it.id }.toSet())
+        proxyController.updateCallTimeout(config.requestTimeoutSeconds)
+        proxyController.updateCapabilitiesTimeout(config.capabilitiesTimeoutSeconds)
+        updateSnapshot {
+            copy(
+                isLoading = false,
+                servers = config.servers,
+                requestTimeoutSeconds = config.requestTimeoutSeconds,
+                capabilitiesTimeoutSeconds = config.capabilitiesTimeoutSeconds,
+                capabilitiesRefreshIntervalSeconds = config.capabilitiesRefreshIntervalSeconds.coerceAtLeast(30),
+                showTrayIcon = config.showTrayIcon
+            ).withPresets(loadedPresets)
         }
-        presets.apply {
-            clear()
-            addAll(loadedPresets.map { it.toUiPresetSummary() })
-        }
-
-        val validIds = servers.mapTo(mutableSetOf()) { it.id }
-        synchronized(statusLock) {
-            serverStatus.keys.retainAll(validIds)
-        }
-        synchronized(capsCache) {
-            capsCache.keys.retainAll(validIds)
-        }
-    }
-
-    private suspend fun fetchAndCacheCapabilities(cfg: UiMcpServerConfig): UiServerCapsSnapshot? {
-        val result = capabilityFetcher(cfg, capabilitiesTimeoutSeconds)
-        return if (result.isSuccess) {
-            val snapshot = result.getOrThrow().toSnapshot(cfg)
-            putCachedCaps(cfg.id, snapshot)
-            snapshot
-        } else {
-            null
-        }
-    }
-
-    private fun reconcilePresetSelection() {
-        val selected = selectedProxyPresetId
-        if (selected != null && presets.none { it.id == selected }) {
-            selectedProxyPresetId = null
-        }
-        val active = activeProxyPresetId
-        if (active != null && presets.none { it.id == active }) {
-            activeProxyPresetId = null
-        }
-    }
-
-    private fun publishReady() {
-        reconcilePresetSelection()
-        val uiServers = servers.map { server ->
-            val label = when (server.transport) {
-                is UiStdioTransport -> "STDIO"
-                is UiHttpTransport -> "HTTP"
-                is UiStreamableHttpTransport -> "HTTP (Streamable)"
-                is UiWebSocketTransport -> "WebSocket"
-            }
-            val snapshot = getCachedCaps(server.id)
-            val statusFromMap = getServerStatus(server.id)
-            val status = when {
-                !server.enabled -> UiServerConnStatus.Disabled
-                snapshot != null -> UiServerConnStatus.Available
-                statusFromMap != null -> statusFromMap
-                else -> UiServerConnStatus.Connecting
-            }
-            UiServer(
-                id = server.id,
-                name = server.name,
-                transportLabel = label,
-                enabled = server.enabled,
-                status = status,
-                toolsCount = snapshot?.tools?.size,
-                promptsCount = snapshot?.prompts?.size,
-                resourcesCount = snapshot?.resources?.size
-            )
-        }
-        _state.value = UIState.Ready(
-            servers = uiServers,
-            presets = presets.toList(),
-            selectedPresetId = selectedProxyPresetId,
-            proxyStatus = proxyStatus,
-            requestTimeoutSeconds = requestTimeoutSeconds,
-            capabilitiesTimeoutSeconds = capabilitiesTimeoutSeconds,
-            capabilitiesRefreshIntervalSeconds = capabilitiesRefreshIntervalSeconds,
-            showTrayIcon = showTrayIcon,
-            logs = synchronized(logs) { logs.asReversed().toList() },
-            intents = intents
-        )
+        Result.success(Unit)
+    } catch (t: Throwable) {
+        Result.failure(t)
     }
 
     private fun snapshotConfig(): UiMcpServersConfig = UiMcpServersConfig(
-        servers = servers.toList(),
-        requestTimeoutSeconds = requestTimeoutSeconds,
-        capabilitiesTimeoutSeconds = capabilitiesTimeoutSeconds,
-        showTrayIcon = showTrayIcon,
-        capabilitiesRefreshIntervalSeconds = capabilitiesRefreshIntervalSeconds
+        servers = snapshot.servers,
+        requestTimeoutSeconds = snapshot.requestTimeoutSeconds,
+        capabilitiesTimeoutSeconds = snapshot.capabilitiesTimeoutSeconds,
+        showTrayIcon = snapshot.showTrayIcon,
+        capabilitiesRefreshIntervalSeconds = snapshot.capabilitiesRefreshIntervalSeconds
     )
 
-    private fun getCachedCaps(serverId: String): UiServerCapsSnapshot? = synchronized(capsCache) {
-        capsCache[serverId]?.snapshot
+    private fun publishReady() {
+        _state.value = snapshot.toUiState(intents, logsBuffer.snapshot(), capabilityCache, statusTracker)
     }
 
-    private fun putCachedCaps(serverId: String, snapshot: UiServerCapsSnapshot) {
-        val entry = CachedCaps(snapshot = snapshot, timestampMillis = now())
-        synchronized(capsCache) { capsCache[serverId] = entry }
+    private fun publishReadyIfNotError() {
+        if (_state.value !is UIState.Error) {
+            publishReady()
+        }
     }
 
-    private fun hasCachedCaps(serverId: String): Boolean = synchronized(capsCache) {
-        capsCache.containsKey(serverId)
+    private fun setErrorState(message: String) {
+        _state.value = UIState.Error(message)
     }
 
-    private fun shouldRefreshNow(serverId: String, intervalMillis: Long): Boolean = synchronized(capsCache) {
-        val entry = capsCache[serverId] ?: return@synchronized true
-        now() - entry.timestampMillis >= intervalMillis
-    }
-
-    private fun refreshIntervalMillis(): Long = capabilitiesRefreshIntervalSeconds.coerceAtLeast(30) * 1_000L
-
-    private fun setServerStatus(serverId: String, status: UiServerConnStatus) {
-        synchronized(statusLock) { serverStatus[serverId] = status }
-    }
-
-    private fun setServerStatuses(serverIds: Collection<String>, status: UiServerConnStatus) {
-        if (serverIds.isEmpty()) return
-        synchronized(statusLock) { serverIds.forEach { serverStatus[it] = status } }
-    }
-
-    private fun getServerStatus(serverId: String): UiServerConnStatus? = synchronized(statusLock) { serverStatus[serverId] }
-
-    private fun removeServerStatus(serverId: String) {
-        synchronized(statusLock) { serverStatus.remove(serverId) }
-    }
+    private fun refreshIntervalMillis(): Long = snapshot.capabilitiesRefreshIntervalSeconds.coerceAtLeast(30) * 1_000L
 
     private fun restartCapsRefreshJob() {
         if (!enableBackgroundRefresh) {
@@ -351,23 +258,23 @@ class AppStore(
 
     private suspend fun refreshEnabledServerCaps(force: Boolean) {
         val intervalMillis = refreshIntervalMillis()
-        val targets = servers.filter { it.enabled }
-            .filter { force || shouldRefreshNow(it.id, intervalMillis) }
+        val targets = snapshot.servers.filter { it.enabled }
+            .filter { force || capabilityCache.shouldRefresh(it.id, intervalMillis) }
         refreshServers(targets)
     }
 
     private suspend fun refreshServersById(targetIds: Set<String>, force: Boolean) {
         if (targetIds.isEmpty()) return
         val intervalMillis = refreshIntervalMillis()
-        val targets = servers.filter { it.id in targetIds && it.enabled }
-            .filter { force || shouldRefreshNow(it.id, intervalMillis) }
+        val targets = snapshot.servers.filter { it.id in targetIds && it.enabled }
+            .filter { force || capabilityCache.shouldRefresh(it.id, intervalMillis) }
         refreshServers(targets)
     }
 
     private suspend fun refreshServers(targets: List<UiMcpServerConfig>) {
         if (targets.isEmpty()) return
         val targetIds = targets.map { it.id }
-        setServerStatuses(targetIds, UiServerConnStatus.Connecting)
+        statusTracker.setAll(targetIds, UiServerConnStatus.Connecting)
         publishReady()
 
         val results = coroutineScope {
@@ -378,111 +285,113 @@ class AppStore(
                             logger.info("[AppStore] refresh server '${cfg.id}' failed: ${error.message}")
                         }
                         .getOrNull()
-                    if (snapshot == null && !hasCachedCaps(cfg.id)) {
-                        removeCachedCaps(cfg.id)
+                    if (snapshot == null && !capabilityCache.has(cfg.id)) {
+                        capabilityCache.remove(cfg.id)
                     }
-                    cfg.id to (snapshot ?: getCachedCaps(cfg.id))
+                    cfg.id to (snapshot ?: capabilityCache.snapshot(cfg.id))
                 }
             }.awaitAll()
         }
 
-        results.forEach { (serverId, snapshot) ->
-            val enabled = servers.firstOrNull { it.id == serverId }?.enabled == true
+        val currentServers = snapshot.servers.associateBy { it.id }
+        results.forEach { (serverId, capsSnapshot) ->
+            val enabled = currentServers[serverId]?.enabled == true
             val status = when {
                 !enabled -> UiServerConnStatus.Disabled
-                snapshot != null -> UiServerConnStatus.Available
+                capsSnapshot != null -> UiServerConnStatus.Available
                 else -> UiServerConnStatus.Error
             }
-            setServerStatus(serverId, status)
+            statusTracker.set(serverId, status)
         }
         publishReady()
     }
 
-    private fun removeCachedCaps(serverId: String) {
-        synchronized(capsCache) { capsCache.remove(serverId) }
-    }
-
-    private fun updateCachedCapsName(serverId: String, name: String) {
-        synchronized(capsCache) {
-            val entry = capsCache[serverId] ?: return@synchronized
-            capsCache[serverId] = entry.copy(snapshot = entry.snapshot.copy(name = name))
+    private suspend fun fetchAndCacheCapabilities(cfg: UiMcpServerConfig): UiServerCapsSnapshot? {
+        val result = capabilityFetcher(cfg, snapshot.capabilitiesTimeoutSeconds)
+        return if (result.isSuccess) {
+            val snapshot = result.getOrThrow().toSnapshot(cfg)
+            capabilityCache.put(cfg.id, snapshot)
+            snapshot
+        } else {
+            null
         }
     }
 
     private fun restartProxyWithPreset(presetId: String, presetOverride: UiPresetCore? = null) {
-        if (proxyStatus !is UiProxyStatus.Running) return
-        val inboundTransport = activeInbound ?: return
-        val presetResult = presetOverride?.let { Result.success(it) } ?: runCatching { configurationRepository.loadPreset(presetId) }
+        if (snapshot.proxyStatus !is UiProxyStatus.Running) return
+        val inboundTransport = snapshot.activeInbound ?: return
+        val presetResult = presetOverride?.let { Result.success(it) }
+            ?: runCatching { configurationRepository.loadPreset(presetId) }
         if (presetResult.isFailure) {
             val msg = presetResult.exceptionOrNull()?.message ?: "Failed to load preset for restart"
             logger.info("[AppStore] restartProxyWithPreset failed to load preset '$presetId': $msg")
-            proxyStatus = UiProxyStatus.Error(msg)
-            activeProxyPresetId = null
-            activeInbound = null
+            updateSnapshot { copy(proxyStatus = UiProxyStatus.Error(msg), activeProxyPresetId = null, activeInbound = null) }
             publishReady()
             return
         }
         val preset = presetResult.getOrThrow()
-        proxyStatus = UiProxyStatus.Starting
+        updateSnapshot { copy(proxyStatus = UiProxyStatus.Starting) }
         publishReady()
         val result = proxyController.start(
-            servers = servers.toList(),
+            servers = snapshot.servers,
             preset = preset,
             inbound = inboundTransport,
-            callTimeoutSeconds = requestTimeoutSeconds,
-            capabilitiesTimeoutSeconds = capabilitiesTimeoutSeconds
+            callTimeoutSeconds = snapshot.requestTimeoutSeconds,
+            capabilitiesTimeoutSeconds = snapshot.capabilitiesTimeoutSeconds
         )
         if (result.isSuccess) {
-            activeProxyPresetId = presetId
-            proxyStatus = UiProxyStatus.Running
+            updateSnapshot {
+                copy(
+                    activeProxyPresetId = presetId,
+                    proxyStatus = UiProxyStatus.Running
+                )
+            }
         } else {
             val msg = result.exceptionOrNull()?.message ?: "Failed to restart proxy"
             logger.info("[AppStore] restartProxyWithPreset failed for '$presetId': $msg")
-            proxyStatus = UiProxyStatus.Error(msg)
-            activeProxyPresetId = null
-            activeInbound = null
+            updateSnapshot {
+                copy(
+                    proxyStatus = UiProxyStatus.Error(msg),
+                    activeProxyPresetId = null,
+                    activeInbound = null
+                )
+            }
         }
         publishReady()
     }
 
     private fun revertServersOnFailure(
         operation: String,
-        snapshot: List<UiMcpServerConfig>,
+        previousServers: List<UiMcpServerConfig>,
         failure: Throwable?,
         defaultMessage: String
     ) {
         val message = failure?.message ?: defaultMessage
         logger.info("[AppStore] $operation failed: $message")
-        servers.apply {
-            clear()
-            addAll(snapshot)
-        }
-        _state.value = UIState.Error(message)
+        updateSnapshot { copy(servers = previousServers) }
+        setErrorState(message)
     }
 
     private fun revertPresetsOnFailure(
         operation: String,
-        snapshot: List<UiPreset>,
+        previousPresets: List<UiPreset>,
         failure: Throwable?,
         defaultMessage: String
     ) {
         val message = failure?.message ?: defaultMessage
         logger.info("[AppStore] $operation failed: $message")
-        presets.apply {
-            clear()
-            addAll(snapshot)
-        }
-        _state.value = UIState.Error(message)
+        updateSnapshot { copy(presets = previousPresets) }
+        setErrorState(message)
     }
 
-    private val intents = object : Intents {
+    private inner class StoreIntents : Intents {
         override fun refresh() {
             scope.launch {
                 val refreshResult = loadConfigurationSnapshot()
                 if (refreshResult.isFailure) {
                     val msg = refreshResult.exceptionOrNull()?.message ?: "Failed to refresh"
                     logger.info("[AppStore] refresh failed: $msg")
-                    _state.value = UIState.Error(msg)
+                    setErrorState(msg)
                 }
                 publishReady()
                 refreshEnabledServerCaps(force = true)
@@ -492,28 +401,49 @@ class AppStore(
 
         override fun addOrUpdateServerUi(ui: UiServer) {
             scope.launch {
-                val snapshot = servers.toList()
-                val currentIndex = servers.indexOfFirst { it.id == ui.id }
-                val current = servers.getOrNull(currentIndex)
-                val updated = (current ?: UiMcpServerConfig(
+                val previousServers = snapshot.servers
+                val updated = previousServers.toMutableList()
+                val idx = updated.indexOfFirst { it.id == ui.id }
+                val base = updated.getOrNull(idx) ?: UiMcpServerConfig(
                     id = ui.id,
                     name = ui.name,
                     transport = UiStdioTransport(command = ""),
                     enabled = ui.enabled
-                )).copy(name = ui.name, enabled = ui.enabled)
-                if (currentIndex >= 0) servers[currentIndex] = updated else servers += updated
-                updateCachedCapsName(ui.id, ui.name)
+                )
+                val merged = base.copy(name = ui.name, enabled = ui.enabled)
+                if (idx >= 0) updated[idx] = merged else updated += merged
+                updateSnapshot { copy(servers = updated) }
+                capabilityCache.updateName(ui.id, ui.name)
                 val result = runCatching { configurationRepository.saveMcpConfig(snapshotConfig()) }
                 if (result.isFailure) {
-                    revertServersOnFailure("addOrUpdateServerUi", snapshot, result.exceptionOrNull(), "Failed to save servers")
+                    revertServersOnFailure("addOrUpdateServerUi", previousServers, result.exceptionOrNull(), "Failed to save servers")
                 }
                 publishReady()
                 scope.launch { refreshServersById(setOf(ui.id), force = true) }
             }
         }
 
+        override fun addServerBasic(id: String, name: String) {
+            scope.launch {
+                val previousServers = snapshot.servers
+                if (previousServers.any { it.id == id }) return@launch
+                val updated = previousServers.toMutableList().apply {
+                    add(UiMcpServerConfig(id = id, name = name, transport = UiStdioTransport(command = ""), enabled = true))
+                }
+                updateSnapshot { copy(servers = updated) }
+                val result = runCatching { configurationRepository.saveMcpConfig(snapshotConfig()) }
+                if (result.isFailure) {
+                    revertServersOnFailure("addServerBasic", previousServers, result.exceptionOrNull(), "Failed to save servers")
+                }
+                publishReady()
+            }
+        }
+
         override fun upsertServer(draft: UiServerDraft) {
             scope.launch {
+                val previousServers = snapshot.servers
+                val updated = previousServers.toMutableList()
+                val idx = updated.indexOfFirst { it.id == draft.id }
                 val cfg = UiMcpServerConfig(
                     id = draft.id,
                     name = draft.name,
@@ -521,43 +451,27 @@ class AppStore(
                     transport = draft.transport.toTransportConfig(),
                     env = draft.env
                 )
-                val snapshot = servers.toList()
-                val idx = servers.indexOfFirst { it.id == cfg.id }
-                if (idx >= 0) servers[idx] = cfg else servers += cfg
-                removeCachedCaps(cfg.id)
+                if (idx >= 0) updated[idx] = cfg else updated += cfg
+                updateSnapshot { copy(servers = updated) }
                 val result = runCatching { configurationRepository.saveMcpConfig(snapshotConfig()) }
                 if (result.isFailure) {
-                    revertServersOnFailure("upsertServer", snapshot, result.exceptionOrNull(), "Failed to save servers")
+                    revertServersOnFailure("upsertServer", previousServers, result.exceptionOrNull(), "Failed to save server")
                 }
                 publishReady()
-                scope.launch { refreshServersById(setOf(cfg.id), force = true) }
-            }
-        }
-
-        override fun addServerBasic(id: String, name: String) {
-            scope.launch {
-                val cfg = UiMcpServerConfig(id = id, name = name, transport = UiStdioTransport(command = ""), enabled = true)
-                val snapshot = servers.toList()
-                val idx = servers.indexOfFirst { it.id == cfg.id }
-                if (idx >= 0) servers[idx] = cfg else servers += cfg
-                val result = runCatching { configurationRepository.saveMcpConfig(snapshotConfig()) }
-                if (result.isFailure) {
-                    revertServersOnFailure("addServerBasic", snapshot, result.exceptionOrNull(), "Failed to save servers")
-                }
-                publishReady()
-                scope.launch { refreshServersById(setOf(cfg.id), force = true) }
+                scope.launch { refreshServersById(setOf(draft.id), force = true) }
             }
         }
 
         override fun removeServer(id: String) {
             scope.launch {
-                val snapshot = servers.toList()
-                servers.removeAll { it.id == id }
-                removeCachedCaps(id)
-                removeServerStatus(id)
+                val previousServers = snapshot.servers
+                val updated = previousServers.filterNot { it.id == id }
+                updateSnapshot { copy(servers = updated) }
+                capabilityCache.remove(id)
+                statusTracker.remove(id)
                 val result = runCatching { configurationRepository.saveMcpConfig(snapshotConfig()) }
                 if (result.isFailure) {
-                    revertServersOnFailure("removeServer", snapshot, result.exceptionOrNull(), "Failed to save servers")
+                    revertServersOnFailure("removeServer", previousServers, result.exceptionOrNull(), "Failed to save servers")
                 }
                 publishReady()
             }
@@ -565,18 +479,19 @@ class AppStore(
 
         override fun toggleServer(id: String, enabled: Boolean) {
             scope.launch {
-                val snapshot = servers.toList()
-                val idx = servers.indexOfFirst { it.id == id }
-                if (idx >= 0) {
-                    servers[idx] = servers[idx].copy(enabled = enabled)
-                    val result = runCatching { configurationRepository.saveMcpConfig(snapshotConfig()) }
-                    if (result.isFailure) {
-                        revertServersOnFailure("toggleServer", snapshot, result.exceptionOrNull(), "Failed to save server state")
-                    }
-                    if (!enabled) {
-                        removeCachedCaps(id)
-                        setServerStatus(id, UiServerConnStatus.Disabled)
-                    }
+                val previousServers = snapshot.servers
+                val idx = previousServers.indexOfFirst { it.id == id }
+                if (idx < 0) return@launch
+                val updated = previousServers.toMutableList()
+                updated[idx] = updated[idx].copy(enabled = enabled)
+                updateSnapshot { copy(servers = updated) }
+                val result = runCatching { configurationRepository.saveMcpConfig(snapshotConfig()) }
+                if (result.isFailure) {
+                    revertServersOnFailure("toggleServer", previousServers, result.exceptionOrNull(), "Failed to save server state")
+                }
+                if (!enabled) {
+                    capabilityCache.remove(id)
+                    statusTracker.set(id, UiServerConnStatus.Disabled)
                 }
                 publishReady()
                 if (enabled) {
@@ -587,9 +502,11 @@ class AppStore(
 
         override fun addOrUpdatePreset(preset: UiPreset) {
             scope.launch {
-                val snapshot = presets.toList()
-                val idx = presets.indexOfFirst { it.id == preset.id }
-                if (idx >= 0) presets[idx] = preset else presets += preset
+                val previousPresets = snapshot.presets
+                val updated = previousPresets.toMutableList()
+                val idx = updated.indexOfFirst { it.id == preset.id }
+                if (idx >= 0) updated[idx] = preset else updated += preset
+                updateSnapshot { copy(presets = updated) }
                 val result = runCatching {
                     val presetCore = UiPresetCore(
                         id = preset.id,
@@ -602,7 +519,7 @@ class AppStore(
                     configurationRepository.savePreset(presetCore)
                 }
                 if (result.isFailure) {
-                    revertPresetsOnFailure("addOrUpdatePreset", snapshot, result.exceptionOrNull(), "Failed to save preset")
+                    revertPresetsOnFailure("addOrUpdatePreset", previousPresets, result.exceptionOrNull(), "Failed to save preset")
                 }
                 publishReady()
             }
@@ -615,15 +532,17 @@ class AppStore(
                 if (saveResult.isFailure) {
                     val msg = saveResult.exceptionOrNull()?.message ?: "Failed to save preset"
                     logger.info("[AppStore] upsertPreset failed: $msg")
-                    _state.value = UIState.Error(msg)
+                    setErrorState(msg)
                 }
                 val summary = preset.toUiPresetSummary(draft.description)
-                val idx = presets.indexOfFirst { it.id == summary.id }
-                if (idx >= 0) presets[idx] = summary else presets += summary
+                val updated = snapshot.presets.toMutableList()
+                val idx = updated.indexOfFirst { it.id == summary.id }
+                if (idx >= 0) updated[idx] = summary else updated += summary
+                updateSnapshot { copy(presets = updated) }
                 val shouldRestart = saveResult.isSuccess &&
-                    proxyStatus is UiProxyStatus.Running &&
-                    activeProxyPresetId == preset.id &&
-                    activeInbound != null
+                    snapshot.proxyStatus is UiProxyStatus.Running &&
+                    snapshot.activeProxyPresetId == preset.id &&
+                    snapshot.activeInbound != null
                 publishReady()
                 if (shouldRestart) {
                     restartProxyWithPreset(preset.id, preset)
@@ -633,11 +552,12 @@ class AppStore(
 
         override fun removePreset(id: String) {
             scope.launch {
-                val snapshot = presets.toList()
-                presets.removeAll { it.id == id }
+                val previousPresets = snapshot.presets
+                val updated = previousPresets.filterNot { it.id == id }
+                updateSnapshot { copy(presets = updated) }
                 val result = runCatching { configurationRepository.deletePreset(id) }
                 if (result.isFailure) {
-                    revertPresetsOnFailure("removePreset", snapshot, result.exceptionOrNull(), "Failed to delete preset")
+                    revertPresetsOnFailure("removePreset", previousPresets, result.exceptionOrNull(), "Failed to delete preset")
                 }
                 publishReady()
             }
@@ -645,13 +565,13 @@ class AppStore(
 
         override fun selectProxyPreset(presetId: String?) {
             scope.launch {
-                if (selectedProxyPresetId == presetId) return@launch
-                selectedProxyPresetId = presetId
+                if (snapshot.selectedPresetId == presetId) return@launch
+                updateSnapshot { copy(selectedPresetId = presetId) }
                 publishReady()
                 val shouldRestart = presetId != null &&
-                    proxyStatus is UiProxyStatus.Running &&
-                    activeInbound != null &&
-                    presetId != activeProxyPresetId
+                    snapshot.proxyStatus is UiProxyStatus.Running &&
+                    snapshot.activeInbound != null &&
+                    presetId != snapshot.activeProxyPresetId
                 if (shouldRestart) {
                     restartProxyWithPreset(presetId!!)
                 }
@@ -664,35 +584,46 @@ class AppStore(
                 if (presetResult.isFailure) {
                     val msg = presetResult.exceptionOrNull()?.message ?: "Failed to load preset"
                     logger.info("[AppStore] startProxySimple failed: $msg")
-                    proxyStatus = UiProxyStatus.Error(msg)
-                    selectedProxyPresetId = presetId
-                    activeProxyPresetId = null
-                    activeInbound = null
+                    updateSnapshot {
+                        copy(
+                            proxyStatus = UiProxyStatus.Error(msg),
+                            selectedPresetId = presetId,
+                            activeProxyPresetId = null,
+                            activeInbound = null
+                        )
+                    }
                     publishReady()
                     return@launch
                 }
                 val preset = presetResult.getOrThrow()
                 val inbound = UiHttpTransport("http://0.0.0.0:3335/mcp")
-                proxyStatus = UiProxyStatus.Starting
+                updateSnapshot { copy(proxyStatus = UiProxyStatus.Starting, selectedPresetId = presetId) }
                 publishReady()
                 val result = proxyController.start(
-                    servers = servers.toList(),
+                    servers = snapshot.servers,
                     preset = preset,
                     inbound = inbound,
-                    callTimeoutSeconds = requestTimeoutSeconds,
-                    capabilitiesTimeoutSeconds = capabilitiesTimeoutSeconds
+                    callTimeoutSeconds = snapshot.requestTimeoutSeconds,
+                    capabilitiesTimeoutSeconds = snapshot.capabilitiesTimeoutSeconds
                 )
-                selectedProxyPresetId = presetId
                 if (result.isSuccess) {
-                    proxyStatus = UiProxyStatus.Running
-                    activeProxyPresetId = presetId
-                    activeInbound = inbound
+                    updateSnapshot {
+                        copy(
+                            proxyStatus = UiProxyStatus.Running,
+                            activeProxyPresetId = presetId,
+                            activeInbound = inbound
+                        )
+                    }
                 } else {
                     val msg = result.exceptionOrNull()?.message ?: "Failed to start proxy"
                     logger.info("[AppStore] startProxySimple failed to start proxy: $msg")
-                    proxyStatus = UiProxyStatus.Error(msg)
-                    activeProxyPresetId = null
-                    activeInbound = null
+                    updateSnapshot {
+                        copy(
+                            proxyStatus = UiProxyStatus.Error(msg),
+                            activeProxyPresetId = null,
+                            activeInbound = null
+                        )
+                    }
                 }
                 publishReady()
             }
@@ -704,44 +635,60 @@ class AppStore(
                 if (presetResult.isFailure) {
                     val msg = presetResult.exceptionOrNull()?.message ?: "Failed to load preset"
                     logger.info("[AppStore] startProxy failed: $msg")
-                    proxyStatus = UiProxyStatus.Error(msg)
-                    selectedProxyPresetId = presetId
-                    activeProxyPresetId = null
-                    activeInbound = null
+                    updateSnapshot {
+                        copy(
+                            proxyStatus = UiProxyStatus.Error(msg),
+                            selectedPresetId = presetId,
+                            activeProxyPresetId = null,
+                            activeInbound = null
+                        )
+                    }
                     publishReady()
                     return@launch
                 }
                 val preset = presetResult.getOrThrow()
-                selectedProxyPresetId = presetId
                 val inboundTransport = inbound.toTransportConfig()
                 if (inboundTransport !is UiStdioTransport && inboundTransport !is UiHttpTransport) {
                     val msg = "Inbound transport not supported. Use Local (STDIO) or Remote (SSE)."
                     logger.info("[AppStore] startProxy unsupported inbound: ${inbound::class.simpleName}")
-                    proxyStatus = UiProxyStatus.Error(msg)
-                    activeProxyPresetId = null
-                    activeInbound = null
+                    updateSnapshot {
+                        copy(
+                            proxyStatus = UiProxyStatus.Error(msg),
+                            selectedPresetId = presetId,
+                            activeProxyPresetId = null,
+                            activeInbound = null
+                        )
+                    }
                     publishReady()
                     return@launch
                 }
-                proxyStatus = UiProxyStatus.Starting
+                updateSnapshot { copy(proxyStatus = UiProxyStatus.Starting, selectedPresetId = presetId) }
                 publishReady()
                 val result = proxyController.start(
-                    servers = servers.toList(),
+                    servers = snapshot.servers,
                     preset = preset,
                     inbound = inboundTransport,
-                    callTimeoutSeconds = requestTimeoutSeconds,
-                    capabilitiesTimeoutSeconds = capabilitiesTimeoutSeconds
+                    callTimeoutSeconds = snapshot.requestTimeoutSeconds,
+                    capabilitiesTimeoutSeconds = snapshot.capabilitiesTimeoutSeconds
                 )
                 if (result.isSuccess) {
-                    proxyStatus = UiProxyStatus.Running
-                    activeProxyPresetId = presetId
-                    activeInbound = inboundTransport
+                    updateSnapshot {
+                        copy(
+                            proxyStatus = UiProxyStatus.Running,
+                            activeProxyPresetId = presetId,
+                            activeInbound = inboundTransport
+                        )
+                    }
                 } else {
                     val msg = result.exceptionOrNull()?.message ?: "Failed to start proxy"
                     logger.info("[AppStore] startProxy failed to start proxy: $msg")
-                    proxyStatus = UiProxyStatus.Error(msg)
-                    activeProxyPresetId = null
-                    activeInbound = null
+                    updateSnapshot {
+                        copy(
+                            proxyStatus = UiProxyStatus.Error(msg),
+                            activeProxyPresetId = null,
+                            activeInbound = null
+                        )
+                    }
                 }
                 publishReady()
             }
@@ -749,14 +696,20 @@ class AppStore(
 
         override fun stopProxy() {
             scope.launch {
-                proxyStatus = UiProxyStatus.Stopping
+                updateSnapshot { copy(proxyStatus = UiProxyStatus.Stopping) }
                 publishReady()
                 val result = proxyController.stop()
-                proxyStatus = if (result.isSuccess) UiProxyStatus.Stopped
-                else UiProxyStatus.Error(result.exceptionOrNull()?.message ?: "Failed to stop proxy")
                 if (result.isSuccess) {
-                    activeProxyPresetId = null
-                    activeInbound = null
+                    updateSnapshot {
+                        copy(
+                            proxyStatus = UiProxyStatus.Stopped,
+                            activeProxyPresetId = null,
+                            activeInbound = null
+                        )
+                    }
+                } else {
+                    val msg = result.exceptionOrNull()?.message ?: "Failed to stop proxy"
+                    updateSnapshot { copy(proxyStatus = UiProxyStatus.Error(msg)) }
                 }
                 publishReady()
             }
@@ -764,16 +717,16 @@ class AppStore(
 
         override fun updateRequestTimeout(seconds: Int) {
             scope.launch {
-                val previous = requestTimeoutSeconds
-                requestTimeoutSeconds = seconds
-                proxyController.updateCallTimeout(requestTimeoutSeconds)
+                val previous = snapshot.requestTimeoutSeconds
+                updateSnapshot { copy(requestTimeoutSeconds = seconds) }
+                proxyController.updateCallTimeout(snapshot.requestTimeoutSeconds)
                 val result = runCatching { configurationRepository.saveMcpConfig(snapshotConfig()) }
                 if (result.isFailure) {
                     val msg = result.exceptionOrNull()?.message ?: "Failed to update timeout"
                     logger.info("[AppStore] updateRequestTimeout failed: $msg")
-                    requestTimeoutSeconds = previous
-                    proxyController.updateCallTimeout(requestTimeoutSeconds)
-                    _state.value = UIState.Error(msg)
+                    updateSnapshot { copy(requestTimeoutSeconds = previous) }
+                    proxyController.updateCallTimeout(previous)
+                    setErrorState(msg)
                 }
                 publishReady()
             }
@@ -781,16 +734,16 @@ class AppStore(
 
         override fun updateCapabilitiesTimeout(seconds: Int) {
             scope.launch {
-                val previous = capabilitiesTimeoutSeconds
-                capabilitiesTimeoutSeconds = seconds
-                proxyController.updateCapabilitiesTimeout(capabilitiesTimeoutSeconds)
+                val previous = snapshot.capabilitiesTimeoutSeconds
+                updateSnapshot { copy(capabilitiesTimeoutSeconds = seconds) }
+                proxyController.updateCapabilitiesTimeout(snapshot.capabilitiesTimeoutSeconds)
                 val result = runCatching { configurationRepository.saveMcpConfig(snapshotConfig()) }
                 if (result.isFailure) {
                     val msg = result.exceptionOrNull()?.message ?: "Failed to update capabilities timeout"
                     logger.info("[AppStore] updateCapabilitiesTimeout failed: $msg")
-                    capabilitiesTimeoutSeconds = previous
-                    proxyController.updateCapabilitiesTimeout(capabilitiesTimeoutSeconds)
-                    _state.value = UIState.Error(msg)
+                    updateSnapshot { copy(capabilitiesTimeoutSeconds = previous) }
+                    proxyController.updateCapabilitiesTimeout(previous)
+                    setErrorState(msg)
                 }
                 publishReady()
             }
@@ -799,15 +752,15 @@ class AppStore(
         override fun updateCapabilitiesRefreshInterval(seconds: Int) {
             scope.launch {
                 val clamped = seconds.coerceAtLeast(30)
-                if (capabilitiesRefreshIntervalSeconds == clamped) return@launch
-                val previous = capabilitiesRefreshIntervalSeconds
-                capabilitiesRefreshIntervalSeconds = clamped
+                if (snapshot.capabilitiesRefreshIntervalSeconds == clamped) return@launch
+                val previous = snapshot.capabilitiesRefreshIntervalSeconds
+                updateSnapshot { copy(capabilitiesRefreshIntervalSeconds = clamped) }
                 val result = runCatching { configurationRepository.saveMcpConfig(snapshotConfig()) }
                 if (result.isFailure) {
                     val msg = result.exceptionOrNull()?.message ?: "Failed to update refresh interval"
                     logger.info("[AppStore] updateCapabilitiesRefreshInterval failed: $msg")
-                    capabilitiesRefreshIntervalSeconds = previous
-                    _state.value = UIState.Error(msg)
+                    updateSnapshot { copy(capabilitiesRefreshIntervalSeconds = previous) }
+                    setErrorState(msg)
                 } else {
                     restartCapsRefreshJob()
                     refreshEnabledServerCaps(force = true)
@@ -818,15 +771,15 @@ class AppStore(
 
         override fun updateTrayIconVisibility(visible: Boolean) {
             scope.launch {
-                if (showTrayIcon == visible) return@launch
-                val previous = showTrayIcon
-                showTrayIcon = visible
+                if (snapshot.showTrayIcon == visible) return@launch
+                val previous = snapshot.showTrayIcon
+                updateSnapshot { copy(showTrayIcon = visible) }
                 val result = runCatching { configurationRepository.saveMcpConfig(snapshotConfig()) }
                 if (result.isFailure) {
                     val msg = result.exceptionOrNull()?.message ?: "Failed to update tray preference"
                     logger.info("[AppStore] updateTrayIconVisibility failed: $msg")
-                    showTrayIcon = previous
-                    _state.value = UIState.Error(msg)
+                    updateSnapshot { copy(showTrayIcon = previous) }
+                    setErrorState(msg)
                 }
                 publishReady()
             }
@@ -1043,6 +996,13 @@ private fun inferResourceArguments(uri: String?): List<UiCapabilityArgument> {
             type = "string",
             required = true
         )
-        }
+    }
         .toList()
 }
+
+private fun LogEvent.toUiEntry(): UiLogEntry = UiLogEntry(
+    timestampMillis = timestampMillis,
+    level = UiLogLevel.valueOf(level.name),
+    message = message,
+    throwableMessage = throwableMessage
+)

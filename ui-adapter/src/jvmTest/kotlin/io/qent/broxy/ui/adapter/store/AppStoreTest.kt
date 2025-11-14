@@ -212,6 +212,155 @@ class AppStoreTest {
         storeScope.cancel()
     }
 
+    @org.junit.Test
+    fun toggleServerDisablesCapabilities() = runTest {
+        val server = McpServerConfig(
+            id = "s1",
+            name = "Server 1",
+            transport = TransportConfig.StdioTransport(command = "cmd"),
+            env = emptyMap(),
+            enabled = true
+        )
+        val config = McpServersConfig(servers = listOf(server))
+        val preset = Preset("main", "Main", "", emptyList())
+        val repository = FakeConfigurationRepository(config, mutableMapOf(preset.id to preset))
+        val capabilityFetcher = RecordingCapabilityFetcher(Result.success(UiServerCapabilities()))
+        val proxyController = FakeProxyController()
+        val logger = CollectingLogger(delegate = noopLogger)
+        val storeScope = TestScope(testScheduler)
+        val store = AppStore(
+            configurationRepository = repository,
+            proxyController = proxyController,
+            capabilityFetcher = capabilityFetcher::invoke,
+            logger = logger,
+            scope = storeScope,
+            now = { testScheduler.currentTime },
+            enableBackgroundRefresh = false
+        )
+
+        store.start()
+        storeScope.advanceUntilIdle()
+
+        store.getServerCaps("s1", forceRefresh = true)
+        storeScope.advanceUntilIdle()
+
+        var readyState = store.state.value
+        assertTrue(readyState is UIState.Ready)
+
+        readyState.intents.toggleServer("s1", enabled = false)
+        storeScope.advanceUntilIdle()
+
+        readyState = store.state.value
+        assertTrue(readyState is UIState.Ready)
+        val serverState = (readyState as UIState.Ready).servers.first()
+        assertEquals(UiServerConnStatus.Disabled, serverState.status)
+        assertTrue(store.listEnabledServerCaps().isEmpty())
+
+        storeScope.cancel()
+    }
+
+    @org.junit.Test
+    fun updateRequestTimeoutPersistsConfiguration() = runTest {
+        val server = McpServerConfig(
+            id = "s1",
+            name = "Server 1",
+            transport = TransportConfig.StdioTransport(command = "cmd"),
+            env = emptyMap(),
+            enabled = true
+        )
+        val config = McpServersConfig(servers = listOf(server), requestTimeoutSeconds = 42)
+        val preset = Preset("main", "Main", "", emptyList())
+        val repository = FakeConfigurationRepository(config, mutableMapOf(preset.id to preset))
+        val capabilityFetcher = RecordingCapabilityFetcher(Result.success(UiServerCapabilities()))
+        val proxyController = FakeProxyController()
+        val logger = CollectingLogger(delegate = noopLogger)
+        val storeScope = TestScope(testScheduler)
+        val store = AppStore(
+            configurationRepository = repository,
+            proxyController = proxyController,
+            capabilityFetcher = capabilityFetcher::invoke,
+            logger = logger,
+            scope = storeScope,
+            now = { testScheduler.currentTime },
+            enableBackgroundRefresh = false
+        )
+
+        store.start()
+        storeScope.advanceUntilIdle()
+
+        val readyState = store.state.value
+        assertTrue(readyState is UIState.Ready)
+        readyState.intents.updateRequestTimeout(77)
+        storeScope.advanceUntilIdle()
+
+        assertEquals(77, repository.config.requestTimeoutSeconds)
+        assertEquals(listOf(42, 77), proxyController.callTimeoutUpdates)
+        val updatedReady = store.state.value as UIState.Ready
+        assertEquals(77, updatedReady.requestTimeoutSeconds)
+
+        storeScope.cancel()
+    }
+
+    @org.junit.Test
+    fun selectingPresetWhileRunningRestartsProxy() = runTest {
+        val server = McpServerConfig(
+            id = "s1",
+            name = "Server 1",
+            transport = TransportConfig.StdioTransport(command = "cmd"),
+            env = emptyMap(),
+            enabled = true
+        )
+        val config = McpServersConfig(servers = listOf(server))
+        val presetMain = Preset(
+            id = "main",
+            name = "Main",
+            description = "",
+            tools = listOf(ToolReference(serverId = "s1", toolName = "tool", enabled = true))
+        )
+        val presetAlt = Preset(
+            id = "alt",
+            name = "Alt",
+            description = "",
+            tools = listOf(ToolReference(serverId = "s1", toolName = "tool", enabled = true))
+        )
+        val repository = FakeConfigurationRepository(
+            config = config,
+            presets = mutableMapOf(presetMain.id to presetMain, presetAlt.id to presetAlt)
+        )
+        val capabilityFetcher = RecordingCapabilityFetcher(Result.success(UiServerCapabilities()))
+        val proxyController = FakeProxyController()
+        val logger = CollectingLogger(delegate = noopLogger)
+        val storeScope = TestScope(testScheduler)
+        val store = AppStore(
+            configurationRepository = repository,
+            proxyController = proxyController,
+            capabilityFetcher = capabilityFetcher::invoke,
+            logger = logger,
+            scope = storeScope,
+            now = { testScheduler.currentTime },
+            enableBackgroundRefresh = false
+        )
+
+        store.start()
+        storeScope.advanceUntilIdle()
+
+        val initialState = store.state.value as UIState.Ready
+        initialState.intents.startProxySimple("main")
+        storeScope.advanceUntilIdle()
+        assertEquals(1, proxyController.startCalls.size)
+
+        val runningState = store.state.value as UIState.Ready
+        runningState.intents.selectProxyPreset("alt")
+        storeScope.advanceUntilIdle()
+
+        assertEquals(2, proxyController.startCalls.size)
+        assertEquals("alt", proxyController.startCalls.last().preset.id)
+        val updated = store.state.value as UIState.Ready
+        assertEquals("alt", updated.selectedPresetId)
+
+        storeScope.cancel()
+    }
+
     private class FakeConfigurationRepository(
         var config: McpServersConfig,
         private val presets: MutableMap<String, Preset>
