@@ -15,6 +15,7 @@ import io.qent.broxy.ui.adapter.models.UiProxyStatus
 import io.qent.broxy.ui.adapter.models.UiServerConnStatus
 import io.qent.broxy.ui.adapter.models.UiServerCapabilities
 import io.qent.broxy.ui.adapter.models.UiTransportConfig
+import io.qent.broxy.ui.adapter.models.UiWebSocketDraft
 import io.qent.broxy.ui.adapter.proxy.ProxyController
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
@@ -357,6 +358,53 @@ class AppStoreTest {
         assertEquals("alt", proxyController.startCalls.last().preset.id)
         val updated = store.state.value as UIState.Ready
         assertEquals("alt", updated.selectedPresetId)
+
+        storeScope.cancel()
+    }
+
+    @org.junit.Test
+    fun startProxyRejectsUnsupportedInbound() = runTest {
+        val server = McpServerConfig(
+            id = "s1",
+            name = "Server 1",
+            transport = TransportConfig.StdioTransport(command = "cmd"),
+            env = emptyMap(),
+            enabled = true
+        )
+        val config = McpServersConfig(servers = listOf(server))
+        val preset = Preset(
+            id = "main",
+            name = "Main",
+            description = "",
+            tools = listOf(ToolReference(serverId = "s1", toolName = "tool", enabled = true))
+        )
+        val repository = FakeConfigurationRepository(
+            config = config,
+            presets = mutableMapOf(preset.id to preset)
+        )
+        val capabilityFetcher = RecordingCapabilityFetcher(Result.success(UiServerCapabilities()))
+        val proxyController = FakeProxyController()
+        val logger = CollectingLogger(delegate = noopLogger)
+        val storeScope = TestScope(testScheduler)
+        val store = AppStore(
+            configurationRepository = repository,
+            proxyController = proxyController,
+            capabilityFetcher = capabilityFetcher::invoke,
+            logger = logger,
+            scope = storeScope,
+            now = { testScheduler.currentTime },
+            enableBackgroundRefresh = false
+        )
+
+        store.start()
+        storeScope.advanceUntilIdle()
+
+        val readyState = store.state.value as UIState.Ready
+        readyState.intents.startProxy("main", UiWebSocketDraft(url = "ws://localhost"))
+        storeScope.advanceUntilIdle()
+
+        val updated = store.state.value as UIState.Ready
+        assertIs<UiProxyStatus.Error>(updated.proxyStatus)
 
         storeScope.cancel()
     }
