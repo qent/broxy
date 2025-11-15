@@ -20,9 +20,8 @@ import io.qent.broxy.ui.adapter.headless.runStdioProxy
 import io.qent.broxy.ui.adapter.models.UiProxyStatus
 import io.qent.broxy.ui.adapter.store.UIState
 import io.qent.broxy.ui.adapter.store.createAppStore
-import io.qent.broxy.ui.icons.createLetterBImage
-import io.qent.broxy.ui.icons.letterBAwtColor
-import io.qent.broxy.ui.icons.rememberLetterBPainter
+import io.qent.broxy.ui.icons.createApplicationIconImage
+import io.qent.broxy.ui.icons.rememberApplicationIconPainter
 import io.qent.broxy.ui.screens.MainWindow
 import io.qent.broxy.ui.viewmodels.AppState
 import io.qent.broxy.ui.windowDrag
@@ -73,13 +72,8 @@ fun main(args: Array<String>) {
         val trayActive = traySupported && trayPreference
         val isMacOs = remember { System.getProperty("os.name")?.contains("Mac", ignoreCase = true) == true }
         val isDarkTheme = isSystemInDarkTheme()
-        val windowIconPainter = rememberLetterBPainter(isDarkTheme)
-        val applicationIconImage = remember(isDarkTheme) {
-            createLetterBImage(
-                fillColor = letterBAwtColor(isDarkTheme),
-                size = 256
-            )
-        }
+        val windowIconPainter = rememberApplicationIconPainter()
+        val applicationIconImage = remember { createApplicationIconImage(size = 256) }
 
         LaunchedEffect(trayActive) {
             if (!trayActive) {
@@ -160,12 +154,7 @@ fun main(args: Array<String>) {
         }
 
         if (trayActive && traySupported) {
-            val trayIconImage = remember(isDarkTheme) {
-                createLetterBImage(
-                    fillColor = letterBAwtColor(isDarkTheme),
-                    size = 22
-                )
-            }
+            val trayIconImage = remember { createApplicationIconImage(size = 22) }
             val trayModel = createTrayModel(
                 uiState = uiState,
                 trayIconImage = trayIconImage,

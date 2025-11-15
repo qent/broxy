@@ -9,6 +9,7 @@ import io.qent.broxy.ui.adapter.models.UiMcpServerConfig
 import io.qent.broxy.ui.adapter.models.UiServerCapabilities
 import io.qent.broxy.ui.adapter.models.UiServerConnStatus
 import io.qent.broxy.ui.adapter.models.UiStdioTransport
+import io.qent.broxy.ui.adapter.models.toUiStatus
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
@@ -51,7 +52,7 @@ class CapabilityRefresherTest {
         val snapshot = cache.snapshot("s1")
         assertNotNull(snapshot)
         assertEquals("Server 1", snapshot.name)
-        assertEquals(UiServerConnStatus.Available, tracker.statusFor("s1"))
+        assertEquals(UiServerConnStatus.Available, tracker.statusFor("s1")?.toUiStatus())
         assertEquals(2, publishes.size)
     }
 
@@ -61,7 +62,7 @@ class CapabilityRefresherTest {
 
         refresher.refreshServersById(setOf("s1"), force = true)
 
-        assertEquals(UiServerConnStatus.Error, tracker.statusFor("s1"))
+        assertEquals(UiServerConnStatus.Error, tracker.statusFor("s1")?.toUiStatus())
         assertTrue(cache.snapshot("s1") == null)
         assertEquals(2, publishes.size)
     }

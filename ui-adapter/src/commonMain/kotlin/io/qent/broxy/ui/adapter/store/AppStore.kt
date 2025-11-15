@@ -12,6 +12,7 @@ import io.qent.broxy.core.repository.ConfigurationRepository
 import io.qent.broxy.core.utils.CollectingLogger
 import io.qent.broxy.ui.adapter.data.provideConfigurationRepository
 import io.qent.broxy.ui.adapter.models.*
+import io.qent.broxy.ui.adapter.models.toUiModel
 import io.qent.broxy.ui.adapter.services.fetchServerCapabilities
 import io.qent.broxy.ui.adapter.store.internal.*
 import kotlinx.coroutines.CoroutineScope
@@ -152,10 +153,10 @@ class AppStore(
     fun listServerConfigs(): List<UiMcpServerConfig> = snapshot.servers.toList()
 
     suspend fun listEnabledServerCaps(): List<UiServerCapsSnapshot> =
-        capabilityRefresher.listEnabledServerCaps()
+        capabilityRefresher.listEnabledServerCaps().map { it.toUiModel() }
 
     suspend fun getServerCaps(serverId: String, forceRefresh: Boolean = false): UiServerCapsSnapshot? {
-        return capabilityRefresher.getServerCaps(serverId, forceRefresh)
+        return capabilityRefresher.getServerCaps(serverId, forceRefresh)?.toUiModel()
     }
 
     private fun observeLogs() {

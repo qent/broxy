@@ -13,6 +13,7 @@ import io.qent.broxy.ui.adapter.models.UiStdioTransport
 import io.qent.broxy.ui.adapter.models.UiHttpTransport
 import io.qent.broxy.ui.adapter.models.UiStreamableHttpTransport
 import io.qent.broxy.ui.adapter.models.UiWebSocketTransport
+import io.qent.broxy.ui.adapter.models.toUiStatus
 import io.qent.broxy.ui.adapter.store.Intents
 import io.qent.broxy.ui.adapter.store.UIState
 
@@ -58,7 +59,7 @@ internal fun StoreSnapshot.toUiState(
         val derivedStatus = when {
             !server.enabled -> UiServerConnStatus.Disabled
             snapshot != null -> UiServerConnStatus.Available
-            else -> statuses.statusFor(server.id) ?: UiServerConnStatus.Connecting
+            else -> statuses.statusFor(server.id)?.toUiStatus() ?: UiServerConnStatus.Connecting
         }
         UiServer(
             id = server.id,

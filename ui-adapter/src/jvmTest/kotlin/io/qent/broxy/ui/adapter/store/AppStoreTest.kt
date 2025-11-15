@@ -73,8 +73,6 @@ class AppStoreTest {
         )
         val proxyController = FakeProxyController()
         val proxyLifecycle = ProxyLifecycle(proxyController, noopLogger)
-        val proxyLifecycle = ProxyLifecycle(proxyController, noopLogger)
-        val proxyLifecycle = ProxyLifecycle(proxyController, noopLogger)
         val logger = CollectingLogger(delegate = noopLogger)
         val storeScope = TestScope(testScheduler)
         val store = AppStore(
@@ -128,9 +126,6 @@ class AppStoreTest {
         val capabilityFetcher = RecordingCapabilityFetcher(Result.success(UiServerCapabilities()))
         val proxyController = FakeProxyController()
         val proxyLifecycle = ProxyLifecycle(proxyController, noopLogger)
-        val proxyLifecycle = ProxyLifecycle(proxyController, noopLogger)
-        val proxyLifecycle = ProxyLifecycle(proxyController, noopLogger)
-        val proxyLifecycle = ProxyLifecycle(proxyController, noopLogger)
         val logger = CollectingLogger(delegate = noopLogger)
         val storeScope = TestScope(testScheduler)
         val store = AppStore(
@@ -182,6 +177,7 @@ class AppStoreTest {
         )
         val capabilityFetcher = RecordingCapabilityFetcher(Result.success(UiServerCapabilities()))
         val proxyController = FakeProxyController()
+        val proxyLifecycle = ProxyLifecycle(proxyController, noopLogger)
         val logger = CollectingLogger(delegate = noopLogger)
         val storeScope = TestScope(testScheduler)
         val store = AppStore(
@@ -235,6 +231,7 @@ class AppStoreTest {
         val repository = FakeConfigurationRepository(config, mutableMapOf(preset.id to preset))
         val capabilityFetcher = RecordingCapabilityFetcher(Result.success(UiServerCapabilities()))
         val proxyController = FakeProxyController()
+        val proxyLifecycle = ProxyLifecycle(proxyController, noopLogger)
         val logger = CollectingLogger(delegate = noopLogger)
         val storeScope = TestScope(testScheduler)
         val store = AppStore(
@@ -282,6 +279,7 @@ class AppStoreTest {
         val repository = FakeConfigurationRepository(config, mutableMapOf(preset.id to preset))
         val capabilityFetcher = RecordingCapabilityFetcher(Result.success(UiServerCapabilities()))
         val proxyController = FakeProxyController()
+        val proxyLifecycle = ProxyLifecycle(proxyController, noopLogger)
         val logger = CollectingLogger(delegate = noopLogger)
         val storeScope = TestScope(testScheduler)
         val store = AppStore(
@@ -338,6 +336,7 @@ class AppStoreTest {
         )
         val capabilityFetcher = RecordingCapabilityFetcher(Result.success(UiServerCapabilities()))
         val proxyController = FakeProxyController()
+        val proxyLifecycle = ProxyLifecycle(proxyController, noopLogger)
         val logger = CollectingLogger(delegate = noopLogger)
         val storeScope = TestScope(testScheduler)
         val store = AppStore(
@@ -392,6 +391,7 @@ class AppStoreTest {
         )
         val capabilityFetcher = RecordingCapabilityFetcher(Result.success(UiServerCapabilities()))
         val proxyController = FakeProxyController()
+        val proxyLifecycle = ProxyLifecycle(proxyController, noopLogger)
         val logger = CollectingLogger(delegate = noopLogger)
         val storeScope = TestScope(testScheduler)
         val store = AppStore(

@@ -3,7 +3,6 @@ package io.qent.broxy.ui.adapter.services
 import io.qent.broxy.core.utils.Logger
 import io.qent.broxy.ui.adapter.models.UiMcpServerConfig
 import io.qent.broxy.ui.adapter.models.UiHttpDraft
-import io.qent.broxy.ui.adapter.models.UiServerCapsSnapshot
 import io.qent.broxy.ui.adapter.models.UiServerDraft
 import io.qent.broxy.ui.adapter.models.UiStdioDraft
 import io.qent.broxy.ui.adapter.models.UiWebSocketDraft

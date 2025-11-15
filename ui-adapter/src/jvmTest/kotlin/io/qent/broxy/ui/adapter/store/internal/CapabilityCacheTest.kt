@@ -1,7 +1,7 @@
 package io.qent.broxy.ui.adapter.store.internal
 
 import io.qent.broxy.core.capabilities.CapabilityCache
-import io.qent.broxy.ui.adapter.models.UiServerCapsSnapshot
+import io.qent.broxy.core.capabilities.ServerCapsSnapshot
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -46,7 +46,7 @@ class CapabilityCacheTest {
         assertEquals("Renamed", cache.snapshot("s1")?.name)
     }
 
-    private fun snapshotFor(id: String, name: String) = UiServerCapsSnapshot(
+    private fun snapshotFor(id: String, name: String) = ServerCapsSnapshot(
         serverId = id,
         name = name,
         tools = emptyList(),
