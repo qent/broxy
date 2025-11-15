@@ -1,9 +1,5 @@
 package io.qent.broxy.ui.adapter.models
 
-enum class UiServerConnStatus {
-    Disabled,
-    Connecting,
-    Available,
-    Error
-}
+import io.qent.broxy.core.capabilities.ServerConnectionStatus
 
+typealias UiServerConnStatus = ServerConnectionStatus

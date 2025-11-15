@@ -1,23 +1,21 @@
-package io.qent.broxy.ui.adapter.store.internal
-
-import io.qent.broxy.ui.adapter.models.UiServerCapsSnapshot
+package io.qent.broxy.core.capabilities
 
 /**
  * Thread-safe cache for server capabilities that remembers the last refresh timestamp.
  */
-internal class CapabilityCache(
+class CapabilityCache(
     private val now: () -> Long
 ) {
-    private data class Entry(val snapshot: UiServerCapsSnapshot, val timestampMillis: Long)
+    private data class Entry(val snapshot: ServerCapsSnapshot, val timestampMillis: Long)
 
     private val entries = mutableMapOf<String, Entry>()
     private val lock = Any()
 
-    fun snapshot(serverId: String): UiServerCapsSnapshot? = synchronized(lock) {
+    fun snapshot(serverId: String): ServerCapsSnapshot? = synchronized(lock) {
         entries[serverId]?.snapshot
     }
 
-    fun put(serverId: String, snapshot: UiServerCapsSnapshot) {
+    fun put(serverId: String, snapshot: ServerCapsSnapshot) {
         val entry = Entry(snapshot = snapshot, timestampMillis = now())
         synchronized(lock) { entries[serverId] = entry }
     }
@@ -44,6 +42,6 @@ internal class CapabilityCache(
         now() - entry.timestampMillis >= intervalMillis
     }
 
-    fun list(serverIds: Collection<String>): List<UiServerCapsSnapshot> =
+    fun list(serverIds: Collection<String>): List<ServerCapsSnapshot> =
         serverIds.mapNotNull { snapshot(it) }
 }

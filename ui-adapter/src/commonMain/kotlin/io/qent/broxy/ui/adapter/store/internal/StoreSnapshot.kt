@@ -1,5 +1,7 @@
 package io.qent.broxy.ui.adapter.store.internal
 
+import io.qent.broxy.core.capabilities.CapabilityCache
+import io.qent.broxy.core.capabilities.ServerStatusTracker
 import io.qent.broxy.ui.adapter.models.UiLogEntry
 import io.qent.broxy.ui.adapter.models.UiMcpServerConfig
 import io.qent.broxy.ui.adapter.models.UiPreset

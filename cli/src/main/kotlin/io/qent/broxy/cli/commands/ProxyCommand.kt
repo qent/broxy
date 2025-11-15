@@ -6,24 +6,22 @@ import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.file
 import io.qent.broxy.cli.support.StderrLogger
-import io.qent.broxy.core.mcp.DefaultMcpServerConnection
-import io.qent.broxy.core.mcp.McpServerConnection
-import io.qent.broxy.core.models.McpServersConfig
-import io.qent.broxy.core.models.Preset
-import io.qent.broxy.core.models.TransportConfig
-import io.qent.broxy.core.proxy.ProxyMcpServer
-import io.qent.broxy.core.proxy.inbound.InboundServerFactory
 import io.qent.broxy.core.config.JsonConfigurationRepository
 import io.qent.broxy.core.config.ConfigurationWatcher
 import io.qent.broxy.core.config.ConfigurationObserver
 import io.qent.broxy.core.config.EnvironmentVariableResolver
+import io.qent.broxy.core.models.McpServersConfig
+import io.qent.broxy.core.models.Preset
+import io.qent.broxy.core.models.TransportConfig
+import io.qent.broxy.core.proxy.runtime.ProxyLifecycle
+import io.qent.broxy.core.proxy.runtime.createProxyController
 import io.qent.broxy.core.utils.FilteredLogger
 import io.qent.broxy.core.utils.LogLevel
 import io.qent.broxy.core.utils.Logger
+import io.qent.broxy.core.utils.CollectingLogger
 import kotlinx.serialization.json.Json
 import java.io.File
 import java.nio.file.Paths
-import kotlinx.coroutines.runBlocking
 
 class ProxyCommand : CliktCommand(name = "proxy", help = "Run broxy server") {
     private val configDir: File by option("--config-dir", help = "Directory containing mcp.json and preset_*.json. Defaults to ~/.config/broxy.")
@@ -42,6 +40,9 @@ class ProxyCommand : CliktCommand(name = "proxy", help = "Run broxy server") {
         val json = Json { ignoreUnknownKeys = true }
 
         val logger = createLogger(logLevel)
+        val collectingLogger = CollectingLogger(delegate = logger)
+        val proxyController = createProxyController(collectingLogger)
+        val proxyLifecycle = ProxyLifecycle(proxyController, logger)
 
         val repo = JsonConfigurationRepository(
             baseDir = Paths.get(configDir.absolutePath),
@@ -53,20 +54,6 @@ class ProxyCommand : CliktCommand(name = "proxy", help = "Run broxy server") {
         var serversCfg = repo.loadMcpConfig()
         var currentPreset = repo.loadPreset(presetId)
 
-        fun buildDownstreams(cfg: McpServersConfig): List<McpServerConnection> = cfg.servers
-            .filter { it.enabled }
-            .map {
-                DefaultMcpServerConnection(
-                    config = it,
-                    logger = logger,
-                    initialCallTimeoutMillis = cfg.requestTimeoutSeconds.toLong() * 1_000L,
-                    initialCapabilitiesTimeoutMillis = cfg.capabilitiesTimeoutSeconds.toLong() * 1_000L
-                )
-            }
-
-        var downstreams: List<McpServerConnection> = buildDownstreams(serversCfg)
-        var proxy = ProxyMcpServer(downstreams, logger = logger)
-
         val inboundKey = inbound.lowercase()
         val inboundTransport = when (inboundKey) {
             "stdio", "local" -> TransportConfig.StdioTransport(command = "", args = emptyList())
@@ -74,9 +61,11 @@ class ProxyCommand : CliktCommand(name = "proxy", help = "Run broxy server") {
             else -> error("Unsupported inbound: $inbound")
         }
 
-        proxy.start(currentPreset, inboundTransport)
-        var inboundServer = InboundServerFactory.create(inboundTransport, proxy, logger)
-        inboundServer.start()
+        val startResult = proxyLifecycle.start(serversCfg, currentPreset, inboundTransport)
+        if (startResult.isFailure) {
+            val message = startResult.exceptionOrNull()?.message ?: "Failed to start proxy"
+            throw IllegalStateException(message, startResult.exceptionOrNull())
+        }
 
         val watcher = ConfigurationWatcher(
             baseDir = Paths.get(configDir.absolutePath),
@@ -87,29 +76,24 @@ class ProxyCommand : CliktCommand(name = "proxy", help = "Run broxy server") {
         watcher.addObserver(object : ConfigurationObserver {
             override fun onConfigurationChanged(config: McpServersConfig) {
                 logger.info("Configuration changed; restarting downstream connections")
-                val oldDownstreams = downstreams
-                val oldInbound = inboundServer
-
-                val newDownstreams = buildDownstreams(config)
-                val newProxy = ProxyMcpServer(newDownstreams, logger = logger)
-                newProxy.start(currentPreset, inboundTransport)
-                val newInbound = InboundServerFactory.create(inboundTransport, newProxy, logger)
-
-                runCatching { oldInbound.stop() }
-                runBlocking { oldDownstreams.forEach { runCatching { it.disconnect() } } }
-
-                newInbound.start()
-
-                downstreams = newDownstreams
-                proxy = newProxy
-                inboundServer = newInbound
-                serversCfg = config
+                val result = proxyLifecycle.restartWithConfig(config)
+                if (result.isSuccess) {
+                    serversCfg = config
+                } else {
+                    val msg = result.exceptionOrNull()?.message ?: "Failed to apply new config"
+                    logger.error(msg, result.exceptionOrNull())
+                }
             }
 
             override fun onPresetChanged(preset: Preset) {
                 logger.info("Preset changed to '${preset.id}'; applying to proxy")
-                currentPreset = preset
-                proxy.applyPreset(preset)
+                val result = proxyLifecycle.applyPreset(preset)
+                if (result.isSuccess) {
+                    currentPreset = preset
+                } else {
+                    val msg = result.exceptionOrNull()?.message ?: "Failed to apply preset"
+                    logger.error(msg, result.exceptionOrNull())
+                }
             }
         })
         watcher.start()
@@ -118,8 +102,7 @@ class ProxyCommand : CliktCommand(name = "proxy", help = "Run broxy server") {
         Runtime.getRuntime().addShutdownHook(Thread {
             try {
                 echo("Shutting down proxy...")
-                inboundServer.stop()
-                downstreams.forEach { runCatching { kotlinx.coroutines.runBlocking { it.disconnect() } } }
+                proxyLifecycle.stop()
             } catch (_: Throwable) {}
         })
 

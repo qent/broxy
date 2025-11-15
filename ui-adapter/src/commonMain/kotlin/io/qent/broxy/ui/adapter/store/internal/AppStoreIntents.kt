@@ -1,5 +1,7 @@
 package io.qent.broxy.ui.adapter.store.internal
 
+import io.qent.broxy.core.capabilities.CapabilityRefresher
+import io.qent.broxy.core.config.ConfigurationManager
 import io.qent.broxy.core.repository.ConfigurationRepository
 import io.qent.broxy.core.utils.CollectingLogger
 import io.qent.broxy.ui.adapter.models.UiHttpTransport
@@ -12,7 +14,7 @@ import io.qent.broxy.ui.adapter.models.UiServer
 import io.qent.broxy.ui.adapter.models.UiServerDraft
 import io.qent.broxy.ui.adapter.models.UiStdioTransport
 import io.qent.broxy.ui.adapter.models.UiTransportDraft
-import io.qent.broxy.ui.adapter.proxy.ProxyController
+import io.qent.broxy.core.proxy.runtime.ProxyLifecycle
 import io.qent.broxy.ui.adapter.store.Intents
 import io.qent.broxy.ui.adapter.store.toCorePreset
 import io.qent.broxy.ui.adapter.store.toTransportConfig
@@ -24,10 +26,11 @@ internal class AppStoreIntents(
     private val scope: CoroutineScope,
     private val logger: CollectingLogger,
     private val configurationRepository: ConfigurationRepository,
+    private val configurationManager: ConfigurationManager,
     private val state: StoreStateAccess,
     private val capabilityRefresher: CapabilityRefresher,
     private val proxyRuntime: ProxyRuntime,
-    private val proxyController: ProxyController,
+    private val proxyLifecycle: ProxyLifecycle,
     private val loadConfiguration: suspend () -> Result<Unit>,
     private val refreshEnabledCaps: suspend (Boolean) -> Unit,
     private val restartRefreshJob: () -> Unit,
@@ -53,6 +56,7 @@ internal class AppStoreIntents(
     override fun addOrUpdateServerUi(ui: UiServer) {
         scope.launch {
             val previousServers = state.snapshot.servers
+            val previousConfig = state.snapshotConfig()
             val updated = previousServers.toMutableList()
             val idx = updated.indexOfFirst { it.id == ui.id }
             val base = updated.getOrNull(idx) ?: UiMcpServerConfig(
@@ -64,12 +68,13 @@ internal class AppStoreIntents(
             val merged = base.copy(name = ui.name, enabled = ui.enabled)
             if (idx >= 0) updated[idx] = merged else updated += merged
             state.updateSnapshot { copy(servers = updated) }
-            val result = runCatching { configurationRepository.saveMcpConfig(state.snapshotConfig()) }
+            val result = configurationManager.upsertServer(previousConfig, merged)
             if (result.isFailure) {
                 revertServersOnFailure("addOrUpdateServerUi", previousServers, result.exceptionOrNull(), "Failed to save servers")
             } else {
                 capabilityRefresher.updateCachedName(ui.id, ui.name)
-                capabilityRefresher.syncWithServers(updated)
+                val saved = result.getOrNull()
+                capabilityRefresher.syncWithServers(saved?.servers ?: updated)
                 triggerServerRefresh(setOf(ui.id), force = true)
             }
             publishReady()
@@ -79,16 +84,18 @@ internal class AppStoreIntents(
     override fun addServerBasic(id: String, name: String) {
         scope.launch {
             val previousServers = state.snapshot.servers
+            val previousConfig = state.snapshotConfig()
             if (previousServers.any { it.id == id }) return@launch
             val updated = previousServers.toMutableList().apply {
                 add(UiMcpServerConfig(id = id, name = name, transport = UiStdioTransport(command = ""), enabled = true))
             }
             state.updateSnapshot { copy(servers = updated) }
-            val result = runCatching { configurationRepository.saveMcpConfig(state.snapshotConfig()) }
+            val newServer = updated.first { it.id == id }
+            val result = configurationManager.upsertServer(previousConfig, newServer)
             if (result.isFailure) {
                 revertServersOnFailure("addServerBasic", previousServers, result.exceptionOrNull(), "Failed to save servers")
             } else {
-                capabilityRefresher.syncWithServers(updated)
+                capabilityRefresher.syncWithServers(result.getOrNull()?.servers ?: updated)
             }
             publishReady()
         }
@@ -97,6 +104,7 @@ internal class AppStoreIntents(
     override fun upsertServer(draft: UiServerDraft) {
         scope.launch {
             val previousServers = state.snapshot.servers
+            val previousConfig = state.snapshotConfig()
             val updated = previousServers.toMutableList()
             val idx = updated.indexOfFirst { it.id == draft.id }
             val cfg = UiMcpServerConfig(
@@ -108,11 +116,11 @@ internal class AppStoreIntents(
             )
             if (idx >= 0) updated[idx] = cfg else updated += cfg
             state.updateSnapshot { copy(servers = updated) }
-            val result = runCatching { configurationRepository.saveMcpConfig(state.snapshotConfig()) }
+            val result = configurationManager.upsertServer(previousConfig, cfg)
             if (result.isFailure) {
                 revertServersOnFailure("upsertServer", previousServers, result.exceptionOrNull(), "Failed to save server")
             } else {
-                capabilityRefresher.syncWithServers(updated)
+                capabilityRefresher.syncWithServers(result.getOrNull()?.servers ?: updated)
                 triggerServerRefresh(setOf(draft.id), force = true)
             }
             publishReady()
@@ -122,13 +130,14 @@ internal class AppStoreIntents(
     override fun removeServer(id: String) {
         scope.launch {
             val previousServers = state.snapshot.servers
+            val previousConfig = state.snapshotConfig()
             val updated = previousServers.filterNot { it.id == id }
             state.updateSnapshot { copy(servers = updated) }
-            val result = runCatching { configurationRepository.saveMcpConfig(state.snapshotConfig()) }
+            val result = configurationManager.removeServer(previousConfig, id)
             if (result.isFailure) {
                 revertServersOnFailure("removeServer", previousServers, result.exceptionOrNull(), "Failed to save servers")
             } else {
-                capabilityRefresher.syncWithServers(updated)
+                capabilityRefresher.syncWithServers(result.getOrNull()?.servers ?: updated)
                 capabilityRefresher.markServerRemoved(id)
             }
             publishReady()
@@ -138,12 +147,13 @@ internal class AppStoreIntents(
     override fun toggleServer(id: String, enabled: Boolean) {
         scope.launch {
             val previousServers = state.snapshot.servers
+            val previousConfig = state.snapshotConfig()
             val idx = previousServers.indexOfFirst { it.id == id }
             if (idx < 0) return@launch
             val updated = previousServers.toMutableList()
             updated[idx] = updated[idx].copy(enabled = enabled)
             state.updateSnapshot { copy(servers = updated) }
-            val result = runCatching { configurationRepository.saveMcpConfig(state.snapshotConfig()) }
+            val result = configurationManager.toggleServer(previousConfig, id, enabled)
             if (result.isFailure) {
                 revertServersOnFailure("toggleServer", previousServers, result.exceptionOrNull(), "Failed to save server state")
             } else {
@@ -164,18 +174,16 @@ internal class AppStoreIntents(
             val idx = updated.indexOfFirst { it.id == preset.id }
             if (idx >= 0) updated[idx] = preset else updated += preset
             state.updateSnapshot { copy(presets = updated) }
-            val result = runCatching {
-                configurationRepository.savePreset(
-                    UiPresetCore(
-                        id = preset.id,
-                        name = preset.name,
-                        description = preset.description ?: "",
-                        tools = emptyList(),
-                        prompts = null,
-                        resources = null
-                    )
+            val result = configurationManager.savePreset(
+                UiPresetCore(
+                    id = preset.id,
+                    name = preset.name,
+                    description = preset.description ?: "",
+                    tools = emptyList(),
+                    prompts = null,
+                    resources = null
                 )
-            }
+            )
             if (result.isFailure) {
                 revertPresetsOnFailure("addOrUpdatePreset", previousPresets, result.exceptionOrNull(), "Failed to save preset")
             }
@@ -186,7 +194,7 @@ internal class AppStoreIntents(
     override fun upsertPreset(draft: UiPresetDraft) {
         scope.launch {
             val preset = draft.toCorePreset()
-            val saveResult = runCatching { configurationRepository.savePreset(preset) }
+            val saveResult = configurationManager.savePreset(preset)
             if (saveResult.isFailure) {
                 val msg = saveResult.exceptionOrNull()?.message ?: "Failed to save preset"
                 logger.info("[AppStore] upsertPreset failed: $msg")
@@ -213,7 +221,7 @@ internal class AppStoreIntents(
             val previousPresets = state.snapshot.presets
             val updated = previousPresets.filterNot { it.id == id }
             state.updateSnapshot { copy(presets = updated) }
-            val result = runCatching { configurationRepository.deletePreset(id) }
+            val result = configurationManager.deletePreset(id)
             if (result.isFailure) {
                 revertPresetsOnFailure("removePreset", previousPresets, result.exceptionOrNull(), "Failed to delete preset")
             }
@@ -272,14 +280,15 @@ internal class AppStoreIntents(
     override fun updateRequestTimeout(seconds: Int) {
         scope.launch {
             val previous = state.snapshot.requestTimeoutSeconds
+            val previousConfig = state.snapshotConfig()
             state.updateSnapshot { copy(requestTimeoutSeconds = seconds) }
-            proxyController.updateCallTimeout(state.snapshot.requestTimeoutSeconds)
-            val result = runCatching { configurationRepository.saveMcpConfig(state.snapshotConfig()) }
+            proxyLifecycle.updateCallTimeout(state.snapshot.requestTimeoutSeconds)
+            val result = configurationManager.updateRequestTimeout(previousConfig, seconds)
             if (result.isFailure) {
                 val msg = result.exceptionOrNull()?.message ?: "Failed to update timeout"
                 logger.info("[AppStore] updateRequestTimeout failed: $msg")
                 state.updateSnapshot { copy(requestTimeoutSeconds = previous) }
-                proxyController.updateCallTimeout(previous)
+                proxyLifecycle.updateCallTimeout(previous)
                 state.setError(msg)
             }
             publishReady()
@@ -289,14 +298,15 @@ internal class AppStoreIntents(
     override fun updateCapabilitiesTimeout(seconds: Int) {
         scope.launch {
             val previous = state.snapshot.capabilitiesTimeoutSeconds
+            val previousConfig = state.snapshotConfig()
             state.updateSnapshot { copy(capabilitiesTimeoutSeconds = seconds) }
-            proxyController.updateCapabilitiesTimeout(state.snapshot.capabilitiesTimeoutSeconds)
-            val result = runCatching { configurationRepository.saveMcpConfig(state.snapshotConfig()) }
+            proxyLifecycle.updateCapabilitiesTimeout(state.snapshot.capabilitiesTimeoutSeconds)
+            val result = configurationManager.updateCapabilitiesTimeout(previousConfig, seconds)
             if (result.isFailure) {
                 val msg = result.exceptionOrNull()?.message ?: "Failed to update capabilities timeout"
                 logger.info("[AppStore] updateCapabilitiesTimeout failed: $msg")
                 state.updateSnapshot { copy(capabilitiesTimeoutSeconds = previous) }
-                proxyController.updateCapabilitiesTimeout(previous)
+                proxyLifecycle.updateCapabilitiesTimeout(previous)
                 state.setError(msg)
             }
             publishReady()
@@ -308,8 +318,9 @@ internal class AppStoreIntents(
             val clamped = seconds.coerceAtLeast(30)
             if (state.snapshot.capabilitiesRefreshIntervalSeconds == clamped) return@launch
             val previous = state.snapshot.capabilitiesRefreshIntervalSeconds
+            val previousConfig = state.snapshotConfig()
             state.updateSnapshot { copy(capabilitiesRefreshIntervalSeconds = clamped) }
-            val result = runCatching { configurationRepository.saveMcpConfig(state.snapshotConfig()) }
+            val result = configurationManager.updateRefreshInterval(previousConfig, clamped)
             if (result.isFailure) {
                 val msg = result.exceptionOrNull()?.message ?: "Failed to update refresh interval"
                 logger.info("[AppStore] updateCapabilitiesRefreshInterval failed: $msg")
@@ -327,8 +338,9 @@ internal class AppStoreIntents(
         scope.launch {
             if (state.snapshot.showTrayIcon == visible) return@launch
             val previous = state.snapshot.showTrayIcon
+            val previousConfig = state.snapshotConfig()
             state.updateSnapshot { copy(showTrayIcon = visible) }
-            val result = runCatching { configurationRepository.saveMcpConfig(state.snapshotConfig()) }
+            val result = configurationManager.updateTrayIconVisibility(previousConfig, visible)
             if (result.isFailure) {
                 val msg = result.exceptionOrNull()?.message ?: "Failed to update tray preference"
                 logger.info("[AppStore] updateTrayIconVisibility failed: $msg")

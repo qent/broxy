@@ -1,11 +1,7 @@
-package io.qent.broxy.ui.adapter.store.internal
+package io.qent.broxy.core.capabilities
 
-import io.qent.broxy.core.utils.CollectingLogger
-import io.qent.broxy.ui.adapter.models.UiMcpServerConfig
-import io.qent.broxy.ui.adapter.models.UiServerCapsSnapshot
-import io.qent.broxy.ui.adapter.models.UiServerConnStatus
-import io.qent.broxy.ui.adapter.store.CapabilityFetcher
-import io.qent.broxy.ui.adapter.store.toSnapshot
+import io.qent.broxy.core.models.McpServerConfig
+import io.qent.broxy.core.utils.Logger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -15,20 +11,21 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
-internal class CapabilityRefresher(
+class CapabilityRefresher(
     private val scope: CoroutineScope,
     private val capabilityFetcher: CapabilityFetcher,
     private val capabilityCache: CapabilityCache,
     private val statusTracker: ServerStatusTracker,
-    private val logger: CollectingLogger,
-    private val state: StoreStateAccess,
-    private val publishReady: () -> Unit,
+    private val logger: Logger,
+    private val serversProvider: () -> List<McpServerConfig>,
+    private val capabilitiesTimeoutProvider: () -> Int,
+    private val publishUpdate: () -> Unit,
     private val refreshIntervalMillis: () -> Long
 ) {
     private var refreshJob: Job? = null
     private var backgroundEnabled = true
 
-    fun syncWithServers(servers: List<UiMcpServerConfig>) {
+    fun syncWithServers(servers: List<McpServerConfig>) {
         val ids = servers.map { it.id }.toSet()
         capabilityCache.retain(ids)
         statusTracker.retain(ids)
@@ -40,7 +37,7 @@ internal class CapabilityRefresher(
 
     fun markServerDisabled(serverId: String) {
         capabilityCache.remove(serverId)
-        statusTracker.set(serverId, UiServerConnStatus.Disabled)
+        statusTracker.set(serverId, ServerConnectionStatus.Disabled)
     }
 
     fun markServerRemoved(serverId: String) {
@@ -64,13 +61,13 @@ internal class CapabilityRefresher(
         }
     }
 
-    suspend fun listEnabledServerCaps(): List<UiServerCapsSnapshot> {
-        val enabledIds = state.snapshot.servers.filter { it.enabled }.map { it.id }
+    suspend fun listEnabledServerCaps(): List<ServerCapsSnapshot> {
+        val enabledIds = serversProvider().filter { it.enabled }.map { it.id }
         return capabilityCache.list(enabledIds)
     }
 
-    suspend fun getServerCaps(serverId: String, forceRefresh: Boolean): UiServerCapsSnapshot? {
-        val cfg = state.snapshot.servers.firstOrNull { it.id == serverId } ?: return null
+    suspend fun getServerCaps(serverId: String, forceRefresh: Boolean): ServerCapsSnapshot? {
+        val cfg = serversProvider().firstOrNull { it.id == serverId } ?: return null
         if (!forceRefresh) {
             val cached = capabilityCache.snapshot(serverId)
             if (cached != null) {
@@ -79,19 +76,19 @@ internal class CapabilityRefresher(
         }
         val fetched = runCatching { fetchAndCacheCapabilities(cfg) }
             .onFailure { error ->
-                logger.info("[AppStore] getServerCaps('$serverId') failed: ${error.message}")
+                logger.info("CapabilityRefresher getServerCaps('$serverId') failed: ${error.message}")
             }
             .getOrNull()
         val finalSnapshot = fetched ?: capabilityCache.snapshot(serverId)
-        val status = if (finalSnapshot != null) UiServerConnStatus.Available else UiServerConnStatus.Error
+        val status = if (finalSnapshot != null) ServerConnectionStatus.Available else ServerConnectionStatus.Error
         statusTracker.set(serverId, status)
-        publishReady()
+        publishUpdate()
         return finalSnapshot
     }
 
     suspend fun refreshEnabledServers(force: Boolean) {
         val interval = refreshIntervalMillis()
-        val targets = state.snapshot.servers.filter { it.enabled }
+        val targets = serversProvider().filter { it.enabled }
             .filter { force || capabilityCache.shouldRefresh(it.id, interval) }
         refreshServers(targets)
     }
@@ -99,23 +96,23 @@ internal class CapabilityRefresher(
     suspend fun refreshServersById(targetIds: Set<String>, force: Boolean) {
         if (targetIds.isEmpty()) return
         val interval = refreshIntervalMillis()
-        val targets = state.snapshot.servers.filter { it.id in targetIds && it.enabled }
+        val targets = serversProvider().filter { it.id in targetIds && it.enabled }
             .filter { force || capabilityCache.shouldRefresh(it.id, interval) }
         refreshServers(targets)
     }
 
-    private suspend fun refreshServers(targets: List<UiMcpServerConfig>) {
+    private suspend fun refreshServers(targets: List<McpServerConfig>) {
         if (targets.isEmpty()) return
         val targetIds = targets.map { it.id }
-        statusTracker.setAll(targetIds, UiServerConnStatus.Connecting)
-        publishReady()
+        statusTracker.setAll(targetIds, ServerConnectionStatus.Connecting)
+        publishUpdate()
 
         val results = coroutineScope {
             targets.map { cfg ->
                 async {
                     val snapshot = runCatching { fetchAndCacheCapabilities(cfg) }
                         .onFailure { error ->
-                            logger.info("[AppStore] refresh server '${cfg.id}' failed: ${error.message}")
+                            logger.info("CapabilityRefresher refresh server '${cfg.id}' failed: ${error.message}")
                         }
                         .getOrNull()
                     if (snapshot == null && !capabilityCache.has(cfg.id)) {
@@ -126,21 +123,21 @@ internal class CapabilityRefresher(
             }.awaitAll()
         }
 
-        val currentServers = state.snapshot.servers.associateBy { it.id }
+        val currentServers = serversProvider().associateBy { it.id }
         results.forEach { (serverId, capsSnapshot) ->
             val enabled = currentServers[serverId]?.enabled == true
             val status = when {
-                !enabled -> UiServerConnStatus.Disabled
-                capsSnapshot != null -> UiServerConnStatus.Available
-                else -> UiServerConnStatus.Error
+                !enabled -> ServerConnectionStatus.Disabled
+                capsSnapshot != null -> ServerConnectionStatus.Available
+                else -> ServerConnectionStatus.Error
             }
             statusTracker.set(serverId, status)
         }
-        publishReady()
+        publishUpdate()
     }
 
-    private suspend fun fetchAndCacheCapabilities(cfg: UiMcpServerConfig): UiServerCapsSnapshot? {
-        val timeoutSeconds = state.snapshot.capabilitiesTimeoutSeconds
+    private suspend fun fetchAndCacheCapabilities(cfg: McpServerConfig): ServerCapsSnapshot? {
+        val timeoutSeconds = capabilitiesTimeoutProvider()
         val result = capabilityFetcher(cfg, timeoutSeconds)
         return if (result.isSuccess) {
             val snapshot = result.getOrThrow().toSnapshot(cfg)

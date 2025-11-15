@@ -1,21 +1,19 @@
-package io.qent.broxy.ui.adapter.store.internal
-
-import io.qent.broxy.ui.adapter.models.UiServerConnStatus
+package io.qent.broxy.core.capabilities
 
 /**
  * Tracks transient server connection statuses. Backed by a synchronized map.
  */
-internal class ServerStatusTracker {
-    private val statuses = mutableMapOf<String, UiServerConnStatus>()
+class ServerStatusTracker {
+    private val statuses = mutableMapOf<String, ServerConnectionStatus>()
     private val lock = Any()
 
-    fun statusFor(serverId: String): UiServerConnStatus? = synchronized(lock) { statuses[serverId] }
+    fun statusFor(serverId: String): ServerConnectionStatus? = synchronized(lock) { statuses[serverId] }
 
-    fun set(serverId: String, status: UiServerConnStatus) {
+    fun set(serverId: String, status: ServerConnectionStatus) {
         synchronized(lock) { statuses[serverId] = status }
     }
 
-    fun setAll(serverIds: Collection<String>, status: UiServerConnStatus) {
+    fun setAll(serverIds: Collection<String>, status: ServerConnectionStatus) {
         if (serverIds.isEmpty()) return
         synchronized(lock) { serverIds.forEach { statuses[it] = status } }
     }

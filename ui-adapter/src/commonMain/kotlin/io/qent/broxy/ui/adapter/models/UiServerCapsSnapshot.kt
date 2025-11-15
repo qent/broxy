@@ -1,34 +1,13 @@
 package io.qent.broxy.ui.adapter.models
 
-data class UiServerCapsSnapshot(
-    val serverId: String,
-    val name: String,
-    val tools: List<UiToolSummary> = emptyList(),
-    val prompts: List<UiPromptSummary> = emptyList(),
-    val resources: List<UiResourceSummary> = emptyList()
-)
+import io.qent.broxy.core.capabilities.CapabilityArgument
+import io.qent.broxy.core.capabilities.PromptSummary
+import io.qent.broxy.core.capabilities.ResourceSummary
+import io.qent.broxy.core.capabilities.ServerCapsSnapshot
+import io.qent.broxy.core.capabilities.ToolSummary
 
-data class UiToolSummary(
-    val name: String,
-    val description: String? = null,
-    val arguments: List<UiCapabilityArgument> = emptyList()
-)
-
-data class UiPromptSummary(
-    val name: String,
-    val description: String? = null,
-    val arguments: List<UiCapabilityArgument> = emptyList()
-)
-
-data class UiResourceSummary(
-    val key: String,
-    val name: String,
-    val description: String? = null,
-    val arguments: List<UiCapabilityArgument> = emptyList()
-)
-
-data class UiCapabilityArgument(
-    val name: String,
-    val type: String = "unspecified",
-    val required: Boolean = false
-)
+typealias UiServerCapsSnapshot = ServerCapsSnapshot
+typealias UiToolSummary = ToolSummary
+typealias UiPromptSummary = PromptSummary
+typealias UiResourceSummary = ResourceSummary
+typealias UiCapabilityArgument = CapabilityArgument

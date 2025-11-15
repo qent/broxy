@@ -5,6 +5,7 @@ import io.qent.broxy.core.models.McpServerConfig
 import io.qent.broxy.core.models.Preset
 import io.qent.broxy.core.models.ToolReference
 import io.qent.broxy.core.models.TransportConfig
+import io.qent.broxy.core.proxy.runtime.ProxyLifecycle
 import io.qent.broxy.core.repository.ConfigurationRepository
 import io.qent.broxy.core.utils.CollectingLogger
 import io.qent.broxy.core.utils.LogEvent
@@ -16,7 +17,7 @@ import io.qent.broxy.ui.adapter.models.UiServerConnStatus
 import io.qent.broxy.ui.adapter.models.UiServerCapabilities
 import io.qent.broxy.ui.adapter.models.UiTransportConfig
 import io.qent.broxy.ui.adapter.models.UiWebSocketDraft
-import io.qent.broxy.ui.adapter.proxy.ProxyController
+import io.qent.broxy.core.proxy.runtime.ProxyController
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -71,11 +72,14 @@ class AppStoreTest {
             )
         )
         val proxyController = FakeProxyController()
+        val proxyLifecycle = ProxyLifecycle(proxyController, noopLogger)
+        val proxyLifecycle = ProxyLifecycle(proxyController, noopLogger)
+        val proxyLifecycle = ProxyLifecycle(proxyController, noopLogger)
         val logger = CollectingLogger(delegate = noopLogger)
         val storeScope = TestScope(testScheduler)
         val store = AppStore(
             configurationRepository = repository,
-            proxyController = proxyController,
+            proxyLifecycle = proxyLifecycle,
             capabilityFetcher = capabilityFetcher::invoke,
             logger = logger,
             scope = storeScope,
@@ -123,11 +127,15 @@ class AppStoreTest {
         )
         val capabilityFetcher = RecordingCapabilityFetcher(Result.success(UiServerCapabilities()))
         val proxyController = FakeProxyController()
+        val proxyLifecycle = ProxyLifecycle(proxyController, noopLogger)
+        val proxyLifecycle = ProxyLifecycle(proxyController, noopLogger)
+        val proxyLifecycle = ProxyLifecycle(proxyController, noopLogger)
+        val proxyLifecycle = ProxyLifecycle(proxyController, noopLogger)
         val logger = CollectingLogger(delegate = noopLogger)
         val storeScope = TestScope(testScheduler)
         val store = AppStore(
             configurationRepository = repository,
-            proxyController = proxyController,
+            proxyLifecycle = proxyLifecycle,
             capabilityFetcher = capabilityFetcher::invoke,
             logger = logger,
             scope = storeScope,
@@ -178,7 +186,7 @@ class AppStoreTest {
         val storeScope = TestScope(testScheduler)
         val store = AppStore(
             configurationRepository = repository,
-            proxyController = proxyController,
+            proxyLifecycle = proxyLifecycle,
             capabilityFetcher = capabilityFetcher::invoke,
             logger = logger,
             scope = storeScope,
@@ -231,7 +239,7 @@ class AppStoreTest {
         val storeScope = TestScope(testScheduler)
         val store = AppStore(
             configurationRepository = repository,
-            proxyController = proxyController,
+            proxyLifecycle = proxyLifecycle,
             capabilityFetcher = capabilityFetcher::invoke,
             logger = logger,
             scope = storeScope,
@@ -278,7 +286,7 @@ class AppStoreTest {
         val storeScope = TestScope(testScheduler)
         val store = AppStore(
             configurationRepository = repository,
-            proxyController = proxyController,
+            proxyLifecycle = proxyLifecycle,
             capabilityFetcher = capabilityFetcher::invoke,
             logger = logger,
             scope = storeScope,
@@ -334,7 +342,7 @@ class AppStoreTest {
         val storeScope = TestScope(testScheduler)
         val store = AppStore(
             configurationRepository = repository,
-            proxyController = proxyController,
+            proxyLifecycle = proxyLifecycle,
             capabilityFetcher = capabilityFetcher::invoke,
             logger = logger,
             scope = storeScope,
@@ -388,7 +396,7 @@ class AppStoreTest {
         val storeScope = TestScope(testScheduler)
         val store = AppStore(
             configurationRepository = repository,
-            proxyController = proxyController,
+            proxyLifecycle = proxyLifecycle,
             capabilityFetcher = capabilityFetcher::invoke,
             logger = logger,
             scope = storeScope,
@@ -450,6 +458,7 @@ class AppStoreTest {
         val startCalls = mutableListOf<StartParams>()
         val callTimeoutUpdates = mutableListOf<Int>()
         val capabilityTimeoutUpdates = mutableListOf<Int>()
+        val appliedPresets = mutableListOf<String>()
 
         override fun start(
             servers: List<UiMcpServerConfig>,
@@ -470,6 +479,11 @@ class AppStoreTest {
         }
 
         override fun stop(): Result<Unit> = Result.success(Unit)
+
+        override fun applyPreset(preset: io.qent.broxy.core.models.Preset): Result<Unit> {
+            appliedPresets += preset.id
+            return Result.success(Unit)
+        }
 
         override fun updateCallTimeout(seconds: Int) {
             callTimeoutUpdates += seconds

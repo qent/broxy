@@ -1,9 +1,11 @@
 package io.qent.broxy.ui.adapter.store.internal
 
+import io.qent.broxy.core.capabilities.CapabilityCache
+import io.qent.broxy.core.capabilities.CapabilityRefresher
+import io.qent.broxy.core.capabilities.ServerStatusTracker
 import io.qent.broxy.core.utils.CollectingLogger
 import io.qent.broxy.core.utils.Logger
 import io.qent.broxy.ui.adapter.models.UiMcpServerConfig
-import io.qent.broxy.ui.adapter.models.UiMcpServersConfig
 import io.qent.broxy.ui.adapter.models.UiServerCapabilities
 import io.qent.broxy.ui.adapter.models.UiServerConnStatus
 import io.qent.broxy.ui.adapter.models.UiStdioTransport
@@ -38,12 +40,6 @@ class CapabilityRefresherTest {
         ),
         capabilitiesTimeoutSeconds = 15,
         capabilitiesRefreshIntervalSeconds = 60
-    )
-    private val stateAccess = StoreStateAccess(
-        snapshotProvider = { storeSnapshot },
-        snapshotUpdater = { transform -> storeSnapshot = storeSnapshot.transform() },
-        snapshotConfigProvider = { UiMcpServersConfig() },
-        errorHandler = {}
     )
 
     @org.junit.Test
@@ -80,8 +76,9 @@ class CapabilityRefresherTest {
             capabilityCache = cache,
             statusTracker = tracker,
             logger = logger,
-            state = stateAccess,
-            publishReady = { publishes += Unit },
+            serversProvider = { storeSnapshot.servers },
+            capabilitiesTimeoutProvider = { storeSnapshot.capabilitiesTimeoutSeconds },
+            publishUpdate = { publishes += Unit },
             refreshIntervalMillis = { 1_000L }
         )
     }

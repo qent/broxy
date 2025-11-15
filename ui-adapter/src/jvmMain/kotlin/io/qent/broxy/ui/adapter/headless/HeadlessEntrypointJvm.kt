@@ -2,8 +2,10 @@ package io.qent.broxy.ui.adapter.headless
 
 import io.qent.broxy.core.config.JsonConfigurationRepository
 import io.qent.broxy.core.models.TransportConfig
+import io.qent.broxy.core.proxy.runtime.ProxyLifecycle
+import io.qent.broxy.core.proxy.runtime.createStdioProxyController
+import io.qent.broxy.core.utils.CollectingLogger
 import io.qent.broxy.core.utils.StdErrLogger
-import io.qent.broxy.ui.adapter.proxy.createStdioProxyController
 import java.nio.file.Paths
 
 /**
@@ -23,15 +25,11 @@ fun runStdioProxy(presetId: String, configDir: String? = null): Result<Unit> = r
     val cfg = repo.loadMcpConfig()
     val preset = repo.loadPreset(presetId)
 
-    val controller = createStdioProxyController()
+    val logger = CollectingLogger(delegate = StdErrLogger)
+    val controller = createStdioProxyController(logger)
+    val lifecycle = ProxyLifecycle(controller, logger)
     val inbound = TransportConfig.StdioTransport(command = "", args = emptyList())
-    val r = controller.start(
-        servers = cfg.servers,
-        preset = preset,
-        inbound = inbound,
-        callTimeoutSeconds = cfg.requestTimeoutSeconds,
-        capabilitiesTimeoutSeconds = cfg.capabilitiesTimeoutSeconds
-    )
+    val r = lifecycle.start(cfg, preset, inbound)
     if (r.isFailure) throw r.exceptionOrNull() ?: IllegalStateException("Failed to start proxy")
     // For STDIO inbound, controller.start() blocks inside InboundServers until the session ends.
     // When it returns successfully, we treat it as a graceful exit.

@@ -1,5 +1,6 @@
 package io.qent.broxy.ui.adapter.store.internal
 
+import io.qent.broxy.core.capabilities.CapabilityCache
 import io.qent.broxy.ui.adapter.models.UiServerCapsSnapshot
 import org.junit.Test
 import kotlin.test.assertEquals
