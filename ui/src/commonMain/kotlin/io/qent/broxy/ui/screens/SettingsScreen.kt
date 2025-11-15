@@ -120,6 +120,7 @@ private fun SettingsContent(
     val parsedRefresh = capabilitiesRefreshInput.toLongOrNull()
     val resolvedRefresh = parsedRefresh?.takeIf { it >= 30 && it <= Int.MAX_VALUE }?.toInt()
     val canSaveRefresh = resolvedRefresh != null && resolvedRefresh != capabilitiesRefreshIntervalSeconds
+    val canSaveAny = canSaveRequest || canSaveCapabilities || canSaveRefresh
 
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -135,14 +136,10 @@ private fun SettingsContent(
             description = "Set how long broxy waits for downstream MCP calls before timing out.",
             label = "Seconds",
             value = requestTimeoutInput,
-            canSave = canSaveRequest,
             onValueChange = { value ->
                 if (value.isEmpty() || value.all { it.isDigit() }) {
                     requestTimeoutInput = value
                 }
-            },
-            onSave = {
-                resolvedRequest?.let { onRequestTimeoutSave(it) }
             }
         )
         TimeoutSetting(
@@ -150,14 +147,10 @@ private fun SettingsContent(
             description = "Limit how long broxy waits for tool/resource/prompt listings when connecting to servers.",
             label = "Seconds",
             value = capabilitiesTimeoutInput,
-            canSave = canSaveCapabilities,
             onValueChange = { value ->
                 if (value.isEmpty() || value.all { it.isDigit() }) {
                     capabilitiesTimeoutInput = value
                 }
-            },
-            onSave = {
-                resolvedCapabilities?.let { onCapabilitiesTimeoutSave(it) }
             }
         )
         TimeoutSetting(
@@ -165,16 +158,33 @@ private fun SettingsContent(
             description = "Control how often cached MCP server capabilities are refreshed in the background.",
             label = "Seconds",
             value = capabilitiesRefreshInput,
-            canSave = canSaveRefresh,
             onValueChange = { value ->
                 if (value.isEmpty() || value.all { it.isDigit() }) {
                     capabilitiesRefreshInput = value
                 }
-            },
-            onSave = {
-                resolvedRefresh?.let { onCapabilitiesRefreshIntervalSave(it) }
             }
         )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End
+        ) {
+            AppPrimaryButton(
+                onClick = {
+                    if (canSaveRequest) {
+                        resolvedRequest?.let { onRequestTimeoutSave(it) }
+                    }
+                    if (canSaveCapabilities) {
+                        resolvedCapabilities?.let { onCapabilitiesTimeoutSave(it) }
+                    }
+                    if (canSaveRefresh) {
+                        resolvedRefresh?.let { onCapabilitiesRefreshIntervalSave(it) }
+                    }
+                },
+                enabled = canSaveAny
+            ) {
+                Text("Save")
+            }
+        }
     }
 }
 
@@ -197,21 +207,11 @@ private fun TimeoutSetting(
     description: String,
     label: String,
     value: String,
-    canSave: Boolean,
-    onValueChange: (String) -> Unit,
-    onSave: () -> Unit
+    onValueChange: (String) -> Unit
 ) {
     SettingCard(
         title = title,
-        description = description,
-        supportingContent = {
-            AppPrimaryButton(
-                onClick = onSave,
-                enabled = canSave
-            ) {
-                Text("Save")
-            }
-        }
+        description = description
     ) {
         OutlinedTextField(
             value = value,
