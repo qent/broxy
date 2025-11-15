@@ -21,10 +21,10 @@ import io.qent.broxy.ui.adapter.models.UiProxyStatus
 import io.qent.broxy.ui.adapter.store.UIState
 import io.qent.broxy.ui.adapter.store.createAppStore
 import io.qent.broxy.ui.icons.createApplicationIconImage
+import io.qent.broxy.ui.icons.createTrayIconImage
 import io.qent.broxy.ui.icons.rememberApplicationIconPainter
 import io.qent.broxy.ui.screens.MainWindow
 import io.qent.broxy.ui.viewmodels.AppState
-import io.qent.broxy.ui.windowDrag
 import java.awt.AWTException
 import java.awt.Dimension
 import java.awt.EventQueue
@@ -154,7 +154,7 @@ fun main(args: Array<String>) {
         }
 
         if (trayActive && traySupported) {
-            val trayIconImage = remember { createApplicationIconImage(size = 22) }
+            val trayIconImage = remember { createTrayIconImage(size = 256) }
             val trayModel = createTrayModel(
                 uiState = uiState,
                 trayIconImage = trayIconImage,

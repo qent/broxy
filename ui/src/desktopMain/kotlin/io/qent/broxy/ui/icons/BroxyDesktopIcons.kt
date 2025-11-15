@@ -14,21 +14,40 @@ import java.io.ByteArrayInputStream
 import javax.imageio.ImageIO
 
 private const val APP_ICON_RESOURCE_PATH = "/icons/broxy.png"
+private const val TRAY_ICON_RESOURCE_PATH = "/icons/broxy_tray.png"
 
 private object IconResourceMarker
 
-private val appIconBytes: ByteArray by lazy { loadAppIconBytes() }
+private val appIconBytes: ByteArray by lazy { loadIconBytes(APP_ICON_RESOURCE_PATH) }
 private val appIconBitmap: ImageBitmap by lazy { Image.makeFromEncoded(appIconBytes).asImageBitmap() }
-private val baseAppIconImage: BufferedImage by lazy { readBufferedImage(appIconBytes) }
+private val baseAppIconImage: BufferedImage by lazy { readBufferedImage(appIconBytes, APP_ICON_RESOURCE_PATH) }
+private val trayIconBytes: ByteArray by lazy { loadIconBytes(TRAY_ICON_RESOURCE_PATH) }
+private val baseTrayIconImage: BufferedImage by lazy { readBufferedImage(trayIconBytes, TRAY_ICON_RESOURCE_PATH) }
 
 @Composable
 fun rememberApplicationIconPainter(): Painter {
     return remember { BitmapPainter(appIconBitmap, filterQuality = FilterQuality.High) }
 }
 
-fun createApplicationIconImage(size: Int): BufferedImage {
+fun createApplicationIconImage(size: Int): BufferedImage = resizeBufferedImage(baseAppIconImage, size)
+
+fun createTrayIconImage(size: Int): BufferedImage = resizeBufferedImage(baseTrayIconImage, size)
+
+private fun loadIconBytes(resourcePath: String): ByteArray {
+    val stream = IconResourceMarker::class.java.getResourceAsStream(resourcePath)
+        ?: error("Icon resource not found: $resourcePath")
+    return stream.use { it.readBytes() }
+}
+
+private fun readBufferedImage(bytes: ByteArray, resourcePath: String): BufferedImage {
+    ByteArrayInputStream(bytes).use { input ->
+        return ImageIO.read(input)
+            ?: error("Unable to decode icon resource: $resourcePath")
+    }
+}
+
+private fun resizeBufferedImage(source: BufferedImage, size: Int): BufferedImage {
     val targetSize = size.coerceAtLeast(1)
-    val source = baseAppIconImage
     if (targetSize == source.width && source.width == source.height) {
         return copyBufferedImage(source)
     }
@@ -36,19 +55,6 @@ fun createApplicationIconImage(size: Int): BufferedImage {
         return copyBufferedImage(source)
     }
     return scaleBufferedImage(source, targetSize)
-}
-
-private fun loadAppIconBytes(): ByteArray {
-    val stream = IconResourceMarker::class.java.getResourceAsStream(APP_ICON_RESOURCE_PATH)
-        ?: error("App icon resource not found: $APP_ICON_RESOURCE_PATH")
-    return stream.use { it.readBytes() }
-}
-
-private fun readBufferedImage(bytes: ByteArray): BufferedImage {
-    ByteArrayInputStream(bytes).use { input ->
-        return ImageIO.read(input)
-            ?: error("Unable to decode app icon resource: $APP_ICON_RESOURCE_PATH")
-    }
 }
 
 private fun copyBufferedImage(source: BufferedImage): BufferedImage {
