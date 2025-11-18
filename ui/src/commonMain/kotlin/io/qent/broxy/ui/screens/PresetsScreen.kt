@@ -33,6 +33,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import io.qent.broxy.ui.adapter.models.UiPreset
 import io.qent.broxy.ui.adapter.store.UIState
 import io.qent.broxy.ui.adapter.store.AppStore
+import io.qent.broxy.ui.components.AppDialog
+import io.qent.broxy.ui.components.AppPrimaryButton
+import io.qent.broxy.ui.components.AppSecondaryButton
 import io.qent.broxy.ui.viewmodels.AppState
 import io.qent.broxy.ui.theme.AppTheme
 
@@ -40,6 +43,7 @@ import io.qent.broxy.ui.theme.AppTheme
 fun PresetsScreen(ui: UIState, state: AppState, store: AppStore) {
     var query by rememberSaveable { mutableStateOf("") }
     var editing: UiPreset? by remember { mutableStateOf<UiPreset?>(null) }
+    var pendingDeletion: UiPreset? by remember { mutableStateOf<UiPreset?>(null) }
 
     Column(
         modifier = Modifier
@@ -76,7 +80,7 @@ fun PresetsScreen(ui: UIState, state: AppState, store: AppStore) {
                             PresetCard(
                                 preset = preset,
                                 onEdit = { editing = preset },
-                                onDelete = { ui.intents.removePreset(preset.id) }
+                                onDelete = { pendingDeletion = preset }
                             )
                         }
                     }
@@ -91,6 +95,19 @@ fun PresetsScreen(ui: UIState, state: AppState, store: AppStore) {
             } else {
                 editing = null
             }
+        }
+
+        val readyUi = ui as? UIState.Ready
+        val toDelete = pendingDeletion
+        if (readyUi != null && toDelete != null) {
+            DeletePresetDialog(
+                preset = toDelete,
+                onConfirm = {
+                    readyUi.intents.removePreset(toDelete.id)
+                    pendingDeletion = null
+                },
+                onDismiss = { pendingDeletion = null }
+            )
         }
     }
 }
@@ -155,6 +172,32 @@ private fun PresetCard(
             IconButton(onClick = onDelete) {
                 Icon(Icons.Outlined.Delete, contentDescription = "Delete preset")
             }
+        }
+    }
+}
+
+@Composable
+private fun DeletePresetDialog(
+    preset: UiPreset,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AppDialog(
+        title = "Delete preset",
+        onDismissRequest = onDismiss,
+        dismissButton = { AppSecondaryButton(onClick = onDismiss) { Text("Cancel") } },
+        confirmButton = { AppPrimaryButton(onClick = onConfirm) { Text("Delete") } }
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)) {
+            Text(
+                text = "Remove \"${preset.name}\"?",
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Text(
+                text = "This preset will disappear from Broxy, including the CLI shortcuts that rely on it. This action cannot be undone.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

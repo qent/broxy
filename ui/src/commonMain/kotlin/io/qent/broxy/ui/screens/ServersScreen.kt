@@ -20,7 +20,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -36,6 +35,9 @@ import io.qent.broxy.ui.viewmodels.AppState
 import io.qent.broxy.ui.adapter.store.AppStore
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import io.qent.broxy.ui.components.AppDialog
+import io.qent.broxy.ui.components.AppPrimaryButton
+import io.qent.broxy.ui.components.AppSecondaryButton
 import io.qent.broxy.ui.theme.AppTheme
 
 @Composable
@@ -43,6 +45,7 @@ fun ServersScreen(ui: UIState, state: AppState, store: AppStore, notify: (String
     var query by rememberSaveable { mutableStateOf("") }
     var editing: UiServer? by remember { mutableStateOf<UiServer?>(null) }
     var viewing: UiServer? by remember { mutableStateOf<UiServer?>(null) }
+    var pendingDeletion: UiServer? by remember { mutableStateOf<UiServer?>(null) }
 
     Column(
         modifier = Modifier
@@ -86,7 +89,7 @@ fun ServersScreen(ui: UIState, state: AppState, store: AppStore, notify: (String
                                     ui.intents.toggleServer(id, enabled)
                                 },
                                 onEdit = { editing = cfg },
-                                onDelete = { id -> ui.intents.removeServer(id) }
+                                onDelete = { pendingDeletion = cfg }
                             )
                         }
                     }
@@ -106,6 +109,19 @@ fun ServersScreen(ui: UIState, state: AppState, store: AppStore, notify: (String
         viewing?.let { server ->
             ServerDetailsDialog(server = server, store = store, onClose = { viewing = null })
         }
+
+        val readyUi = ui as? UIState.Ready
+        val toDelete = pendingDeletion
+        if (readyUi != null && toDelete != null) {
+            DeleteServerDialog(
+                server = toDelete,
+                onConfirm = {
+                    readyUi.intents.removeServer(toDelete.id)
+                    pendingDeletion = null
+                },
+                onDismiss = { pendingDeletion = null }
+            )
+        }
     }
 }
 
@@ -114,7 +130,7 @@ private fun ServerCard(
     cfg: UiServer,
     onViewDetails: () -> Unit,
     onToggle: (String, Boolean) -> Unit,
-    onDelete: (String) -> Unit,
+    onDelete: () -> Unit,
     onEdit: () -> Unit
 ) {
     Card(
@@ -167,7 +183,33 @@ private fun ServerCard(
             Switch(checked = cfg.enabled, onCheckedChange = { enabled -> onToggle(cfg.id, enabled) })
             Spacer(Modifier.width(AppTheme.spacing.xs))
             IconButton(onClick = onEdit) { Icon(Icons.Outlined.Edit, contentDescription = "Edit") }
-            IconButton(onClick = { onDelete(cfg.id) }) { Icon(Icons.Outlined.Delete, contentDescription = "Delete") }
+            IconButton(onClick = onDelete) { Icon(Icons.Outlined.Delete, contentDescription = "Delete") }
+        }
+    }
+}
+
+@Composable
+private fun DeleteServerDialog(
+    server: UiServer,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AppDialog(
+        title = "Delete server",
+        onDismissRequest = onDismiss,
+        dismissButton = { AppSecondaryButton(onClick = onDismiss) { Text("Cancel") } },
+        confirmButton = { AppPrimaryButton(onClick = onConfirm) { Text("Delete") } }
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)) {
+            Text(
+                text = "Remove \"${server.name}\" (${server.id})?",
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Text(
+                text = "This removes the server configuration and presets that referenced it will lose access to its capabilities. This action cannot be undone.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
