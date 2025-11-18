@@ -48,10 +48,6 @@ fun AppDialog(
     title: String,
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
-    contentPadding: PaddingValues = PaddingValues(
-        horizontal = AppTheme.spacing.lg,
-        vertical = AppTheme.spacing.md
-    ),
     dismissButton: (@Composable () -> Unit)? = null,
     confirmButton: @Composable () -> Unit,
     content: @Composable ColumnScope.() -> Unit
@@ -85,7 +81,15 @@ fun AppDialog(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(contentPadding),
+                        .padding(
+                            start = AppTheme.spacing.lg,
+                            end = AppTheme.spacing.lg - if (showScrollbar) {
+                                AppTheme.layout.scrollbarThickness
+                            } else {
+                                0.dp
+                            },
+                            top = AppTheme.spacing.md
+                        ),
                     verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)
                 ) {
                     Text(title, style = MaterialTheme.typography.headlineSmall)
@@ -109,7 +113,9 @@ fun AppDialog(
                             if (showScrollbar) {
                                 AppVerticalScrollbar(
                                     adapter = scrollbarAdapter,
-                                    modifier = Modifier.fillMaxHeight()
+                                    modifier = Modifier.fillMaxHeight(),
+                                    canScroll = showScrollbar,
+                                    isScrollInProgress = scrollState.isScrollInProgress
                                 )
                             }
                         }
@@ -121,7 +127,7 @@ fun AppDialog(
                         .fillMaxWidth()
                         .padding(
                             horizontal = AppTheme.spacing.lg,
-                            vertical = AppTheme.spacing.md
+                            vertical = AppTheme.spacing.sm
                         ),
                     horizontalArrangement = Arrangement.End
                 ) {

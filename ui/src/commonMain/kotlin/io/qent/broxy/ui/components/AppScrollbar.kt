@@ -1,12 +1,17 @@
 package io.qent.broxy.ui.components
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ScrollbarStyle
 import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.scrollBy
+import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.interaction.HoverInteraction
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Box
@@ -17,20 +22,29 @@ import androidx.compose.foundation.v2.maxScrollOffset
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.theme.AppTheme
 import kotlin.math.abs
+import kotlinx.coroutines.flow.collect
 
 @Composable
 fun AppVerticalScrollbar(
     adapter: ScrollbarAdapter,
     modifier: Modifier = Modifier,
+    canScroll: Boolean = true,
+    isScrollInProgress: Boolean = false,
     trackShape: CornerBasedShape = RoundedCornerShape(
         topStart = AppTheme.radii.sm,
         bottomStart = AppTheme.radii.sm
@@ -38,11 +52,34 @@ fun AppVerticalScrollbar(
     trackColor: Color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
 ) {
     val style = rememberScrollbarStyle()
+    val interactionSource = remember { MutableInteractionSource() }
+    var hovered by remember { mutableStateOf(false) }
+
+    LaunchedEffect(interactionSource) {
+        interactionSource.interactions.collect { interaction ->
+            when (interaction) {
+                is HoverInteraction.Enter -> hovered = true
+                is HoverInteraction.Exit -> hovered = false
+            }
+        }
+    }
+
+    val shouldShow by remember(canScroll, isScrollInProgress, hovered) {
+        derivedStateOf { canScroll && (isScrollInProgress || hovered) }
+    }
+    val targetAlpha = if (shouldShow) 1f else 0f
+    val alpha by animateFloatAsState(
+        targetValue = targetAlpha,
+        animationSpec = tween(durationMillis = 120),
+        label = "ScrollbarAlpha"
+    )
 
     Box(
         modifier = modifier
+            .hoverable(interactionSource = interactionSource, enabled = canScroll)
             .width(AppTheme.layout.scrollbarThickness)
-            .fillMaxHeight(),
+            .fillMaxHeight()
+            .graphicsLayer { this.alpha = alpha },
         contentAlignment = Alignment.Center
     ) {
         Box(

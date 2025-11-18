@@ -141,7 +141,9 @@ private fun LogsContent(logs: List<UiLogEntry>) {
                 adapter = scrollbarAdapter,
                 modifier = Modifier
                     .align(Alignment.CenterEnd)
-                    .fillMaxHeight()
+                    .fillMaxHeight(),
+                canScroll = showScrollbar,
+                isScrollInProgress = listState.isScrollInProgress
             )
         }
     }
