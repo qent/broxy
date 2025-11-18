@@ -26,7 +26,7 @@ internal data class StoreSnapshot(
     val activeProxyPresetId: String? = null,
     val activeInbound: UiTransportConfig? = null,
     val requestTimeoutSeconds: Int = 60,
-    val capabilitiesTimeoutSeconds: Int = 30,
+    val capabilitiesTimeoutSeconds: Int = 10,
     val capabilitiesRefreshIntervalSeconds: Int = 300,
     val showTrayIcon: Boolean = true
 )

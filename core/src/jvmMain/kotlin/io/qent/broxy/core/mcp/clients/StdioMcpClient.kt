@@ -104,7 +104,7 @@ class StdioMcpClient(
                 val transport = LoggingTransport(StdioClientTransport(source, sink), logger)
                 val sdk = Client(io.modelcontextprotocol.kotlin.sdk.Implementation(IMPLEMENTATION_NAME, LIB_VERSION))
                 sdk.connect(transport)
-                RealSdkClientFacade(sdk)
+                RealSdkClientFacade(sdk, logger)
             }
 
             try {
@@ -125,8 +125,15 @@ class StdioMcpClient(
     }
 
     override suspend fun disconnect() {
-        runCatching { client?.close() }
-        process?.destroy()
+        // Close client with timeout to avoid hanging
+        runCatching {
+            withTimeout(2000) {
+                client?.close()
+            }
+        }.onFailure { ex ->
+            logger.warn("Error closing client: ${ex.message}")
+        }
+        process?.destroyForcibly()
         stderrThread?.let {
             runCatching { it.join(500) }
         }
@@ -213,8 +220,8 @@ class StdioMcpClient(
     }
 
     companion object {
-        private const val DEFAULT_CONNECT_TIMEOUT_MILLIS = 30_000L
-        private const val DEFAULT_CAPABILITIES_TIMEOUT_MILLIS = 30_000L
+        private const val DEFAULT_CONNECT_TIMEOUT_MILLIS = 10_000L
+        private const val DEFAULT_CAPABILITIES_TIMEOUT_MILLIS = 10_000L
     }
 }
 
@@ -222,22 +229,34 @@ private class LoggingTransport(
     private val delegate: Transport,
     private val logger: Logger
 ) : Transport {
-    private val resourceListRequests = Collections.newSetFromMap(ConcurrentHashMap<io.modelcontextprotocol.kotlin.sdk.RequestId, Boolean>())
+    private val trackedRequests = ConcurrentHashMap<io.modelcontextprotocol.kotlin.sdk.RequestId, String>()
 
     override suspend fun start() {
         delegate.start()
     }
 
     override suspend fun send(message: JSONRPCMessage) {
-        if (message is JSONRPCRequest && message.method == Method.Defined.ResourcesList.value) {
-            resourceListRequests.add(message.id)
-            logger.info("STDIO resources/list request id=${message.id}")
+        if (message is JSONRPCRequest) {
+            when (message.method) {
+                Method.Defined.ToolsList.value -> {
+                    trackedRequests[message.id] = "tools/list"
+                    logger.info("STDIO tools/list request id=${message.id}")
+                }
+                Method.Defined.ResourcesList.value -> {
+                    trackedRequests[message.id] = "resources/list"
+                    logger.info("STDIO resources/list request id=${message.id}")
+                }
+                Method.Defined.PromptsList.value -> {
+                    trackedRequests[message.id] = "prompts/list"
+                    logger.info("STDIO prompts/list request id=${message.id}")
+                }
+            }
         }
         delegate.send(message)
     }
 
     override suspend fun close() {
-        resourceListRequests.clear()
+        trackedRequests.clear()
         delegate.close()
     }
 
@@ -253,14 +272,22 @@ private class LoggingTransport(
         delegate.onMessage { message ->
             val processed = when (message) {
                 is JSONRPCResponse -> {
-                    if (resourceListRequests.remove(message.id)) {
-                        logRaw("resources/list response", message)
+                    trackedRequests.remove(message.id)?.let { requestType ->
+                        logRaw("$requestType response", message)
                     }
                     message
                 }
                 is JSONRPCNotification -> {
-                    if (message.method == Method.Defined.NotificationsResourcesListChanged.value) {
-                        logRaw("resources/list_changed notification", message)
+                    when (message.method) {
+                        Method.Defined.NotificationsResourcesListChanged.value -> {
+                            logRaw("resources/list_changed notification", message)
+                        }
+                        Method.Defined.NotificationsToolsListChanged.value -> {
+                            logRaw("tools/list_changed notification", message)
+                        }
+                        Method.Defined.NotificationsPromptsListChanged.value -> {
+                            logRaw("prompts/list_changed notification", message)
+                        }
                     }
                     message
                 }
@@ -273,6 +300,6 @@ private class LoggingTransport(
     private fun logRaw(label: String, message: JSONRPCMessage) {
         val raw = runCatching { serializeMessage(message).trimEnd() }
             .getOrElse { "unable to serialize: ${it.message}" }
-        logger.warn("STDIO raw $label: $raw")
+        logger.info("STDIO raw $label: $raw")
     }
 }

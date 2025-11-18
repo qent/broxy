@@ -21,7 +21,6 @@ import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.encodeToJsonElement
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -47,6 +46,11 @@ class KtorMcpClient(
     override fun updateTimeouts(connectTimeoutMillis: Long, capabilitiesTimeoutMillis: Long) {
         this.connectTimeoutMillis = connectTimeoutMillis.coerceAtLeast(1)
         this.capabilitiesTimeoutMillis = capabilitiesTimeoutMillis.coerceAtLeast(1)
+    }
+
+    companion object {
+        private const val DEFAULT_CONNECT_TIMEOUT_MILLIS = 10_000L
+        private const val DEFAULT_CAPABILITIES_TIMEOUT_MILLIS = 10_000L
     }
 
     override suspend fun connect(): Result<Unit> = runCatching {
@@ -80,7 +84,7 @@ class KtorMcpClient(
             Mode.StreamableHttp -> requireNotNull(ktor).mcpStreamableHttp(url = url, requestBuilder = reqBuilder)
             Mode.WebSocket -> requireNotNull(ktor).mcpWebSocket(urlString = url, requestBuilder = reqBuilder)
         }
-        client = RealSdkClientFacade(sdk)
+        client = RealSdkClientFacade(sdk, logger)
         logger.info("Connected Ktor MCP client ($mode) to $url")
     }
 
@@ -138,10 +142,5 @@ class KtorMcpClient(
             val kind = if (ex is TimeoutCancellationException) "timed out after ${timeoutMillis}ms" else ex.message ?: ex::class.simpleName
             logger.warn("$operation $kind; treating as empty.", ex)
         }.getOrDefault(defaultValue)
-    }
-
-    companion object {
-        private const val DEFAULT_CONNECT_TIMEOUT_MILLIS = 30_000L
-        private const val DEFAULT_CAPABILITIES_TIMEOUT_MILLIS = 30_000L
     }
 }

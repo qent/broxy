@@ -13,19 +13,31 @@ import io.modelcontextprotocol.kotlin.sdk.Tool
 import io.qent.broxy.core.mcp.PromptDescriptor
 import io.qent.broxy.core.mcp.ResourceDescriptor
 import io.qent.broxy.core.mcp.ToolDescriptor
+import io.qent.broxy.core.utils.ConsoleLogger
+import io.qent.broxy.core.utils.Logger
 import kotlinx.serialization.json.JsonObject
 
 class RealSdkClientFacade(
-    private val client: io.modelcontextprotocol.kotlin.sdk.client.Client
+    private val client: io.modelcontextprotocol.kotlin.sdk.client.Client,
+    private val logger: Logger = ConsoleLogger
 ) : SdkClientFacade {
-    override suspend fun getTools(): List<ToolDescriptor> =
+    override suspend fun getTools(): List<ToolDescriptor> = runCatching {
         client.listTools(ListToolsRequest()).tools.map(::mapTool)
+    }.onFailure { ex ->
+        logger.warn("Failed to list tools: ${ex.message}", ex)
+    }.getOrDefault(emptyList())
 
-    override suspend fun getResources(): List<ResourceDescriptor> =
+    override suspend fun getResources(): List<ResourceDescriptor> = runCatching {
         client.listResources(ListResourcesRequest()).resources.map(::mapResource)
+    }.onFailure { ex ->
+        logger.warn("Failed to list resources: ${ex.message}", ex)
+    }.getOrDefault(emptyList())
 
-    override suspend fun getPrompts(): List<PromptDescriptor> =
+    override suspend fun getPrompts(): List<PromptDescriptor> = runCatching {
         client.listPrompts(ListPromptsRequest()).prompts.map(::mapPrompt)
+    }.onFailure { ex ->
+        logger.warn("Failed to list prompts: ${ex.message}", ex)
+    }.getOrDefault(emptyList())
 
     override suspend fun callTool(name: String, arguments: JsonObject): CallToolResultBase? =
         client.callTool(CallToolRequest(name, arguments, JsonObject(emptyMap())))

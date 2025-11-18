@@ -1,6 +1,5 @@
 package io.qent.broxy.core.mcp
 
-import io.qent.broxy.core.mcp.TimeoutConfigurableMcpClient
 import io.qent.broxy.core.mcp.errors.McpError
 import io.qent.broxy.core.models.McpServerConfig
 import io.qent.broxy.core.utils.ConsoleLogger
@@ -26,7 +25,7 @@ class DefaultMcpServerConnection(
     },
     private val cache: CapabilitiesCache = CapabilitiesCache(ttlMillis = cacheTtlMs),
     initialCallTimeoutMillis: Long = 60_000,
-    initialCapabilitiesTimeoutMillis: Long = 30_000,
+    initialCapabilitiesTimeoutMillis: Long = 10_000,
     initialConnectTimeoutMillis: Long = initialCapabilitiesTimeoutMillis
 ) : McpServerConnection {
     override val serverId: String = config.id
@@ -63,15 +62,15 @@ class DefaultMcpServerConnection(
             cache.get()?.let { return Result.success(it) }
         }
         val result = withSession { client ->
-            try {
-                withTimeout(capabilitiesTimeoutMillis) { client.fetchCapabilities() }
-            } catch (t: TimeoutCancellationException) {
-                Result.failure(McpError.TimeoutError("Capabilities fetch timed out after ${capabilitiesTimeoutMillis}ms", t))
-            }
+            // Don't wrap with timeout here - fetchCapabilities() already has per-operation timeouts
+            // This prevents the outer timeout from killing the entire operation when individual
+            // operations (tools, prompts, resources) take time but succeed individually
+            client.fetchCapabilities()
         }
         if (result.isSuccess) {
             val caps = result.getOrThrow()
             cache.put(caps)
+            logger.info("Successfully fetched capabilities for '${config.name}': ${caps.tools.size} tools, ${caps.resources.size} resources, ${caps.prompts.size} prompts")
             return Result.success(caps)
         }
         val error = result.exceptionOrNull()

@@ -35,5 +35,5 @@ suspend fun validateServerConnection(draft: UiServerDraft, logger: Logger? = nul
         transport = transport,
         env = draft.env
     )
-    return fetchServerCapabilities(cfg, timeoutSeconds = 5, logger = logger).map { }
+    return fetchServerCapabilities(cfg, timeoutSeconds = 10, logger = logger).map { }
 }
