@@ -159,7 +159,7 @@ class DefaultMcpServerConnectionTest {
     private class FakeMcpClient(
         connectResults: ArrayDeque<Result<Unit>> = ArrayDeque(listOf(Result.success(Unit))),
         capabilityResults: ArrayDeque<Result<ServerCapabilities>> = ArrayDeque(listOf(Result.success(ServerCapabilities())))
-    ) : McpClient {
+    ) : McpClient, TimeoutConfigurableMcpClient {
         private val connectQueue = connectResults
         private val capsQueue = capabilityResults
         private var lastCaps: Result<ServerCapabilities> = capabilityResults.firstOrNull() ?: Result.success(ServerCapabilities())
@@ -167,6 +167,7 @@ class DefaultMcpServerConnectionTest {
         var callToolDelayMillis: Long = 0
         var capabilityDelayMillis: Long = 0
         var callToolResult: Result<JsonElement> = Result.success(JsonNull)
+        private var configuredCapabilitiesTimeoutMillis: Long = Long.MAX_VALUE
 
         var connectCalls: Int = 0
         var disconnectCalls: Int = 0
@@ -190,6 +191,9 @@ class DefaultMcpServerConnectionTest {
             capabilitiesCalls += 1
             if (capabilityDelayMillis > 0) {
                 delay(capabilityDelayMillis)
+                if (capabilityDelayMillis > configuredCapabilitiesTimeoutMillis) {
+                    return Result.failure(McpError.TimeoutError("Capabilities timed out after $configuredCapabilitiesTimeoutMillis ms"))
+                }
             }
             val result = if (capsQueue.isEmpty()) lastCaps else capsQueue.removeFirst()
             lastCaps = result
@@ -207,6 +211,11 @@ class DefaultMcpServerConnectionTest {
         override suspend fun getPrompt(name: String, arguments: Map<String, String>?): Result<JsonObject> = Result.success(JsonObject(emptyMap()))
 
         override suspend fun readResource(uri: String): Result<JsonObject> = Result.success(JsonObject(emptyMap()))
+
+        @Suppress("UNUSED_PARAMETER")
+        override fun updateTimeouts(connectTimeoutMillis: Long, capabilitiesTimeoutMillis: Long) {
+            configuredCapabilitiesTimeoutMillis = capabilitiesTimeoutMillis
+        }
     }
 
     private object NoopLogger : Logger {
