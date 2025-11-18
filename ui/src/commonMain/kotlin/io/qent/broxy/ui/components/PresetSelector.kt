@@ -149,13 +149,36 @@ fun PresetSelector(
 
         snaps.value.forEach { snap ->
             val serverId = snap.serverId
+            val serverSelected = selectedServers[serverId] == true
+            val cardColor = if (serverSelected) {
+                MaterialTheme.colorScheme.secondaryContainer
+            } else {
+                MaterialTheme.colorScheme.surfaceVariant
+            }
+            val contentColor = if (serverSelected) {
+                MaterialTheme.colorScheme.onSecondaryContainer
+            } else {
+                MaterialTheme.colorScheme.onSurface
+            }
+            val borderColor = if (serverSelected) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.outlineVariant
+            }
+            val metaLabelColor = if (serverSelected) {
+                MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            }
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = AppTheme.shapes.surfaceSm,
-                tonalElevation = AppTheme.elevation.level1,
+                tonalElevation = if (serverSelected) AppTheme.elevation.level2 else AppTheme.elevation.level1,
+                color = cardColor,
+                contentColor = contentColor,
                 border = BorderStroke(
                     width = AppTheme.strokeWidths.hairline,
-                    color = MaterialTheme.colorScheme.outlineVariant
+                    color = borderColor
                 )
             ) {
                 Column(Modifier.fillMaxWidth()) {
@@ -168,9 +191,8 @@ fun PresetSelector(
                             ),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        val srvChecked = selectedServers[serverId] == true
                         Checkbox(
-                            checked = srvChecked,
+                            checked = serverSelected,
                             onCheckedChange = { checked ->
                                 if (checked) {
                                     selectedTools[serverId] = snap.tools.map { it.name }.toSet()
@@ -193,12 +215,13 @@ fun PresetSelector(
                         ) {
                             Text(
                                 serverNames[serverId] ?: serverId,
-                                style = MaterialTheme.typography.titleSmall
+                                style = MaterialTheme.typography.titleSmall,
+                                color = contentColor
                             )
                             Text(
                                 "${snap.tools.size} tools · ${snap.prompts.size} prompts · ${snap.resources.size} resources",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = metaLabelColor
                             )
                         }
                         TextButton(onClick = { expanded[serverId] = !(expanded[serverId] ?: false) }) {
