@@ -1,25 +1,27 @@
 package io.qent.broxy.ui.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import io.qent.broxy.ui.adapter.models.UiPromptRef
 import io.qent.broxy.ui.adapter.models.UiResourceRef
 import io.qent.broxy.ui.adapter.models.UiServerCapsSnapshot
@@ -147,19 +149,30 @@ fun PresetSelector(
 
         snaps.value.forEach { snap ->
             val serverId = snap.serverId
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(AppTheme.spacing.sm)
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = AppTheme.shapes.surfaceSm,
+                tonalElevation = AppTheme.elevation.level1,
+                border = BorderStroke(
+                    width = AppTheme.strokeWidths.hairline,
+                    color = MaterialTheme.colorScheme.outlineVariant
+                )
             ) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Row {
+                Column(Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(
+                                horizontal = AppTheme.spacing.md,
+                                vertical = AppTheme.spacing.sm
+                            ),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         val srvChecked = selectedServers[serverId] == true
                         Checkbox(
                             checked = srvChecked,
                             onCheckedChange = { checked ->
                                 if (checked) {
-                                    // FIX: присваиваем новые set'ы
                                     selectedTools[serverId] = snap.tools.map { it.name }.toSet()
                                     selectedPrompts[serverId] = snap.prompts.map { it.name }.toSet()
                                     selectedResources[serverId] = snap.resources.map { it.key }.toSet()
@@ -173,129 +186,206 @@ fun PresetSelector(
                                 emitSelection()
                             }
                         )
-                        Text(
-                            serverNames[serverId] ?: serverId,
-                            style = MaterialTheme.typography.titleSmall,
-                            modifier = Modifier.padding(top = AppTheme.spacing.md)
-                        )
-                    }
-                    TextButton(onClick = { expanded[serverId] = !(expanded[serverId] ?: false) }) {
-                        Text(if (expanded[serverId] == true) "Hide" else "Show")
-                    }
-                }
-                if (expanded[serverId] == true) {
-                    Spacer(Modifier.height(AppTheme.spacing.xs))
-                    // Tools
-                    Text("Tools", style = MaterialTheme.typography.labelLarge)
-                    snap.tools.forEach { t ->
-                        val checked = selectedTools[serverId]?.contains(t.name) == true
-                        val description = t.description?.takeIf { it.isNotBlank() } ?: "No description provided"
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
                                 .padding(start = AppTheme.spacing.sm)
                         ) {
-                            Checkbox(
-                                checked = checked,
-                                onCheckedChange = { c ->
-                                    // FIX: создаём новое множество и присваиваем в map
-                                    val prev = selectedTools[serverId] ?: emptySet()
-                                    val next = if (c) prev + t.name else prev - t.name
-                                    selectedTools[serverId] = next
-                                    // Maintain server checkbox if any item selected
-                                    updateServerSelection(serverId)
-                                    emitSelection()
-                                }
+                            Text(
+                                serverNames[serverId] ?: serverId,
+                                style = MaterialTheme.typography.titleSmall
                             )
-                            Column(modifier = Modifier.padding(top = AppTheme.spacing.sm)) {
-                                Text(t.name, style = MaterialTheme.typography.bodyMedium)
-                                CapabilityArgumentList(
-                                    arguments = t.arguments,
-                                    modifier = Modifier.padding(top = AppTheme.spacing.xs)
-                                )
-                                Text(
-                                    description,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
+                            Text(
+                                "${snap.tools.size} tools · ${snap.prompts.size} prompts · ${snap.resources.size} resources",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        TextButton(onClick = { expanded[serverId] = !(expanded[serverId] ?: false) }) {
+                            Text(if (expanded[serverId] == true) "Hide" else "Show")
                         }
                     }
-                    Spacer(Modifier.height(AppTheme.spacing.xs))
-                    // Prompts
-                    Text("Prompts", style = MaterialTheme.typography.labelLarge)
-                    snap.prompts.forEach { p ->
-                        val checked = selectedPrompts[serverId]?.contains(p.name) == true
-                        val description = p.description?.takeIf { it.isNotBlank() } ?: "No description provided"
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(start = AppTheme.spacing.sm)
+                    if (expanded[serverId] == true) {
+                        CapabilitySection(
+                            label = "Tools",
+                            isEmpty = snap.tools.isEmpty(),
+                            emptyMessage = "No tools available"
                         ) {
-                            Checkbox(
-                                checked = checked,
-                                onCheckedChange = { c ->
-                                    val prev = selectedPrompts[serverId] ?: emptySet()
-                                    val next = if (c) prev + p.name else prev - p.name
-                                    selectedPrompts[serverId] = next
-                                    updateServerSelection(serverId)
-                                    onPromptsConfiguredChange(true)
-                                    emitSelection()
+                            snap.tools.forEachIndexed { index, tool ->
+                                val checked = selectedTools[serverId]?.contains(tool.name) == true
+                                val description = tool.description?.takeIf { it.isNotBlank() }
+                                    ?: "No description provided"
+                                CapabilitySelectionRow(
+                                    title = tool.name,
+                                    description = description,
+                                    checked = checked,
+                                    onCheckedChange = { c ->
+                                        val prev = selectedTools[serverId] ?: emptySet()
+                                        val next = if (c) prev + tool.name else prev - tool.name
+                                        selectedTools[serverId] = next
+                                        updateServerSelection(serverId)
+                                        emitSelection()
+                                    }
+                                ) {
+                                    CapabilityArgumentList(
+                                        arguments = tool.arguments,
+                                        modifier = Modifier.padding(top = AppTheme.spacing.xs)
+                                    )
                                 }
-                            )
-                            Column(modifier = Modifier.padding(top = AppTheme.spacing.sm)) {
-                                Text(p.name, style = MaterialTheme.typography.bodyMedium)
-                                CapabilityArgumentList(
-                                    arguments = p.arguments,
-                                    modifier = Modifier.padding(top = AppTheme.spacing.xs)
-                                )
-                                Text(
-                                    description,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                                if (index < snap.tools.lastIndex) {
+                                    CapabilityDivider()
+                                }
                             }
                         }
-                    }
-                    Spacer(Modifier.height(AppTheme.spacing.xs))
-                    // Resources
-                    Text("Resources", style = MaterialTheme.typography.labelLarge)
-                    snap.resources.forEach { resource ->
-                        val checked = selectedResources[serverId]?.contains(resource.key) == true
-                        val description = resource.description?.takeIf { it.isNotBlank() } ?: resource.key
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(start = AppTheme.spacing.sm)
+                        CapabilitySection(
+                            label = "Prompts",
+                            isEmpty = snap.prompts.isEmpty(),
+                            emptyMessage = "No prompts available"
                         ) {
-                            Checkbox(
-                                checked = checked,
-                                onCheckedChange = { c ->
-                                    val prev = selectedResources[serverId] ?: emptySet()
-                                    val next = if (c) prev + resource.key else prev - resource.key
-                                    selectedResources[serverId] = next
-                                    updateServerSelection(serverId)
-                                    onResourcesConfiguredChange(true)
-                                    emitSelection()
+                            snap.prompts.forEachIndexed { index, prompt ->
+                                val checked = selectedPrompts[serverId]?.contains(prompt.name) == true
+                                val description = prompt.description?.takeIf { it.isNotBlank() }
+                                    ?: "No description provided"
+                                CapabilitySelectionRow(
+                                    title = prompt.name,
+                                    description = description,
+                                    checked = checked,
+                                    onCheckedChange = { c ->
+                                        val prev = selectedPrompts[serverId] ?: emptySet()
+                                        val next = if (c) prev + prompt.name else prev - prompt.name
+                                        selectedPrompts[serverId] = next
+                                        updateServerSelection(serverId)
+                                        onPromptsConfiguredChange(true)
+                                        emitSelection()
+                                    }
+                                ) {
+                                    CapabilityArgumentList(
+                                        arguments = prompt.arguments,
+                                        modifier = Modifier.padding(top = AppTheme.spacing.xs)
+                                    )
                                 }
-                            )
-                            Column(modifier = Modifier.padding(top = AppTheme.spacing.sm)) {
-                                Text(resource.name, style = MaterialTheme.typography.bodyMedium)
-                                CapabilityArgumentList(
-                                    arguments = resource.arguments,
-                                    modifier = Modifier.padding(top = AppTheme.spacing.xs)
-                                )
-                                Text(
-                                    description,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                                if (index < snap.prompts.lastIndex) {
+                                    CapabilityDivider()
+                                }
+                            }
+                        }
+                        CapabilitySection(
+                            label = "Resources",
+                            isEmpty = snap.resources.isEmpty(),
+                            emptyMessage = "No resources available"
+                        ) {
+                            snap.resources.forEachIndexed { index, resource ->
+                                val checked = selectedResources[serverId]?.contains(resource.key) == true
+                                val description = resource.description?.takeIf { it.isNotBlank() }
+                                    ?: resource.key
+                                CapabilitySelectionRow(
+                                    title = resource.name,
+                                    description = description,
+                                    checked = checked,
+                                    onCheckedChange = { c ->
+                                        val prev = selectedResources[serverId] ?: emptySet()
+                                        val next = if (c) prev + resource.key else prev - resource.key
+                                        selectedResources[serverId] = next
+                                        updateServerSelection(serverId)
+                                        onResourcesConfiguredChange(true)
+                                        emitSelection()
+                                    }
+                                ) {
+                                    CapabilityArgumentList(
+                                        arguments = resource.arguments,
+                                        modifier = Modifier.padding(top = AppTheme.spacing.xs)
+                                    )
+                                }
+                                if (index < snap.resources.lastIndex) {
+                                    CapabilityDivider()
+                                }
                             }
                         }
                     }
                 }
-                HorizontalDivider(Modifier.padding(top = AppTheme.spacing.sm))
             }
         }
     }
+}
+
+@Composable
+private fun CapabilitySection(
+    label: String,
+    isEmpty: Boolean,
+    emptyMessage: String,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        CapabilityDivider()
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = AppTheme.spacing.md, vertical = AppTheme.spacing.sm),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                label,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+        if (isEmpty) {
+            Text(
+                emptyMessage,
+                modifier = Modifier
+                    .padding(horizontal = AppTheme.spacing.md)
+                    .padding(bottom = AppTheme.spacing.sm),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        } else {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                content()
+            }
+        }
+    }
+}
+
+@Composable
+private fun CapabilitySelectionRow(
+    title: String,
+    description: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    metaContent: @Composable (() -> Unit)? = null
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = AppTheme.spacing.md, vertical = AppTheme.spacing.xs),
+        verticalAlignment = Alignment.Top
+    ) {
+        Checkbox(
+            checked = checked,
+            onCheckedChange = onCheckedChange
+        )
+        Column(
+            modifier = Modifier
+                .padding(start = AppTheme.spacing.sm)
+                .weight(1f),
+            verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.xs)
+        ) {
+            Text(title, style = MaterialTheme.typography.bodyMedium)
+            metaContent?.invoke()
+            Text(
+                description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun CapabilityDivider() {
+    HorizontalDivider(
+        modifier = Modifier.padding(horizontal = AppTheme.spacing.md),
+        thickness = AppTheme.strokeWidths.hairline,
+        color = MaterialTheme.colorScheme.outlineVariant
+    )
 }

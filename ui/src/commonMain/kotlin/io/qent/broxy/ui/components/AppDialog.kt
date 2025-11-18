@@ -1,13 +1,15 @@
 package io.qent.broxy.ui.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -23,12 +25,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import io.qent.broxy.ui.components.AppVerticalScrollbar
 import io.qent.broxy.ui.theme.AppTheme
 
 /**
@@ -49,7 +50,7 @@ fun AppDialog(
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(
         horizontal = AppTheme.spacing.lg,
-        vertical = AppTheme.spacing.lg
+        vertical = AppTheme.spacing.md
     ),
     dismissButton: (@Composable () -> Unit)? = null,
     confirmButton: @Composable () -> Unit,
@@ -67,14 +68,18 @@ fun AppDialog(
     ) {
         Surface(
             modifier = modifier
-                .padding(horizontal = AppTheme.spacing.xxl, vertical = AppTheme.spacing.xl)
+                .padding(horizontal = AppTheme.spacing.xl, vertical = AppTheme.spacing.lg)
                 .widthIn(
                     min = AppTheme.layout.dialogMinWidth,
                     max = 640.dp
                 ),
             shape = AppTheme.shapes.dialog,
             tonalElevation = AppTheme.elevation.level3,
-            color = MaterialTheme.colorScheme.surface
+            color = MaterialTheme.colorScheme.surface,
+            border = BorderStroke(
+                width = AppTheme.strokeWidths.thin,
+                color = MaterialTheme.colorScheme.outlineVariant
+            )
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Column(
@@ -89,22 +94,24 @@ fun AppDialog(
                             .fillMaxWidth()
                             .heightIn(max = AppTheme.layout.dialogMaxHeight)
                     ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .verticalScroll(scrollState)
-                                .padding(end = AppTheme.spacing.md),
-                            verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
-                            content = content
-                        )
-                        if (showScrollbar) {
-                            AppVerticalScrollbar(
-                                adapter = scrollbarAdapter,
+                        Row(
+                            modifier = Modifier.fillMaxSize(),
+                            verticalAlignment = Alignment.Top
+                        ) {
+                            Column(
                                 modifier = Modifier
-                                    .align(Alignment.CenterEnd)
+                                    .weight(1f, fill = true)
                                     .fillMaxHeight()
-                                    .padding(end = AppTheme.spacing.xs)
+                                    .verticalScroll(scrollState),
+                                verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
+                                content = content
                             )
+                            if (showScrollbar) {
+                                AppVerticalScrollbar(
+                                    adapter = scrollbarAdapter,
+                                    modifier = Modifier.fillMaxHeight()
+                                )
+                            }
                         }
                     }
                 }

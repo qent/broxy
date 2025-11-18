@@ -1,12 +1,15 @@
 package io.qent.broxy.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -342,11 +345,12 @@ private fun ServerDetailsContent(
             if (snapshot.tools.isEmpty()) {
                 SectionEmptyMessage("No tools available")
             } else {
-                snapshot.tools.forEach { tool ->
+                snapshot.tools.forEachIndexed { index, tool ->
                     CapabilityEntry(
                         title = tool.name,
                         description = tool.description?.takeIf { it.isNotBlank() } ?: "No description provided",
-                        arguments = tool.arguments
+                        arguments = tool.arguments,
+                        showDivider = index < snapshot.tools.lastIndex
                     )
                 }
             }
@@ -355,11 +359,12 @@ private fun ServerDetailsContent(
             if (snapshot.resources.isEmpty()) {
                 SectionEmptyMessage("No resources available")
             } else {
-                snapshot.resources.forEach { resource ->
+                snapshot.resources.forEachIndexed { index, resource ->
                     CapabilityEntry(
                         title = resource.name,
                         description = resource.description?.takeIf { it.isNotBlank() } ?: resource.key,
-                        arguments = resource.arguments
+                        arguments = resource.arguments,
+                        showDivider = index < snapshot.resources.lastIndex
                     )
                 }
             }
@@ -368,11 +373,12 @@ private fun ServerDetailsContent(
             if (snapshot.prompts.isEmpty()) {
                 SectionEmptyMessage("No prompts available")
             } else {
-                snapshot.prompts.forEach { prompt ->
+                snapshot.prompts.forEachIndexed { index, prompt ->
                     CapabilityEntry(
                         title = prompt.name,
                         description = prompt.description?.takeIf { it.isNotBlank() } ?: "No description provided",
-                        arguments = prompt.arguments
+                        arguments = prompt.arguments,
+                        showDivider = index < snapshot.prompts.lastIndex
                     )
                 }
             }
@@ -385,27 +391,40 @@ private fun SectionBlock(
     title: String,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    Column(
-        verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.xs)
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = AppTheme.shapes.surfaceSm,
+        tonalElevation = AppTheme.elevation.level1,
+        border = BorderStroke(
+            width = AppTheme.strokeWidths.hairline,
+            color = MaterialTheme.colorScheme.outlineVariant
+        )
     ) {
-        SectionHeader(title)
-        content()
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Text(
+                text = title,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = AppTheme.spacing.md, vertical = AppTheme.spacing.sm),
+                style = MaterialTheme.typography.labelLarge
+            )
+            SectionDivider()
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.none),
+                content = content
+            )
+        }
     }
-}
-
-@Composable
-private fun SectionHeader(label: String) {
-    Text(
-        "$label:",
-        style = MaterialTheme.typography.titleSmall
-    )
 }
 
 @Composable
 private fun SectionEmptyMessage(message: String) {
     Text(
         message,
-        modifier = Modifier.padding(start = AppTheme.spacing.sm),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = AppTheme.spacing.md, vertical = AppTheme.spacing.sm),
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant
     )
@@ -415,12 +434,13 @@ private fun SectionEmptyMessage(message: String) {
 private fun CapabilityEntry(
     title: String,
     description: String,
-    arguments: List<UiCapabilityArgument> = emptyList()
+    arguments: List<UiCapabilityArgument> = emptyList(),
+    showDivider: Boolean
 ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = AppTheme.spacing.sm),
+            .padding(horizontal = AppTheme.spacing.md, vertical = AppTheme.spacing.sm),
         verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.xs)
     ) {
         Text(title, style = MaterialTheme.typography.bodyMedium)
@@ -436,6 +456,18 @@ private fun CapabilityEntry(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
+    if (showDivider) {
+        SectionDivider()
+    }
+}
+
+@Composable
+private fun SectionDivider() {
+    HorizontalDivider(
+        modifier = Modifier.padding(horizontal = AppTheme.spacing.md),
+        thickness = AppTheme.strokeWidths.hairline,
+        color = MaterialTheme.colorScheme.outlineVariant
+    )
 }
 
 private sealed interface ServerDetailsState {
