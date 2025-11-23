@@ -51,6 +51,7 @@ import kotlinx.serialization.json.jsonPrimitive
 private const val BASE_URL = "https://mcp.broxy.run"
 private const val WS_PATH = "/ws"
 private const val WS_BASE_URL = "wss://mcp.broxy.run"
+private const val REDIRECT_URI = "http://127.0.0.1:${LoopbackCallbackServer.DEFAULT_PORT}/oauth/callback"
 
 class RemoteConnectorImpl(
     private val logger: CollectingLogger,
@@ -118,7 +119,14 @@ class RemoteConnectorImpl(
         scope.launch(ioContext) {
             logger.info("[RemoteAuth] Starting Google OAuth flow for server='${_state.value.serverIdentifier}'")
             _state.value = _state.value.copy(status = UiRemoteStatus.Authorizing, message = "Opening browser...")
-            val login = runCatching { httpClient.get("$BASE_URL/auth/mcp/login").body<LoginResponse>() }
+            val login = runCatching {
+                logger.info("[RemoteAuth] oauth_authorization_requested audience=mcp redirect_uri=$REDIRECT_URI")
+                httpClient.get("$BASE_URL/auth/mcp/login") {
+                    url {
+                        parameters.append("redirect_uri", REDIRECT_URI)
+                    }
+                }.body<LoginResponse>()
+            }
                 .onFailure { logger.error("[RemoteAuth] login failed: ${it.message}") }
                 .getOrElse {
                     _state.value = _state.value.copy(status = UiRemoteStatus.Error, message = "Login failed: ${it.message}")
@@ -145,6 +153,17 @@ class RemoteConnectorImpl(
                     _state.value = _state.value.copy(status = UiRemoteStatus.Error, message = "Exchange failed: ${it.message}")
                     return@launch
                 }
+            if (!tokenResp.tokenType.equals("bearer", ignoreCase = true)) {
+                logger.error("[RemoteAuth] Invalid token_type '${tokenResp.tokenType}' received; expected bearer")
+                _state.value = _state.value.copy(status = UiRemoteStatus.Error, message = "Invalid token type")
+                return@launch
+            }
+            if (!tokenResp.scope.equals("mcp", ignoreCase = true)) {
+                logger.error("[RemoteAuth] Invalid scope '${tokenResp.scope}' received; expected mcp")
+                _state.value = _state.value.copy(status = UiRemoteStatus.Error, message = "Invalid token scope")
+                return@launch
+            }
+            logger.info("[RemoteAuth] oauth_code_exchange audience=mcp status=success")
             logger.info("[RemoteAuth] Exchanged OAuth code for access token; expiresAt=${tokenResp.expiresAt}")
             val email = extractEmail(tokenResp.accessToken)
             if (email != null) {
@@ -219,6 +238,7 @@ class RemoteConnectorImpl(
             )
         } else {
             logger.info("[RemoteAuth] WebSocket connection established")
+            logger.info("[RemoteAuth] websocket_online server_identifier=${_state.value.serverIdentifier}")
         }
     }
 
@@ -238,6 +258,7 @@ class RemoteConnectorImpl(
         }.body<RegisterResponse>()
     }.onSuccess { response ->
         logger.info("[RemoteAuth] Register response: status=${response.status}, server=${response.serverIdentifier}")
+        logger.info("[RemoteAuth] server_registered server_identifier=${response.serverIdentifier}")
         logTokenSnapshot("Received WebSocket JWT", null, response.jwtToken)
     }.onFailure {
         val msg = when (it) {
