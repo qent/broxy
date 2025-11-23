@@ -50,7 +50,7 @@ class RemoteWsClient(
             onStatus(UiRemoteStatus.WsConnecting, null)
             val proxy = proxyProvider()
                 ?: error("Proxy is not running; cannot attach remote client")
-            val transport = ProxyWebSocketTransport(serverIdentifier) { payload ->
+            val transport = ProxyWebSocketTransport(serverIdentifier, logger) { payload ->
                 val s = session ?: error("WebSocket not connected")
                 val text = McpJson.encodeToString(McpProxyResponsePayload.serializer(), payload)
                 s.send(Frame.Text(text))
@@ -83,9 +83,15 @@ class RemoteWsClient(
                                 logger.warn("[RemoteWsClient] malformed inbound frame: ${err.message}")
                                 return@consumeEach
                             }
-                            logger.debug("[RemoteWsClient] Inbound message for session=${inbound.sessionIdentifier}")
+                            logger.info(
+                                "[RemoteWsClient] Inbound message session=${inbound.sessionIdentifier} ${describeJsonRpcPayload(inbound.message)}"
+                            )
                             val message = runCatching {
                                 McpJson.decodeFromJsonElement(JSONRPCMessage.serializer(), inbound.message)
+                            }.onFailure { err ->
+                                logger.warn(
+                                    "[RemoteWsClient] Failed to decode JSON-RPC message for session=${inbound.sessionIdentifier}: ${err.message}"
+                                )
                             }.getOrNull() ?: return@consumeEach
                             transport.handleIncoming(message, inbound.sessionIdentifier)
                             onStatus(UiRemoteStatus.WsOnline, null)
