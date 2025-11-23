@@ -1,15 +1,18 @@
 package io.qent.broxy.ui.adapter.remote.auth
 
-import com.sun.net.httpserver.HttpExchange
-import com.sun.net.httpserver.HttpHandler
-import com.sun.net.httpserver.HttpServer
 import io.qent.broxy.core.utils.Logger
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import java.io.BufferedReader
+import java.io.InputStreamReader
+import java.io.OutputStreamWriter
 import java.net.InetSocketAddress
+import java.net.ServerSocket
+import java.net.SocketTimeoutException
+import java.net.URI
+import java.net.URLDecoder
 
 class LoopbackCallbackServer(
     private val port: Int = DEFAULT_PORT,
@@ -19,27 +22,25 @@ class LoopbackCallbackServer(
         const val DEFAULT_PORT: Int = 8765
     }
 
-    private var server: HttpServer? = null
+    private var serverSocket: ServerSocket? = null
 
     suspend fun awaitCallback(expectedState: String, timeoutMillis: Long = 120_000): OAuthCallback? =
         withContext(Dispatchers.IO) {
-            val deferred = CompletableDeferred<OAuthCallback?>()
-            val httpServer = try {
-                HttpServer.create(InetSocketAddress("127.0.0.1", port), 0).also {
+            val socket = ServerSocket().apply {
+                reuseAddress = true
+                soTimeout = timeoutMillis.toInt()
+                try {
+                    bind(InetSocketAddress("127.0.0.1", port))
                     logger?.info("[RemoteAuth] Loopback callback server listening on 127.0.0.1:$port for state=$expectedState")
+                } catch (ex: Exception) {
+                    logger?.error("[RemoteAuth] Failed to start loopback callback server on 127.0.0.1:$port: ${ex.message}", ex)
+                    throw ex
                 }
-            } catch (ex: Exception) {
-                logger?.error("[RemoteAuth] Failed to start loopback callback server on 127.0.0.1:$port: ${ex.message}", ex)
-                throw ex
             }
-            server = httpServer
-            httpServer.createContext("/oauth/callback", Handler(expectedState, deferred, logger))
-            httpServer.start()
+            serverSocket = socket
             try {
-                withContext(Dispatchers.IO) {
-                    withTimeout(timeoutMillis) {
-                        deferred.await()
-                    }
+                withTimeout(timeoutMillis) {
+                    acceptOnce(socket, expectedState)
                 }
             } catch (t: TimeoutCancellationException) {
                 logger?.warn("[RemoteAuth] OAuth callback wait timed out after ${timeoutMillis}ms for state=$expectedState", t)
@@ -53,55 +54,62 @@ class LoopbackCallbackServer(
         }
 
     fun stop() {
-        runCatching { server?.stop(0) }
+        runCatching { serverSocket?.close() }
         logger?.debug("[RemoteAuth] Loopback callback server stopped")
-        server = null
+        serverSocket = null
     }
 
-    private class Handler(
-        private val expectedState: String,
-        private val deferred: CompletableDeferred<OAuthCallback?>,
-        private val logger: Logger?
-    ) : HttpHandler {
-        override fun handle(exchange: HttpExchange) {
-            val query = exchange.requestURI.query.orEmpty()
-            logger?.debug("[RemoteAuth] OAuth callback hit: path=${exchange.requestURI.path}, query=$query")
-            val params = parseQuery(query)
-            val code = params["code"]
-            val state = params["state"]
-            val ok = code != null && state != null && state == expectedState
-            val body = if (ok) {
-                "<html><body><h3>Authorization received. You can close this window.</h3></body></html>"
-            } else {
-                "<html><body><h3>Missing or invalid authorization parameters.</h3></body></html>"
-            }
-            exchange.responseHeaders.add("Content-Type", "text/html")
-            exchange.sendResponseHeaders(if (ok) 200 else 400, body.toByteArray().size.toLong())
-            exchange.responseBody.use { it.write(body.toByteArray()) }
-            if (ok) {
-                logger?.info("[RemoteAuth] OAuth callback accepted; state verified")
-                deferred.complete(OAuthCallback(code!!, state!!))
-            } else {
-                logger?.warn("[RemoteAuth] OAuth callback rejected: code/state mismatch (expected=$expectedState, gotState=$state)")
-                deferred.complete(null)
-            }
-        }
-
-        private fun parseQuery(query: String): Map<String, String> =
-            query.split("&")
-                .mapNotNull { pair ->
-                    val idx = pair.indexOf('=')
-                    if (idx <= 0) return@mapNotNull null
-                    val key = decode(pair.substring(0, idx))
-                    val value = decode(pair.substring(idx + 1))
-                    key to value
+    private fun acceptOnce(socket: ServerSocket, expectedState: String): OAuthCallback? {
+        return try {
+            val client = socket.accept()
+            client.use { s ->
+                val reader = BufferedReader(InputStreamReader(s.getInputStream()))
+                val writer = OutputStreamWriter(s.getOutputStream())
+                val requestLine = reader.readLine().orEmpty()
+                val pathWithQuery = requestLine.split(" ").getOrNull(1).orEmpty()
+                logger?.debug("[RemoteAuth] OAuth callback hit: pathWithQuery=$pathWithQuery")
+                val uri = runCatching { URI("http://localhost$pathWithQuery") }.getOrNull()
+                val queryParams = parseQuery(uri?.rawQuery.orEmpty())
+                val code = queryParams["code"]
+                val state = queryParams["state"]
+                val ok = code != null && state != null && state == expectedState
+                val body = if (ok) {
+                    "<html><body><h3>Authorization received. You can close this window.</h3></body></html>"
+                } else {
+                    "<html><body><h3>Missing or invalid authorization parameters.</h3></body></html>"
                 }
-                .toMap()
-
-        private fun decode(value: String): String = try {
-            java.net.URLDecoder.decode(value, Charsets.UTF_8)
-        } catch (_: Exception) {
-            value
+                val statusLine = if (ok) "HTTP/1.1 200 OK" else "HTTP/1.1 400 Bad Request"
+                writer.write("$statusLine\r\nContent-Type: text/html\r\nContent-Length: ${body.toByteArray().size}\r\nConnection: close\r\n\r\n")
+                writer.write(body)
+                writer.flush()
+                if (ok) {
+                    logger?.info("[RemoteAuth] OAuth callback accepted; state verified")
+                    OAuthCallback(code!!, state!!)
+                } else {
+                    logger?.warn("[RemoteAuth] OAuth callback rejected: code/state mismatch (expected=$expectedState, gotState=$state)")
+                    null
+                }
+            }
+        } catch (ste: SocketTimeoutException) {
+            logger?.warn("[RemoteAuth] OAuth callback accept timed out on 127.0.0.1:$port after ${socket.soTimeout}ms")
+            null
         }
+    }
+
+    private fun parseQuery(query: String): Map<String, String> =
+        query.split("&")
+            .mapNotNull { pair ->
+                val idx = pair.indexOf('=')
+                if (idx <= 0) return@mapNotNull null
+                val key = decode(pair.substring(0, idx))
+                val value = decode(pair.substring(idx + 1))
+                key to value
+            }
+            .toMap()
+
+    private fun decode(value: String): String = try {
+        URLDecoder.decode(value, Charsets.UTF_8)
+    } catch (_: Exception) {
+        value
     }
 }

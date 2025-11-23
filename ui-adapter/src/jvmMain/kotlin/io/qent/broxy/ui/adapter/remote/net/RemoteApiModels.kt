@@ -14,7 +14,9 @@ data class LoginResponse(
 data class CallbackRequest(
     val code: String,
     val state: String,
-    val audience: String = "mcp"
+    val audience: String = "mcp",
+    @SerialName("redirect_uri")
+    val redirectUri: String
 )
 
 @Serializable

@@ -12,6 +12,7 @@ import io.ktor.client.plugins.ClientRequestException
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
+import io.ktor.http.parseQueryString
 import io.ktor.serialization.kotlinx.json.json
 import io.qent.broxy.core.proxy.runtime.ProxyLifecycle
 import io.qent.broxy.core.utils.CollectingLogger
@@ -133,6 +134,22 @@ class RemoteConnectorImpl(
                     return@launch
                 }
             logger.debug("[RemoteAuth] Login response received: state=${login.state}, redirect=${login.authorizationUrl}")
+            val redirectInAuthUrl = runCatching {
+                val uri = URI(login.authorizationUrl)
+                parseQueryString(uri.rawQuery ?: "").getAll("redirect_uri")?.firstOrNull()
+            }.getOrNull()
+            if (redirectInAuthUrl == null) {
+                val msg = "Authorization URL missing redirect_uri; backend may be outdated or redirect_uri not forwarded"
+                logger.error("[RemoteAuth] $msg")
+                _state.value = _state.value.copy(status = UiRemoteStatus.Error, message = msg)
+                return@launch
+            }
+            if (redirectInAuthUrl != REDIRECT_URI) {
+                val msg = "Authorization URL redirect_uri mismatch; expected $REDIRECT_URI but got $redirectInAuthUrl"
+                logger.error("[RemoteAuth] $msg")
+                _state.value = _state.value.copy(status = UiRemoteStatus.Error, message = msg)
+                return@launch
+            }
             logger.info("[RemoteAuth] Opening browser for OAuth consent")
             openBrowser(login.authorizationUrl)
             logger.debug("[RemoteAuth] Awaiting OAuth callback for state=${login.state}")
@@ -149,7 +166,14 @@ class RemoteConnectorImpl(
             val tokenResp = runCatching {
                 httpClient.post("$BASE_URL/auth/mcp/callback") {
                     contentType(ContentType.Application.Json)
-                    setBody(CallbackRequest(code = callback.code, state = callback.state, audience = "mcp"))
+                    setBody(
+                        CallbackRequest(
+                            code = callback.code,
+                            state = callback.state,
+                            audience = "mcp",
+                            redirectUri = REDIRECT_URI
+                        )
+                    )
                 }.body<TokenResponse>()
             }.onFailure { logger.error("[RemoteAuth] callback exchange failed: ${it.message}") }
                 .getOrElse {
