@@ -15,6 +15,9 @@ import io.qent.broxy.ui.adapter.models.*
 import io.qent.broxy.ui.adapter.models.toUiModel
 import io.qent.broxy.ui.adapter.services.fetchServerCapabilities
 import io.qent.broxy.ui.adapter.store.internal.*
+import io.qent.broxy.ui.adapter.remote.RemoteConnector
+import io.qent.broxy.ui.adapter.remote.createRemoteConnector
+import io.qent.broxy.ui.adapter.remote.defaultRemoteState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,7 +38,8 @@ class AppStore(
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.Default),
     private val now: () -> Long = { System.currentTimeMillis() },
     maxLogs: Int = DEFAULT_MAX_LOGS,
-    private val enableBackgroundRefresh: Boolean = true
+    private val enableBackgroundRefresh: Boolean = true,
+    private val remoteConnector: RemoteConnector
 ) {
     private val capabilityCache = CapabilityCache(now)
     private val statusTracker = ServerStatusTracker()
@@ -84,11 +88,13 @@ class AppStore(
         loadConfiguration = { loadConfigurationSnapshot() },
         refreshEnabledCaps = { force -> capabilityRefresher.refreshEnabledServers(force) },
         restartRefreshJob = { capabilityRefresher.restartBackgroundJob(enableBackgroundRefresh) },
-        publishReady = ::publishReady
+        publishReady = ::publishReady,
+        remoteConnector = remoteConnector
     )
 
     init {
         observeLogs()
+        observeRemote()
     }
 
     fun start() {
@@ -104,6 +110,7 @@ class AppStore(
             publishReady()
             capabilityRefresher.refreshEnabledServers(force = true)
             capabilityRefresher.restartBackgroundJob(enableBackgroundRefresh)
+            remoteConnector.start()
         }
     }
 
@@ -163,6 +170,15 @@ class AppStore(
         scope.launch {
             logger.events.collect { event ->
                 logsBuffer.append(event.toUiEntry())
+                publishReadyIfNotError()
+            }
+        }
+    }
+
+    private fun observeRemote() {
+        scope.launch {
+            remoteConnector.state.collect { state ->
+                updateSnapshot { copy(remote = state) }
                 publishReadyIfNotError()
             }
         }
@@ -230,6 +246,11 @@ fun createAppStore(
 ): AppStore {
     val proxyController = proxyFactory(logger)
     val proxyLifecycle = ProxyLifecycle(proxyController, logger)
+    val remoteConnector = createRemoteConnector(
+        logger = logger,
+        proxyLifecycle = proxyLifecycle,
+        scope = scope
+    )
     return AppStore(
         configurationRepository = repository,
         proxyLifecycle = proxyLifecycle,
@@ -238,6 +259,7 @@ fun createAppStore(
         scope = scope,
         now = now,
         maxLogs = maxLogs,
-        enableBackgroundRefresh = enableBackgroundRefresh
+        enableBackgroundRefresh = enableBackgroundRefresh,
+        remoteConnector = remoteConnector
     )
 }

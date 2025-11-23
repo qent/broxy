@@ -90,4 +90,6 @@ class ProxyLifecycle(
     }
 
     fun isRunning(): Boolean = currentPreset != null && currentInbound != null
+
+    fun currentProxy(): io.qent.broxy.core.proxy.ProxyMcpServer? = controller.currentProxy()
 }

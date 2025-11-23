@@ -19,6 +19,7 @@ import io.qent.broxy.ui.adapter.store.Intents
 import io.qent.broxy.ui.adapter.store.toCorePreset
 import io.qent.broxy.ui.adapter.store.toTransportConfig
 import io.qent.broxy.ui.adapter.store.toUiPresetSummary
+import io.qent.broxy.ui.adapter.remote.RemoteConnector
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -34,7 +35,8 @@ internal class AppStoreIntents(
     private val loadConfiguration: suspend () -> Result<Unit>,
     private val refreshEnabledCaps: suspend (Boolean) -> Unit,
     private val restartRefreshJob: () -> Unit,
-    private val publishReady: () -> Unit
+    private val publishReady: () -> Unit,
+    private val remoteConnector: RemoteConnector
 ) : Intents {
 
     override fun refresh() {
@@ -349,6 +351,18 @@ internal class AppStoreIntents(
             }
             publishReady()
         }
+    }
+
+    override fun updateRemoteServerIdentifier(value: String) {
+        remoteConnector.updateServerIdentifier(value)
+    }
+
+    override fun startRemoteAuthorization() {
+        remoteConnector.beginAuthorization()
+    }
+
+    override fun disconnectRemote() {
+        remoteConnector.disconnect()
     }
 
     private fun revertServersOnFailure(

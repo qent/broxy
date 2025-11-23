@@ -20,7 +20,12 @@ kotlin {
         }
         val jvmMain by getting {
             dependencies {
-                // no additional deps
+                implementation("io.ktor:ktor-client-core:${property("ktorVersion")}")
+                implementation("io.ktor:ktor-client-cio:${property("ktorVersion")}")
+                implementation("io.ktor:ktor-client-websockets:${property("ktorVersion")}")
+                implementation("io.ktor:ktor-client-content-negotiation:${property("ktorVersion")}")
+                implementation("io.ktor:ktor-serialization-kotlinx-json:${property("ktorVersion")}")
+                implementation("io.modelcontextprotocol:kotlin-sdk-server:${property("mcpSdkVersion")}")
             }
         }
         val jvmTest by getting {

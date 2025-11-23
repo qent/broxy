@@ -3,6 +3,7 @@ package io.qent.broxy.core.proxy.runtime
 import io.qent.broxy.core.models.McpServerConfig
 import io.qent.broxy.core.models.Preset
 import io.qent.broxy.core.models.TransportConfig
+import io.qent.broxy.core.proxy.ProxyMcpServer
 import io.qent.broxy.core.utils.CollectingLogger
 import io.qent.broxy.core.utils.LogEvent
 import kotlinx.coroutines.flow.Flow
@@ -29,6 +30,8 @@ interface ProxyController {
     fun updateCallTimeout(seconds: Int)
 
     fun updateCapabilitiesTimeout(seconds: Int)
+
+    fun currentProxy(): ProxyMcpServer?
 }
 
 expect fun createProxyController(logger: CollectingLogger): ProxyController

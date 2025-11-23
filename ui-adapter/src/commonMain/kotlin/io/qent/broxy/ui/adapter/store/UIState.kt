@@ -7,6 +7,7 @@ import io.qent.broxy.ui.adapter.models.UiProxyStatus
 import io.qent.broxy.ui.adapter.models.UiServerDraft
 import io.qent.broxy.ui.adapter.models.UiPresetDraft
 import io.qent.broxy.ui.adapter.models.UiTransportDraft
+import io.qent.broxy.ui.adapter.models.UiRemoteConnectionState
 
 // Sealed UI state for the entire app. UI collects this via Flow and renders.
 sealed class UIState {
@@ -22,7 +23,8 @@ sealed class UIState {
         val capabilitiesRefreshIntervalSeconds: Int,
         val showTrayIcon: Boolean,
         val logs: List<UiLogEntry>,
-        val intents: Intents
+        val intents: Intents,
+        val remote: UiRemoteConnectionState
     ) : UIState()
 }
 
@@ -47,4 +49,8 @@ interface Intents {
     fun updateCapabilitiesTimeout(seconds: Int)
     fun updateCapabilitiesRefreshInterval(seconds: Int)
     fun updateTrayIconVisibility(visible: Boolean)
+
+    fun updateRemoteServerIdentifier(value: String)
+    fun startRemoteAuthorization()
+    fun disconnectRemote()
 }

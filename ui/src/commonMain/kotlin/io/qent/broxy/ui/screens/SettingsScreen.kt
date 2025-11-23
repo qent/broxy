@@ -32,6 +32,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.adapter.store.UIState
+import io.qent.broxy.ui.adapter.models.UiRemoteConnectionState
+import io.qent.broxy.ui.adapter.models.UiRemoteStatus
 import io.qent.broxy.ui.components.AppPrimaryButton
 import io.qent.broxy.ui.theme.AppTheme
 import io.qent.broxy.ui.theme.ThemeStyle
@@ -74,7 +76,11 @@ fun SettingsScreen(
                     ui.intents.updateTrayIconVisibility(enabled)
                     notify(if (enabled) "Tray icon enabled" else "Tray icon disabled")
                 },
-                onThemeStyleChange = onThemeStyleChange
+                onThemeStyleChange = onThemeStyleChange,
+                remote = ui.remote,
+                onRemoteServerIdChange = { ui.intents.updateRemoteServerIdentifier(it) },
+                onRemoteAuthorize = { ui.intents.startRemoteAuthorization() },
+                onRemoteDisconnect = { ui.intents.disconnectRemote() }
             )
         }
     }
@@ -91,11 +97,16 @@ private fun SettingsContent(
     onCapabilitiesTimeoutSave: (Int) -> Unit,
     onCapabilitiesRefreshIntervalSave: (Int) -> Unit,
     onToggleTrayIcon: (Boolean) -> Unit,
-    onThemeStyleChange: (ThemeStyle) -> Unit
+    onThemeStyleChange: (ThemeStyle) -> Unit,
+    remote: UiRemoteConnectionState,
+    onRemoteServerIdChange: (String) -> Unit,
+    onRemoteAuthorize: () -> Unit,
+    onRemoteDisconnect: () -> Unit
 ) {
     var requestTimeoutInput by rememberSaveable(requestTimeoutSeconds) { mutableStateOf(requestTimeoutSeconds.toString()) }
     var capabilitiesTimeoutInput by rememberSaveable(capabilitiesTimeoutSeconds) { mutableStateOf(capabilitiesTimeoutSeconds.toString()) }
     var capabilitiesRefreshInput by rememberSaveable(capabilitiesRefreshIntervalSeconds) { mutableStateOf(capabilitiesRefreshIntervalSeconds.toString()) }
+    var remoteServerId by rememberSaveable(remote.serverIdentifier) { mutableStateOf(remote.serverIdentifier) }
 
     LaunchedEffect(requestTimeoutSeconds) {
         requestTimeoutInput = requestTimeoutSeconds.toString()
@@ -107,6 +118,10 @@ private fun SettingsContent(
 
     LaunchedEffect(capabilitiesRefreshIntervalSeconds) {
         capabilitiesRefreshInput = capabilitiesRefreshIntervalSeconds.toString()
+    }
+
+    LaunchedEffect(remote.serverIdentifier) {
+        remoteServerId = remote.serverIdentifier
     }
 
     val parsedRequest = requestTimeoutInput.toLongOrNull()
@@ -131,6 +146,18 @@ private fun SettingsContent(
             onThemeStyleChange = onThemeStyleChange
         )
         TrayIconSetting(checked = showTrayIcon, onToggle = onToggleTrayIcon)
+        RemoteConnectorSetting(
+            remote = remote,
+            serverId = remoteServerId,
+            onServerIdChange = { value ->
+                if (value.all { it.isLetterOrDigit() || it in "-._" }) {
+                    remoteServerId = value
+                    onRemoteServerIdChange(value)
+                }
+            },
+            onAuthorize = onRemoteAuthorize,
+            onDisconnect = onRemoteDisconnect
+        )
         TimeoutSetting(
             title = "Request timeout",
             description = "Set how long broxy waits for downstream MCP calls before timing out.",
@@ -332,3 +359,72 @@ private fun ThemeStyleDropdown(
 }
 
 private val SettingControlWidth: Dp = 180.dp
+
+@Composable
+private fun RemoteConnectorSetting(
+    remote: UiRemoteConnectionState,
+    serverId: String,
+    onServerIdChange: (String) -> Unit,
+    onAuthorize: () -> Unit,
+    onDisconnect: () -> Unit
+) {
+    val statusLabel = when (remote.status) {
+        UiRemoteStatus.NotAuthorized -> "Not authorized"
+        UiRemoteStatus.Authorizing -> "Authorizing..."
+        UiRemoteStatus.Registering -> "Registering..."
+        UiRemoteStatus.Registered -> "Registered"
+        UiRemoteStatus.WsConnecting -> "Connecting..."
+        UiRemoteStatus.WsOnline -> "WS online"
+        UiRemoteStatus.WsOffline -> "WS offline"
+        UiRemoteStatus.Error -> "Error"
+    }
+    val statusDetail = remote.message ?: remote.email ?: ""
+
+    SettingCard(
+        title = "Remote MCP proxy",
+        description = "Authorize broxy to connect to the remote MCP proxy backend over WebSocket.",
+        supportingContent = {
+            Text(
+                "Server identifier is shared with the backend. Change it to avoid collisions.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)) {
+            OutlinedTextField(
+                value = serverId,
+                onValueChange = onServerIdChange,
+                label = { Text("Server identifier") },
+                singleLine = true,
+                modifier = Modifier.widthIn(min = 220.dp, max = 260.dp)
+            )
+            Text(
+                text = "$statusLabel${if (statusDetail.isNotBlank()) " — $statusDetail" else ""}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm, Alignment.End),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AppPrimaryButton(
+                onClick = onAuthorize,
+                enabled = remote.status !in setOf(
+                    UiRemoteStatus.Authorizing,
+                    UiRemoteStatus.Registering,
+                    UiRemoteStatus.WsConnecting
+                )
+            ) {
+                Text("Authorize")
+            }
+            AppPrimaryButton(
+                onClick = onDisconnect,
+                enabled = remote.status != UiRemoteStatus.NotAuthorized
+            ) {
+                Text("Sign out")
+            }
+        }
+    }
+}

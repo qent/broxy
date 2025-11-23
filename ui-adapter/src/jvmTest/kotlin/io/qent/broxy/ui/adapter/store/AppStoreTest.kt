@@ -5,6 +5,7 @@ import io.qent.broxy.core.models.McpServerConfig
 import io.qent.broxy.core.models.Preset
 import io.qent.broxy.core.models.ToolReference
 import io.qent.broxy.core.models.TransportConfig
+import io.qent.broxy.core.proxy.ProxyMcpServer
 import io.qent.broxy.core.proxy.runtime.ProxyLifecycle
 import io.qent.broxy.core.repository.ConfigurationRepository
 import io.qent.broxy.core.utils.CollectingLogger
@@ -18,6 +19,8 @@ import io.qent.broxy.ui.adapter.models.UiServerCapabilities
 import io.qent.broxy.ui.adapter.models.UiTransportConfig
 import io.qent.broxy.ui.adapter.models.UiWebSocketDraft
 import io.qent.broxy.core.proxy.runtime.ProxyController
+import io.qent.broxy.ui.adapter.remote.NoOpRemoteConnector
+import io.qent.broxy.ui.adapter.remote.defaultRemoteState
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -75,6 +78,7 @@ class AppStoreTest {
         val proxyLifecycle = ProxyLifecycle(proxyController, noopLogger)
         val logger = CollectingLogger(delegate = noopLogger)
         val storeScope = TestScope(testScheduler)
+        val remoteConnector = NoOpRemoteConnector(defaultRemoteState())
         val store = AppStore(
             configurationRepository = repository,
             proxyLifecycle = proxyLifecycle,
@@ -83,7 +87,8 @@ class AppStoreTest {
             scope = storeScope,
             now = { testScheduler.currentTime },
             maxLogs = 10,
-            enableBackgroundRefresh = false
+            enableBackgroundRefresh = false,
+            remoteConnector = remoteConnector
         )
 
         store.start()
@@ -128,6 +133,7 @@ class AppStoreTest {
         val proxyLifecycle = ProxyLifecycle(proxyController, noopLogger)
         val logger = CollectingLogger(delegate = noopLogger)
         val storeScope = TestScope(testScheduler)
+        val remoteConnector = NoOpRemoteConnector(defaultRemoteState())
         val store = AppStore(
             configurationRepository = repository,
             proxyLifecycle = proxyLifecycle,
@@ -135,7 +141,8 @@ class AppStoreTest {
             logger = logger,
             scope = storeScope,
             now = { testScheduler.currentTime },
-            enableBackgroundRefresh = false
+            enableBackgroundRefresh = false,
+            remoteConnector = remoteConnector
         )
 
         store.start()
@@ -180,6 +187,7 @@ class AppStoreTest {
         val proxyLifecycle = ProxyLifecycle(proxyController, noopLogger)
         val logger = CollectingLogger(delegate = noopLogger)
         val storeScope = TestScope(testScheduler)
+        val remoteConnector = NoOpRemoteConnector(defaultRemoteState())
         val store = AppStore(
             configurationRepository = repository,
             proxyLifecycle = proxyLifecycle,
@@ -187,7 +195,8 @@ class AppStoreTest {
             logger = logger,
             scope = storeScope,
             now = { testScheduler.currentTime },
-            enableBackgroundRefresh = false
+            enableBackgroundRefresh = false,
+            remoteConnector = remoteConnector
         )
 
         store.start()
@@ -234,6 +243,7 @@ class AppStoreTest {
         val proxyLifecycle = ProxyLifecycle(proxyController, noopLogger)
         val logger = CollectingLogger(delegate = noopLogger)
         val storeScope = TestScope(testScheduler)
+        val remoteConnector = NoOpRemoteConnector(defaultRemoteState())
         val store = AppStore(
             configurationRepository = repository,
             proxyLifecycle = proxyLifecycle,
@@ -241,7 +251,8 @@ class AppStoreTest {
             logger = logger,
             scope = storeScope,
             now = { testScheduler.currentTime },
-            enableBackgroundRefresh = false
+            enableBackgroundRefresh = false,
+            remoteConnector = remoteConnector
         )
 
         store.start()
@@ -282,6 +293,7 @@ class AppStoreTest {
         val proxyLifecycle = ProxyLifecycle(proxyController, noopLogger)
         val logger = CollectingLogger(delegate = noopLogger)
         val storeScope = TestScope(testScheduler)
+        val remoteConnector = NoOpRemoteConnector(defaultRemoteState())
         val store = AppStore(
             configurationRepository = repository,
             proxyLifecycle = proxyLifecycle,
@@ -289,7 +301,8 @@ class AppStoreTest {
             logger = logger,
             scope = storeScope,
             now = { testScheduler.currentTime },
-            enableBackgroundRefresh = false
+            enableBackgroundRefresh = false,
+            remoteConnector = remoteConnector
         )
 
         store.start()
@@ -339,6 +352,7 @@ class AppStoreTest {
         val proxyLifecycle = ProxyLifecycle(proxyController, noopLogger)
         val logger = CollectingLogger(delegate = noopLogger)
         val storeScope = TestScope(testScheduler)
+        val remoteConnector = NoOpRemoteConnector(defaultRemoteState())
         val store = AppStore(
             configurationRepository = repository,
             proxyLifecycle = proxyLifecycle,
@@ -346,7 +360,8 @@ class AppStoreTest {
             logger = logger,
             scope = storeScope,
             now = { testScheduler.currentTime },
-            enableBackgroundRefresh = false
+            enableBackgroundRefresh = false,
+            remoteConnector = remoteConnector
         )
 
         store.start()
@@ -394,6 +409,7 @@ class AppStoreTest {
         val proxyLifecycle = ProxyLifecycle(proxyController, noopLogger)
         val logger = CollectingLogger(delegate = noopLogger)
         val storeScope = TestScope(testScheduler)
+        val remoteConnector = NoOpRemoteConnector(defaultRemoteState())
         val store = AppStore(
             configurationRepository = repository,
             proxyLifecycle = proxyLifecycle,
@@ -401,7 +417,8 @@ class AppStoreTest {
             logger = logger,
             scope = storeScope,
             now = { testScheduler.currentTime },
-            enableBackgroundRefresh = false
+            enableBackgroundRefresh = false,
+            remoteConnector = remoteConnector
         )
 
         store.start()
@@ -492,6 +509,8 @@ class AppStoreTest {
         override fun updateCapabilitiesTimeout(seconds: Int) {
             capabilityTimeoutUpdates += seconds
         }
+
+        override fun currentProxy(): ProxyMcpServer? = null
     }
 
     private class RecordingCapabilityFetcher(

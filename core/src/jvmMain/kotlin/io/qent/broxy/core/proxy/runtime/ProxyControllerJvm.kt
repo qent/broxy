@@ -85,6 +85,8 @@ private class JvmProxyController(
             (conn as? DefaultMcpServerConnection)?.updateCapabilitiesTimeout(capabilitiesTimeoutMillis)
         }
     }
+
+    override fun currentProxy(): ProxyMcpServer? = proxy
 }
 
 actual fun createProxyController(logger: CollectingLogger): ProxyController = JvmProxyController(logger)

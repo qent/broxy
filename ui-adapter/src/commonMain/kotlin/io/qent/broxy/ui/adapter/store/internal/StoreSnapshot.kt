@@ -16,6 +16,7 @@ import io.qent.broxy.ui.adapter.models.UiWebSocketTransport
 import io.qent.broxy.ui.adapter.models.toUiStatus
 import io.qent.broxy.ui.adapter.store.Intents
 import io.qent.broxy.ui.adapter.store.UIState
+import io.qent.broxy.ui.adapter.remote.defaultRemoteState
 
 internal data class StoreSnapshot(
     val isLoading: Boolean = true,
@@ -28,7 +29,8 @@ internal data class StoreSnapshot(
     val requestTimeoutSeconds: Int = 60,
     val capabilitiesTimeoutSeconds: Int = 10,
     val capabilitiesRefreshIntervalSeconds: Int = 300,
-    val showTrayIcon: Boolean = true
+    val showTrayIcon: Boolean = true,
+    val remote: io.qent.broxy.ui.adapter.models.UiRemoteConnectionState = defaultRemoteState()
 )
 
 internal fun StoreSnapshot.withPresets(newPresets: List<UiPreset>): StoreSnapshot {
@@ -82,7 +84,8 @@ internal fun StoreSnapshot.toUiState(
         capabilitiesRefreshIntervalSeconds = capabilitiesRefreshIntervalSeconds,
         showTrayIcon = showTrayIcon,
         logs = logs,
-        intents = intents
+        intents = intents,
+        remote = remote
     )
 }
 
