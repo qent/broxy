@@ -25,6 +25,7 @@ import io.qent.broxy.ui.adapter.remote.net.LoginResponse
 import io.qent.broxy.ui.adapter.remote.net.RegisterRequest
 import io.qent.broxy.ui.adapter.remote.net.RegisterResponse
 import io.qent.broxy.ui.adapter.remote.net.TokenResponse
+import io.qent.broxy.ui.adapter.remote.storage.LoadedRemoteConfig
 import io.qent.broxy.ui.adapter.remote.storage.RemoteConfigStore
 import io.qent.broxy.ui.adapter.remote.storage.SecureStorageProvider
 import io.qent.broxy.ui.adapter.remote.storage.SecureStore
@@ -76,20 +77,35 @@ class RemoteConnectorImpl(
     private val _state = MutableStateFlow(defaultRemoteState())
     override val state: StateFlow<UiRemoteConnectionState> = _state
 
+    private var cachedConfig: LoadedRemoteConfig? = null
+    @Volatile
+    private var proxyRunning: Boolean = false
     private var wsClient: RemoteWsClient? = null
 
     override fun start() {
         scope.launch(ioContext) {
-            val loaded = configStore.load()
+            proxyRunning = proxyLifecycle.isRunning()
+            cachedConfig = configStore.load()
+            val loaded = cachedConfig
             if (loaded != null) {
                 logger.info("[RemoteAuth] Loaded cached remote config: server=${loaded.serverIdentifier}, email=${loaded.email}, accessExp=${loaded.accessTokenExpiresAt}, wsExp=${loaded.wsTokenExpiresAt}")
                 logTokenSnapshot("Loaded cached tokens", loaded.accessToken, loaded.wsToken)
-                _state.value = loaded.toUi().copy(status = UiRemoteStatus.Registered)
-                if (!loaded.wsToken.isNullOrBlank() && !isExpired(loaded.wsTokenExpiresAt)) {
-                    logger.info("[RemoteAuth] Reusing cached WebSocket token; attempting reconnect")
-                    connectWebSocket(loaded.wsToken)
-                } else {
-                    logger.warn("[RemoteAuth] Cached WebSocket token missing or expired; waiting for authorization")
+                if (!hasValidAccessToken(loaded) && !hasValidWsToken(loaded)) {
+                    logger.warn("[RemoteAuth] Cached credentials are expired; clearing and waiting for authorization")
+                    cachedConfig = null
+                    configStore.clear()
+                    _state.value = defaultRemoteState().copy(serverIdentifier = loaded.serverIdentifier)
+                    return@launch
+                }
+                _state.value = loaded.toUi().copy(
+                    status = if (hasCredentials(loaded)) UiRemoteStatus.Registered else UiRemoteStatus.NotAuthorized,
+                    message = null
+                )
+                if (hasCredentials(loaded) && proxyRunning) {
+                    logger.info("[RemoteAuth] Cached credentials found; attempting auto-connect")
+                    connectWithCachedTokens(auto = true)
+                } else if (hasCredentials(loaded)) {
+                    logger.info("[RemoteAuth] Cached credentials found; waiting for MCP proxy to start before connecting")
                 }
             } else {
                 logger.debug("[RemoteAuth] No cached remote config found; awaiting manual authorization")
@@ -100,13 +116,21 @@ class RemoteConnectorImpl(
     override fun updateServerIdentifier(value: String) {
         val normalized = normalizeIdentifier(value)
         logger.info("[RemoteAuth] Updating server identifier to '$normalized'")
-        _state.value = _state.value.copy(serverIdentifier = normalized)
+        _state.value = _state.value.copy(
+            serverIdentifier = normalized,
+            status = UiRemoteStatus.NotAuthorized,
+            hasCredentials = false,
+            message = null,
+            email = null
+        )
         scope.launch(ioContext) {
+            disconnectInternal(clearCredentials = false, reason = null)
+            cachedConfig = null
             val current = _state.value
             configStore.clear()
             configStore.save(
                 serverIdentifier = current.serverIdentifier,
-                email = current.email,
+                email = null,
                 accessToken = null,
                 accessTokenExpiresAt = null,
                 wsToken = null,
@@ -202,11 +226,11 @@ class RemoteConnectorImpl(
             logTokenSnapshot("Access token received", tokenResp.accessToken, null)
             val register = registerServer(tokenResp.accessToken)
             if (register == null) {
-                _state.value = _state.value.copy(status = UiRemoteStatus.Error, message = "Register failed")
+                _state.value = _state.value.copy(status = UiRemoteStatus.Error, message = "Register failed", hasCredentials = false)
                 return@launch
             }
             val wsExpiry = accessExpiry?.plusSeconds(24 * 3600) // backend default, best effort
-            configStore.save(
+            persistConfig(
                 serverIdentifier = _state.value.serverIdentifier,
                 email = email,
                 accessToken = tokenResp.accessToken,
@@ -219,22 +243,136 @@ class RemoteConnectorImpl(
             _state.value = _state.value.copy(
                 status = UiRemoteStatus.Registered,
                 message = null,
-                email = email
+                email = email,
+                hasCredentials = true
             )
-            connectWebSocket(register.jwtToken)
+            proxyRunning = proxyLifecycle.isRunning()
+            if (proxyRunning) {
+                connectWebSocket(register.jwtToken)
+            } else {
+                logger.info("[RemoteAuth] Authorization complete; waiting for MCP proxy to start before connecting")
+            }
+        }
+    }
+
+    override fun connect() {
+        scope.launch(ioContext) {
+            connectWithCachedTokens(auto = false)
         }
     }
 
     override fun disconnect() {
         scope.launch(ioContext) {
-            runCatching { wsClient?.close() }
-            wsClient = null
-            configStore.clear()
-            _state.value = defaultRemoteState().copy(serverIdentifier = _state.value.serverIdentifier)
+            disconnectInternal(clearCredentials = false, reason = "Disconnected")
         }
     }
 
+    override fun logout() {
+        scope.launch(ioContext) {
+            disconnectInternal(clearCredentials = true, reason = "Logged out")
+        }
+    }
+
+    override fun onProxyRunningChanged(running: Boolean) {
+        proxyRunning = running
+        scope.launch(ioContext) {
+            if (running) {
+                connectWithCachedTokens(auto = true)
+            } else {
+                disconnectInternal(clearCredentials = false, reason = "MCP proxy stopped")
+            }
+        }
+    }
+
+    private suspend fun connectWithCachedTokens(auto: Boolean) {
+        val config = loadCachedConfig()
+        if (config == null || !hasCredentials(config)) {
+            if (!auto) {
+                _state.value = defaultRemoteState().copy(serverIdentifier = _state.value.serverIdentifier)
+            }
+            return
+        }
+        if (config.serverIdentifier != _state.value.serverIdentifier) {
+            _state.value = _state.value.copy(serverIdentifier = config.serverIdentifier)
+        }
+        proxyRunning = proxyLifecycle.isRunning()
+        if (!proxyRunning) {
+            if (!auto) {
+                _state.value = _state.value.copy(
+                    status = UiRemoteStatus.Registered,
+                    message = "Start MCP proxy to connect",
+                    hasCredentials = true
+                )
+            }
+            return
+        }
+        val wsToken = config.wsToken?.takeIf { hasValidWsToken(config) }
+        if (wsToken != null) {
+            _state.value = _state.value.copy(
+                status = UiRemoteStatus.WsConnecting,
+                message = null,
+                hasCredentials = true
+            )
+            connectWebSocket(wsToken)
+            return
+        }
+        if (!hasValidAccessToken(config)) {
+            logger.warn("[RemoteAuth] Cached access token expired; requiring re-authorization")
+            disconnectInternal(clearCredentials = true, reason = "Authorization expired")
+            return
+        }
+        val register = registerServer(config.accessToken!!)
+        if (register == null) {
+            return
+        }
+        val wsExpiry = config.accessTokenExpiresAt?.plusSeconds(24 * 3600)
+        persistConfig(
+            serverIdentifier = config.serverIdentifier,
+            email = config.email,
+            accessToken = config.accessToken,
+            accessTokenExpiresAt = config.accessTokenExpiresAt,
+            wsToken = register.jwtToken,
+            wsTokenExpiresAt = wsExpiry
+        )
+        _state.value = _state.value.copy(
+            status = UiRemoteStatus.Registered,
+            hasCredentials = true,
+            email = config.email,
+            message = null
+        )
+        connectWebSocket(register.jwtToken)
+    }
+
+    private suspend fun disconnectInternal(clearCredentials: Boolean, reason: String?) {
+        runCatching { wsClient?.close() }
+        wsClient = null
+        val hasCreds = _state.value.hasCredentials
+        if (clearCredentials || !hasCreds) {
+            cachedConfig = null
+            configStore.clear()
+            _state.value = defaultRemoteState().copy(
+                serverIdentifier = _state.value.serverIdentifier,
+                message = reason
+            )
+            return
+        }
+        _state.value = _state.value.copy(
+            status = UiRemoteStatus.WsOffline,
+            message = reason,
+            hasCredentials = true
+        )
+    }
+
     private suspend fun connectWebSocket(jwt: String) {
+        if (!proxyLifecycle.isRunning()) {
+            logger.warn("[RemoteAuth] Skipping WebSocket connect: MCP proxy is not running")
+            _state.value = _state.value.copy(
+                status = UiRemoteStatus.Registered,
+                message = "Start MCP proxy to connect",
+                hasCredentials = true
+            )
+            return
+        }
         val proxyProvider = { proxyLifecycle.currentProxy() }
         val wsUrl = "$WS_BASE_URL$WS_PATH/${_state.value.serverIdentifier}"
         logger.info("[RemoteAuth] Initiating WebSocket connection to $wsUrl")
@@ -248,11 +386,11 @@ class RemoteConnectorImpl(
             logger = logger,
             scope = scope,
             onStatus = { status, message ->
-                _state.value = _state.value.copy(status = status, message = message)
+                _state.value = _state.value.copy(status = status, message = message, hasCredentials = true)
             },
             onAuthFailure = { reason ->
                 logger.error("[RemoteAuth] WebSocket authentication failed: $reason")
-                _state.value = _state.value.copy(status = UiRemoteStatus.Error, message = reason)
+                _state.value = _state.value.copy(status = UiRemoteStatus.Error, message = reason, hasCredentials = true)
             }
         )
         wsClient = client
@@ -261,7 +399,8 @@ class RemoteConnectorImpl(
             logger.warn("[RemoteAuth] WebSocket connection failed: ${result.exceptionOrNull()?.message}")
             _state.value = _state.value.copy(
                 status = UiRemoteStatus.WsOffline,
-                message = result.exceptionOrNull()?.message
+                message = result.exceptionOrNull()?.message,
+                hasCredentials = true
             )
         } else {
             logger.info("[RemoteAuth] WebSocket connection established")
@@ -270,7 +409,11 @@ class RemoteConnectorImpl(
     }
 
     private suspend fun registerServer(accessToken: String): RegisterResponse? = runCatching {
-        _state.value = _state.value.copy(status = UiRemoteStatus.Registering, message = "Registering server")
+        _state.value = _state.value.copy(
+            status = UiRemoteStatus.Registering,
+            message = "Registering server",
+            hasCredentials = true
+        )
         logger.info("[RemoteAuth] Registering server '${_state.value.serverIdentifier}' with remote backend")
         httpClient.post("$BASE_URL/auth/mcp/register") {
             header(HttpHeaders.Authorization, "Bearer $accessToken")
@@ -295,9 +438,49 @@ class RemoteConnectorImpl(
             }
             else -> it.message ?: "Register failed"
         }
-        _state.value = _state.value.copy(status = UiRemoteStatus.Error, message = msg)
+        _state.value = _state.value.copy(status = UiRemoteStatus.Error, message = msg, hasCredentials = true)
         logger.error("[RemoteAuth] register failed: $msg")
     }.getOrNull()
+
+    private fun loadCachedConfig(): LoadedRemoteConfig? {
+        cachedConfig = cachedConfig ?: configStore.load()
+        return cachedConfig
+    }
+
+    private fun hasCredentials(config: LoadedRemoteConfig?): Boolean =
+        config != null && (!config.accessToken.isNullOrBlank() || !config.wsToken.isNullOrBlank())
+
+    private fun hasValidAccessToken(config: LoadedRemoteConfig): Boolean =
+        !config.accessToken.isNullOrBlank() && !isExpired(config.accessTokenExpiresAt)
+
+    private fun hasValidWsToken(config: LoadedRemoteConfig): Boolean =
+        !config.wsToken.isNullOrBlank() && !isExpired(config.wsTokenExpiresAt)
+
+    private fun persistConfig(
+        serverIdentifier: String,
+        email: String?,
+        accessToken: String?,
+        accessTokenExpiresAt: Instant?,
+        wsToken: String?,
+        wsTokenExpiresAt: Instant?
+    ) {
+        cachedConfig = LoadedRemoteConfig(
+            serverIdentifier = serverIdentifier,
+            email = email,
+            accessToken = accessToken,
+            accessTokenExpiresAt = accessTokenExpiresAt,
+            wsToken = wsToken,
+            wsTokenExpiresAt = wsTokenExpiresAt
+        )
+        configStore.save(
+            serverIdentifier = serverIdentifier,
+            email = email,
+            accessToken = accessToken,
+            accessTokenExpiresAt = accessTokenExpiresAt,
+            wsToken = wsToken,
+            wsTokenExpiresAt = wsTokenExpiresAt
+        )
+    }
 
     private fun isExpired(expiry: Instant?): Boolean =
         expiry != null && now().isAfter(expiry.minusSeconds(60))

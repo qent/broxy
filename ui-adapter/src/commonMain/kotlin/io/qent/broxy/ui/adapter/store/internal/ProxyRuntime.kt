@@ -8,6 +8,7 @@ import io.qent.broxy.ui.adapter.models.UiHttpTransport
 import io.qent.broxy.ui.adapter.models.UiPresetCore
 import io.qent.broxy.ui.adapter.models.UiProxyStatus
 import io.qent.broxy.ui.adapter.models.UiTransportConfig
+import io.qent.broxy.ui.adapter.remote.RemoteConnector
 
 private const val DEFAULT_REMOTE_ENDPOINT = "http://0.0.0.0:3335/mcp"
 
@@ -16,7 +17,8 @@ internal class ProxyRuntime(
     private val proxyLifecycle: ProxyLifecycle,
     private val logger: CollectingLogger,
     private val state: StoreStateAccess,
-    private val publishReady: () -> Unit
+    private val publishReady: () -> Unit,
+    private val remoteConnector: RemoteConnector
 ) {
     suspend fun restartProxyWithPreset(presetId: String, presetOverride: UiPresetCore? = null) {
         if (state.snapshot.proxyStatus !is UiProxyStatus.Running) return
@@ -37,6 +39,7 @@ internal class ProxyRuntime(
         val result = proxyLifecycle.start(snapshotConfig(), presetResult.getOrThrow(), inbound)
         if (result.isSuccess) {
             state.updateSnapshot { copy(activeProxyPresetId = presetId, proxyStatus = UiProxyStatus.Running) }
+            remoteConnector.onProxyRunningChanged(true)
         } else {
             val msg = result.exceptionOrNull()?.message ?: "Failed to restart proxy"
             logger.info("[AppStore] restartProxyWithPreset failed for '$presetId': $msg")
@@ -74,6 +77,7 @@ internal class ProxyRuntime(
             state.updateSnapshot {
                 copy(proxyStatus = UiProxyStatus.Running, activeProxyPresetId = presetId, activeInbound = inbound)
             }
+            remoteConnector.onProxyRunningChanged(true)
         } else {
             val msg = result.exceptionOrNull()?.message ?: "Failed to start proxy"
             logger.info("[AppStore] startProxy failed to start proxy: $msg")
@@ -92,6 +96,7 @@ internal class ProxyRuntime(
             state.updateSnapshot {
                 copy(proxyStatus = UiProxyStatus.Stopped, activeProxyPresetId = null, activeInbound = null)
             }
+            remoteConnector.onProxyRunningChanged(false)
         } else {
             val msg = result.exceptionOrNull()?.message ?: "Failed to stop proxy"
             state.updateSnapshot { copy(proxyStatus = UiProxyStatus.Error(msg)) }

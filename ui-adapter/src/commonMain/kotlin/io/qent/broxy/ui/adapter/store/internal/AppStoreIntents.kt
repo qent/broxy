@@ -361,8 +361,16 @@ internal class AppStoreIntents(
         remoteConnector.beginAuthorization()
     }
 
+    override fun connectRemote() {
+        remoteConnector.connect()
+    }
+
     override fun disconnectRemote() {
         remoteConnector.disconnect()
+    }
+
+    override fun logoutRemote() {
+        remoteConnector.logout()
     }
 
     private fun revertServersOnFailure(

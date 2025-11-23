@@ -52,5 +52,7 @@ interface Intents {
 
     fun updateRemoteServerIdentifier(value: String)
     fun startRemoteAuthorization()
+    fun connectRemote()
     fun disconnectRemote()
+    fun logoutRemote()
 }

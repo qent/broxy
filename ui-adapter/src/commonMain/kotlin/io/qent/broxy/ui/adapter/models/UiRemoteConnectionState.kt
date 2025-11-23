@@ -6,6 +6,7 @@ package io.qent.broxy.ui.adapter.models
 data class UiRemoteConnectionState(
     val serverIdentifier: String,
     val email: String?,
+    val hasCredentials: Boolean,
     val status: UiRemoteStatus,
     val message: String? = null
 )

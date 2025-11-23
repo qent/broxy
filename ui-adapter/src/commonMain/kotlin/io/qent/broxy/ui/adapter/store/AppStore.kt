@@ -74,7 +74,8 @@ class AppStore(
         proxyLifecycle = proxyLifecycle,
         logger = logger,
         state = stateAccess,
-        publishReady = ::publishReady
+        publishReady = ::publishReady,
+        remoteConnector = remoteConnector
     )
     private val intents: Intents = AppStoreIntents(
         scope = scope,

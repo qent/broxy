@@ -25,10 +25,12 @@ data class LoadedRemoteConfig(
     val wsToken: String?,
     val wsTokenExpiresAt: Instant?
 ) {
+    private fun hasCredentials(): Boolean = !accessToken.isNullOrBlank() || !wsToken.isNullOrBlank()
     fun toUi(): UiRemoteConnectionState = UiRemoteConnectionState(
         serverIdentifier = serverIdentifier,
         email = email,
-        status = if (wsToken != null) UiRemoteStatus.Registered else UiRemoteStatus.NotAuthorized,
+        hasCredentials = hasCredentials(),
+        status = if (hasCredentials()) UiRemoteStatus.Registered else UiRemoteStatus.NotAuthorized,
         message = null
     )
 }

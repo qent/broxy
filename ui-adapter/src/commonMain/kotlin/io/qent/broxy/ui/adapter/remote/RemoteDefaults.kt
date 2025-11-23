@@ -8,6 +8,7 @@ expect fun defaultRemoteServerIdentifier(): String
 fun defaultRemoteState(): UiRemoteConnectionState = UiRemoteConnectionState(
     serverIdentifier = defaultRemoteServerIdentifier(),
     email = null,
+    hasCredentials = false,
     status = UiRemoteStatus.NotAuthorized,
     message = null
 )

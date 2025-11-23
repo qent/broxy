@@ -80,7 +80,9 @@ fun SettingsScreen(
                 remote = ui.remote,
                 onRemoteServerIdChange = { ui.intents.updateRemoteServerIdentifier(it) },
                 onRemoteAuthorize = { ui.intents.startRemoteAuthorization() },
-                onRemoteDisconnect = { ui.intents.disconnectRemote() }
+                onRemoteConnect = { ui.intents.connectRemote() },
+                onRemoteDisconnect = { ui.intents.disconnectRemote() },
+                onRemoteLogout = { ui.intents.logoutRemote() }
             )
         }
     }
@@ -101,7 +103,9 @@ private fun SettingsContent(
     remote: UiRemoteConnectionState,
     onRemoteServerIdChange: (String) -> Unit,
     onRemoteAuthorize: () -> Unit,
-    onRemoteDisconnect: () -> Unit
+    onRemoteConnect: () -> Unit,
+    onRemoteDisconnect: () -> Unit,
+    onRemoteLogout: () -> Unit
 ) {
     var requestTimeoutInput by rememberSaveable(requestTimeoutSeconds) { mutableStateOf(requestTimeoutSeconds.toString()) }
     var capabilitiesTimeoutInput by rememberSaveable(capabilitiesTimeoutSeconds) { mutableStateOf(capabilitiesTimeoutSeconds.toString()) }
@@ -156,7 +160,9 @@ private fun SettingsContent(
                 }
             },
             onAuthorize = onRemoteAuthorize,
-            onDisconnect = onRemoteDisconnect
+            onConnect = onRemoteConnect,
+            onDisconnect = onRemoteDisconnect,
+            onLogout = onRemoteLogout
         )
         TimeoutSetting(
             title = "Request timeout",
@@ -366,7 +372,9 @@ private fun RemoteConnectorSetting(
     serverId: String,
     onServerIdChange: (String) -> Unit,
     onAuthorize: () -> Unit,
-    onDisconnect: () -> Unit
+    onConnect: () -> Unit,
+    onDisconnect: () -> Unit,
+    onLogout: () -> Unit
 ) {
     val statusLabel = when (remote.status) {
         UiRemoteStatus.NotAuthorized -> "Not authorized"
@@ -379,6 +387,9 @@ private fun RemoteConnectorSetting(
         UiRemoteStatus.Error -> "Error"
     }
     val statusDetail = remote.message ?: remote.email ?: ""
+    val isAuthorized = remote.hasCredentials
+    val isBusy = remote.status in setOf(UiRemoteStatus.Authorizing, UiRemoteStatus.Registering)
+    val isConnected = remote.status == UiRemoteStatus.WsOnline || remote.status == UiRemoteStatus.WsConnecting
 
     SettingCard(
         title = "Remote MCP proxy",
@@ -409,21 +420,26 @@ private fun RemoteConnectorSetting(
             horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm, Alignment.End),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            AppPrimaryButton(
-                onClick = onAuthorize,
-                enabled = remote.status !in setOf(
-                    UiRemoteStatus.Authorizing,
-                    UiRemoteStatus.Registering,
-                    UiRemoteStatus.WsConnecting
-                )
-            ) {
-                Text("Authorize")
-            }
-            AppPrimaryButton(
-                onClick = onDisconnect,
-                enabled = remote.status != UiRemoteStatus.NotAuthorized
-            ) {
-                Text("Sign out")
+            if (isAuthorized) {
+                AppPrimaryButton(
+                    onClick = if (isConnected) onDisconnect else onConnect,
+                    enabled = !isBusy
+                ) {
+                    Text(if (isConnected) "Disconnect" else "Connect")
+                }
+                AppPrimaryButton(
+                    onClick = onLogout,
+                    enabled = !isBusy
+                ) {
+                    Text("Logout")
+                }
+            } else {
+                AppPrimaryButton(
+                    onClick = onAuthorize,
+                    enabled = !isBusy
+                ) {
+                    Text("Authorize")
+                }
             }
         }
     }

@@ -10,7 +10,10 @@ interface RemoteConnector {
     fun start()
     fun updateServerIdentifier(value: String)
     fun beginAuthorization()
+    fun connect()
     fun disconnect()
+    fun logout()
+    fun onProxyRunningChanged(running: Boolean)
 }
 
 class NoOpRemoteConnector(
@@ -24,5 +27,8 @@ class NoOpRemoteConnector(
         _state.value = _state.value.copy(serverIdentifier = value)
     }
     override fun beginAuthorization() {}
+    override fun connect() {}
     override fun disconnect() {}
+    override fun logout() {}
+    override fun onProxyRunningChanged(running: Boolean) {}
 }
