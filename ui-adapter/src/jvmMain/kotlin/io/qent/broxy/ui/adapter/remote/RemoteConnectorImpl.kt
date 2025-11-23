@@ -136,17 +136,20 @@ class RemoteConnectorImpl(
             logger.info("[RemoteAuth] Opening browser for OAuth consent")
             openBrowser(login.authorizationUrl)
             logger.debug("[RemoteAuth] Awaiting OAuth callback for state=${login.state}")
-            val callback: OAuthCallback = callbackServer.awaitCallback(login.state)
+            val callbackResult = runCatching { callbackServer.awaitCallback(login.state) }
+            val callback: OAuthCallback = callbackResult.getOrNull()
                 ?: run {
-                    logger.warn("[RemoteAuth] Authorization timed out before callback")
-                    _state.value = _state.value.copy(status = UiRemoteStatus.Error, message = "Authorization timed out")
+                    val msg = callbackResult.exceptionOrNull()?.let { "Callback server failed: ${it.message}" }
+                        ?: "Authorization timed out"
+                    logger.error("[RemoteAuth] Authorization failed before callback: $msg", callbackResult.exceptionOrNull())
+                    _state.value = _state.value.copy(status = UiRemoteStatus.Error, message = msg)
                     return@launch
                 }
             logger.info("[RemoteAuth] OAuth callback received; state=${callback.state}, codeLen=${callback.code.length}")
             val tokenResp = runCatching {
                 httpClient.post("$BASE_URL/auth/mcp/callback") {
                     contentType(ContentType.Application.Json)
-                    setBody(CallbackRequest(code = callback.code, state = callback.state))
+                    setBody(CallbackRequest(code = callback.code, state = callback.state, audience = "mcp"))
                 }.body<TokenResponse>()
             }.onFailure { logger.error("[RemoteAuth] callback exchange failed: ${it.message}") }
                 .getOrElse {

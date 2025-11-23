@@ -24,8 +24,13 @@ class LoopbackCallbackServer(
     suspend fun awaitCallback(expectedState: String, timeoutMillis: Long = 120_000): OAuthCallback? =
         withContext(Dispatchers.IO) {
             val deferred = CompletableDeferred<OAuthCallback?>()
-            val httpServer = HttpServer.create(InetSocketAddress("127.0.0.1", port), 0).also {
-                logger?.info("[RemoteAuth] Loopback callback server listening on 127.0.0.1:$port for state=$expectedState")
+            val httpServer = try {
+                HttpServer.create(InetSocketAddress("127.0.0.1", port), 0).also {
+                    logger?.info("[RemoteAuth] Loopback callback server listening on 127.0.0.1:$port for state=$expectedState")
+                }
+            } catch (ex: Exception) {
+                logger?.error("[RemoteAuth] Failed to start loopback callback server on 127.0.0.1:$port: ${ex.message}", ex)
+                throw ex
             }
             server = httpServer
             httpServer.createContext("/oauth/callback", Handler(expectedState, deferred, logger))
