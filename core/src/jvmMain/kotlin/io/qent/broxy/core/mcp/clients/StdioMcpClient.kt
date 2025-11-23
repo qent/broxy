@@ -1,15 +1,20 @@
 package io.qent.broxy.core.mcp.clients
 
-import io.modelcontextprotocol.kotlin.sdk.CallToolResultBase
-import io.modelcontextprotocol.kotlin.sdk.JSONRPCMessage
-import io.modelcontextprotocol.kotlin.sdk.JSONRPCNotification
-import io.modelcontextprotocol.kotlin.sdk.JSONRPCRequest
-import io.modelcontextprotocol.kotlin.sdk.JSONRPCResponse
 import io.modelcontextprotocol.kotlin.sdk.LIB_VERSION
-import io.modelcontextprotocol.kotlin.sdk.Method
 import io.modelcontextprotocol.kotlin.sdk.shared.IMPLEMENTATION_NAME
 import io.modelcontextprotocol.kotlin.sdk.shared.Transport
+import io.modelcontextprotocol.kotlin.sdk.shared.TransportSendOptions
 import io.modelcontextprotocol.kotlin.sdk.shared.serializeMessage
+import io.modelcontextprotocol.kotlin.sdk.types.CallToolResult
+import io.modelcontextprotocol.kotlin.sdk.types.GetPromptResult
+import io.modelcontextprotocol.kotlin.sdk.types.JSONRPCMessage
+import io.modelcontextprotocol.kotlin.sdk.types.JSONRPCNotification
+import io.modelcontextprotocol.kotlin.sdk.types.JSONRPCRequest
+import io.modelcontextprotocol.kotlin.sdk.types.JSONRPCResponse
+import io.modelcontextprotocol.kotlin.sdk.types.Method
+import io.modelcontextprotocol.kotlin.sdk.types.ReadResourceResult
+import io.modelcontextprotocol.kotlin.sdk.types.RequestId
+import io.modelcontextprotocol.kotlin.sdk.types.Implementation
 import io.modelcontextprotocol.kotlin.sdk.client.Client
 import io.modelcontextprotocol.kotlin.sdk.client.StdioClientTransport
 import io.qent.broxy.core.mcp.McpClient
@@ -102,7 +107,7 @@ class StdioMcpClient(
                 val source = proc.inputStream.asSource().buffered()
                 val sink = proc.outputStream.asSink().buffered()
                 val transport = LoggingTransport(StdioClientTransport(source, sink), logger)
-                val sdk = Client(io.modelcontextprotocol.kotlin.sdk.Implementation(IMPLEMENTATION_NAME, LIB_VERSION))
+                val sdk = Client(Implementation(IMPLEMENTATION_NAME, LIB_VERSION))
                 sdk.connect(transport)
                 RealSdkClientFacade(sdk, logger)
             }
@@ -165,26 +170,26 @@ class StdioMcpClient(
 
     override suspend fun callTool(name: String, arguments: JsonObject): Result<JsonElement> = runCatching {
         val c = client ?: throw IllegalStateException("Not connected")
-        val result = c.callTool(name, arguments) ?: io.modelcontextprotocol.kotlin.sdk.CallToolResult(
+        val result = c.callTool(name, arguments) ?: CallToolResult(
             content = emptyList(),
-            structuredContent = JsonObject(emptyMap()),
             isError = false,
-            _meta = JsonObject(emptyMap())
+            structuredContent = JsonObject(emptyMap()),
+            meta = JsonObject(emptyMap())
         )
-        json.encodeToJsonElement(CallToolResultBase.serializer(), result) as JsonObject
+        json.encodeToJsonElement(CallToolResult.serializer(), result) as JsonObject
     }
 
     override suspend fun getPrompt(name: String, arguments: Map<String, String>?): Result<JsonObject> = runCatching {
         val c = client ?: throw IllegalStateException("Not connected")
         val r = c.getPrompt(name, arguments)
-        val el = kotlinx.serialization.json.Json.encodeToJsonElement(io.modelcontextprotocol.kotlin.sdk.GetPromptResult.serializer(), r)
+        val el = kotlinx.serialization.json.Json.encodeToJsonElement(GetPromptResult.serializer(), r)
         el as JsonObject
     }
 
     override suspend fun readResource(uri: String): Result<JsonObject> = runCatching {
         val c = client ?: throw IllegalStateException("Not connected")
         val r = c.readResource(uri)
-        val el = kotlinx.serialization.json.Json.encodeToJsonElement(io.modelcontextprotocol.kotlin.sdk.ReadResourceResult.serializer(), r)
+        val el = kotlinx.serialization.json.Json.encodeToJsonElement(ReadResourceResult.serializer(), r)
         el as JsonObject
     }
 
@@ -229,13 +234,13 @@ private class LoggingTransport(
     private val delegate: Transport,
     private val logger: Logger
 ) : Transport {
-    private val trackedRequests = ConcurrentHashMap<io.modelcontextprotocol.kotlin.sdk.RequestId, String>()
+    private val trackedRequests = ConcurrentHashMap<RequestId, String>()
 
     override suspend fun start() {
         delegate.start()
     }
 
-    override suspend fun send(message: JSONRPCMessage) {
+    override suspend fun send(message: JSONRPCMessage, options: TransportSendOptions?) {
         if (message is JSONRPCRequest) {
             when (message.method) {
                 Method.Defined.ToolsList.value -> {
@@ -252,7 +257,7 @@ private class LoggingTransport(
                 }
             }
         }
-        delegate.send(message)
+        delegate.send(message, options)
     }
 
     override suspend fun close() {

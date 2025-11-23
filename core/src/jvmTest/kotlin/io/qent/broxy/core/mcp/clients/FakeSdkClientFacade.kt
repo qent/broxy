@@ -1,12 +1,11 @@
 package io.qent.broxy.core.mcp.clients
 
+import io.modelcontextprotocol.kotlin.sdk.types.CallToolResult
+import io.modelcontextprotocol.kotlin.sdk.types.GetPromptResult
+import io.modelcontextprotocol.kotlin.sdk.types.ReadResourceResult
 import io.qent.broxy.core.mcp.PromptDescriptor
 import io.qent.broxy.core.mcp.ResourceDescriptor
 import io.qent.broxy.core.mcp.ToolDescriptor
-import io.modelcontextprotocol.kotlin.sdk.CallToolResult
-import io.modelcontextprotocol.kotlin.sdk.CallToolResultBase
-import io.modelcontextprotocol.kotlin.sdk.GetPromptResult
-import io.modelcontextprotocol.kotlin.sdk.ReadResourceResult
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -20,7 +19,7 @@ class FakeSdkClientFacade(
     override suspend fun getTools(): List<ToolDescriptor> = tools
     override suspend fun getResources(): List<ResourceDescriptor> = resources
     override suspend fun getPrompts(): List<PromptDescriptor> = prompts
-    override suspend fun callTool(name: String, arguments: JsonObject): CallToolResultBase? =
+    override suspend fun callTool(name: String, arguments: JsonObject): CallToolResult? =
         CallToolResult(
             content = emptyList(),
             structuredContent = buildJsonObject {
@@ -28,14 +27,14 @@ class FakeSdkClientFacade(
                 put("ok", true)
             },
             isError = false,
-            _meta = JsonObject(mapOf("source" to JsonPrimitive("fake")))
+            meta = JsonObject(mapOf("source" to JsonPrimitive("fake")))
         )
 
     override suspend fun getPrompt(name: String, arguments: Map<String, String>?): GetPromptResult =
-        GetPromptResult(description = "desc", messages = emptyList(), _meta = JsonObject(emptyMap()))
+        GetPromptResult(description = "desc", messages = emptyList(), meta = JsonObject(emptyMap()))
 
     override suspend fun readResource(uri: String): ReadResourceResult =
-        ReadResourceResult(contents = emptyList(), _meta = JsonObject(emptyMap()))
+        ReadResourceResult(contents = emptyList(), meta = JsonObject(emptyMap()))
 
     override suspend fun close() { /* no-op */ }
 }

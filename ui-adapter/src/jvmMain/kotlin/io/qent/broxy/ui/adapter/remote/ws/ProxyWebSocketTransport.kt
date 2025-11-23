@@ -3,6 +3,7 @@ package io.qent.broxy.ui.adapter.remote.ws
 import io.modelcontextprotocol.kotlin.sdk.JSONRPCMessage
 import io.modelcontextprotocol.kotlin.sdk.shared.AbstractTransport
 import io.modelcontextprotocol.kotlin.sdk.shared.McpJson
+import io.modelcontextprotocol.kotlin.sdk.shared.TransportSendOptions
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
@@ -45,7 +46,7 @@ class ProxyWebSocketTransport(
         _onMessage.invoke(message)
     }
 
-    override suspend fun send(message: JSONRPCMessage) {
+    override suspend fun send(message: JSONRPCMessage, options: TransportSendOptions?) {
         val sessionId = sessionIdentifier
             ?: error("session identifier is not available; cannot send response")
         val payload = McpProxyResponsePayload(

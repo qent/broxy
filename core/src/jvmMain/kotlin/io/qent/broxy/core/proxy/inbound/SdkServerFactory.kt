@@ -1,21 +1,28 @@
 package io.qent.broxy.core.proxy.inbound
 
-import io.modelcontextprotocol.kotlin.sdk.AudioContent
-import io.modelcontextprotocol.kotlin.sdk.CallToolRequest
-import io.modelcontextprotocol.kotlin.sdk.CallToolResult
-import io.modelcontextprotocol.kotlin.sdk.CallToolResultBase
-import io.modelcontextprotocol.kotlin.sdk.EmbeddedResource
-import io.modelcontextprotocol.kotlin.sdk.GetPromptResult
-import io.modelcontextprotocol.kotlin.sdk.ImageContent
-import io.modelcontextprotocol.kotlin.sdk.Implementation
 import io.modelcontextprotocol.kotlin.sdk.LIB_VERSION
-import io.modelcontextprotocol.kotlin.sdk.Prompt
-import io.modelcontextprotocol.kotlin.sdk.ServerCapabilities
-import io.modelcontextprotocol.kotlin.sdk.TextContent
-import io.modelcontextprotocol.kotlin.sdk.Tool
 import io.modelcontextprotocol.kotlin.sdk.server.Server
 import io.modelcontextprotocol.kotlin.sdk.server.ServerOptions
 import io.modelcontextprotocol.kotlin.sdk.shared.IMPLEMENTATION_NAME
+import io.modelcontextprotocol.kotlin.sdk.types.AudioContent
+import io.modelcontextprotocol.kotlin.sdk.types.CallToolRequest
+import io.modelcontextprotocol.kotlin.sdk.types.CallToolRequestParams
+import io.modelcontextprotocol.kotlin.sdk.types.CallToolResult
+import io.modelcontextprotocol.kotlin.sdk.types.ContentBlock
+import io.modelcontextprotocol.kotlin.sdk.types.ContentTypes
+import io.modelcontextprotocol.kotlin.sdk.types.EmbeddedResource
+import io.modelcontextprotocol.kotlin.sdk.types.GetPromptResult
+import io.modelcontextprotocol.kotlin.sdk.types.Icon
+import io.modelcontextprotocol.kotlin.sdk.types.ImageContent
+import io.modelcontextprotocol.kotlin.sdk.types.Implementation
+import io.modelcontextprotocol.kotlin.sdk.types.Prompt
+import io.modelcontextprotocol.kotlin.sdk.types.PromptMessage
+import io.modelcontextprotocol.kotlin.sdk.types.ReadResourceResult
+import io.modelcontextprotocol.kotlin.sdk.types.RequestMeta
+import io.modelcontextprotocol.kotlin.sdk.types.ServerCapabilities
+import io.modelcontextprotocol.kotlin.sdk.types.TextContent
+import io.modelcontextprotocol.kotlin.sdk.types.Tool
+import io.modelcontextprotocol.kotlin.sdk.types.ToolSchema
 import io.qent.broxy.core.proxy.ProxyMcpServer
 import io.qent.broxy.core.utils.ConsoleLogger
 import io.qent.broxy.core.utils.Logger
@@ -41,8 +48,9 @@ fun buildSdkServer(proxy: ProxyMcpServer, logger: Logger = ConsoleLogger): Serve
         capabilities = ServerCapabilities(
             // Enable all high-level capabilities; server will list registered items
             prompts = ServerCapabilities.Prompts(listChanged = null),
-            resources = ServerCapabilities.Resources(subscribe = null, listChanged = null),
-            tools = ServerCapabilities.Tools(listChanged = null)
+            resources = ServerCapabilities.Resources(listChanged = null, subscribe = null),
+            tools = ServerCapabilities.Tools(listChanged = null),
+            logging = ServerCapabilities.Logging
         )
     )
 
@@ -61,16 +69,17 @@ fun buildSdkServer(proxy: ProxyMcpServer, logger: Logger = ConsoleLogger): Serve
             name = td.name,
             title = td.title,
             description = td.description ?: td.title ?: td.name,
-            inputSchema = td.inputSchema ?: Tool.Input(),
+            inputSchema = td.inputSchema ?: ToolSchema(),
             outputSchema = td.outputSchema,
             toolAnnotations = td.annotations
         ) { req: CallToolRequest ->
             logger.infoJson("llm_to_facade.request") {
                 put("toolName", JsonPrimitive(req.name))
-                put("arguments", req.arguments)
-                putIfNotNull("meta", req._meta)
+                put("arguments", req.arguments ?: JsonNull)
+                putIfNotNull("meta", req.meta?.json)
             }
-            val result = kotlinx.coroutines.runBlocking { proxy.callTool(req.name, req.arguments) }
+            val arguments = req.arguments ?: JsonObject(emptyMap())
+            val result = kotlinx.coroutines.runBlocking { proxy.callTool(req.name, arguments) }
             val colonIdx = req.name.indexOf(':')
             val serverId = if (colonIdx > 0) req.name.substring(0, colonIdx) else "unknown"
             val downstreamTool = if (colonIdx > 0 && colonIdx < req.name.length - 1) req.name.substring(colonIdx + 1) else req.name
@@ -88,12 +97,7 @@ fun buildSdkServer(proxy: ProxyMcpServer, logger: Logger = ConsoleLogger): Serve
                 }.getOrElse {
                     fallbackCallToolResult(el)
                 }
-                val decoded = if (decodedBase is CallToolResult) decodedBase else CallToolResult(
-                    content = decodedBase.content,
-                    structuredContent = decodedBase.structuredContent,
-                    isError = decodedBase.isError,
-                    _meta = decodedBase._meta
-                )
+                val decoded = decodedBase
                 logger.infoJson("facade_to_llm.response") {
                     put("toolName", JsonPrimitive(req.name))
                     put("targetServerId", JsonPrimitive(serverId))
@@ -111,9 +115,9 @@ fun buildSdkServer(proxy: ProxyMcpServer, logger: Logger = ConsoleLogger): Serve
                 }
                 CallToolResult(
                     content = emptyList(),
-                    structuredContent = JsonObject(mapOf("error" to JsonPrimitive(errMsg))),
                     isError = true,
-                    _meta = JsonObject(emptyMap())
+                    structuredContent = JsonObject(mapOf("error" to JsonPrimitive(errMsg))),
+                    meta = JsonObject(emptyMap())
                 )
             }
         }
@@ -137,9 +141,9 @@ fun buildSdkServer(proxy: ProxyMcpServer, logger: Logger = ConsoleLogger): Serve
                 // Fallback to empty prompt result with error flag in meta
                 logger.error("Prompt '${req.name}' failed: ${promptResult.exceptionOrNull()?.message}", promptResult.exceptionOrNull())
                 GetPromptResult(
-                    description = prompt.description,
                     messages = emptyList(),
-                    _meta = JsonObject(mapOf("error" to JsonPrimitive(promptResult.exceptionOrNull()?.message ?: "getPrompt failed")))
+                    description = prompt.description,
+                    meta = JsonObject(mapOf("error" to JsonPrimitive(promptResult.exceptionOrNull()?.message ?: "getPrompt failed")))
                 )
             }
         }
@@ -161,14 +165,14 @@ fun buildSdkServer(proxy: ProxyMcpServer, logger: Logger = ConsoleLogger): Serve
                 val el = json.getOrThrow()
                 logger.info("Forwarding resource '$uri' result from downstream to LLM")
                 kotlinx.serialization.json.Json.decodeFromJsonElement(
-                    io.modelcontextprotocol.kotlin.sdk.ReadResourceResult.serializer(),
+                    ReadResourceResult.serializer(),
                     el
                 )
             } else {
                 logger.error("Resource '$uri' failed: ${json.exceptionOrNull()?.message}", json.exceptionOrNull())
-                io.modelcontextprotocol.kotlin.sdk.ReadResourceResult(
+                ReadResourceResult(
                     contents = emptyList(),
-                    _meta = JsonObject(mapOf("error" to JsonPrimitive(json.exceptionOrNull()?.message ?: "readResource failed")))
+                    meta = JsonObject(mapOf("error" to JsonPrimitive(json.exceptionOrNull()?.message ?: "readResource failed")))
                 )
             }
         }
@@ -177,13 +181,13 @@ fun buildSdkServer(proxy: ProxyMcpServer, logger: Logger = ConsoleLogger): Serve
     return server
 }
 
-internal fun decodeCallToolResult(json: Json, element: JsonElement): CallToolResultBase {
+internal fun decodeCallToolResult(json: Json, element: JsonElement): CallToolResult {
     return try {
-        json.decodeFromJsonElement(CallToolResultBase.serializer(), element)
+        json.decodeFromJsonElement(CallToolResult.serializer(), element)
     } catch (original: Exception) {
         val normalized = (element as? JsonObject)?.let { normalizeCallToolResult(it) }
         if (normalized != null) {
-            json.decodeFromJsonElement(CallToolResultBase.serializer(), normalized)
+            json.decodeFromJsonElement(CallToolResult.serializer(), normalized)
         } else {
             throw original
         }
@@ -255,17 +259,19 @@ private fun normalizeContentElement(element: JsonElement): JsonElement? = when (
 private fun addTypeIfMissing(obj: JsonObject): JsonObject? {
     if ("type" in obj) return null
     val inferredType = inferContentType(obj) ?: return null
-    return JsonObject(obj + ("type" to JsonPrimitive(inferredType)))
+    return JsonObject(obj + ("type" to JsonPrimitive(inferredType.value)))
 }
 
-private fun inferContentType(obj: JsonObject): String? = when {
-    "type" in obj -> obj["type"]?.jsonPrimitive?.content
-    "text" in obj -> TextContent.TYPE
-    "image" in obj -> ImageContent.TYPE
-    "data" in obj && obj["mimeType"]?.jsonPrimitive?.content?.startsWith("image/") == true -> ImageContent.TYPE
-    "audio" in obj -> AudioContent.TYPE
-    "data" in obj && obj["mimeType"]?.jsonPrimitive?.content?.startsWith("audio/") == true -> AudioContent.TYPE
-    "resource" in obj -> EmbeddedResource.TYPE
+private fun inferContentType(obj: JsonObject): ContentTypes? = when {
+    "type" in obj -> obj["type"]?.jsonPrimitive?.content?.let { typeValue ->
+        ContentTypes.entries.firstOrNull { it.value == typeValue }
+    }
+    "text" in obj -> ContentTypes.TEXT
+    "image" in obj -> ContentTypes.IMAGE
+    "data" in obj && obj["mimeType"]?.jsonPrimitive?.content?.startsWith("image/") == true -> ContentTypes.IMAGE
+    "audio" in obj -> ContentTypes.AUDIO
+    "data" in obj && obj["mimeType"]?.jsonPrimitive?.content?.startsWith("audio/") == true -> ContentTypes.AUDIO
+    "resource" in obj -> ContentTypes.EMBEDDED_RESOURCE
     else -> null
 }
 
@@ -275,7 +281,9 @@ internal fun fallbackCallToolResult(raw: JsonElement): CallToolResult {
         is JsonObject -> sc
         else -> rawObject ?: JsonObject(mapOf("raw" to raw))
     }
-    val meta = (rawObject?.get("_meta") as? JsonObject) ?: JsonObject(emptyMap())
+    val meta = (rawObject?.get("_meta") as? JsonObject)
+        ?: (rawObject?.get("meta") as? JsonObject)
+        ?: JsonObject(emptyMap())
     val isError = rawObject?.get("isError")?.jsonPrimitive?.booleanOrNull ?: false
     val contentArray = rawObject?.get("content") as? JsonArray
     val fallbackContent = contentArray
@@ -286,7 +294,7 @@ internal fun fallbackCallToolResult(raw: JsonElement): CallToolResult {
         content = fallbackContent,
         structuredContent = structured,
         isError = isError,
-        _meta = meta
+        meta = meta
     )
 }
 

@@ -14,18 +14,19 @@ import io.ktor.server.routing.routing
 import io.ktor.server.sse.SSE
 import io.ktor.server.sse.ServerSSESession
 import io.ktor.server.sse.sse
-import io.modelcontextprotocol.kotlin.sdk.CallToolResult
-import io.modelcontextprotocol.kotlin.sdk.GetPromptResult
-import io.modelcontextprotocol.kotlin.sdk.Implementation
-import io.modelcontextprotocol.kotlin.sdk.Prompt
-import io.modelcontextprotocol.kotlin.sdk.PromptArgument
-import io.modelcontextprotocol.kotlin.sdk.PromptMessage
-import io.modelcontextprotocol.kotlin.sdk.ReadResourceResult
-import io.modelcontextprotocol.kotlin.sdk.Role
-import io.modelcontextprotocol.kotlin.sdk.ServerCapabilities
-import io.modelcontextprotocol.kotlin.sdk.TextContent
-import io.modelcontextprotocol.kotlin.sdk.TextResourceContents
-import io.modelcontextprotocol.kotlin.sdk.Tool
+import io.modelcontextprotocol.kotlin.sdk.types.CallToolResult
+import io.modelcontextprotocol.kotlin.sdk.types.GetPromptResult
+import io.modelcontextprotocol.kotlin.sdk.types.Implementation
+import io.modelcontextprotocol.kotlin.sdk.types.Prompt
+import io.modelcontextprotocol.kotlin.sdk.types.PromptArgument
+import io.modelcontextprotocol.kotlin.sdk.types.PromptMessage
+import io.modelcontextprotocol.kotlin.sdk.types.ReadResourceResult
+import io.modelcontextprotocol.kotlin.sdk.types.Role
+import io.modelcontextprotocol.kotlin.sdk.types.ServerCapabilities
+import io.modelcontextprotocol.kotlin.sdk.types.TextContent
+import io.modelcontextprotocol.kotlin.sdk.types.TextResourceContents
+import io.modelcontextprotocol.kotlin.sdk.types.Tool
+import io.modelcontextprotocol.kotlin.sdk.types.ToolSchema
 import io.modelcontextprotocol.kotlin.sdk.server.Server
 import io.modelcontextprotocol.kotlin.sdk.server.ServerOptions
 import io.modelcontextprotocol.kotlin.sdk.server.StdioServerTransport
@@ -158,12 +159,13 @@ class SimpleTestMcpServer(
             name = ADD_TOOL_NAME,
             title = "Add Numbers",
             description = "Adds two numbers together",
-            inputSchema = Tool.Input(),
+            inputSchema = ToolSchema(),
             outputSchema = null,
             toolAnnotations = null
         ) { req ->
-            val a = req.arguments.value("a")
-            val b = req.arguments.value("b")
+            val args = req.arguments ?: JsonObject(emptyMap())
+            val a = args.value("a")
+            val b = args.value("b")
             CallToolResult(
                 content = listOf(
                     TextContent("$a + $b = ${a + b}")
@@ -175,7 +177,7 @@ class SimpleTestMcpServer(
                     )
                 ),
                 isError = false,
-                _meta = JsonObject(emptyMap())
+                meta = JsonObject(emptyMap())
             )
         }
 
@@ -183,12 +185,13 @@ class SimpleTestMcpServer(
             name = SUBTRACT_TOOL_NAME,
             title = "Subtract Numbers",
             description = "Subtracts the second number from the first",
-            inputSchema = Tool.Input(),
+            inputSchema = ToolSchema(),
             outputSchema = null,
             toolAnnotations = null
         ) { req ->
-            val a = req.arguments.value("a")
-            val b = req.arguments.value("b")
+            val args = req.arguments ?: JsonObject(emptyMap())
+            val a = args.value("a")
+            val b = args.value("b")
             CallToolResult(
                 content = listOf(
                     TextContent("$a - $b = ${a - b}")
@@ -200,7 +203,7 @@ class SimpleTestMcpServer(
                     )
                 ),
                 isError = false,
-                _meta = JsonObject(emptyMap())
+                meta = JsonObject(emptyMap())
             )
         }
     }
@@ -220,7 +223,7 @@ class SimpleTestMcpServer(
                         mimeType = "text/plain"
                     )
                 ),
-                _meta = JsonObject(emptyMap())
+                meta = JsonObject(emptyMap())
             )
         }
 
@@ -238,7 +241,7 @@ class SimpleTestMcpServer(
                         mimeType = "text/plain"
                     )
                 ),
-                _meta = JsonObject(emptyMap())
+                meta = JsonObject(emptyMap())
             )
         }
     }
@@ -261,11 +264,11 @@ class SimpleTestMcpServer(
                 description = "Friendly hello",
                 messages = listOf(
                     PromptMessage(
-                        role = Role.assistant,
+                        role = Role.Assistant,
                         content = TextContent("Hello ${req.arguments?.get("name") ?: "friend"}!")
                     )
                 ),
-                _meta = JsonObject(emptyMap())
+                meta = JsonObject(emptyMap())
             )
         }
 
@@ -280,11 +283,11 @@ class SimpleTestMcpServer(
                 description = "Friendly goodbye",
                 messages = listOf(
                     PromptMessage(
-                        role = Role.assistant,
+                        role = Role.Assistant,
                         content = TextContent("Bye ${req.arguments?.get("name") ?: "friend"}!")
                     )
                 ),
-                _meta = JsonObject(emptyMap())
+                meta = JsonObject(emptyMap())
             )
         }
     }

@@ -7,10 +7,12 @@ import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.websocket.WebSockets
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.headers
-import io.modelcontextprotocol.kotlin.sdk.CallToolResultBase
 import io.modelcontextprotocol.kotlin.sdk.client.mcpSse
 import io.modelcontextprotocol.kotlin.sdk.client.mcpStreamableHttp
 import io.modelcontextprotocol.kotlin.sdk.client.mcpWebSocket
+import io.modelcontextprotocol.kotlin.sdk.types.CallToolResult
+import io.modelcontextprotocol.kotlin.sdk.types.GetPromptResult
+import io.modelcontextprotocol.kotlin.sdk.types.ReadResourceResult
 import io.qent.broxy.core.mcp.McpClient
 import io.qent.broxy.core.mcp.ServerCapabilities
 import io.qent.broxy.core.mcp.TimeoutConfigurableMcpClient
@@ -86,6 +88,8 @@ class KtorMcpClient(
         }
         client = RealSdkClientFacade(sdk, logger)
         logger.info("Connected Ktor MCP client ($mode) to $url")
+    }.onFailure { ex ->
+        logger.error("Failed to connect Ktor MCP client ($mode) to $url", ex)
     }
 
     override suspend fun disconnect() {
@@ -107,26 +111,26 @@ class KtorMcpClient(
 
     override suspend fun callTool(name: String, arguments: JsonObject): Result<JsonElement> = runCatching {
         val c = client ?: throw IllegalStateException("Not connected")
-        val result = c.callTool(name, arguments) ?: io.modelcontextprotocol.kotlin.sdk.CallToolResult(
+        val result = c.callTool(name, arguments) ?: CallToolResult(
             content = emptyList(),
-            structuredContent = JsonObject(emptyMap()),
             isError = false,
-            _meta = JsonObject(emptyMap())
+            structuredContent = JsonObject(emptyMap()),
+            meta = JsonObject(emptyMap())
         )
-        json.encodeToJsonElement(CallToolResultBase.serializer(), result) as JsonObject
+        json.encodeToJsonElement(CallToolResult.serializer(), result) as JsonObject
     }
 
     override suspend fun getPrompt(name: String, arguments: Map<String, String>?): Result<JsonObject> = runCatching {
         val c = client ?: throw IllegalStateException("Not connected")
         val r = c.getPrompt(name, arguments)
-        val el = kotlinx.serialization.json.Json.encodeToJsonElement(io.modelcontextprotocol.kotlin.sdk.GetPromptResult.serializer(), r)
+        val el = kotlinx.serialization.json.Json.encodeToJsonElement(GetPromptResult.serializer(), r)
         el as JsonObject
     }
 
     override suspend fun readResource(uri: String): Result<JsonObject> = runCatching {
         val c = client ?: throw IllegalStateException("Not connected")
         val r = c.readResource(uri)
-        val el = kotlinx.serialization.json.Json.encodeToJsonElement(io.modelcontextprotocol.kotlin.sdk.ReadResourceResult.serializer(), r)
+        val el = kotlinx.serialization.json.Json.encodeToJsonElement(ReadResourceResult.serializer(), r)
         el as JsonObject
     }
 

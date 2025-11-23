@@ -70,9 +70,10 @@ private fun ToolDescriptor.toToolSummary(): ToolSummary {
 
 private fun ToolDescriptor.extractToolArguments(): List<CapabilityArgument> {
     val schema = inputSchema ?: return emptyList()
-    if (schema.properties.isEmpty()) return emptyList()
-    val requiredKeys = schema.required?.toSet().orEmpty()
-    return schema.properties.mapNotNull { (propertyName, schemaElement) ->
+    val properties = schema.properties ?: return emptyList()
+    if (properties.isEmpty()) return emptyList()
+    val requiredKeys = schema.required.orEmpty().toSet()
+    return properties.mapNotNull { (propertyName, schemaElement) ->
         val typeLabel = schemaElement.schemaTypeLabel() ?: "unspecified"
         CapabilityArgument(
             name = propertyName,

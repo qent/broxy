@@ -1,15 +1,20 @@
 package io.qent.broxy.core.mcp.clients
 
-import io.modelcontextprotocol.kotlin.sdk.CallToolRequest
-import io.modelcontextprotocol.kotlin.sdk.CallToolResultBase
-import io.modelcontextprotocol.kotlin.sdk.GetPromptRequest
-import io.modelcontextprotocol.kotlin.sdk.ListPromptsRequest
-import io.modelcontextprotocol.kotlin.sdk.ListResourcesRequest
-import io.modelcontextprotocol.kotlin.sdk.ListToolsRequest
-import io.modelcontextprotocol.kotlin.sdk.Prompt
-import io.modelcontextprotocol.kotlin.sdk.ReadResourceRequest
-import io.modelcontextprotocol.kotlin.sdk.Resource
-import io.modelcontextprotocol.kotlin.sdk.Tool
+import io.modelcontextprotocol.kotlin.sdk.client.Client
+import io.modelcontextprotocol.kotlin.sdk.types.CallToolRequest
+import io.modelcontextprotocol.kotlin.sdk.types.CallToolRequestParams
+import io.modelcontextprotocol.kotlin.sdk.types.CallToolResult
+import io.modelcontextprotocol.kotlin.sdk.types.GetPromptRequest
+import io.modelcontextprotocol.kotlin.sdk.types.GetPromptRequestParams
+import io.modelcontextprotocol.kotlin.sdk.types.ListPromptsRequest
+import io.modelcontextprotocol.kotlin.sdk.types.ListResourcesRequest
+import io.modelcontextprotocol.kotlin.sdk.types.ListToolsRequest
+import io.modelcontextprotocol.kotlin.sdk.types.Prompt
+import io.modelcontextprotocol.kotlin.sdk.types.ReadResourceRequest
+import io.modelcontextprotocol.kotlin.sdk.types.ReadResourceRequestParams
+import io.modelcontextprotocol.kotlin.sdk.types.RequestMeta
+import io.modelcontextprotocol.kotlin.sdk.types.Resource
+import io.modelcontextprotocol.kotlin.sdk.types.Tool
 import io.qent.broxy.core.mcp.PromptDescriptor
 import io.qent.broxy.core.mcp.ResourceDescriptor
 import io.qent.broxy.core.mcp.ToolDescriptor
@@ -18,7 +23,7 @@ import io.qent.broxy.core.utils.Logger
 import kotlinx.serialization.json.JsonObject
 
 class RealSdkClientFacade(
-    private val client: io.modelcontextprotocol.kotlin.sdk.client.Client,
+    private val client: Client,
     private val logger: Logger = ConsoleLogger
 ) : SdkClientFacade {
     override suspend fun getTools(): List<ToolDescriptor> = runCatching {
@@ -39,14 +44,33 @@ class RealSdkClientFacade(
         logger.warn("Failed to list prompts: ${ex.message}", ex)
     }.getOrDefault(emptyList())
 
-    override suspend fun callTool(name: String, arguments: JsonObject): CallToolResultBase? =
-        client.callTool(CallToolRequest(name, arguments, JsonObject(emptyMap())))
+    override suspend fun callTool(name: String, arguments: JsonObject): CallToolResult? = runCatching {
+        client.request<CallToolResult>(
+            CallToolRequest(
+                CallToolRequestParams(
+                    name = name,
+                    arguments = arguments,
+                    meta = RequestMeta(JsonObject(emptyMap()))
+                )
+            )
+        )
+    }.onFailure { ex ->
+        logger.warn("Failed to call tool '$name': ${ex.message}", ex)
+    }.getOrNull()
 
-    override suspend fun getPrompt(name: String, arguments: Map<String, String>?): io.modelcontextprotocol.kotlin.sdk.GetPromptResult =
-        client.getPrompt(GetPromptRequest(name, arguments = arguments, _meta = JsonObject(emptyMap())))
+    override suspend fun getPrompt(name: String, arguments: Map<String, String>?): io.modelcontextprotocol.kotlin.sdk.types.GetPromptResult =
+        client.getPrompt(
+            GetPromptRequest(
+                GetPromptRequestParams(
+                    name = name,
+                    arguments = arguments,
+                    meta = RequestMeta(JsonObject(emptyMap()))
+                )
+            )
+        )
 
-    override suspend fun readResource(uri: String): io.modelcontextprotocol.kotlin.sdk.ReadResourceResult =
-        client.readResource(ReadResourceRequest(uri))
+    override suspend fun readResource(uri: String): io.modelcontextprotocol.kotlin.sdk.types.ReadResourceResult =
+        client.readResource(ReadResourceRequest(ReadResourceRequestParams(uri)))
 
     override suspend fun close() {
         client.close()
