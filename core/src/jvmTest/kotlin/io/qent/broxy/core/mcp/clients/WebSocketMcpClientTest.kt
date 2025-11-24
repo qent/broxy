@@ -30,7 +30,7 @@ class KtorMcpClientWebSocketTest {
                     content = emptyList(),
                     structuredContent = buildJsonObject { put("ok", true) },
                     isError = false,
-                    _meta = JsonObject(emptyMap())
+                    meta = JsonObject(emptyMap())
                 )
             )
 

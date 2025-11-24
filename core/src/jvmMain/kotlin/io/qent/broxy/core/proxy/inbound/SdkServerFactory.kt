@@ -46,10 +46,10 @@ import kotlinx.serialization.json.jsonPrimitive
 fun buildSdkServer(proxy: ProxyMcpServer, logger: Logger = ConsoleLogger): Server {
     val options = ServerOptions(
         capabilities = ServerCapabilities(
-            // Enable all high-level capabilities; server will list registered items
-            prompts = ServerCapabilities.Prompts(listChanged = null),
-            resources = ServerCapabilities.Resources(listChanged = null, subscribe = null),
-            tools = ServerCapabilities.Tools(listChanged = null),
+            // Explicit booleans keep initialize responses schema-valid
+            prompts = ServerCapabilities.Prompts(listChanged = false),
+            resources = ServerCapabilities.Resources(listChanged = false, subscribe = false),
+            tools = ServerCapabilities.Tools(listChanged = false),
             logging = ServerCapabilities.Logging
         )
     )

@@ -142,9 +142,10 @@ class SimpleTestMcpServer(
             serverInfo = Implementation(name = SERVER_NAME, version = SERVER_VERSION),
             options = ServerOptions(
                 capabilities = ServerCapabilities(
-                    prompts = ServerCapabilities.Prompts(listChanged = null),
-                    resources = ServerCapabilities.Resources(subscribe = null, listChanged = null),
-                    tools = ServerCapabilities.Tools(listChanged = null)
+                    // Provide explicit initialize capabilities per MCP spec
+                    prompts = ServerCapabilities.Prompts(listChanged = false),
+                    resources = ServerCapabilities.Resources(subscribe = false, listChanged = false),
+                    tools = ServerCapabilities.Tools(listChanged = false)
                 )
             )
         )
