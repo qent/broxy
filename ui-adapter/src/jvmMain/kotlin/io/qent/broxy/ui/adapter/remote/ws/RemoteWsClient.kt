@@ -25,6 +25,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.channels.consumeEach
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.time.Instant
 import kotlin.time.Duration.Companion.seconds
 
@@ -42,6 +44,7 @@ class RemoteWsClient(
     private var session: WebSocketSession? = null
     private var readerJob: Job? = null
     private var pingJob: Job? = null
+    private val messageMutex = Mutex()
     @Volatile
     private var lastHeartbeat: Instant? = null
 
@@ -95,7 +98,17 @@ class RemoteWsClient(
                                     "[RemoteWsClient] Failed to decode JSON-RPC message for session=${inbound.sessionIdentifier}: ${err.message}"
                                 )
                             }.getOrNull() ?: return@consumeEach
-                            transport.handleIncoming(message, inbound.sessionIdentifier)
+                            launch {
+                                runCatching {
+                                    messageMutex.withLock {
+                                        transport.handleIncoming(message, inbound.sessionIdentifier)
+                                    }
+                                }.onFailure { err ->
+                                    logger.warn(
+                                        "[RemoteWsClient] Failed to handle inbound message for session=${inbound.sessionIdentifier}: ${err.message}"
+                                    )
+                                }
+                            }
                             onStatus(UiRemoteStatus.WsOnline, null)
                         }
                         is Frame.Pong -> {
