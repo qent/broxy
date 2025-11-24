@@ -22,13 +22,10 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.channels.consumeEach
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import java.time.Instant
-import kotlin.time.Duration.Companion.seconds
 
 class RemoteWsClient(
     private val httpClient: HttpClient,
@@ -43,10 +40,7 @@ class RemoteWsClient(
 ) {
     private var session: WebSocketSession? = null
     private var readerJob: Job? = null
-    private var pingJob: Job? = null
     private val messageMutex = Mutex()
-    @Volatile
-    private var lastHeartbeat: Instant? = null
 
     suspend fun connect(): Result<Unit> = runCatching {
         logger.info("[RemoteWsClient] Dialing $url with serverIdentifier=$serverIdentifier")
@@ -66,10 +60,9 @@ class RemoteWsClient(
             }
             logger.info("[RemoteWsClient] WebSocket session established; wiring SDK transport")
             session = ws
-            lastHeartbeat = Instant.now()
             onStatus(UiRemoteStatus.WsConnecting, null)
 
-            val sessionJob = scope.launch(Dispatchers.IO) {
+            scope.launch(Dispatchers.IO) {
                 val serverSession = server.connect(transport)
                 serverSession.onClose {
                     onStatus(UiRemoteStatus.WsOffline, "Server session closed")
@@ -80,7 +73,6 @@ class RemoteWsClient(
                 ws.incoming.consumeEach { frame ->
                     when (frame) {
                         is Frame.Text -> {
-                            lastHeartbeat = Instant.now()
                             val text = frame.readText()
                             val inbound = runCatching {
                                 McpJson.decodeFromString(McpProxyRequestPayload.serializer(), text)
@@ -111,19 +103,6 @@ class RemoteWsClient(
                             }
                             onStatus(UiRemoteStatus.WsOnline, null)
                         }
-                        is Frame.Pong -> {
-                            logger.debug("[RemoteWsClient] Pong received")
-                            lastHeartbeat = Instant.now()
-                        }
-                        is Frame.Ping -> {
-                            logger.debug("[RemoteWsClient] Ping received; sending pong")
-                            lastHeartbeat = Instant.now()
-                            runCatching { ws.send(Frame.Pong(frame.data)) }
-                                .onFailure { err -> logger.warn("[RemoteWsClient] Failed to reply to ping: ${err.message}") }
-                        }
-                        is Frame.Binary -> {
-                            lastHeartbeat = Instant.now()
-                        }
                         is Frame.Close -> {
                             val reason = frame.readReason()
                             val textReason = reason?.message
@@ -135,33 +114,6 @@ class RemoteWsClient(
                             }
                         }
                         else -> Unit
-                    }
-                }
-            }
-
-            pingJob = scope.launch(Dispatchers.IO) {
-                var missed = 0
-                while (true) {
-                    delay(15.seconds)
-                    val s = session ?: break
-                    runCatching { s.send(Frame.Ping(ByteArray(0))) }
-                        .onFailure {
-                            logger.warn("[RemoteWsClient] Failed to send ping: ${it.message}")
-                            break
-                        }
-                    val now = Instant.now()
-                    val last = lastHeartbeat
-                    if (last != null && now.isAfter(last.plusSeconds(45))) {
-                        missed++
-                    } else {
-                        missed = 0
-                    }
-                    if (missed >= 2) {
-                        val elapsed = last?.let { now.epochSecond - it.epochSecond } ?: missed * 45L
-                        logger.warn("[RemoteWsClient] Ping timeout after ${elapsed}s; closing session")
-                        onStatus(UiRemoteStatus.WsOffline, "Ping timeout")
-                        close()
-                        break
                     }
                 }
             }
@@ -188,7 +140,6 @@ class RemoteWsClient(
     }
 
     suspend fun close() {
-        pingJob?.cancel()
         readerJob?.cancel()
         logger.info("[RemoteWsClient] Closing WebSocket session")
         runCatching { session?.close() }
