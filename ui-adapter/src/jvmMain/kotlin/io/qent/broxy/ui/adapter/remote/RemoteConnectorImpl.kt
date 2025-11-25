@@ -535,7 +535,9 @@ class RemoteConnectorImpl(
 }
 
 private fun defaultHttpClient(): HttpClient = HttpClient {
-    install(WebSockets)
+    install(WebSockets) {
+        pingIntervalMillis = 10000
+    }
     install(ContentNegotiation) {
         json(Json { ignoreUnknownKeys = true })
     }
