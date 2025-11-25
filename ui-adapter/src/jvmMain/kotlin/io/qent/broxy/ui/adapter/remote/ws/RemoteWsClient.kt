@@ -42,101 +42,129 @@ class RemoteWsClient(
     private var readerJob: Job? = null
     private val messageMutex = Mutex()
 
-    suspend fun connect(): Result<Unit> = runCatching {
-        logger.info("[RemoteWsClient] Dialing $url with serverIdentifier=$serverIdentifier")
-        try {
-            onStatus(UiRemoteStatus.WsConnecting, null)
-            val proxy = proxyProvider()
-                ?: error("Proxy is not running; cannot attach remote client")
-            val transport = ProxyWebSocketTransport(serverIdentifier, logger) { payload ->
-                val s = session ?: error("WebSocket not connected")
-                val text = McpJson.encodeToString(McpProxyResponsePayload.serializer(), payload)
-                s.send(Frame.Text(text))
-            }
-            val server = buildSdkServer(proxy, logger)
-            val ws = httpClient.webSocketSession(url) {
-                header(HttpHeaders.Authorization, "Bearer $authToken")
-                header(HttpHeaders.SecWebSocketProtocol, "mcp")
-            }
-            logger.info("[RemoteWsClient] WebSocket session established; wiring SDK transport")
-            session = ws
-            onStatus(UiRemoteStatus.WsConnecting, null)
+    suspend fun connect(): Result<Unit> {
+        val maxAttempts = 10
+        var lastError: Throwable? = null
 
-            scope.launch(Dispatchers.IO) {
-                val serverSession = server.connect(transport)
-                serverSession.onClose {
-                    onStatus(UiRemoteStatus.WsOffline, "Server session closed")
-                    logger.warn("[RemoteWsClient] SDK server session closed")
-                }
-            }
-            readerJob = scope.launch(Dispatchers.IO) {
-                ws.incoming.consumeEach { frame ->
-                    when (frame) {
-                        is Frame.Text -> {
-                            val text = frame.readText()
-                            val inbound = runCatching {
-                                McpJson.decodeFromString(McpProxyRequestPayload.serializer(), text)
-                            }.getOrElse { err ->
-                                logger.warn("[RemoteWsClient] malformed inbound frame: ${err.message}")
-                                return@consumeEach
-                            }
-                            logger.info(
-                                "[RemoteWsClient] Inbound message session=${inbound.sessionIdentifier} ${describeJsonRpcPayload(inbound.message)}"
-                            )
-                            val message = runCatching {
-                                McpJson.decodeFromJsonElement(JSONRPCMessage.serializer(), inbound.message)
-                            }.onFailure { err ->
-                                logger.warn(
-                                    "[RemoteWsClient] Failed to decode JSON-RPC message for session=${inbound.sessionIdentifier}: ${err.message}"
-                                )
-                            }.getOrNull() ?: return@consumeEach
-                            launch {
-                                runCatching {
-                                    messageMutex.withLock {
-                                        transport.handleIncoming(message, inbound.sessionIdentifier)
+        for (attempt in 1..maxAttempts) {
+            val result = runCatching {
+                logger.info("[RemoteWsClient] Dialing $url with serverIdentifier=$serverIdentifier (attempt $attempt/$maxAttempts)")
+                try {
+                    onStatus(UiRemoteStatus.WsConnecting, null)
+                    val proxy = proxyProvider()
+                        ?: error("Proxy is not running; cannot attach remote client")
+                    val transport = ProxyWebSocketTransport(serverIdentifier, logger) { payload ->
+                        val s = session ?: error("WebSocket not connected")
+                        val text = McpJson.encodeToString(McpProxyResponsePayload.serializer(), payload)
+                        s.send(Frame.Text(text))
+                    }
+                    val server = buildSdkServer(proxy, logger)
+                    val ws = httpClient.webSocketSession(url) {
+                        header(HttpHeaders.Authorization, "Bearer $authToken")
+                        header(HttpHeaders.SecWebSocketProtocol, "mcp")
+                    }
+                    logger.info("[RemoteWsClient] WebSocket session established; wiring SDK transport")
+                    session = ws
+                    onStatus(UiRemoteStatus.WsConnecting, null)
+
+                    scope.launch(Dispatchers.IO) {
+                        val serverSession = server.createSession(transport)
+                        serverSession.onClose {
+                            onStatus(UiRemoteStatus.WsOffline, "Server session closed")
+                            logger.warn("[RemoteWsClient] SDK server session closed")
+                        }
+                    }
+                    readerJob = scope.launch(Dispatchers.IO) {
+                        try {
+                            ws.incoming.consumeEach { frame ->
+                                when (frame) {
+                                    is Frame.Text -> {
+                                        val text = frame.readText()
+                                        val inbound = runCatching {
+                                            McpJson.decodeFromString(McpProxyRequestPayload.serializer(), text)
+                                        }.getOrElse { err ->
+                                            logger.warn("[RemoteWsClient] malformed inbound frame: ${err.message}")
+                                            return@consumeEach
+                                        }
+                                        logger.info(
+                                            "[RemoteWsClient] Inbound message session=${inbound.sessionIdentifier} ${describeJsonRpcPayload(inbound.message)}"
+                                        )
+                                        val message = runCatching {
+                                            McpJson.decodeFromJsonElement(JSONRPCMessage.serializer(), inbound.message)
+                                        }.onFailure { err ->
+                                            logger.warn(
+                                                "[RemoteWsClient] Failed to decode JSON-RPC message for session=${inbound.sessionIdentifier}: ${err.message}"
+                                            )
+                                        }.getOrNull() ?: return@consumeEach
+                                        launch {
+                                            runCatching {
+                                                messageMutex.withLock {
+                                                    transport.handleIncoming(message, inbound.sessionIdentifier)
+                                                }
+                                            }.onFailure { err ->
+                                                logger.warn(
+                                                    "[RemoteWsClient] Failed to handle inbound message for session=${inbound.sessionIdentifier}: ${err.message}"
+                                                )
+                                            }
+                                        }
+                                        onStatus(UiRemoteStatus.WsOnline, null)
                                     }
-                                }.onFailure { err ->
-                                    logger.warn(
-                                        "[RemoteWsClient] Failed to handle inbound message for session=${inbound.sessionIdentifier}: ${err.message}"
-                                    )
+                                    is Frame.Close -> {
+                                        val reason = frame.readReason()
+                                        val textReason = reason?.message
+                                        logger.warn("[RemoteWsClient] WebSocket closed: ${reason?.knownReason} ${textReason.orEmpty()}")
+                                        if (reason?.knownReason == CloseReason.Codes.NORMAL) {
+                                            onStatus(UiRemoteStatus.WsOffline, textReason)
+                                        } else {
+                                            onStatus(UiRemoteStatus.WsOffline, textReason ?: "Disconnected")
+                                        }
+                                    }
+                                    else -> Unit
                                 }
                             }
-                            onStatus(UiRemoteStatus.WsOnline, null)
+                        } catch (ce: CancellationException) {
+                            throw ce
+                        } catch (t: Throwable) {
+                            val msg = t.message ?: "WebSocket receive failed"
+                            logger.warn("[RemoteWsClient] WebSocket receive loop failed: $msg", t)
+                            onStatus(UiRemoteStatus.WsOffline, msg)
                         }
-                        is Frame.Close -> {
-                            val reason = frame.readReason()
-                            val textReason = reason?.message
-                            logger.warn("[RemoteWsClient] WebSocket closed: ${reason?.knownReason} ${textReason.orEmpty()}")
-                            if (reason?.knownReason == CloseReason.Codes.NORMAL) {
-                                onStatus(UiRemoteStatus.WsOffline, textReason)
-                            } else {
-                                onStatus(UiRemoteStatus.WsOffline, textReason ?: "Disconnected")
-                            }
-                        }
-                        else -> Unit
                     }
+                    onStatus(UiRemoteStatus.WsOnline, null)
+                    logger.info("[RemoteWsClient] Remote WebSocket is online")
+                } catch (ce: CancellationException) {
+                    throw ce
+                } catch (cre: ClientRequestException) {
+                    val status = cre.response.status
+                    val msg = "WebSocket unauthorized (${status.value})"
+                    if (status == HttpStatusCode.Unauthorized || status == HttpStatusCode.Forbidden) {
+                        onAuthFailure(msg)
+                    }
+                    onStatus(UiRemoteStatus.WsOffline, msg)
+                    logger.error("[RemoteWsClient] WebSocket authentication error: $msg", cre)
+                    throw cre
+                } catch (ex: Exception) {
+                    val reason = ex.message ?: "WebSocket connect failed"
+                    onStatus(UiRemoteStatus.WsOffline, reason)
+                    onAuthFailure(reason)
+                    logger.error("[RemoteWsClient] WebSocket connect failed: $reason", ex)
+                    throw ex
                 }
             }
-            onStatus(UiRemoteStatus.WsOnline, null)
-            logger.info("[RemoteWsClient] Remote WebSocket is online")
-        } catch (ce: CancellationException) {
-            throw ce
-        } catch (cre: ClientRequestException) {
-            val status = cre.response.status
-            val msg = "WebSocket unauthorized (${status.value})"
-            if (status == HttpStatusCode.Unauthorized || status == HttpStatusCode.Forbidden) {
-                onAuthFailure(msg)
+
+            if (result.isSuccess) {
+                return result
             }
-            onStatus(UiRemoteStatus.WsOffline, msg)
-            logger.error("[RemoteWsClient] WebSocket authentication error: $msg", cre)
-            throw cre
-        } catch (ex: Exception) {
-            val reason = ex.message ?: "WebSocket connect failed"
-            onStatus(UiRemoteStatus.WsOffline, reason)
-            onAuthFailure(reason)
-            logger.error("[RemoteWsClient] WebSocket connect failed: $reason", ex)
-            throw ex
+
+            lastError = result.exceptionOrNull()
+            if (attempt < maxAttempts) {
+                val backoffMillis = kotlin.math.min(1000L * (1L shl (attempt - 1)), 30000L)
+                logger.warn("[RemoteWsClient] WebSocket connect attempt $attempt/$maxAttempts failed: ${lastError?.message}; retrying in ${backoffMillis} ms")
+                kotlinx.coroutines.delay(backoffMillis)
+            }
         }
+
+        return Result.failure(lastError ?: IllegalStateException("WebSocket connect failed after $maxAttempts attempts"))
     }
 
     suspend fun close() {
