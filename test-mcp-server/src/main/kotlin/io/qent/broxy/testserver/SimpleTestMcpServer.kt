@@ -32,7 +32,9 @@ import io.modelcontextprotocol.kotlin.sdk.server.ServerOptions
 import io.modelcontextprotocol.kotlin.sdk.server.StdioServerTransport
 import io.modelcontextprotocol.kotlin.sdk.server.SseServerTransport
 import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.runBlocking
 import kotlinx.io.asSink
 import kotlinx.io.asSource
@@ -117,9 +119,16 @@ class SimpleTestMcpServer(
             server.onClose { registry.remove(transport.sessionId) }
             try {
                 server.connect(transport)
+                try {
+                    awaitCancellation()
+                } catch (_: CancellationException) {
+                    // Connection was cancelled by the client; allow shutdown
+                }
             } catch (t: Throwable) {
                 registry.remove(transport.sessionId)
                 throw t
+            } finally {
+                registry.remove(transport.sessionId)
             }
         }
         post {

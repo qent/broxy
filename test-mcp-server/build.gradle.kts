@@ -10,6 +10,7 @@ kotlin {
 
 dependencies {
     implementation(kotlin("stdlib"))
+    implementation(project(":core"))
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:${property("serializationVersion")}")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:${property("coroutinesVersion")}")
     implementation("io.modelcontextprotocol:kotlin-sdk-core-jvm:${property("mcpSdkVersion")}")
@@ -32,5 +33,14 @@ val testServerHome = layout.buildDirectory.dir("install/test-mcp-server")
 tasks.test {
     dependsOn(tasks.named("installDist"))
     useJUnitPlatform()
+    systemProperty("test.mcpServerHome", testServerHome.get().asFile.absolutePath)
+}
+
+tasks.register<JavaExec>("selfCheck") {
+    dependsOn(tasks.named("installDist"))
+    group = "verification"
+    description = "Runs STDIO and HTTP SSE self-checks against the test MCP server"
+    mainClass.set("io.qent.broxy.testserver.SimpleTestMcpServerSelfCheckKt")
+    classpath = sourceSets.main.get().runtimeClasspath
     systemProperty("test.mcpServerHome", testServerHome.get().asFile.absolutePath)
 }
