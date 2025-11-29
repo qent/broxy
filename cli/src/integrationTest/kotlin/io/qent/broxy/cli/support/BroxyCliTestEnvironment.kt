@@ -77,7 +77,7 @@ internal object BroxyCliTestEnvironment {
             )
             configureTimeouts(client)
             try {
-                connectWithRetries(client) { cliProcess.logs() }
+                connectWithRetries(client, serverLogs = { cliProcess.logs() }, serverProcess = cliProcess)
                 return ScenarioHandle(
                     inboundScenario = InboundScenario.HTTP_SSE,
                     client = client,
@@ -87,9 +87,12 @@ internal object BroxyCliTestEnvironment {
                 )
             } catch (error: Throwable) {
                 lastError = error
+                val cliLogs = cliProcess.logs()
                 client.disconnect()
                 cliProcess.close()
-                val isPortInUse = error.message?.contains("Address already in use") == true
+                val isPortInUse =
+                    error.message?.contains("Address already in use") == true ||
+                        cliLogs.contains("Address already in use")
                 val hasAttemptsRemaining = attempt + 1 < BroxyCliIntegrationConfig.HTTP_INBOUND_ATTEMPTS
                 if (isPortInUse && hasAttemptsRemaining) {
                     BroxyCliIntegrationConfig.log("Inbound port $port unavailable, retrying with a new port")
@@ -131,7 +134,8 @@ internal object BroxyCliTestEnvironment {
 
     private suspend fun connectWithRetries(
         client: McpClient,
-        serverLogs: (() -> String)? = null
+        serverLogs: (() -> String)? = null,
+        serverProcess: RunningProcess? = null
     ) {
         var lastError: Throwable? = null
         repeat(BroxyCliIntegrationConfig.CONNECT_ATTEMPTS) { attempt ->
@@ -144,6 +148,20 @@ internal object BroxyCliTestEnvironment {
                 return
             }
             lastError = result.exceptionOrNull()
+            if (serverProcess?.isAlive() == false) {
+                val message = buildString {
+                    append(
+                        "Inbound process exited before connection succeeded: " +
+                            (lastError?.message ?: "unknown error")
+                    )
+                    if (serverLogs != null) {
+                        append("\nServer output:\n")
+                        append(serverLogs())
+                    }
+                }
+                BroxyCliIntegrationConfig.log(message)
+                fail(message)
+            }
             delay(BroxyCliIntegrationConfig.CONNECT_DELAY_MILLIS)
         }
         val message = buildString {
