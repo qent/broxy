@@ -5,7 +5,7 @@ import io.qent.broxy.core.utils.LogLevel
 
 internal object BroxyCliIntegrationConfig {
     const val PRESET_ID = "test"
-    const val TEST_TIMEOUT_MILLIS = 10_000L
+    const val TEST_TIMEOUT_MILLIS = 5_000L
     const val TEST_SERVER_HOME_PROPERTY = "broxy.testMcpServerHome"
     const val TEST_SERVER_COMMAND_PLACEHOLDER = "__TEST_MCP_SERVER_COMMAND__"
     const val TEST_SERVER_HTTP_URL_PLACEHOLDER = "__TEST_MCP_SERVER_HTTP_URL__"
@@ -22,11 +22,12 @@ internal object BroxyCliIntegrationConfig {
     const val PROMPT_ARGUMENT_PLACEHOLDER = "integration-test"
     const val CLI_LOG_LEVEL = "info"
     const val CAPABILITIES_DELAY_MILLIS = 150L
-    const val CAPABILITIES_REQUEST_TIMEOUT_MILLIS = 1000L
-    const val CAPABILITIES_TIMEOUT_MILLIS = 9_000L
-    const val CAPABILITIES_WARMUP_TIMEOUT_MILLIS = 60_000L
-    const val CONNECT_ATTEMPTS = 60
-    const val CONNECT_DELAY_MILLIS = 150L
+    const val CAPABILITIES_REQUEST_TIMEOUT_MILLIS = 500L
+    const val CAPABILITIES_TIMEOUT_MILLIS = 4_000L
+    const val CAPABILITIES_WARMUP_TIMEOUT_MILLIS = 10_000L
+    // Allow extra startup time: CLI performs upstream capability sync before exposing inbound HTTP.
+    const val CONNECT_ATTEMPTS = 120
+    const val CONNECT_DELAY_MILLIS = 250L
     const val HTTP_SERVER_ATTEMPTS = 50
     const val HTTP_SERVER_DELAY_MILLIS = 100L
     const val HTTP_INBOUND_PATH = "/mcp"

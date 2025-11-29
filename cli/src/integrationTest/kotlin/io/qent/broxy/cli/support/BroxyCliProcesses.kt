@@ -29,6 +29,8 @@ internal class RunningProcess(
 
     fun logs(): String = collector.snapshot()
 
+    fun isAlive(): Boolean = process.isAlive
+
     override fun close() {
         BroxyCliIntegrationConfig.log("Stopping process pid=${process.pid()}")
         process.destroy()
