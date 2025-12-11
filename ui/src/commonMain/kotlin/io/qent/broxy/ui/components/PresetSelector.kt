@@ -22,6 +22,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.adapter.models.UiPromptRef
 import io.qent.broxy.ui.adapter.models.UiResourceRef
 import io.qent.broxy.ui.adapter.models.UiServerCapsSnapshot
@@ -170,16 +171,11 @@ fun PresetSelector(
             } else {
                 MaterialTheme.colorScheme.onSurfaceVariant
             }
-            Surface(
+            androidx.compose.material3.Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = AppTheme.shapes.surfaceSm,
-                tonalElevation = if (serverSelected) AppTheme.elevation.level2 else AppTheme.elevation.level1,
-                color = cardColor,
-                contentColor = contentColor,
-                border = BorderStroke(
-                    width = AppTheme.strokeWidths.hairline,
-                    color = borderColor
-                )
+                shape = AppTheme.shapes.item,
+                colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = cardColor),
+                border = androidx.compose.foundation.BorderStroke(1.dp, borderColor)
             ) {
                 Column(Modifier.fillMaxWidth()) {
                     Row(

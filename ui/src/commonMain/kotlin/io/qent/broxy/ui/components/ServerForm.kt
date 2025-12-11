@@ -24,6 +24,7 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.onPointerEvent
+import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.adapter.models.UiHttpDraft
 import io.qent.broxy.ui.adapter.models.UiServerDraft
 import io.qent.broxy.ui.adapter.models.UiStdioDraft
@@ -256,21 +257,23 @@ private fun RowScope.TransportOptionCard(
         .onPointerEvent(PointerEventType.Exit) {
             hovered = false
         }
-    Surface(
+    
+    val borderColor = when {
+        selected -> MaterialTheme.colorScheme.primary
+        hovered -> MaterialTheme.colorScheme.outline
+        else -> MaterialTheme.colorScheme.outlineVariant
+    }
+
+    androidx.compose.material3.Card(
         modifier = Modifier
             .weight(1f)
             .then(hoverModifier)
             .clickable(onClick = onSelected),
-        shape = AppTheme.shapes.surfaceSm,
-        tonalElevation = if (selected || hovered) AppTheme.elevation.level1 else AppTheme.elevation.level0,
-        border = BorderStroke(
-            width = AppTheme.strokeWidths.hairline,
-            color = when {
-                selected -> MaterialTheme.colorScheme.primary
-                hovered -> MaterialTheme.colorScheme.outline
-                else -> MaterialTheme.colorScheme.outlineVariant
-            }
-        )
+        shape = AppTheme.shapes.item,
+        colors = androidx.compose.material3.CardDefaults.cardColors(
+            containerColor = if (selected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surface
+        ),
+        border = androidx.compose.foundation.BorderStroke(1.dp, borderColor)
     ) {
         Column(
             modifier = Modifier
@@ -293,14 +296,11 @@ private fun FormSection(
     title: String,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    Surface(
+    androidx.compose.material3.Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = AppTheme.shapes.surfaceSm,
-        tonalElevation = AppTheme.elevation.level1,
-        border = BorderStroke(
-            width = AppTheme.strokeWidths.hairline,
-            color = MaterialTheme.colorScheme.outlineVariant
-        )
+        colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        shape = AppTheme.shapes.item
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Text(

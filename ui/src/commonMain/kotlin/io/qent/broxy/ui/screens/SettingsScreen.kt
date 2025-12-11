@@ -1,5 +1,6 @@
 package io.qent.broxy.ui.screens
 
+import AppPrimaryButton
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -34,7 +35,6 @@ import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.adapter.store.UIState
 import io.qent.broxy.ui.adapter.models.UiRemoteConnectionState
 import io.qent.broxy.ui.adapter.models.UiRemoteStatus
-import io.qent.broxy.ui.components.AppPrimaryButton
 import io.qent.broxy.ui.theme.AppTheme
 import io.qent.broxy.ui.theme.ThemeStyle
 
@@ -282,7 +282,9 @@ private fun SettingCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        shape = AppTheme.shapes.card
     ) {
         Row(
             modifier = Modifier

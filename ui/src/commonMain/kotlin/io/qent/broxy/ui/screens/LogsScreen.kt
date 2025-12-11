@@ -35,6 +35,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.components.AppVerticalScrollbar
 import io.qent.broxy.ui.components.rememberStableScrollbarAdapter
 import io.qent.broxy.ui.adapter.models.UiLogEntry
@@ -171,9 +172,9 @@ private fun LogRow(entry: UiLogEntry) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(AppTheme.shapes.surfaceSm)
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f))
-            .border(AppTheme.strokeWidths.thin, levelColor.copy(alpha = 0.25f), AppTheme.shapes.surfaceSm)
+            .clip(AppTheme.shapes.item)
+            .background(MaterialTheme.colorScheme.surface)
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, AppTheme.shapes.item)
             .padding(horizontal = AppTheme.spacing.md, vertical = AppTheme.spacing.sm),
         verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)
     ) {
@@ -191,7 +192,7 @@ private fun LogRow(entry: UiLogEntry) {
                 entry.level.name,
                 modifier = Modifier
                     .clip(AppTheme.shapes.chip)
-                    .background(levelColor.copy(alpha = 0.18f))
+                    .background(levelColor.copy(alpha = 0.1f))
                     .padding(horizontal = AppTheme.spacing.sm, vertical = AppTheme.spacing.xxs),
                 color = levelColor,
                 style = MaterialTheme.typography.labelSmall
@@ -200,7 +201,8 @@ private fun LogRow(entry: UiLogEntry) {
         SelectionContainer {
             Text(
                 message,
-                style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace)
+                style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
+                color = MaterialTheme.colorScheme.onSurface
             )
         }
     }

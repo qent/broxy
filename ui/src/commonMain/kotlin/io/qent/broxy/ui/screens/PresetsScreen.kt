@@ -1,5 +1,7 @@
 package io.qent.broxy.ui.screens
 
+import AppPrimaryButton
+import AppSecondaryButton
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -30,12 +32,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.adapter.models.UiPreset
 import io.qent.broxy.ui.adapter.store.UIState
 import io.qent.broxy.ui.adapter.store.AppStore
 import io.qent.broxy.ui.components.AppDialog
-import io.qent.broxy.ui.components.AppPrimaryButton
-import io.qent.broxy.ui.components.AppSecondaryButton
 import io.qent.broxy.ui.viewmodels.AppState
 import io.qent.broxy.ui.theme.AppTheme
 
@@ -121,13 +122,16 @@ private fun PresetCard(
     Card(
         onClick = onEdit,
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        shape = AppTheme.shapes.item
     ) {
         Row(
             Modifier
                 .fillMaxWidth()
                 .padding(AppTheme.spacing.lg),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
             val descriptionLine = preset.description
                 ?.lineSequence()
@@ -166,11 +170,13 @@ private fun PresetCard(
                 )
             }
             Spacer(Modifier.width(AppTheme.spacing.sm))
-            IconButton(onClick = onEdit) {
-                Icon(Icons.Outlined.Edit, contentDescription = "Edit preset")
-            }
-            IconButton(onClick = onDelete) {
-                Icon(Icons.Outlined.Delete, contentDescription = "Delete preset")
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onEdit) {
+                    Icon(Icons.Outlined.Edit, contentDescription = "Edit preset", tint = MaterialTheme.colorScheme.secondary)
+                }
+                IconButton(onClick = onDelete) {
+                    Icon(Icons.Outlined.Delete, contentDescription = "Delete preset", tint = MaterialTheme.colorScheme.secondary)
+                }
             }
         }
     }

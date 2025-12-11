@@ -1,12 +1,13 @@
-package io.qent.broxy.ui.components
-
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.theme.AppTheme
 
 /**
@@ -14,19 +15,19 @@ import io.qent.broxy.ui.theme.AppTheme
  */
 object AppButtonDefaults {
     @Composable
-    fun primaryTonalColors(): ButtonColors = ButtonDefaults.filledTonalButtonColors(
-        containerColor = MaterialTheme.colorScheme.primaryContainer,
-        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-        disabledContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
-        disabledContentColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.45f)
+    fun primaryColors(): ButtonColors = ButtonDefaults.buttonColors(
+        containerColor = MaterialTheme.colorScheme.primary,
+        contentColor = MaterialTheme.colorScheme.onPrimary,
+        disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+        disabledContentColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.5f)
     )
 
     @Composable
-    fun secondaryTonalColors(): ButtonColors = ButtonDefaults.filledTonalButtonColors(
-        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-        disabledContainerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f),
-        disabledContentColor = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.4f)
+    fun secondaryColors(): ButtonColors = ButtonDefaults.outlinedButtonColors(
+        containerColor = MaterialTheme.colorScheme.surface, // Transparent/Surface
+        contentColor = MaterialTheme.colorScheme.primary, // Accent color text
+        disabledContainerColor = MaterialTheme.colorScheme.surface,
+        disabledContentColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
     )
 }
 
@@ -37,12 +38,12 @@ fun AppPrimaryButton(
     enabled: Boolean = true,
     content: @Composable RowScope.() -> Unit
 ) {
-    FilledTonalButton(
+    Button(
         onClick = onClick,
         modifier = modifier,
         enabled = enabled,
-        shape = AppTheme.shapes.surfaceSm,
-        colors = AppButtonDefaults.primaryTonalColors(),
+        shape = AppTheme.shapes.button,
+        colors = AppButtonDefaults.primaryColors(),
         content = content
     )
 }
@@ -54,12 +55,13 @@ fun AppSecondaryButton(
     enabled: Boolean = true,
     content: @Composable RowScope.() -> Unit
 ) {
-    FilledTonalButton(
+    OutlinedButton(
         onClick = onClick,
         modifier = modifier,
         enabled = enabled,
-        shape = AppTheme.shapes.surfaceSm,
-        colors = AppButtonDefaults.secondaryTonalColors(),
+        shape = AppTheme.shapes.button,
+        colors = AppButtonDefaults.secondaryColors(),
+        border = BorderStroke(1.dp, if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)),
         content = content
     )
 }

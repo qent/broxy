@@ -1,19 +1,17 @@
 package io.qent.broxy.ui.components
 
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Dns
-import androidx.compose.material.icons.outlined.List
-import androidx.compose.material.icons.outlined.Tune
-import androidx.compose.material.icons.outlined.Storage
-import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationRail
-import androidx.compose.material3.NavigationRailItem
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.qent.broxy.ui.theme.AppTheme
 import io.qent.broxy.ui.viewmodels.Screen
@@ -39,15 +37,77 @@ fun AppNavigationRail(
     modifier: Modifier = Modifier
 ) {
     val spacing = AppTheme.spacing
-    NavigationRail(modifier = modifier.width(AppTheme.layout.navigationRailWidth)) {
-        navItems.forEachIndexed { index, item ->
-            NavigationRailItem(
-                selected = selected == item.screen,
-                onClick = { onSelect(item.screen) },
-                icon = item.icon,
-                label = { Text(item.label, fontSize = 12.sp) },
-                modifier = if (index == 0) Modifier.padding(top = spacing.sm) else Modifier
+    val colors = MaterialTheme.colorScheme
+    
+    // Custom Sidebar Implementation matching design
+    Column(
+        modifier = modifier
+            .width(120.dp) // Fixed width from design
+            .background(AppTheme.extendedColors.sidebarBackground) // Sidebar background
+            .padding(vertical = 20.dp),
+        horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+        verticalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween
+    ) {
+        // Top Section: Logo (Placeholder) + Nav
+        Column(
+            horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+            verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(16.dp),
+            modifier = Modifier.width(120.dp)
+        ) {
+            // Logo Placeholder
+            androidx.compose.foundation.layout.Box(
+                modifier = Modifier
+                    .size(80.dp)
+                    .background(
+                        color = colors.surfaceVariant, 
+                        shape = AppTheme.shapes.card
+                    )
             )
+            
+            androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(16.dp))
+            
+            // Navigation Items
+            Column(
+                verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
+                modifier = Modifier.padding(horizontal = 10.dp).width(120.dp)
+            ) {
+                navItems.forEach { item ->
+                    val isSelected = selected == item.screen
+                    val backgroundColor = if (isSelected) colors.primary else androidx.compose.ui.graphics.Color.Transparent
+                    val contentColor = if (isSelected) colors.onPrimary else colors.secondary
+                    
+                    Column(
+                        horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+                        verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(AppTheme.shapes.button)
+                            .background(backgroundColor)
+                            .clickable { onSelect(item.screen) }
+                            .padding(vertical = 12.dp, horizontal = 4.dp)
+                    ) {
+                        // Icon wrapper to ensure size consistency
+                        androidx.compose.runtime.CompositionLocalProvider(
+                            androidx.compose.material3.LocalContentColor provides contentColor
+                        ) {
+                            item.icon()
+                        }
+                        
+                        androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(4.dp))
+                        
+                        Text(
+                            text = item.label,
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontSize = 11.sp,
+                                fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
+                            ),
+                            color = contentColor,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
         }
     }
 }

@@ -17,34 +17,49 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 private val LightColors = lightColorScheme(
-    primary = Color(0xFF4E7CF5),
+    primary = Color(0xFF6366F1), // Indigo 500
     onPrimary = Color.White,
-    secondary = Color(0xFF6C6F7D),
+    secondary = Color(0xFF6B7280), // Gray 500
     onSecondary = Color.White,
-    surface = Color(0xFFF9FAFB),
-    onSurface = Color(0xFF1C1F24),
-    background = Color(0xFFFFFFFF),
-    onBackground = Color(0xFF20242A)
+    surface = Color(0xFFFFFFFF), // White
+    onSurface = Color(0xFF111827), // Gray 900
+    background = Color(0xFFF3F4F6), // Gray 100
+    onBackground = Color(0xFF111827), // Gray 900
+    outline = Color(0xFFE5E7EB), // Gray 200
+    error = Color(0xFFEF4444) // Red 500
 )
 
 private val DarkColors = darkColorScheme(
-    primary = Color(0xFFB6CCFF),
-    onPrimary = Color(0xFF081839),
-    primaryContainer = Color(0xFF314674),
-    onPrimaryContainer = Color(0xFFD9E4FF),
-    secondary = Color(0xFFC5CAD8),
-    onSecondary = Color(0xFF12141A),
-    secondaryContainer = Color(0xFF323641),
-    onSecondaryContainer = Color(0xFFE3E6F2),
-    surface = Color(0xFF1F242C),
-    surfaceVariant = Color(0xFF2A303B),
-    onSurface = Color(0xFFE4E8F2),
-    onSurfaceVariant = Color(0xFFC2C6D3),
-    background = Color(0xFF191E26),
-    onBackground = Color(0xFFE4E8F2),
-    outline = Color(0xFF454B59),
-    outlineVariant = Color(0xFF353A46)
+    primary = Color(0xFF818CF8), // Indigo 400
+    onPrimary = Color.White,
+    primaryContainer = Color(0xFF312E81), // Indigo 900
+    onPrimaryContainer = Color(0xFFE0E7FF), // Indigo 100
+    secondary = Color(0xFF94A3B8), // Slate 400
+    onSecondary = Color.White,
+    secondaryContainer = Color(0xFF1E293B), // Slate 800
+    onSecondaryContainer = Color(0xFFF1F5F9), // Slate 100
+    surface = Color(0xFF1E293B), // Slate 800
+    surfaceVariant = Color(0xFF334155), // Slate 700
+    onSurface = Color(0xFFDFDFDF), // Gray 50 (Custom from user request)
+    onSurfaceVariant = Color(0xFF94A3B8), // Slate 400
+    background = Color(0xFF0F172A), // Slate 900
+    onBackground = Color(0xFFDFDFDF), // Gray 50
+    outline = Color(0xFF334155), // Slate 700
+    outlineVariant = Color(0xFF1E293B) // Slate 800
 )
+
+// Custom Colors Extension
+data class ExtendedColors(
+    val sidebarBackground: Color,
+    val success: Color
+)
+
+val LocalExtendedColors = staticCompositionLocalOf {
+    ExtendedColors(
+        sidebarBackground = Color.White,
+        success = Color.Green
+    )
+}
 
 data class AppSpacing(
     val none: Dp = 0.dp,
@@ -69,9 +84,10 @@ data class AppRadii(
 
 data class AppShapeTokens(
     val chip: CornerBasedShape,
-    val surfaceSm: CornerBasedShape,
-    val surfaceMd: CornerBasedShape,
-    val surfaceLg: CornerBasedShape,
+    val button: CornerBasedShape,
+    val input: CornerBasedShape,
+    val item: CornerBasedShape,
+    val card: CornerBasedShape,
     val dialog: CornerBasedShape,
     val pill: CornerBasedShape
 )
@@ -90,7 +106,7 @@ data class AppElevation(
 )
 
 data class AppLayout(
-    val navigationRailWidth: Dp = 80.dp,
+    val navigationRailWidth: Dp = 120.dp,
     val scrollbarThickness: Dp = 12.dp,
     val dialogMinWidth: Dp = 360.dp,
     val dialogMaxHeight: Dp = 420.dp
@@ -98,12 +114,14 @@ data class AppLayout(
 
 private val DefaultSpacing = AppSpacing()
 private val DefaultRadii = AppRadii()
+
 private val DefaultShapes = AppShapeTokens(
-    chip = RoundedCornerShape(DefaultRadii.sm),
-    surfaceSm = RoundedCornerShape(DefaultRadii.md),
-    surfaceMd = RoundedCornerShape(DefaultRadii.lg),
-    surfaceLg = RoundedCornerShape(DefaultRadii.xl),
-    dialog = RoundedCornerShape(DefaultRadii.lg),
+    chip = RoundedCornerShape(DefaultRadii.sm), // 8dp
+    button = RoundedCornerShape(DefaultRadii.sm), // 8dp
+    input = RoundedCornerShape(DefaultRadii.sm), // 8dp
+    item = RoundedCornerShape(DefaultRadii.md), // 12dp
+    card = RoundedCornerShape(DefaultRadii.lg), // 16dp
+    dialog = RoundedCornerShape(DefaultRadii.lg), // 16dp
     pill = RoundedCornerShape(DefaultRadii.pill)
 )
 private val DefaultStrokeWidths = AppStrokeWidths()
@@ -158,6 +176,11 @@ object AppTheme {
         @ReadOnlyComposable
         get() = MaterialTheme.typography
 
+    val extendedColors: ExtendedColors
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalExtendedColors.current
+
     val materialShapes: Shapes
         @Composable
         @ReadOnlyComposable
@@ -181,13 +204,26 @@ object AppTheme {
             extraLarge = RoundedCornerShape(DefaultRadii.xl)
         )
 
+        val extendedColors = if (darkTheme) {
+            ExtendedColors(
+                sidebarBackground = Color(0xFF1E293B), // Slate 800
+                success = Color(0xFF10B981) // Emerald 500
+            )
+        } else {
+            ExtendedColors(
+                sidebarBackground = Color(0xFFFFFFFF), // White
+                success = Color(0xFF10B981) // Emerald 500
+            )
+        }
+
         CompositionLocalProvider(
             LocalSpacing provides DefaultSpacing,
             LocalRadii provides DefaultRadii,
             LocalShapes provides DefaultShapes,
             LocalStrokeWidths provides DefaultStrokeWidths,
             LocalElevation provides DefaultElevation,
-            LocalLayout provides DefaultLayout
+            LocalLayout provides DefaultLayout,
+            LocalExtendedColors provides extendedColors
         ) {
             MaterialTheme(
                 colorScheme = if (darkTheme) DarkColors else LightColors,

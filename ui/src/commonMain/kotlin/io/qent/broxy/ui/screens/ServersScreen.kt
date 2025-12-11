@@ -1,5 +1,9 @@
 package io.qent.broxy.ui.screens
 
+import AppPrimaryButton
+import AppSecondaryButton
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -8,12 +12,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -35,9 +41,8 @@ import io.qent.broxy.ui.viewmodels.AppState
 import io.qent.broxy.ui.adapter.store.AppStore
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.components.AppDialog
-import io.qent.broxy.ui.components.AppPrimaryButton
-import io.qent.broxy.ui.components.AppSecondaryButton
 import io.qent.broxy.ui.theme.AppTheme
 
 @Composable
@@ -136,54 +141,99 @@ private fun ServerCard(
     Card(
         onClick = onViewDetails,
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        shape = AppTheme.shapes.item
     ) {
         Row(
             Modifier
                 .fillMaxWidth()
                 .padding(AppTheme.spacing.lg),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.xxs)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
+                modifier = Modifier.weight(1f)
             ) {
-                Text(
-                    cfg.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    "${cfg.id} • ${cfg.transportLabel}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                val status = when (cfg.status.name) {
-                    "Disabled" -> "disabled"
-                    "Available" -> "available"
-                    "Error" -> "error"
-                    else -> "connecting"
+                // Logo Placeholder
+                androidx.compose.foundation.layout.Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
+                        )
+                        .border(
+                            width = 1.dp,
+                            color = MaterialTheme.colorScheme.outline,
+                            shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    // If we had a logo URL, we'd load it here. For now, maybe an icon?
+                    Icon(
+                        imageVector = Icons.Outlined.Storage,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(24.dp)
+                    )
                 }
-                val counts = if (cfg.enabled && cfg.toolsCount != null) {
-                    val tc = cfg.toolsCount ?: 0
-                    val pc = cfg.promptsCount ?: 0
-                    val rc = cfg.resourcesCount ?: 0
-                    " • tools $tc • prompts $pc • resources $rc"
-                } else ""
-                Text(
-                    "status: $status$counts",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Text(
+                        cfg.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    
+                    // Status and Transport
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                         Text(
+                            cfg.transportLabel,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        
+                        val statusColor = when (cfg.status.name) {
+                            "Available" -> AppTheme.extendedColors.success
+                            "Error" -> MaterialTheme.colorScheme.error
+                            "Disabled" -> MaterialTheme.colorScheme.outline
+                            else -> MaterialTheme.colorScheme.secondary
+                        }
+                        
+                        Text(
+                            cfg.status.name,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = statusColor
+                        )
+                    }
+                }
             }
-            Spacer(Modifier.width(AppTheme.spacing.sm))
-            Switch(checked = cfg.enabled, onCheckedChange = { enabled -> onToggle(cfg.id, enabled) })
-            Spacer(Modifier.width(AppTheme.spacing.xs))
-            IconButton(onClick = onEdit) { Icon(Icons.Outlined.Edit, contentDescription = "Edit") }
-            IconButton(onClick = onDelete) { Icon(Icons.Outlined.Delete, contentDescription = "Delete") }
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Switch(
+                    checked = cfg.enabled, 
+                    onCheckedChange = { enabled -> onToggle(cfg.id, enabled) },
+                    colors = androidx.compose.material3.SwitchDefaults.colors(
+                        checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                        checkedTrackColor = MaterialTheme.colorScheme.primary,
+                        uncheckedThumbColor = MaterialTheme.colorScheme.outline,
+                        uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                )
+                Spacer(Modifier.width(AppTheme.spacing.sm))
+                IconButton(onClick = onEdit) { 
+                    Icon(Icons.Outlined.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.secondary) 
+                }
+                IconButton(onClick = onDelete) { 
+                    Icon(Icons.Outlined.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.secondary) 
+                }
+            }
         }
     }
 }

@@ -1,5 +1,6 @@
 package io.qent.broxy.ui.screens
 
+import AppSecondaryButton
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -9,7 +10,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import io.qent.broxy.ui.adapter.models.UiServer
 import io.qent.broxy.ui.components.AppDialog
-import io.qent.broxy.ui.components.AppSecondaryButton
 import io.qent.broxy.ui.theme.AppTheme
 
 @Composable

@@ -1,5 +1,7 @@
 package io.qent.broxy.ui.screens
 
+import AppPrimaryButton
+import AppSecondaryButton
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -19,6 +21,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.adapter.models.UiCapabilityArgument
 import io.qent.broxy.ui.adapter.models.UiPresetDraft
 import io.qent.broxy.ui.adapter.models.UiServer
@@ -31,8 +34,6 @@ import io.qent.broxy.ui.adapter.services.validateServerConnection
 import io.qent.broxy.ui.adapter.store.AppStore
 import io.qent.broxy.ui.adapter.store.UIState
 import io.qent.broxy.ui.components.AppDialog
-import io.qent.broxy.ui.components.AppPrimaryButton
-import io.qent.broxy.ui.components.AppSecondaryButton
 import io.qent.broxy.ui.components.CapabilityArgumentList
 import io.qent.broxy.ui.components.PresetSelector
 import io.qent.broxy.ui.components.ServerForm
@@ -391,14 +392,11 @@ private fun SectionBlock(
     title: String,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    Surface(
+    androidx.compose.material3.Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = AppTheme.shapes.surfaceSm,
-        tonalElevation = AppTheme.elevation.level1,
-        border = BorderStroke(
-            width = AppTheme.strokeWidths.hairline,
-            color = MaterialTheme.colorScheme.outlineVariant
-        )
+        colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        shape = AppTheme.shapes.item
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Text(

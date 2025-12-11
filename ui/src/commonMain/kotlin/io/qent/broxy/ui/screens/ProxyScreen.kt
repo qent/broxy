@@ -1,5 +1,7 @@
 package io.qent.broxy.ui.screens
 
+import AppPrimaryButton
+import AppSecondaryButton
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -91,7 +93,7 @@ fun ProxyScreen(ui: UIState, state: AppState, notify: (String) -> Unit = {}) {
                                         inboundUrl = "http://0.0.0.0:3335/mcp"
                                     }
                                 },
-                                shape = AppTheme.shapes.surfaceSm,
+                                shape = AppTheme.shapes.button,
                                 colors = ButtonDefaults.filledTonalButtonColors(
                                     containerColor = if (selected) bg else MaterialTheme.colorScheme.surfaceVariant,
                                     contentColor = if (selected) fg else MaterialTheme.colorScheme.onSurfaceVariant
@@ -107,7 +109,8 @@ fun ProxyScreen(ui: UIState, state: AppState, notify: (String) -> Unit = {}) {
                             value = inboundUrl,
                             onValueChange = { inboundUrl = it },
                             label = { Text("Remote (SSE) URL") },
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = AppTheme.shapes.input
                         )
                     }
 
@@ -116,7 +119,7 @@ fun ProxyScreen(ui: UIState, state: AppState, notify: (String) -> Unit = {}) {
                     val isDark = colorScheme.background.luminance() < 0.5f
                     val (statusText, statusColor) = when (val s = ui.proxyStatus) {
                         UiProxyStatus.Starting -> "Starting" to if (isDark) Color(0xFF4DD0E1) else Color(0xFF00838F)
-                        UiProxyStatus.Running -> "Running" to if (isDark) Color(0xFF66BB6A) else Color(0xFF2E7D32)
+                        UiProxyStatus.Running -> "Running" to AppTheme.extendedColors.success
                         UiProxyStatus.Stopping -> "Stopping" to if (isDark) Color(0xFFFFB74D) else Color(0xFFEF6C00)
                         UiProxyStatus.Stopped -> "Stopped" to if (isDark) Color(0xFFFF8A80) else Color(0xFFD32F2F)
                         is UiProxyStatus.Error -> "Error: ${s.message}" to colorScheme.error
@@ -136,13 +139,23 @@ fun ProxyScreen(ui: UIState, state: AppState, notify: (String) -> Unit = {}) {
                         UiProxyStatus.Stopping -> "Stopping..."
                         else -> "Start proxy"
                     }
-                    Button(
-                        onClick = {
-                            val pid = ui.selectedPresetId
-                            if (!running) {
+                    
+                    if (running) {
+                        AppSecondaryButton(
+                            onClick = {
+                                ui.intents.stopProxy()
+                                notify("Stopping proxy...")
+                            },
+                            enabled = !busy,
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text(buttonLabel) }
+                    } else {
+                        AppPrimaryButton(
+                            onClick = {
+                                val pid = ui.selectedPresetId
                                 if (pid == null) {
                                     notify("Select a preset first")
-                                    return@Button
+                                    return@AppPrimaryButton
                                 }
                                 val inbound = if (inboundMode == localOption) {
                                     UiStdioDraft(command = "")
@@ -151,14 +164,11 @@ fun ProxyScreen(ui: UIState, state: AppState, notify: (String) -> Unit = {}) {
                                 }
                                 ui.intents.startProxy(pid, inbound)
                                 notify("Starting proxy...")
-                            } else {
-                                ui.intents.stopProxy()
-                                notify("Stopping proxy...")
-                            }
-                        },
-                        enabled = !busy,
-                        shape = AppTheme.shapes.surfaceSm
-                    ) { Text(buttonLabel) }
+                            },
+                            enabled = !busy,
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text(buttonLabel) }
+                    }
                 }
             }
         }
