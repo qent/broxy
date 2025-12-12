@@ -50,9 +50,9 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
-private const val BASE_URL = "https://mcp.broxy.run"
+private const val BASE_URL = "https://broxy.run"
 private const val WS_PATH = "/ws"
-private const val WS_BASE_URL = "wss://mcp.broxy.run"
+private const val WS_BASE_URL = "wss://broxy.run"
 private const val REDIRECT_URI = "http://127.0.0.1:${LoopbackCallbackServer.DEFAULT_PORT}/oauth/callback"
 
 class RemoteConnectorImpl(
