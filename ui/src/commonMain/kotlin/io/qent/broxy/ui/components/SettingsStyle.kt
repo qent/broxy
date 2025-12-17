@@ -20,6 +20,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -32,6 +33,54 @@ fun SettingsLikeItem(
     modifier: Modifier = Modifier,
     supportingContent: (@Composable ColumnScope.() -> Unit)? = null,
     onClick: (() -> Unit)? = null,
+    control: @Composable RowScope.() -> Unit
+) {
+    SettingsLikeItemImpl(
+        title = title,
+        titleColor = MaterialTheme.colorScheme.onSurface,
+        descriptionContent = {
+            androidx.compose.material3.Text(
+                description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        },
+        modifier = modifier,
+        supportingContent = supportingContent,
+        onClick = onClick,
+        control = control
+    )
+}
+
+@Composable
+fun SettingsLikeItem(
+    title: String,
+    descriptionContent: @Composable () -> Unit,
+    modifier: Modifier = Modifier,
+    supportingContent: (@Composable ColumnScope.() -> Unit)? = null,
+    onClick: (() -> Unit)? = null,
+    titleColor: Color = MaterialTheme.colorScheme.onSurface,
+    control: @Composable RowScope.() -> Unit
+) {
+    SettingsLikeItemImpl(
+        title = title,
+        titleColor = titleColor,
+        descriptionContent = descriptionContent,
+        modifier = modifier,
+        supportingContent = supportingContent,
+        onClick = onClick,
+        control = control
+    )
+}
+
+@Composable
+private fun SettingsLikeItemImpl(
+    title: String,
+    titleColor: Color,
+    descriptionContent: @Composable () -> Unit,
+    modifier: Modifier,
+    supportingContent: (@Composable ColumnScope.() -> Unit)?,
+    onClick: (() -> Unit)?,
     control: @Composable RowScope.() -> Unit
 ) {
     val clickModifier = if (onClick == null) Modifier else Modifier.clickable(onClick = onClick)
@@ -54,12 +103,12 @@ fun SettingsLikeItem(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                androidx.compose.material3.Text(title, style = MaterialTheme.typography.titleSmall)
                 androidx.compose.material3.Text(
-                    description,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text = title,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = titleColor
                 )
+                descriptionContent()
                 supportingContent?.invoke(this)
             }
             Row(

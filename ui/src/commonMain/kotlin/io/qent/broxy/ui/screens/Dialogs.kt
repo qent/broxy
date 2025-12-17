@@ -313,11 +313,6 @@ private fun ServerDetailsContent(
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.xs)) {
             Text(snapshot.name, style = MaterialTheme.typography.titleMedium)
-            Text(
-                "ID: ${snapshot.serverId}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
         SectionBlock("Tools") {
             if (snapshot.tools.isEmpty()) {

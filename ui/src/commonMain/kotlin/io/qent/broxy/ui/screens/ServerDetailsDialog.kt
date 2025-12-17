@@ -15,7 +15,6 @@ fun ServerDetailsDialog(cfg: UiServer, onClose: () -> Unit) {
         dismissButton = null,
         confirmButton = { AppSecondaryButton(onClick = onClose) { Text("Close") } }
     ) {
-        Text("ID: ${cfg.id}", style = MaterialTheme.typography.bodyMedium)
         Text(
             "Transport: ${cfg.transportLabel}",
             style = MaterialTheme.typography.bodySmall,

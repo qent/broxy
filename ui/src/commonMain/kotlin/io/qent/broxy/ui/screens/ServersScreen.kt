@@ -13,7 +13,10 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.adapter.models.UiServer
 import io.qent.broxy.ui.adapter.store.AppStore
@@ -125,14 +128,34 @@ private fun ServerCard(
         else -> MaterialTheme.colorScheme.secondary
     }
 
+    val isDisabled = !cfg.enabled
+    val disabledAlpha = 0.55f
+    val titleColor = MaterialTheme.colorScheme.onSurface.copy(alpha = if (isDisabled) disabledAlpha else 1f)
+    val transportColor =
+        MaterialTheme.colorScheme.primary.copy(alpha = if (isDisabled) disabledAlpha else 1f)
+    val separatorColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (isDisabled) disabledAlpha else 1f)
+    val statusTextColor = if (isDisabled) MaterialTheme.colorScheme.onSurfaceVariant else statusColor
+    val showErrorStatus = cfg.enabled && cfg.status.name == "Error"
+
     SettingsLikeItem(
         title = cfg.name,
-        description = "${cfg.id} • ${cfg.transportLabel}",
-        supportingContent = {
+        titleColor = titleColor,
+        descriptionContent = {
             Text(
-                cfg.status.name,
+                text = buildAnnotatedString {
+                    withStyle(SpanStyle(color = transportColor)) {
+                        append(cfg.transportLabel)
+                    }
+                    if (showErrorStatus) {
+                        withStyle(SpanStyle(color = separatorColor)) {
+                            append(" • ")
+                        }
+                        withStyle(SpanStyle(color = statusTextColor)) {
+                            append(cfg.status.name)
+                        }
+                    }
+                },
                 style = MaterialTheme.typography.bodySmall,
-                color = statusColor,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -174,7 +197,7 @@ private fun DeleteServerDialog(
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)) {
             Text(
-                text = "Remove \"${server.name}\" (${server.id})?",
+                text = "Remove \"${server.name}\"?",
                 style = MaterialTheme.typography.bodyMedium
             )
             Text(
