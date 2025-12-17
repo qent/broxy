@@ -32,6 +32,7 @@ fun MainWindow(
     ui: UIState,
     store: AppStore,
     topBarModifier: Modifier = Modifier,
+    headerDragModifier: Modifier = Modifier,
     useTransparentTitleBar: Boolean = false
 ) {
     AppTheme(themeStyle = state.themeStyle.value) {
@@ -84,6 +85,7 @@ fun MainWindow(
                     GlobalHeader(
                         ui = ui,
                         notify = notify,
+                        dragAreaModifier = headerDragModifier,
                         modifier = Modifier
                             .fillMaxWidth()
                             .background(chromeContainerColor)

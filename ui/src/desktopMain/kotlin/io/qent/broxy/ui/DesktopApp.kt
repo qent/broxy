@@ -99,6 +99,7 @@ fun main(args: Array<String>) {
                     Modifier
                 }
             }
+            val headerDragModifier = remember(window) { Modifier.windowDrag(window) }
 
             LaunchedEffect(isWindowVisible) {
                 if (isWindowVisible) {
@@ -136,6 +137,7 @@ fun main(args: Array<String>) {
                 ui = uiState,
                 store = store,
                 topBarModifier = topBarModifier.height(28.dp),
+                headerDragModifier = headerDragModifier,
                 useTransparentTitleBar = isMacOs
             )
         }

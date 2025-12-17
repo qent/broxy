@@ -23,6 +23,7 @@ import io.qent.broxy.ui.theme.AppTheme
 fun GlobalHeader(
     ui: UIState,
     notify: (String) -> Unit = {},
+    dragAreaModifier: Modifier = Modifier,
     modifier: Modifier = Modifier
 ) {
     val status = (ui as? UIState.Ready)?.proxyStatus
@@ -47,6 +48,9 @@ fun GlobalHeader(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(
+            modifier = Modifier
+                .weight(1f)
+                .then(dragAreaModifier),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.xs)
         ) {
@@ -67,8 +71,6 @@ fun GlobalHeader(
                 )
             }
         }
-
-        Spacer(Modifier.weight(1f))
         PresetDropdown(ui = ui, notify = notify, modifier = Modifier.width(196.dp))
     }
 }
