@@ -252,7 +252,7 @@ internal class AppStoreIntents(
             val shouldRestart = saveResult.isSuccess &&
                 (previousSnapshot.selectedPresetId == preset.id || (isRename && previousSnapshot.selectedPresetId == originalId))
             publishReady()
-            if (shouldRestart) proxyRuntime.ensureSseRunning(forceRestart = true)
+            if (shouldRestart) proxyRuntime.ensureSseRunning(forceReloadPreset = true)
         }
     }
 
@@ -273,7 +273,7 @@ internal class AppStoreIntents(
                     logger.info("[AppStore] removePreset failed to clear default preset: $msg")
                 }
             }
-            proxyRuntime.ensureSseRunning(forceRestart = true)
+            proxyRuntime.ensureSseRunning(forceReloadPreset = true)
         }
     }
 
@@ -293,7 +293,7 @@ internal class AppStoreIntents(
                 publishReady()
                 return@launch
             }
-            proxyRuntime.ensureSseRunning(forceRestart = true)
+            proxyRuntime.ensureSseRunning(forceReloadPreset = true)
         }
     }
 

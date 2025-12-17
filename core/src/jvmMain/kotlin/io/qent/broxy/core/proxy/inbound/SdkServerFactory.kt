@@ -23,7 +23,11 @@ import io.modelcontextprotocol.kotlin.sdk.types.ServerCapabilities
 import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 import io.modelcontextprotocol.kotlin.sdk.types.Tool
 import io.modelcontextprotocol.kotlin.sdk.types.ToolSchema
+import io.modelcontextprotocol.kotlin.sdk.server.RegisteredPrompt
+import io.modelcontextprotocol.kotlin.sdk.server.RegisteredResource
+import io.modelcontextprotocol.kotlin.sdk.server.RegisteredTool
 import io.qent.broxy.core.proxy.ProxyMcpServer
+import io.qent.broxy.core.mcp.ServerCapabilities as ProxyServerCapabilities
 import io.qent.broxy.core.utils.ConsoleLogger
 import io.qent.broxy.core.utils.Logger
 import io.qent.broxy.core.utils.errorJson
@@ -59,126 +63,175 @@ fun buildSdkServer(proxy: ProxyMcpServer, logger: Logger = ConsoleLogger): Serve
         options = options
     )
 
-    // Snapshot current filtered capabilities and register with SDK server.
-    val caps = proxy.getCapabilities()
+    // Initial sync from current filtered capabilities. Later preset updates can re-sync without server restart.
+    syncSdkServer(server, proxy, logger)
+
+    return server
+}
+
+internal data class ProxyBackend(
+    val callTool: suspend (toolName: String, arguments: JsonObject) -> Result<JsonElement>,
+    val getPrompt: suspend (name: String, arguments: Map<String, String>?) -> Result<JsonObject>,
+    val readResource: suspend (uri: String) -> Result<JsonObject>
+)
+
+internal fun syncSdkServer(server: Server, proxy: ProxyMcpServer, logger: Logger = ConsoleLogger) {
+    val backend = ProxyBackend(
+        callTool = { toolName, arguments -> proxy.callTool(toolName, arguments) },
+        getPrompt = { name, arguments -> proxy.getPrompt(name, arguments) },
+        readResource = { uri -> proxy.readResource(uri) }
+    )
+    syncSdkServer(server, proxy.getCapabilities(), backend, logger)
+}
+
+internal fun syncSdkServer(
+    server: Server,
+    capabilities: ProxyServerCapabilities,
+    backend: ProxyBackend,
+    logger: Logger = ConsoleLogger
+) {
     val json = Json { ignoreUnknownKeys = true }
 
-    // Register tools
-    caps.tools.forEach { td ->
-        server.addTool(
-            name = td.name,
-            title = td.title,
-            description = td.description ?: td.title ?: td.name,
-            inputSchema = td.inputSchema ?: ToolSchema(),
-            outputSchema = td.outputSchema,
-            toolAnnotations = td.annotations
-        ) { req: CallToolRequest ->
-            logger.infoJson("llm_to_facade.request") {
-                put("toolName", JsonPrimitive(req.name))
-                put("arguments", req.arguments ?: JsonNull)
-                putIfNotNull("meta", req.meta?.json)
-            }
-            val arguments = req.arguments ?: JsonObject(emptyMap())
-            val result = kotlinx.coroutines.runBlocking { proxy.callTool(req.name, arguments) }
-            val colonIdx = req.name.indexOf(':')
-            val serverId = if (colonIdx > 0) req.name.substring(0, colonIdx) else "unknown"
-            val downstreamTool = if (colonIdx > 0 && colonIdx < req.name.length - 1) req.name.substring(colonIdx + 1) else req.name
-            if (result.isSuccess) {
-                val el = result.getOrNull() ?: JsonNull
-                val decodedBase = runCatching {
-                    decodeCallToolResult(json, el)
-                }.onFailure { failure ->
-                    logger.warnJson("facade_to_llm.decode_failed", failure) {
+    // Replace existing registered snapshot with the current filtered view.
+    server.removeTools(server.tools.keys.toList())
+    server.removePrompts(server.prompts.keys.toList())
+    server.removeResources(server.resources.keys.toList())
+
+    val toolsToAdd = capabilities.tools.map { td ->
+        RegisteredTool(
+            tool = Tool(
+                name = td.name,
+                title = td.title,
+                description = td.description ?: td.title ?: td.name,
+                inputSchema = td.inputSchema ?: ToolSchema(),
+                outputSchema = td.outputSchema,
+                annotations = td.annotations
+            ),
+            handler = { req: CallToolRequest ->
+                logger.infoJson("llm_to_facade.request") {
+                    put("toolName", JsonPrimitive(req.name))
+                    put("arguments", req.arguments ?: JsonNull)
+                    putIfNotNull("meta", req.meta?.json)
+                }
+                val arguments = req.arguments ?: JsonObject(emptyMap())
+                val result = backend.callTool(req.name, arguments)
+                val colonIdx = req.name.indexOf(':')
+                val serverId = if (colonIdx > 0) req.name.substring(0, colonIdx) else "unknown"
+                val downstreamTool =
+                    if (colonIdx > 0 && colonIdx < req.name.length - 1) req.name.substring(colonIdx + 1) else req.name
+                if (result.isSuccess) {
+                    val el = result.getOrNull() ?: JsonNull
+                    val decodedBase = runCatching {
+                        decodeCallToolResult(json, el)
+                    }.onFailure { failure ->
+                        logger.warnJson("facade_to_llm.decode_failed", failure) {
+                            put("toolName", JsonPrimitive(req.name))
+                            put("targetServerId", JsonPrimitive(serverId))
+                            put("downstreamTool", JsonPrimitive(downstreamTool))
+                            put("rawResponse", el)
+                        }
+                    }.getOrElse {
+                        fallbackCallToolResult(el)
+                    }
+                    val decoded = decodedBase
+                    logger.infoJson("facade_to_llm.response") {
                         put("toolName", JsonPrimitive(req.name))
                         put("targetServerId", JsonPrimitive(serverId))
                         put("downstreamTool", JsonPrimitive(downstreamTool))
-                        put("rawResponse", el)
+                        put("response", Json.encodeToJsonElement(CallToolResult.serializer(), decoded))
                     }
-                }.getOrElse {
-                    fallbackCallToolResult(el)
+                    decoded
+                } else {
+                    val errMsg = result.exceptionOrNull()?.message ?: "Tool error"
+                    logger.errorJson("facade_to_llm.error", result.exceptionOrNull()) {
+                        put("toolName", JsonPrimitive(req.name))
+                        put("targetServerId", JsonPrimitive(serverId))
+                        put("downstreamTool", JsonPrimitive(downstreamTool))
+                        put("errorMessage", JsonPrimitive(errMsg))
+                    }
+                    CallToolResult(
+                        content = emptyList(),
+                        isError = true,
+                        structuredContent = JsonObject(mapOf("error" to JsonPrimitive(errMsg))),
+                        meta = JsonObject(emptyMap())
+                    )
                 }
-                val decoded = decodedBase
-                logger.infoJson("facade_to_llm.response") {
-                    put("toolName", JsonPrimitive(req.name))
-                    put("targetServerId", JsonPrimitive(serverId))
-                    put("downstreamTool", JsonPrimitive(downstreamTool))
-                    put("response", Json.encodeToJsonElement(CallToolResult.serializer(), decoded))
-                }
-                decoded
-            } else {
-                val errMsg = result.exceptionOrNull()?.message ?: "Tool error"
-                logger.errorJson("facade_to_llm.error", result.exceptionOrNull()) {
-                    put("toolName", JsonPrimitive(req.name))
-                    put("targetServerId", JsonPrimitive(serverId))
-                    put("downstreamTool", JsonPrimitive(downstreamTool))
-                    put("errorMessage", JsonPrimitive(errMsg))
-                }
-                CallToolResult(
-                    content = emptyList(),
-                    isError = true,
-                    structuredContent = JsonObject(mapOf("error" to JsonPrimitive(errMsg))),
-                    meta = JsonObject(emptyMap())
-                )
             }
-        }
+        )
+    }
+    if (toolsToAdd.isNotEmpty()) {
+        server.addTools(toolsToAdd)
     }
 
-    // Register prompts (list + downstream getPrompt handler)
-    caps.prompts.forEach { pd ->
+    val promptsToAdd = capabilities.prompts.map { pd ->
         val prompt = Prompt(
             name = pd.name,
             description = pd.description ?: pd.name,
             arguments = pd.arguments ?: emptyList()
         )
-        server.addPrompt(prompt) { req ->
-            logger.info("Received prompt request from LLM: name='${req.name}'")
-            val promptResult = kotlinx.coroutines.runBlocking { proxy.getPrompt(req.name, req.arguments) }
-            if (promptResult.isSuccess) {
-                val el = promptResult.getOrThrow()
-                logger.info("Forwarding prompt '${req.name}' result from downstream to LLM")
-                decodePromptResult(json, el)
-            } else {
-                // Fallback to empty prompt result with error flag in meta
-                logger.error("Prompt '${req.name}' failed: ${promptResult.exceptionOrNull()?.message}", promptResult.exceptionOrNull())
-                GetPromptResult(
-                    messages = emptyList(),
-                    description = prompt.description,
-                    meta = JsonObject(mapOf("error" to JsonPrimitive(promptResult.exceptionOrNull()?.message ?: "getPrompt failed")))
-                )
+        RegisteredPrompt(
+            prompt = prompt,
+            messageProvider = { req ->
+                logger.info("Received prompt request from LLM: name='${req.name}'")
+                val promptResult = backend.getPrompt(req.name, req.arguments)
+                if (promptResult.isSuccess) {
+                    val el = promptResult.getOrThrow()
+                    logger.info("Forwarding prompt '${req.name}' result from downstream to LLM")
+                    decodePromptResult(json, el)
+                } else {
+                    logger.error(
+                        "Prompt '${req.name}' failed: ${promptResult.exceptionOrNull()?.message}",
+                        promptResult.exceptionOrNull()
+                    )
+                    GetPromptResult(
+                        messages = emptyList(),
+                        description = prompt.description,
+                        meta = JsonObject(
+                            mapOf(
+                                "error" to JsonPrimitive(
+                                    promptResult.exceptionOrNull()?.message ?: "getPrompt failed"
+                                )
+                            )
+                        )
+                    )
+                }
             }
-        }
+        )
+    }
+    if (promptsToAdd.isNotEmpty()) {
+        server.addPrompts(promptsToAdd)
     }
 
-    // Register resources (list + downstream read handler)
-    caps.resources.forEach { rd ->
+    val resourcesToAdd = capabilities.resources.map { rd ->
         val uri = rd.uri ?: rd.name
         val desc = rd.description ?: ""
-        server.addResource(
-            uri = uri,
-            name = rd.name,
-            description = desc,
-            mimeType = rd.mimeType ?: "text/html"
-        ) { _ ->
-            logger.info("Received resource request from LLM: uri='$uri'")
-            val json = kotlinx.coroutines.runBlocking { proxy.readResource(uri) }
-            if (json.isSuccess) {
-                val el = json.getOrThrow()
-                logger.info("Forwarding resource '$uri' result from downstream to LLM")
-                kotlinx.serialization.json.Json.decodeFromJsonElement(
-                    ReadResourceResult.serializer(),
-                    el
-                )
-            } else {
-                logger.error("Resource '$uri' failed: ${json.exceptionOrNull()?.message}", json.exceptionOrNull())
-                ReadResourceResult(
-                    contents = emptyList(),
-                    meta = JsonObject(mapOf("error" to JsonPrimitive(json.exceptionOrNull()?.message ?: "readResource failed")))
-                )
+        RegisteredResource(
+            resource = io.modelcontextprotocol.kotlin.sdk.types.Resource(
+                uri = uri,
+                name = rd.name,
+                description = desc,
+                mimeType = rd.mimeType ?: "text/html"
+            ),
+            readHandler = { _ ->
+                logger.info("Received resource request from LLM: uri='$uri'")
+                val readResult = backend.readResource(uri)
+                if (readResult.isSuccess) {
+                    val el = readResult.getOrThrow()
+                    logger.info("Forwarding resource '$uri' result from downstream to LLM")
+                    Json.decodeFromJsonElement(ReadResourceResult.serializer(), el)
+                } else {
+                    logger.error("Resource '$uri' failed: ${readResult.exceptionOrNull()?.message}", readResult.exceptionOrNull())
+                    ReadResourceResult(
+                        contents = emptyList(),
+                        meta = JsonObject(mapOf("error" to JsonPrimitive(readResult.exceptionOrNull()?.message ?: "readResource failed")))
+                    )
+                }
             }
-        }
+        )
     }
-
-    return server
+    if (resourcesToAdd.isNotEmpty()) {
+        server.addResources(resourcesToAdd)
+    }
 }
 
 internal fun decodeCallToolResult(json: Json, element: JsonElement): CallToolResult {

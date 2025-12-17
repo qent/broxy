@@ -99,9 +99,8 @@ sequenceDiagram
 В CLI и (частично) в UI используется `ConfigurationWatcher`:
 
 - на изменение `mcp.json` → `onConfigurationChanged(...)` → `ProxyLifecycle.restartWithConfig(...)`;
-- на изменение `preset_*.json` → `onPresetChanged(...)` → `ProxyLifecycle.applyPreset(...)` (только пересчёт allow-list в прокси; подробности и ограничения — в `docs/PRESETS_AND_FILTERING.md`).
+- на изменение `preset_*.json` → `onPresetChanged(...)` → `ProxyLifecycle.applyPreset(...)` (пересчёт filtered capabilities в прокси + обновление списка capabilities наружу без рестарта inbound; подробности — в `docs/PRESETS_AND_FILTERING.md`).
 
 ### 4) Remote режим (UI): авторизация + WebSocket
 
 UI-adapter выполняет OAuth и регистрирует “сервер-идентификатор” на `broxy.run`, затем поднимает WebSocket, в котором проксируются MCP JSON-RPC сообщения (см. `docs/REMOTE_AUTH_AND_WEBSOCKET.md`).
-

@@ -20,13 +20,19 @@ allprojects {
 // Convenience task to run tests across modules
 tasks.register("testAll") {
     group = "verification"
-    description = "Runs unit tests across modules (core JVM, CLI)."
-    dependsOn(":core:jvmTest", ":cli:test")
+    description = "Runs all tests across modules (unit + integration)."
+    dependsOn(
+        ":core:jvmTest",
+        ":ui-adapter:jvmTest",
+        ":cli:test",
+        ":cli:integrationTest",
+        ":test-mcp-server:test"
+    )
 }
 
 // Alias for convenience (same as testAll)
 tasks.register("allTests") {
     group = "verification"
-    description = "Alias to testAll. Runs unit tests across modules (core JVM, CLI)."
+    description = "Alias to testAll. Runs all tests across modules (unit + integration)."
     dependsOn("testAll")
 }

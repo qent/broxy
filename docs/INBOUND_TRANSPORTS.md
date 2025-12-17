@@ -92,7 +92,7 @@ Inbound — это “как broxy принимает входящие MCP JSON-
 
 Outbound API для MCP клиентов формирует SDK `Server`:
 
-- регистрирует tools/prompts/resources из `proxy.getCapabilities()`;
+- синхронизирует зарегистрированные tools/prompts/resources с `proxy.getCapabilities()` и может пересинхронизироваться при смене пресета без рестарта inbound;
 - перенаправляет `callTool/getPrompt/readResource` в `ProxyMcpServer`.
 
 Подробности — `docs/PROXY_FACADE.md`.

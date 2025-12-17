@@ -18,48 +18,71 @@ internal class ProxyRuntime(
     private val publishReady: () -> Unit,
     private val remoteConnector: RemoteConnector
 ) {
-    suspend fun ensureSseRunning(forceRestart: Boolean = false) {
+    suspend fun ensureSseRunning(forceRestart: Boolean = false, forceReloadPreset: Boolean = false) {
         val port = state.snapshot.inboundSsePort.coerceIn(1, 65535)
         val inbound = UiHttpTransport(url = sseEndpointUrl(port))
         val presetId = state.snapshot.selectedPresetId
 
-        val shouldStartOrRestart = forceRestart ||
-            state.snapshot.proxyStatus !is UiProxyStatus.Running ||
-            state.snapshot.activeInbound != inbound ||
-            state.snapshot.activeProxyPresetId != presetId
+        val isRunning = state.snapshot.proxyStatus is UiProxyStatus.Running
+        val inboundChanged = state.snapshot.activeInbound != inbound
+        val presetChanged = state.snapshot.activeProxyPresetId != presetId
 
-        if (!shouldStartOrRestart) return
+        val shouldStartOrRestart = forceRestart || !isRunning || inboundChanged
 
-        state.updateSnapshot { copy(proxyStatus = UiProxyStatus.Starting) }
-        publishReady()
+        if (shouldStartOrRestart) {
+            state.updateSnapshot { copy(proxyStatus = UiProxyStatus.Starting) }
+            publishReady()
 
-        val preset = loadPresetOrEmpty(presetId)
-        if (preset.isFailure) {
-            val msg = preset.exceptionOrNull()?.message ?: "Failed to load preset"
-            logger.info("[AppStore] ensureSseRunning failed: $msg")
-            state.updateSnapshot {
-                copy(proxyStatus = UiProxyStatus.Error(msg), activeProxyPresetId = null, activeInbound = null)
+            val preset = loadPresetOrEmpty(presetId)
+            if (preset.isFailure) {
+                val msg = preset.exceptionOrNull()?.message ?: "Failed to load preset"
+                logger.info("[AppStore] ensureSseRunning failed: $msg")
+                state.updateSnapshot {
+                    copy(proxyStatus = UiProxyStatus.Error(msg), activeProxyPresetId = null, activeInbound = null)
+                }
+                remoteConnector.onProxyRunningChanged(false)
+                publishReady()
+                return
             }
-            remoteConnector.onProxyRunningChanged(false)
+
+            val result = proxyLifecycle.start(state.snapshotConfig(), preset.getOrThrow(), inbound)
+            if (result.isSuccess) {
+                state.updateSnapshot {
+                    copy(
+                        proxyStatus = UiProxyStatus.Running,
+                        activeProxyPresetId = presetId,
+                        activeInbound = inbound
+                    )
+                }
+                remoteConnector.onProxyRunningChanged(true)
+            } else {
+                val msg = result.exceptionOrNull()?.message ?: "Failed to start SSE server"
+                logger.info("[AppStore] ensureSseRunning start failed: $msg")
+                state.updateSnapshot { copy(proxyStatus = UiProxyStatus.Error(msg), activeProxyPresetId = null, activeInbound = null) }
+                remoteConnector.onProxyRunningChanged(false)
+            }
             publishReady()
             return
         }
 
-        val result = proxyLifecycle.start(state.snapshotConfig(), preset.getOrThrow(), inbound)
-        if (result.isSuccess) {
-            state.updateSnapshot {
-                copy(
-                    proxyStatus = UiProxyStatus.Running,
-                    activeProxyPresetId = presetId,
-                    activeInbound = inbound
-                )
-            }
-            remoteConnector.onProxyRunningChanged(true)
+        if (!isRunning || (!presetChanged && !forceReloadPreset)) return
+
+        val preset = loadPresetOrEmpty(presetId)
+        if (preset.isFailure) {
+            val msg = preset.exceptionOrNull()?.message ?: "Failed to load preset"
+            logger.info("[AppStore] ensureSseRunning applyPreset failed: $msg")
+            state.setError(msg)
+            publishReady()
+            return
+        }
+
+        val applyResult = proxyLifecycle.applyPreset(preset.getOrThrow())
+        if (applyResult.isSuccess) {
+            state.updateSnapshot { copy(activeProxyPresetId = presetId) }
         } else {
-            val msg = result.exceptionOrNull()?.message ?: "Failed to start SSE server"
-            logger.info("[AppStore] ensureSseRunning start failed: $msg")
-            state.updateSnapshot { copy(proxyStatus = UiProxyStatus.Error(msg), activeProxyPresetId = null, activeInbound = null) }
-            remoteConnector.onProxyRunningChanged(false)
+            val msg = applyResult.exceptionOrNull()?.message ?: "Failed to apply preset"
+            logger.info("[AppStore] ensureSseRunning applyPreset failed: $msg")
+            state.setError(msg)
         }
         publishReady()
     }
@@ -92,4 +115,3 @@ internal class ProxyRuntime(
 }
 
 private fun sseEndpointUrl(port: Int): String = "http://0.0.0.0:${port.coerceIn(1, 65535)}/mcp"
-

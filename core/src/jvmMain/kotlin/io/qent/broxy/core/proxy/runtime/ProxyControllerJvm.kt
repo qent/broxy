@@ -70,6 +70,7 @@ private class JvmProxyController(
     override fun applyPreset(preset: Preset): Result<Unit> = runCatching {
         val proxy = this.proxy ?: error("Proxy is not running")
         proxy.applyPreset(preset)
+        inboundServer?.refreshCapabilities()?.getOrThrow()
     }
 
     override fun updateCallTimeout(seconds: Int) {

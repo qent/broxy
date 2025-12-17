@@ -67,33 +67,22 @@
 
 ### Регистрация tools/prompts/resources
 
-`buildSdkServer(proxy)` делает “снимок” текущих отфильтрованных capabilities:
+`buildSdkServer(proxy)` синхронизирует MCP SDK `Server` с текущими отфильтрованными capabilities прокси и регистрирует:
 
-- `val caps = proxy.getCapabilities()`
-
-И регистрирует:
-
-- tools: `server.addTool(name = td.name, ...) { req -> ... }`
-- prompts: `server.addPrompt(prompt) { req -> ... }`
-- resources: `server.addResource(uri = ..., ...) { _ -> ... }`
+- tools: `server.addTool(...)` / `server.addTools(...)`
+- prompts: `server.addPrompt(...)` / `server.addPrompts(...)`
+- resources: `server.addResource(...)` / `server.addResources(...)`
 
 Файл: `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/SdkServerFactory.kt`
 
-### Важное ограничение: capabilities snapshot
+### Runtime обновление capabilities при смене пресета
 
-`buildSdkServer` регистрирует список tools/prompts/resources **однократно**, на момент построения сервера.
+При `ProxyController.applyPreset(...)` broxy:
 
-Если позже вызвать:
-- `ProxyMcpServer.applyPreset(...)` (или `refreshFilteredCapabilities()`),
+1) пересчитывает `filteredCaps/allowedTools/...` в `ProxyMcpServer`;
+2) пересинхронизирует уже запущенный MCP SDK `Server` (inbound STDIO/SSE) через `syncSdkServer(...)`.
 
-то внутри `ProxyMcpServer` обновятся allow-list и маршрутизация, но **список capabilities, который отдаёт MCP SDK Server в `tools/list`/`prompts/list`/`resources/list`, не обновится**, потому что SDK server не пересоздаётся автоматически.
-
-Практический смысл:
-
-- **защита**: `DefaultRequestDispatcher` всё равно проверит `allowedPrefixedTools` и отклонит запрещённые вызовы (см. ниже);
-- **UX**: внешние клиенты могут видеть “устаревший” список инструментов до перезапуска inbound/процесса.
-
-Рекомендация для runtime: если важно “обновлять список capabilities”, делайте restart inbound (через `ProxyLifecycle.start(...)`) вместо `applyPreset(...)`.
+Это означает, что при смене пресета **не требуется перезапуск inbound сервера**, а ответы `tools/list`/`prompts/list`/`resources/list` обновятся в рамках той же запущенной сессии.
 
 ## Слой 3: ProxyMcpServer → RequestDispatcher → downstream
 

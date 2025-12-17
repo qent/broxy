@@ -115,4 +115,4 @@
 - При изменении `mcp.json`:
   - `ProxyLifecycle.restartWithConfig(config)` — перезапуск downstream соединений + inbound.
 - При изменении `preset_*.json`:
-  - `ProxyLifecycle.applyPreset(preset)` — обновление фильтрации в прокси без рестарта inbound (см. ограничение в `docs/PRESETS_AND_FILTERING.md`).
+  - `ProxyLifecycle.applyPreset(preset)` — обновление filtered capabilities без рестарта inbound; наружные `tools/list`/`prompts/list`/`resources/list` обновятся в рамках уже запущенного STDIO/SSE.

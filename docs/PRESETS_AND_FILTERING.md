@@ -145,11 +145,7 @@ data class Preset(
 - `AppStoreIntents.selectProxyPreset(presetId)`:
   - меняет `selectedPresetId`;
   - сохраняет `defaultPresetId` в `mcp.json`;
-  - рестартит локальный SSE inbound, чтобы внешний клиент получил обновлённый snapshot capabilities.
-
-Restart важен, потому что:
-
-- пересоздаётся inbound MCP SDK Server (а значит обновляются списки tools/prompts/resources наружу).
+  - применяет пресет к уже запущенному прокси без рестарта inbound.
 
 Файлы:
 - `ui-adapter/src/commonMain/kotlin/io/qent/broxy/ui/adapter/store/internal/AppStoreIntents.kt`
@@ -161,10 +157,7 @@ CLI watcher на изменение preset вызывает:
 
 - `ProxyLifecycle.applyPreset(preset)` → `ProxyController.applyPreset(...)` → `ProxyMcpServer.applyPreset(...)`
 
-Это НЕ пересоздаёт inbound сервер, поэтому:
-
-- allow-list обновится (вызовы запрещённых tool будут отклоняться);
-- список в `tools/list`/`prompts/list`/`resources/list` может остаться “старым” до перезапуска процесса.
+Это не пересоздаёт inbound сервер: running STDIO/SSE продолжает работать, а MCP SDK `Server` пересинхронизируется с текущими filtered capabilities, поэтому `tools/list`/`prompts/list`/`resources/list` обновятся без рестарта процесса.
 
 Файлы:
 - `cli/src/main/kotlin/io/qent/broxy/cli/commands/ProxyCommand.kt`

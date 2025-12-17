@@ -312,7 +312,7 @@ class AppStoreTest {
     }
 
     @org.junit.Test
-    fun selectingPresetWhileRunningRestartsProxy() = runTest {
+    fun selectingPresetWhileRunningAppliesPresetWithoutRestart() = runTest {
         val server = McpServerConfig(
             id = "s1",
             name = "Server 1",
@@ -363,8 +363,8 @@ class AppStoreTest {
         runningState.intents.selectProxyPreset("alt")
         storeScope.advanceUntilIdle()
 
-        assertEquals(2, proxyController.startCalls.size)
-        assertEquals("alt", proxyController.startCalls.last().preset.id)
+        assertEquals(1, proxyController.startCalls.size)
+        assertEquals(listOf("alt"), proxyController.appliedPresets)
         val updated = store.state.value as UIState.Ready
         assertEquals("alt", updated.selectedPresetId)
 
@@ -372,7 +372,7 @@ class AppStoreTest {
     }
 
     @org.junit.Test
-    fun selectingNoPresetRestartsProxyWithEmptyCapabilities() = runTest {
+    fun selectingNoPresetAppliesEmptyPresetWithoutRestart() = runTest {
         val server = McpServerConfig(
             id = "s1",
             name = "Server 1",
@@ -412,8 +412,8 @@ class AppStoreTest {
         ready.intents.selectProxyPreset(null)
         storeScope.advanceUntilIdle()
 
-        assertEquals(2, proxyController.startCalls.size)
-        assertEquals(Preset.EMPTY_PRESET_ID, proxyController.startCalls.last().preset.id)
+        assertEquals(1, proxyController.startCalls.size)
+        assertEquals(listOf(Preset.EMPTY_PRESET_ID), proxyController.appliedPresets)
 
         val updated = store.state.value as UIState.Ready
         assertNull(updated.selectedPresetId)
@@ -423,7 +423,7 @@ class AppStoreTest {
     }
 
     @org.junit.Test
-    fun renamingSelectedPresetDoesNotCreateCopyAndRestartsProxy() = runTest {
+    fun renamingSelectedPresetDoesNotCreateCopyAndAppliesWithoutRestart() = runTest {
         val server = McpServerConfig(
             id = "s1",
             name = "Server 1",
@@ -488,8 +488,8 @@ class AppStoreTest {
         assertEquals("renamed", updated.selectedPresetId)
         assertEquals(listOf("renamed"), updated.presets.map { it.id }.sorted())
 
-        assertEquals(2, proxyController.startCalls.size)
-        assertEquals("renamed", proxyController.startCalls.last().preset.id)
+        assertEquals(1, proxyController.startCalls.size)
+        assertEquals(listOf("renamed"), proxyController.appliedPresets)
 
         storeScope.cancel()
     }

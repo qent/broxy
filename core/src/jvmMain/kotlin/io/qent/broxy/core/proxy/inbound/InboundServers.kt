@@ -39,6 +39,7 @@ import java.util.concurrent.ConcurrentHashMap
 interface InboundServer {
     fun start(): ServerStatus
     fun stop(): ServerStatus
+    fun refreshCapabilities(): Result<Unit>
 }
 
 object InboundServerFactory {
@@ -61,16 +62,22 @@ private class StdioInboundServer(
     private val proxy: ProxyMcpServer,
     private val logger: Logger
 ) : InboundServer {
+    private var server: Server? = null
+    private var session: ServerSession? = null
+
     override fun start(): ServerStatus {
         logger.info("Starting STDIO inbound server (MCP SDK)")
         val input = System.`in`.asSource().buffered()
         val output = System.out.asSink().buffered()
         val transport = io.modelcontextprotocol.kotlin.sdk.server.StdioServerTransport(input, output)
         val server = buildSdkServer(proxy, logger)
+        this.server = server
         return try {
-            kotlinx.coroutines.runBlocking { server.createSession(transport) }
+            session = kotlinx.coroutines.runBlocking { server.createSession(transport) }
             ServerStatus.Running
         } catch (t: Throwable) {
+            this.server = null
+            this.session = null
             logger.error("Failed to start STDIO MCP server", t)
             ServerStatus.Error(t.message)
         }
@@ -78,7 +85,18 @@ private class StdioInboundServer(
 
     override fun stop(): ServerStatus {
         logger.info("Stopping STDIO inbound server")
+        val server = this.server
+        val session = this.session
+        this.server = null
+        this.session = null
+        runCatching { kotlinx.coroutines.runBlocking { session?.close() } }
+        runCatching { kotlinx.coroutines.runBlocking { server?.close() } }
         return ServerStatus.Stopped
+    }
+
+    override fun refreshCapabilities(): Result<Unit> {
+        val server = server ?: return Result.failure(IllegalStateException("STDIO inbound server is not running"))
+        return runCatching { syncSdkServer(server, proxy, logger) }
     }
 }
 
@@ -89,6 +107,7 @@ private class KtorInboundServer(
 ) : InboundServer {
 
     private var engine: EmbeddedServer<*, *>? = null
+    private var server: Server? = null
 
     override fun start(): ServerStatus {
         val (host, port, rawPath) = parse(url)
@@ -98,19 +117,20 @@ private class KtorInboundServer(
         logger.info("Starting HTTP SSE inbound at $scheme://$host:$port$displayPath")
         logger.debug("HTTP inbound route segments='${normalizedPath.routeSegments.ifBlank { "/" }}'")
         return try {
+            val sdkServer = buildSdkServer(proxy, logger)
+            server = sdkServer
             engine = embeddedServer(Netty, host = host, port = port, module = {
                 install(CallLogging)
                 install(SSE)
                 routing {
-                    val serverFactory: ServerSSESession.() -> Server = { buildSdkServer(proxy, logger) }
                     val registry = InboundSseRegistry(logger)
                     if (normalizedPath.routeSegments.isBlank()) {
-                        mountMcpRoute(endpointPath = normalizedPath.display, serverFactory = serverFactory, registry = registry)
+                        mountMcpRoute(endpointPath = normalizedPath.display, server = sdkServer, registry = registry)
                     } else {
                         route("/${normalizedPath.routeSegments}") {
                             mountMcpRoute(
                                 endpointPath = normalizedPath.display,
-                                serverFactory = serverFactory,
+                                server = sdkServer,
                                 registry = registry
                             )
                         }
@@ -120,6 +140,7 @@ private class KtorInboundServer(
             ServerStatus.Running
         } catch (t: Throwable) {
             engine = null
+            server = null
             val bind = t.findCause<BindException>()
             val message = if (bind != null) {
                 "Port $port is already in use"
@@ -134,8 +155,16 @@ private class KtorInboundServer(
     override fun stop(): ServerStatus {
         val srv = engine
         engine = null
+        val sdkServer = server
+        server = null
         srv?.stop()
+        runCatching { kotlinx.coroutines.runBlocking { sdkServer?.close() } }
         return ServerStatus.Stopped
+    }
+
+    override fun refreshCapabilities(): Result<Unit> {
+        val sdkServer = server ?: return Result.failure(IllegalStateException("HTTP SSE inbound server is not running"))
+        return runCatching { syncSdkServer(sdkServer, proxy, logger) }
     }
 }
 
@@ -193,11 +222,10 @@ private class InboundSseRegistry(
 
 private fun Route.mountMcpRoute(
     endpointPath: String,
-    serverFactory: ServerSSESession.() -> Server,
+    server: Server,
     registry: InboundSseRegistry
 ) {
     sse {
-        val server = serverFactory(this)
         val transport = SseServerTransport(endpointPath, this)
         val session = server.createSession(transport)
         registry.add(transport, session)

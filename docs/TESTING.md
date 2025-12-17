@@ -20,6 +20,12 @@ Locations and naming:
 - JVM unit tests live under `core/src/jvmTest/kotlin/...`.
 - Name tests by behavior, not by method: `filters_and_prefixes_with_mappings`, `connect_and_capabilities_and_callTool_with_mockito`.
 
+Running tests:
+- `JAVA_HOME=$(/usr/libexec/java_home -v 17) ./gradlew allTests` runs all project tests, including:
+  - unit tests (`:core:jvmTest`, `:ui-adapter:jvmTest`)
+  - CLI integration tests (`:cli:integrationTest`)
+  - test MCP server tests (`:test-mcp-server:test`)
+
 Helpful test utilities already in repo:
 - `FakeSdkClientFacade` for client adapters.
 - `SdkConnector` to inject a fake façade into clients.
