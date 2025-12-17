@@ -1,5 +1,28 @@
 # AGENTS.md - Руководство по разработке broxy
 
+## Документация (обязательно для AI-агентов)
+
+Обязательные правила для любого агента:
+
+1. Перед началом работы над задачей прочитать документы из `docs/`, которые относятся к текущей задаче (минимум — `docs/README.md`, затем профильные разделы).
+2. После выполнения задачи, которая меняет поведение/контракты/потоки данных, агент обязан актуализировать соответствующие файлы в `docs/*.md` (и при необходимости обновить этот список ссылок).
+
+Список ключевых документов:
+
+- `docs/README.md` — индекс и рекомендуемый порядок чтения.
+- `docs/ARCHITECTURE.md` — общая архитектура, модули и сквозные флоу.
+- `docs/PROXY_FACADE.md` — фасад прокси, маршрутизация, namespace `serverId:tool`, ограничения snapshot capabilities.
+- `docs/DOWNSTREAM_MCP_CONNECTIONS.md` — downstream подключения (STDIO/HTTP(SSE)/Streamable HTTP/WS), таймауты, retry/backoff, кеш caps.
+- `docs/PRESETS_AND_FILTERING.md` — пресеты, фильтрация capabilities, маршрутизация prompt/resource, runtime переключение и ограничения.
+- `docs/CONFIGURATION_AND_HOT_RELOAD.md` — `mcp.json`, `preset_*.json`, переменные окружения, `ConfigurationWatcher` и hot reload.
+- `docs/INBOUND_TRANSPORTS.md` — inbound транспорты (STDIO/HTTP SSE) и адаптер к MCP SDK.
+- `docs/REMOTE_AUTH_AND_WEBSOCKET.md` — OAuth, регистрация, токены/хранилище, протокол WebSocket и envelope сообщений.
+- `docs/CAPABILITIES_CACHE_AND_UI_REFRESH.md` — UI-ориентированный кеш capabilities, фоновые обновления и статусы.
+- `docs/LOGGING_AND_OBSERVABILITY.md` — логирование, JSON события и рекомендации по трассировке.
+- `docs/websocket-preset-capabilities.md` — payload’ы WebSocket и capabilities активного пресета (remote режим).
+- `docs/TESTING.md` — практики unit-тестирования в репозитории.
+- `docs/TEST_MCP_SERVER_STATUS.md` — self-check для тестового MCP сервера.
+
 ## Архитектурные принципы
 
 ### 1. Clean Architecture
