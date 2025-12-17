@@ -1,7 +1,6 @@
 package io.qent.broxy.core.proxy
 
 import io.qent.broxy.core.mcp.McpServerConnection
-import io.qent.broxy.core.mcp.MultiServerClient
 import io.qent.broxy.core.mcp.ServerCapabilities
 import io.qent.broxy.core.mcp.ServerStatus
 import io.qent.broxy.core.models.Preset
@@ -19,12 +18,15 @@ import kotlinx.serialization.json.JsonObject
  * capabilities based on a preset, and routes tool calls to the appropriate server.
  */
 class ProxyMcpServer(
-    private val downstreams: List<McpServerConnection>,
+    downstreams: List<McpServerConnection>,
     private val logger: Logger = ConsoleLogger,
     private val toolFilter: ToolFilter = DefaultToolFilter()
 ) : ProxyServer {
     @Volatile
     private var status: ServerStatus = ServerStatus.Stopped
+
+    @Volatile
+    private var downstreams: List<McpServerConnection> = downstreams
 
     private var currentPreset: Preset? = null
     private var filteredCaps: ServerCapabilities = ServerCapabilities()
@@ -34,17 +36,8 @@ class ProxyMcpServer(
 
     private val namespace: NamespaceManager = DefaultNamespaceManager()
     private val presetEngine: PresetEngine = DefaultPresetEngine(toolFilter)
-    private var dispatcher: RequestDispatcher = DefaultRequestDispatcher(
-        servers = downstreams,
-        allowedPrefixedTools = { allowedTools },
-        allowAllWhenNoAllowedTools = false,
-        promptServerResolver = { name -> promptServerByName[name] },
-        resourceServerResolver = { uri -> resourceServerByUri[uri] },
-        namespace = namespace,
-        logger = logger
-    )
-
-    private val multi = MultiServerClient(downstreams)
+    @Volatile
+    private var dispatcher: RequestDispatcher = buildDispatcher(downstreams)
 
     override fun start(preset: Preset, transport: TransportConfig) {
         // Store preset and bootstrap filtered view; inbound server wiring will be platform-specific.
@@ -86,6 +79,18 @@ class ProxyMcpServer(
         runCatching { kotlinx.coroutines.runBlocking { refreshFilteredCapabilities() } }
             .onSuccess { logger.info("Applied preset '${preset.name}'") }
             .onFailure { logger.error("Failed to apply preset '${preset.name}'", it) }
+    }
+
+    /**
+     * Updates the set of downstream servers at runtime. Intended for scenarios like
+     * enabling/disabling servers without restarting the inbound facade.
+     *
+     * Callers should invoke [refreshFilteredCapabilities] afterwards to recompute the
+     * filtered view for the current preset.
+     */
+    fun updateDownstreams(downstreams: List<McpServerConnection>) {
+        this.downstreams = downstreams
+        dispatcher = buildDispatcher(downstreams)
     }
 
     /** Forces re-fetch and re-filter of downstream capabilities according to the current preset. */
@@ -147,11 +152,23 @@ class ProxyMcpServer(
 
     private suspend fun fetchAllDownstreamCapabilities(): Map<String, ServerCapabilities> = coroutineScope {
         // Ensure downstream servers are connected, then fetch caps
-        downstreams.map { s ->
+        val servers = downstreams
+        servers.map { s ->
             async {
                 val caps = s.getCapabilities()
                 if (caps.isSuccess) s.serverId to caps.getOrThrow() else null
             }
         }.awaitAll().filterNotNull().toMap()
     }
+
+    private fun buildDispatcher(servers: List<McpServerConnection>): RequestDispatcher =
+        DefaultRequestDispatcher(
+            servers = servers,
+            allowedPrefixedTools = { allowedTools },
+            allowAllWhenNoAllowedTools = false,
+            promptServerResolver = { name -> promptServerByName[name] },
+            resourceServerResolver = { uri -> resourceServerByUri[uri] },
+            namespace = namespace,
+            logger = logger
+        )
 }

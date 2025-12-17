@@ -79,6 +79,20 @@ class ProxyLifecycle(
         return result
     }
 
+    fun updateServers(config: McpServersConfig): Result<Unit> {
+        val result = controller.updateServers(
+            servers = config.servers,
+            callTimeoutSeconds = config.requestTimeoutSeconds,
+            capabilitiesTimeoutSeconds = config.capabilitiesTimeoutSeconds
+        )
+        if (result.isSuccess) {
+            currentConfig = config
+        } else {
+            logger.warn("ProxyLifecycle updateServers failed: ${result.exceptionOrNull()?.message}")
+        }
+        return result
+    }
+
     fun updateCallTimeout(seconds: Int) {
         controller.updateCallTimeout(seconds)
         currentConfig = currentConfig?.copy(requestTimeoutSeconds = seconds)

@@ -160,12 +160,18 @@ internal class AppStoreIntents(
             if (result.isFailure) {
                 revertServersOnFailure("toggleServer", previousServers, result.exceptionOrNull(), "Failed to save server state")
             } else {
+                val savedConfig = result.getOrNull()
                 if (!enabled) {
                     capabilityRefresher.markServerDisabled(id)
                 } else {
                     triggerServerRefresh(setOf(id), force = true)
                 }
-                proxyRuntime.ensureSseRunning(forceRestart = true)
+                if (savedConfig != null && proxyLifecycle.isRunning()) {
+                    val updateResult = proxyLifecycle.updateServers(savedConfig)
+                    if (updateResult.isFailure) {
+                        logger.info("[AppStore] toggleServer updateServers failed: ${updateResult.exceptionOrNull()?.message}")
+                    }
+                }
             }
             publishReady()
         }

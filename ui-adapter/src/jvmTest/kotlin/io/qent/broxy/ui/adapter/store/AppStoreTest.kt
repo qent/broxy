@@ -248,6 +248,7 @@ class AppStoreTest {
         store.start()
         storeScope.advanceUntilIdle()
 
+        assertEquals(1, proxyController.startCalls.size)
         store.getServerCaps("s1", forceRefresh = true)
         storeScope.advanceUntilIdle()
 
@@ -257,6 +258,8 @@ class AppStoreTest {
         readyState.intents.toggleServer("s1", enabled = false)
         storeScope.advanceUntilIdle()
 
+        assertEquals(1, proxyController.startCalls.size)
+        assertEquals(1, proxyController.updateServersCalls.size)
         readyState = store.state.value
         assertTrue(readyState is UIState.Ready)
         val serverState = (readyState as UIState.Ready).servers.first()
@@ -624,6 +627,7 @@ class AppStoreTest {
         val callTimeoutUpdates = mutableListOf<Int>()
         val capabilityTimeoutUpdates = mutableListOf<Int>()
         val appliedPresets = mutableListOf<String>()
+        val updateServersCalls = mutableListOf<List<UiMcpServerConfig>>()
 
         override fun start(
             servers: List<UiMcpServerConfig>,
@@ -647,6 +651,15 @@ class AppStoreTest {
 
         override fun applyPreset(preset: io.qent.broxy.core.models.Preset): Result<Unit> {
             appliedPresets += preset.id
+            return Result.success(Unit)
+        }
+
+        override fun updateServers(
+            servers: List<UiMcpServerConfig>,
+            callTimeoutSeconds: Int,
+            capabilitiesTimeoutSeconds: Int
+        ): Result<Unit> {
+            updateServersCalls += servers
             return Result.success(Unit)
         }
 

@@ -84,6 +84,16 @@
 
 Это означает, что при смене пресета **не требуется перезапуск inbound сервера**, а ответы `tools/list`/`prompts/list`/`resources/list` обновятся в рамках той же запущенной сессии.
 
+### Runtime обновление capabilities при включении/выключении downstream серверов
+
+При изменении списка активных downstream серверов (например, включение/выключение уже настроенного сервера) broxy использует тот же принцип, что и при смене пресета:
+
+1) обновляет набор downstream соединений в `ProxyMcpServer` (без пересоздания inbound);
+2) пересчитывает `filteredCaps` для текущего пресета;
+3) пересинхронизирует уже запущенный MCP SDK `Server` через `syncSdkServer(...)`.
+
+Фасад (inbound STDIO/SSE) при этом **не перезапускается**, но опубликованные capabilities меняются.
+
 ## Слой 3: ProxyMcpServer → RequestDispatcher → downstream
 
 ### ProxyMcpServer как “ядро”

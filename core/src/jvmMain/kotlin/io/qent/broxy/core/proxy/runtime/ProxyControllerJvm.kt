@@ -73,6 +73,38 @@ private class JvmProxyController(
         inboundServer?.refreshCapabilities()?.getOrThrow()
     }
 
+    override fun updateServers(
+        servers: List<McpServerConfig>,
+        callTimeoutSeconds: Int,
+        capabilitiesTimeoutSeconds: Int
+    ): Result<Unit> = runCatching {
+        val proxy = this.proxy ?: error("Proxy is not running")
+
+        callTimeoutMillis = callTimeoutSeconds.toLong() * 1_000L
+        capabilitiesTimeoutMillis = capabilitiesTimeoutSeconds.toLong() * 1_000L
+
+        val previous = downstreams
+        downstreams = servers.filter { it.enabled }.map { cfg ->
+            DefaultMcpServerConnection(
+                config = cfg,
+                logger = logger,
+                initialCallTimeoutMillis = callTimeoutMillis,
+                initialCapabilitiesTimeoutMillis = capabilitiesTimeoutMillis
+            )
+        }
+
+        proxy.updateDownstreams(downstreams)
+        runBlocking { proxy.refreshFilteredCapabilities() }
+        inboundServer?.refreshCapabilities()?.getOrThrow()
+
+        val currentIds = downstreams.map { it.serverId }.toSet()
+        runBlocking {
+            previous
+                .filterNot { it.serverId in currentIds }
+                .forEach { runCatching { it.disconnect() } }
+        }
+    }
+
     override fun updateCallTimeout(seconds: Int) {
         callTimeoutMillis = seconds.toLong() * 1_000L
         downstreams.forEach { conn ->

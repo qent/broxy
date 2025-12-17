@@ -27,6 +27,16 @@ interface ProxyController {
 
     fun applyPreset(preset: Preset): Result<Unit>
 
+    /**
+     * Updates the downstream server set without restarting the inbound facade.
+     * Implementations should refresh the published capabilities after applying the change.
+     */
+    fun updateServers(
+        servers: List<McpServerConfig>,
+        callTimeoutSeconds: Int,
+        capabilitiesTimeoutSeconds: Int
+    ): Result<Unit>
+
     fun updateCallTimeout(seconds: Int)
 
     fun updateCapabilitiesTimeout(seconds: Int)

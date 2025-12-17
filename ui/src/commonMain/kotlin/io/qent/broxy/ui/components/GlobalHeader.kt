@@ -2,6 +2,7 @@ package io.qent.broxy.ui.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -148,10 +149,28 @@ private fun PresetDropdown(
                 )
                 DropdownMenu(
                     expanded = expanded,
-                    onDismissRequest = { expanded = false }
+                    onDismissRequest = { expanded = false },
+                    modifier = Modifier
+                        .width(196.dp)
+                        .background(color = AppTheme.colors.surface, shape = AppTheme.shapes.input)
+                        .border(AppTheme.strokeWidths.thin, AppTheme.colors.outline, AppTheme.shapes.input),
+                    shape = AppTheme.shapes.input,
+                    containerColor = AppTheme.colors.surface,
+                    tonalElevation = 0.dp,
+                    shadowElevation = AppTheme.elevation.level2
                 ) {
                     DropdownMenuItem(
-                        text = { Text("No preset") },
+                        text = {
+                            Text(
+                                "No preset",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = AppTheme.colors.onSurface
+                            )
+                        },
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                            horizontal = AppTheme.spacing.md,
+                            vertical = AppTheme.spacing.xs
+                        ),
                         onClick = {
                             expanded = false
                             if (ui.selectedPresetId != null) {
@@ -160,17 +179,26 @@ private fun PresetDropdown(
                             }
                         }
                     )
+                    
                     if (ui.presets.isNotEmpty()) {
-                        DropdownMenuItem(
-                            enabled = false,
-                            text = { Text("—") },
-                            onClick = {}
-                        )
+                        // Optional: Add a subtle divider or spacer if needed, or just list items.
+                        // Skipping explicit visual separator to keep it minimal as requested.
                     }
+
                     ui.presets.forEach { p ->
                         val isSelected = p.id == selectedPresetId
                         DropdownMenuItem(
-                            text = { Text(p.name) },
+                            text = {
+                                Text(
+                                    p.name,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = AppTheme.colors.onSurface
+                                )
+                            },
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                                horizontal = AppTheme.spacing.md,
+                                vertical = AppTheme.spacing.xs
+                            ),
                             onClick = {
                                 expanded = false
                                 if (!isSelected) {

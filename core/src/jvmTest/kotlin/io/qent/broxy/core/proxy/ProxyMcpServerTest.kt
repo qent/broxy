@@ -129,6 +129,52 @@ class ProxyMcpServerTest {
         assertEquals(listOf("p2"), serverB.promptRequests)
     }
 
+    @org.junit.Test
+    fun updateDownstreamsRecomputesCapabilitiesWithoutRestart() = runTest {
+        val serverA = FakeServerConnection(
+            serverId = "alpha",
+            capabilities = ServerCapabilities(
+                tools = listOf(ToolDescriptor(name = "search"))
+            )
+        ).apply {
+            callResults["search"] = Result.success(JsonPrimitive("alpha-ok"))
+        }
+        val serverB = FakeServerConnection(
+            serverId = "beta",
+            capabilities = ServerCapabilities(
+                tools = listOf(ToolDescriptor(name = "translate"))
+            )
+        ).apply {
+            callResults["translate"] = Result.success(JsonPrimitive("beta-ok"))
+        }
+
+        val proxy = ProxyMcpServer(listOf(serverA), logger = noopLogger)
+        val preset = Preset(
+            id = "preset",
+            name = "Preset",
+            description = "",
+            tools = listOf(
+                ToolReference(serverId = "alpha", toolName = "search", enabled = true),
+                ToolReference(serverId = "beta", toolName = "translate", enabled = true)
+            )
+        )
+        proxy.start(preset, TransportConfig.StdioTransport(command = "noop"))
+
+        assertEquals(listOf("alpha:search"), proxy.getCapabilities().tools.map { it.name })
+
+        proxy.updateDownstreams(listOf(serverA, serverB))
+        proxy.refreshFilteredCapabilities()
+
+        assertEquals(listOf("alpha:search", "beta:translate"), proxy.getCapabilities().tools.map { it.name })
+        assertEquals(JsonPrimitive("beta-ok"), proxy.callTool("beta:translate").getOrThrow())
+
+        proxy.updateDownstreams(listOf(serverA))
+        proxy.refreshFilteredCapabilities()
+
+        assertEquals(listOf("alpha:search"), proxy.getCapabilities().tools.map { it.name })
+        assertTrue(proxy.callTool("beta:translate").isFailure)
+    }
+
     private class FakeServerConnection(
         override val serverId: String,
         private var capabilities: ServerCapabilities
