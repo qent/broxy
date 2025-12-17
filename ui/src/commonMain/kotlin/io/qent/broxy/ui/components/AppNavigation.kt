@@ -2,7 +2,14 @@ package io.qent.broxy.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.Icon
@@ -11,6 +18,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.qent.broxy.ui.theme.AppTheme
@@ -19,14 +27,14 @@ import io.qent.broxy.ui.viewmodels.Screen
 data class NavItem(
     val screen: Screen,
     val label: String,
-    val icon: @Composable () -> Unit
+    val icon: ImageVector
 )
 
 private val navItems = listOf(
-    NavItem(Screen.Servers, "MCP") { Icon(Icons.Outlined.Storage, contentDescription = "MCP servers") },
-    NavItem(Screen.Presets, "Presets") { Icon(Icons.Outlined.Tune, contentDescription = "Presets") },
-    NavItem(Screen.Logs, "Logs") { Icon(Icons.Outlined.List, contentDescription = "Logs") },
-    NavItem(Screen.Settings, "Settings") { Icon(Icons.Outlined.Settings, contentDescription = "Settings") },
+    NavItem(Screen.Servers, "MCP", Icons.Outlined.Storage),
+    NavItem(Screen.Presets, "Presets", Icons.Outlined.Tune),
+    NavItem(Screen.Logs, "Logs", Icons.Outlined.List),
+    NavItem(Screen.Settings, "Settings", Icons.Outlined.Settings),
 )
 
 @Composable
@@ -35,76 +43,61 @@ fun AppNavigationRail(
     onSelect: (Screen) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val spacing = AppTheme.spacing
     val colors = MaterialTheme.colorScheme
-    
-    // Custom Sidebar Implementation matching design
+
     Column(
         modifier = modifier
-            .width(120.dp) // Fixed width from design
-            .background(AppTheme.extendedColors.sidebarBackground) // Sidebar background
-            .padding(vertical = 20.dp),
+            .width(AppTheme.layout.navigationRailWidth)
+            .background(AppTheme.extendedColors.sidebarBackground)
+            .padding(vertical = AppTheme.spacing.lg),
         horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
-        verticalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween
+        verticalArrangement = Arrangement.Top
     ) {
-        // Top Section: Logo (Placeholder) + Nav
         Column(
             horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
-            verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(16.dp),
-            modifier = Modifier.width(120.dp)
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = AppTheme.spacing.sm)
         ) {
-            // Logo Placeholder
-            androidx.compose.foundation.layout.Box(
-                modifier = Modifier
-                    .size(80.dp)
-                    .background(
-                        color = colors.surfaceVariant, 
-                        shape = AppTheme.shapes.card
-                    )
-            )
-            
-            androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(16.dp))
-            
             // Navigation Items
-            Column(
-                verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
-                modifier = Modifier.padding(horizontal = 10.dp).width(120.dp)
-            ) {
-                navItems.forEach { item ->
-                    val isSelected = selected == item.screen
-                    val backgroundColor = if (isSelected) colors.primary else androidx.compose.ui.graphics.Color.Transparent
-                    val contentColor = if (isSelected) colors.onPrimary else colors.secondary
-                    
-                    Column(
-                        horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
-                        verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(AppTheme.shapes.button)
-                            .background(backgroundColor)
-                            .clickable { onSelect(item.screen) }
-                            .padding(vertical = 12.dp, horizontal = 4.dp)
+            navItems.forEach { item ->
+                val isSelected = selected == item.screen
+                val backgroundColor = if (isSelected) colors.primary else androidx.compose.ui.graphics.Color.Transparent
+                val contentColor = if (isSelected) colors.onPrimary else colors.secondary
+
+                Column(
+                    horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+                    verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(AppTheme.shapes.button)
+                        .background(backgroundColor)
+                        .clickable { onSelect(item.screen) }
+                        .padding(vertical = 10.dp, horizontal = 4.dp)
+                ) {
+                    androidx.compose.runtime.CompositionLocalProvider(
+                        androidx.compose.material3.LocalContentColor provides contentColor
                     ) {
-                        // Icon wrapper to ensure size consistency
-                        androidx.compose.runtime.CompositionLocalProvider(
-                            androidx.compose.material3.LocalContentColor provides contentColor
-                        ) {
-                            item.icon()
-                        }
-                        
-                        androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(4.dp))
-                        
-                        Text(
-                            text = item.label,
-                            style = MaterialTheme.typography.labelMedium.copy(
-                                fontSize = 11.sp,
-                                fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
-                            ),
-                            color = contentColor,
-                            maxLines = 1,
-                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        Icon(
+                            imageVector = item.icon,
+                            contentDescription = item.label,
+                            modifier = Modifier.size(22.dp)
                         )
                     }
+
+                    Spacer(modifier = Modifier.height(3.dp))
+
+                    Text(
+                        text = item.label,
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontSize = 10.sp,
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
+                        ),
+                        color = contentColor,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    )
                 }
             }
         }

@@ -9,10 +9,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.background
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -35,6 +37,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.animation.togetherWith
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.sp
 import io.qent.broxy.ui.components.AppNavigationRail
 import io.qent.broxy.ui.components.GlobalHeader
@@ -69,26 +73,46 @@ fun MainWindow(
 
         Scaffold(
             topBar = {
-                val colors = if (useTransparentTitleBar) {
-                    TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        scrolledContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                        titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        navigationIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        actionIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
+                val chromeContainerColor = if (useTransparentTitleBar) {
+                    if (MaterialTheme.colorScheme.background.luminance() < 0.5f) {
+                        Color(0xFF314674)
+                    } else {
+                        Color(0xFFF9FAFB)
+                    }
                 } else {
-                    TopAppBarDefaults.topAppBarColors()
+                    MaterialTheme.colorScheme.surface
                 }
+                val chromeContentColor = if (chromeContainerColor.luminance() < 0.5f) {
+                    Color(0xFFDFDFDF)
+                } else {
+                    MaterialTheme.colorScheme.onSurface
+                }
+
+                Column {
                     TopAppBar(
-                    modifier = topBarModifier,
-                    title = { Text(
-                        "",
-                        fontSize = 14.sp,
-                        modifier = Modifier.padding(start = AppTheme.layout.navigationRailWidth + AppTheme.spacing.md)
-                    ) },
-                    colors = colors
-                )
+                        modifier = topBarModifier,
+                        title = { Text("", fontSize = 14.sp) },
+                        colors = if (useTransparentTitleBar) {
+                            TopAppBarDefaults.topAppBarColors(
+                                containerColor = chromeContainerColor,
+                                scrolledContainerColor = chromeContainerColor,
+                                titleContentColor = chromeContentColor,
+                                navigationIconContentColor = chromeContentColor,
+                                actionIconContentColor = chromeContentColor
+                            )
+                        } else {
+                            TopAppBarDefaults.topAppBarColors()
+                        }
+                    )
+
+                    GlobalHeader(
+                        ui = ui,
+                        notify = notify,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(chromeContainerColor)
+                    )
+                }
             },
             snackbarHost = { SnackbarHost(snackbarHostState) },
             floatingActionButton = {
@@ -114,31 +138,24 @@ fun MainWindow(
                     modifier = Modifier.fillMaxHeight()
                 )
                 Spacer(Modifier.width(AppTheme.spacing.md))
-                Column(Modifier.fillMaxSize()) {
-                    GlobalHeader(
-                        ui = ui,
-                        notify = notify,
-                        modifier = Modifier.padding(top = AppTheme.spacing.md, end = AppTheme.spacing.md)
-                    )
-                    Box(Modifier.fillMaxSize()) {
-                        AnimatedContent(
-                            targetState = screen,
-                            transitionSpec = {
-                                fadeIn(animationSpec = tween(150)) togetherWith fadeOut(animationSpec = tween(150))
-                            },
-                            label = "screen"
-                        ) { s ->
-                            when (s) {
-                                Screen.Servers -> ServersScreen(ui, state, store, notify)
-                                Screen.Presets -> PresetsScreen(ui, state, store)
-                                Screen.Logs -> LogsScreen(ui)
-                                Screen.Settings -> SettingsScreen(
-                                    ui = ui,
-                                    themeStyle = state.themeStyle.value,
-                                    onThemeStyleChange = { state.themeStyle.value = it },
-                                    notify = notify
-                                )
-                            }
+                Box(Modifier.fillMaxSize()) {
+                    AnimatedContent(
+                        targetState = screen,
+                        transitionSpec = {
+                            fadeIn(animationSpec = tween(150)) togetherWith fadeOut(animationSpec = tween(150))
+                        },
+                        label = "screen"
+                    ) { s ->
+                        when (s) {
+                            Screen.Servers -> ServersScreen(ui, state, store, notify)
+                            Screen.Presets -> PresetsScreen(ui, state, store)
+                            Screen.Logs -> LogsScreen(ui)
+                            Screen.Settings -> SettingsScreen(
+                                ui = ui,
+                                themeStyle = state.themeStyle.value,
+                                onThemeStyleChange = { state.themeStyle.value = it },
+                                notify = notify
+                            )
                         }
                     }
                 }

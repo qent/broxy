@@ -24,6 +24,7 @@ import io.qent.broxy.ui.icons.createApplicationIconImage
 import io.qent.broxy.ui.icons.createTrayIconImage
 import io.qent.broxy.ui.icons.rememberApplicationIconPainter
 import io.qent.broxy.ui.screens.MainWindow
+import io.qent.broxy.ui.theme.ThemeStyle
 import io.qent.broxy.ui.viewmodels.AppState
 import java.awt.AWTException
 import java.awt.Dimension
@@ -71,7 +72,11 @@ fun main(args: Array<String>) {
         val trayPreference = (uiState as? UIState.Ready)?.showTrayIcon ?: true
         val trayActive = traySupported && trayPreference
         val isMacOs = remember { System.getProperty("os.name")?.contains("Mac", ignoreCase = true) == true }
-        val isDarkTheme = isSystemInDarkTheme()
+        val isDarkTheme = when (appState.themeStyle.value) {
+            ThemeStyle.System -> isSystemInDarkTheme()
+            ThemeStyle.Light -> false
+            ThemeStyle.Dark -> true
+        }
         val windowIconPainter = rememberApplicationIconPainter()
         val applicationIconImage = remember { createApplicationIconImage(size = 256) }
 
