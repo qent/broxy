@@ -1,12 +1,11 @@
 package io.qent.broxy.core.mcp.clients
 
-import io.ktor.client.HttpClient
-import io.ktor.client.engine.cio.CIO
-import io.ktor.client.plugins.sse.SSE
-import io.ktor.client.plugins.HttpTimeout
-import io.ktor.client.plugins.websocket.WebSockets
-import io.ktor.client.request.HttpRequestBuilder
-import io.ktor.client.request.headers
+import io.ktor.client.*
+import io.ktor.client.engine.cio.*
+import io.ktor.client.plugins.*
+import io.ktor.client.plugins.sse.*
+import io.ktor.client.plugins.websocket.*
+import io.ktor.client.request.*
 import io.modelcontextprotocol.kotlin.sdk.client.mcpSse
 import io.modelcontextprotocol.kotlin.sdk.client.mcpStreamableHttp
 import io.modelcontextprotocol.kotlin.sdk.client.mcpWebSocket
@@ -20,9 +19,9 @@ import io.qent.broxy.core.utils.ConsoleLogger
 import io.qent.broxy.core.utils.Logger
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withTimeout
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.Json
 import kotlin.time.Duration.Companion.seconds
 
 /**

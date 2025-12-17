@@ -5,11 +5,7 @@ import io.qent.broxy.core.capabilities.CapabilityRefresher
 import io.qent.broxy.core.capabilities.ServerStatusTracker
 import io.qent.broxy.core.utils.CollectingLogger
 import io.qent.broxy.core.utils.Logger
-import io.qent.broxy.ui.adapter.models.UiMcpServerConfig
-import io.qent.broxy.ui.adapter.models.UiServerCapabilities
-import io.qent.broxy.ui.adapter.models.UiServerConnStatus
-import io.qent.broxy.ui.adapter.models.UiStdioTransport
-import io.qent.broxy.ui.adapter.models.toUiStatus
+import io.qent.broxy.ui.adapter.models.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest

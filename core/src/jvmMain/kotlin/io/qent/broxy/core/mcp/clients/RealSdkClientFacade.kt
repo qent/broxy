@@ -1,20 +1,7 @@
 package io.qent.broxy.core.mcp.clients
 
 import io.modelcontextprotocol.kotlin.sdk.client.Client
-import io.modelcontextprotocol.kotlin.sdk.types.CallToolRequest
-import io.modelcontextprotocol.kotlin.sdk.types.CallToolRequestParams
-import io.modelcontextprotocol.kotlin.sdk.types.CallToolResult
-import io.modelcontextprotocol.kotlin.sdk.types.GetPromptRequest
-import io.modelcontextprotocol.kotlin.sdk.types.GetPromptRequestParams
-import io.modelcontextprotocol.kotlin.sdk.types.ListPromptsRequest
-import io.modelcontextprotocol.kotlin.sdk.types.ListResourcesRequest
-import io.modelcontextprotocol.kotlin.sdk.types.ListToolsRequest
-import io.modelcontextprotocol.kotlin.sdk.types.Prompt
-import io.modelcontextprotocol.kotlin.sdk.types.ReadResourceRequest
-import io.modelcontextprotocol.kotlin.sdk.types.ReadResourceRequestParams
-import io.modelcontextprotocol.kotlin.sdk.types.RequestMeta
-import io.modelcontextprotocol.kotlin.sdk.types.Resource
-import io.modelcontextprotocol.kotlin.sdk.types.Tool
+import io.modelcontextprotocol.kotlin.sdk.types.*
 import io.qent.broxy.core.mcp.PromptDescriptor
 import io.qent.broxy.core.mcp.ResourceDescriptor
 import io.qent.broxy.core.mcp.ToolDescriptor

@@ -5,7 +5,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption
 import java.nio.file.attribute.PosixFilePermission
-import java.util.EnumSet
+import java.util.*
 
 interface SecureStore {
     fun read(key: String): String?

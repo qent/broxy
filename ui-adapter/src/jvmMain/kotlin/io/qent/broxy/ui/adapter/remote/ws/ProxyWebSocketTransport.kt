@@ -7,12 +7,7 @@ import io.modelcontextprotocol.kotlin.sdk.shared.TransportSendOptions
 import io.qent.broxy.core.utils.CollectingLogger
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.booleanOrNull
-import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.*
 
 @Serializable
 data class McpProxyRequestPayload(

@@ -11,7 +11,6 @@ import io.qent.broxy.core.proxy.inbound.InboundServer
 import io.qent.broxy.core.proxy.inbound.InboundServerFactory
 import io.qent.broxy.core.utils.CollectingLogger
 import io.qent.broxy.core.utils.LogEvent
-import io.qent.broxy.core.utils.StdErrLogger
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.runBlocking
 

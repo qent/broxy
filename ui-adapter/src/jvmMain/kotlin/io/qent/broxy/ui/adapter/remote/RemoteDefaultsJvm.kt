@@ -1,7 +1,7 @@
 package io.qent.broxy.ui.adapter.remote
 
 import java.net.InetAddress
-import java.util.Locale
+import java.util.*
 
 actual fun defaultRemoteServerIdentifier(): String {
     val host = runCatching { InetAddress.getLocalHost().hostName }.getOrNull().orEmpty()

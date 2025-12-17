@@ -8,7 +8,6 @@ import io.qent.broxy.core.repository.ConfigurationRepository
 import io.qent.broxy.core.utils.ConfigurationException
 import io.qent.broxy.core.utils.ConsoleLogger
 import io.qent.broxy.core.utils.Logger
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.io.IOException

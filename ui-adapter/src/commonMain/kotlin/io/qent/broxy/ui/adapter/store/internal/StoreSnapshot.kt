@@ -2,21 +2,10 @@ package io.qent.broxy.ui.adapter.store.internal
 
 import io.qent.broxy.core.capabilities.CapabilityCache
 import io.qent.broxy.core.capabilities.ServerStatusTracker
-import io.qent.broxy.ui.adapter.models.UiLogEntry
-import io.qent.broxy.ui.adapter.models.UiMcpServerConfig
-import io.qent.broxy.ui.adapter.models.UiPreset
-import io.qent.broxy.ui.adapter.models.UiProxyStatus
-import io.qent.broxy.ui.adapter.models.UiServer
-import io.qent.broxy.ui.adapter.models.UiServerConnStatus
-import io.qent.broxy.ui.adapter.models.UiTransportConfig
-import io.qent.broxy.ui.adapter.models.UiStdioTransport
-import io.qent.broxy.ui.adapter.models.UiHttpTransport
-import io.qent.broxy.ui.adapter.models.UiStreamableHttpTransport
-import io.qent.broxy.ui.adapter.models.UiWebSocketTransport
-import io.qent.broxy.ui.adapter.models.toUiStatus
+import io.qent.broxy.ui.adapter.models.*
+import io.qent.broxy.ui.adapter.remote.defaultRemoteState
 import io.qent.broxy.ui.adapter.store.Intents
 import io.qent.broxy.ui.adapter.store.UIState
-import io.qent.broxy.ui.adapter.remote.defaultRemoteState
 
 internal data class StoreSnapshot(
     val isLoading: Boolean = true,

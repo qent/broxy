@@ -3,23 +3,13 @@ package io.qent.broxy.cli.support
 import io.qent.broxy.core.mcp.McpClient
 import io.qent.broxy.core.mcp.PromptDescriptor
 import io.qent.broxy.core.mcp.ServerCapabilities
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
-import kotlin.test.fail
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.booleanOrNull
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.doubleOrNull
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.put
+import kotlinx.serialization.json.*
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+import kotlin.test.fail
 
 internal class McpClientInteractions(
     private val config: BroxyCliIntegrationConfig = BroxyCliIntegrationConfig

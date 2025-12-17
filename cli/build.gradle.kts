@@ -1,7 +1,4 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-import org.gradle.api.tasks.SourceSetContainer
-import org.gradle.api.tasks.testing.Test
-import org.gradle.kotlin.dsl.get
 
 plugins {
     kotlin("jvm")

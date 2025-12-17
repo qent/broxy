@@ -7,9 +7,9 @@ import io.qent.broxy.core.mcp.PromptDescriptor
 import io.qent.broxy.core.mcp.ResourceDescriptor
 import io.qent.broxy.core.mcp.ToolDescriptor
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import kotlinx.serialization.json.JsonPrimitive
 
 class FakeSdkClientFacade(
     private val tools: List<ToolDescriptor> = listOf(ToolDescriptor("echo", "Echo tool")),

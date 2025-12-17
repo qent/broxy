@@ -1,22 +1,12 @@
 package io.qent.broxy.core.proxy
 
-import io.qent.broxy.core.mcp.McpServerConnection
-import io.qent.broxy.core.mcp.PromptDescriptor
-import io.qent.broxy.core.mcp.ResourceDescriptor
-import io.qent.broxy.core.mcp.ServerCapabilities
-import io.qent.broxy.core.mcp.ServerStatus
-import io.qent.broxy.core.mcp.ToolDescriptor
+import io.qent.broxy.core.mcp.*
 import io.qent.broxy.core.models.McpServerConfig
 import io.qent.broxy.core.models.Preset
 import io.qent.broxy.core.models.ToolReference
 import io.qent.broxy.core.models.TransportConfig
 import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.buildJsonArray
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
+import kotlinx.serialization.json.*
 import kotlin.test.Test
 import kotlin.test.assertTrue
 

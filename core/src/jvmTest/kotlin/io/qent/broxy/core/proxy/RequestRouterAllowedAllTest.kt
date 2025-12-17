@@ -1,19 +1,14 @@
 package io.qent.broxy.core.proxy
 
-import io.qent.broxy.core.mcp.McpServerConnection as Conn
 import io.qent.broxy.core.mcp.ServerCapabilities
 import io.qent.broxy.core.mcp.ServerStatus
 import io.qent.broxy.core.models.McpServerConfig
 import io.qent.broxy.core.models.TransportConfig
 import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.buildJsonArray
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
+import kotlinx.serialization.json.*
 import kotlin.test.Test
 import kotlin.test.assertTrue
+import io.qent.broxy.core.mcp.McpServerConnection as Conn
 
 private class SrvAllowed(
     override val serverId: String,

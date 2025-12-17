@@ -8,11 +8,7 @@ import kotlinx.coroutines.withTimeout
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.io.OutputStreamWriter
-import java.net.InetSocketAddress
-import java.net.ServerSocket
-import java.net.SocketTimeoutException
-import java.net.URI
-import java.net.URLDecoder
+import java.net.*
 
 class LoopbackCallbackServer(
     private val port: Int = DEFAULT_PORT,

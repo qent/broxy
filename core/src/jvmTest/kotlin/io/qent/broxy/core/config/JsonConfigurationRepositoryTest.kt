@@ -2,18 +2,17 @@ package io.qent.broxy.core.config
 
 import io.qent.broxy.core.models.McpServersConfig
 import io.qent.broxy.core.models.TransportConfig
-import io.qent.broxy.core.utils.ConsoleLogger
 import io.qent.broxy.core.utils.ConfigurationException
+import io.qent.broxy.core.utils.ConsoleLogger
 import kotlinx.serialization.json.Json
 import org.junit.Test
 import java.nio.file.Files
-import java.nio.file.Path
-import kotlin.io.path.writeText
 import kotlin.io.path.readText
+import kotlin.io.path.writeText
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
-import kotlin.test.assertFalse
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class JsonConfigurationRepositoryTest {
     @Test

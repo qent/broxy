@@ -2,21 +2,15 @@ package io.qent.broxy.core.mcp
 
 import io.qent.broxy.core.models.McpServerConfig
 import io.qent.broxy.core.models.TransportConfig
-import io.qent.broxy.core.mcp.ServerCapabilities
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import org.mockito.kotlin.any
-import org.mockito.kotlin.mock
-import org.mockito.kotlin.never
-import org.mockito.kotlin.times
-import org.mockito.kotlin.verify
-import org.mockito.kotlin.whenever
+import org.mockito.kotlin.*
 import kotlin.test.Test
-import kotlin.test.assertTrue
 import kotlin.test.assertIs
+import kotlin.test.assertTrue
 
 class DefaultMcpServerConnectionMoreTest {
     private fun config(id: String = "s1") = McpServerConfig(

@@ -1,10 +1,6 @@
 package io.qent.broxy.ui.adapter.models
 
-import io.qent.broxy.core.capabilities.CapabilityArgument
-import io.qent.broxy.core.capabilities.PromptSummary
-import io.qent.broxy.core.capabilities.ResourceSummary
-import io.qent.broxy.core.capabilities.ServerCapsSnapshot
-import io.qent.broxy.core.capabilities.ToolSummary
+import io.qent.broxy.core.capabilities.*
 
 data class UiServerCapsSnapshot(
     val serverId: String,

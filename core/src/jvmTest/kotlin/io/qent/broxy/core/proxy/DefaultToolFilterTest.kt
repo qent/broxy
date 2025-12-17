@@ -5,9 +5,9 @@ import io.qent.broxy.core.mcp.ResourceDescriptor
 import io.qent.broxy.core.mcp.ServerCapabilities
 import io.qent.broxy.core.mcp.ToolDescriptor
 import io.qent.broxy.core.models.Preset
-import io.qent.broxy.core.models.ToolReference
 import io.qent.broxy.core.models.PromptReference
 import io.qent.broxy.core.models.ResourceReference
+import io.qent.broxy.core.models.ToolReference
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue

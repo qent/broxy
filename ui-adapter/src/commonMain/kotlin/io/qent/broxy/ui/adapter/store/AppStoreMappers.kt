@@ -4,25 +4,7 @@ import io.qent.broxy.core.models.PromptReference
 import io.qent.broxy.core.models.ResourceReference
 import io.qent.broxy.core.models.ToolReference
 import io.qent.broxy.core.utils.LogEvent
-import io.qent.broxy.ui.adapter.models.UiHttpDraft
-import io.qent.broxy.ui.adapter.models.UiHttpTransport
-import io.qent.broxy.ui.adapter.models.UiLogEntry
-import io.qent.broxy.ui.adapter.models.UiLogLevel
-import io.qent.broxy.ui.adapter.models.UiMcpServerConfig
-import io.qent.broxy.ui.adapter.models.UiPreset
-import io.qent.broxy.ui.adapter.models.UiPresetCore
-import io.qent.broxy.ui.adapter.models.UiPresetDraft
-import io.qent.broxy.ui.adapter.models.UiPromptRef
-import io.qent.broxy.ui.adapter.models.UiResourceRef
-import io.qent.broxy.ui.adapter.models.UiStdioDraft
-import io.qent.broxy.ui.adapter.models.UiStdioTransport
-import io.qent.broxy.ui.adapter.models.UiStreamableHttpDraft
-import io.qent.broxy.ui.adapter.models.UiStreamableHttpTransport
-import io.qent.broxy.ui.adapter.models.UiToolRef
-import io.qent.broxy.ui.adapter.models.UiTransportConfig
-import io.qent.broxy.ui.adapter.models.UiTransportDraft
-import io.qent.broxy.ui.adapter.models.UiWebSocketDraft
-import io.qent.broxy.ui.adapter.models.UiWebSocketTransport
+import io.qent.broxy.ui.adapter.models.*
 
 internal fun UiPresetCore.toUiPresetSummary(): UiPreset = UiPreset(
     id = id,

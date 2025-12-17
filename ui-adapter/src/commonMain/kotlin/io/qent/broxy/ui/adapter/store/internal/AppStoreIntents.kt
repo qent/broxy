@@ -2,21 +2,14 @@ package io.qent.broxy.ui.adapter.store.internal
 
 import io.qent.broxy.core.capabilities.CapabilityRefresher
 import io.qent.broxy.core.config.ConfigurationManager
-import io.qent.broxy.core.utils.CollectingLogger
-import io.qent.broxy.ui.adapter.models.UiMcpServerConfig
-import io.qent.broxy.ui.adapter.models.UiPreset
-import io.qent.broxy.ui.adapter.models.UiPresetCore
-import io.qent.broxy.ui.adapter.models.UiPresetDraft
-import io.qent.broxy.ui.adapter.models.UiServer
-import io.qent.broxy.ui.adapter.models.UiServerDraft
-import io.qent.broxy.ui.adapter.models.UiStdioTransport
-import io.qent.broxy.ui.adapter.models.UiTransportDraft
 import io.qent.broxy.core.proxy.runtime.ProxyLifecycle
+import io.qent.broxy.core.utils.CollectingLogger
+import io.qent.broxy.ui.adapter.models.*
+import io.qent.broxy.ui.adapter.remote.RemoteConnector
 import io.qent.broxy.ui.adapter.store.Intents
 import io.qent.broxy.ui.adapter.store.toCorePreset
 import io.qent.broxy.ui.adapter.store.toTransportConfig
 import io.qent.broxy.ui.adapter.store.toUiPresetSummary
-import io.qent.broxy.ui.adapter.remote.RemoteConnector
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -313,7 +306,7 @@ internal class AppStoreIntents(
             publishReady()
             val result = configurationManager.updateInboundSsePort(previousConfig, clamped)
             if (result.isFailure) {
-                val msg = result.exceptionOrNull()?.message ?: "Failed to update SSE port"
+                val msg = result.exceptionOrNull()?.message ?: "Failed to update HTTP port"
                 logger.info("[AppStore] updateInboundSsePort failed: $msg")
                 state.updateSnapshot { copy(inboundSsePort = previous) }
                 state.setError(msg)

@@ -1,29 +1,19 @@
 package io.qent.broxy.ui.adapter.remote.ws
 
-import io.ktor.client.HttpClient
-import io.ktor.client.plugins.ClientRequestException
-import io.ktor.client.plugins.websocket.webSocketSession
-import io.ktor.client.request.header
-import io.ktor.http.HttpHeaders
-import io.ktor.http.HttpStatusCode
-import io.ktor.websocket.CloseReason
-import io.ktor.websocket.Frame
-import io.ktor.websocket.WebSocketSession
-import io.ktor.websocket.close
-import io.ktor.websocket.readText
-import io.ktor.websocket.readReason
+import io.ktor.client.*
+import io.ktor.client.plugins.*
+import io.ktor.client.plugins.websocket.*
+import io.ktor.client.request.*
+import io.ktor.http.*
+import io.ktor.websocket.*
 import io.modelcontextprotocol.kotlin.sdk.types.JSONRPCMessage
 import io.modelcontextprotocol.kotlin.sdk.types.McpJson
 import io.qent.broxy.core.proxy.ProxyMcpServer
 import io.qent.broxy.core.proxy.inbound.buildSdkServer
 import io.qent.broxy.core.utils.CollectingLogger
 import io.qent.broxy.ui.adapter.models.UiRemoteStatus
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.consumeEach
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 

@@ -1,7 +1,7 @@
 package io.qent.broxy.core.config
 
-import io.qent.broxy.core.utils.Logger
 import io.qent.broxy.core.utils.ConfigurationException
+import io.qent.broxy.core.utils.Logger
 
 class EnvironmentVariableResolver(
     private val envProvider: () -> Map<String, String> = { System.getenv() },

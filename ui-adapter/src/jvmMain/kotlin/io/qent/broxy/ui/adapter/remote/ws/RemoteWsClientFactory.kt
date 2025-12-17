@@ -1,6 +1,6 @@
 package io.qent.broxy.ui.adapter.remote.ws
 
-import io.ktor.client.HttpClient
+import io.ktor.client.*
 import io.qent.broxy.core.proxy.ProxyMcpServer
 import io.qent.broxy.core.utils.CollectingLogger
 import io.qent.broxy.ui.adapter.models.UiRemoteStatus

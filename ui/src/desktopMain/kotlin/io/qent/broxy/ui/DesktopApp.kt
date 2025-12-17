@@ -1,19 +1,12 @@
 package io.qent.broxy.ui
 
 import androidx.compose.foundation.layout.height
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
-import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.adapter.headless.logStdioInfo
 import io.qent.broxy.ui.adapter.headless.runStdioProxy
 import io.qent.broxy.ui.adapter.models.UiProxyStatus
@@ -25,20 +18,11 @@ import io.qent.broxy.ui.icons.rememberApplicationIconPainter
 import io.qent.broxy.ui.screens.MainWindow
 import io.qent.broxy.ui.theme.ThemeStyle
 import io.qent.broxy.ui.viewmodels.AppState
-import java.awt.AWTException
-import java.awt.Dimension
-import java.awt.EventQueue
-import java.awt.Frame
-import java.awt.Image
-import java.awt.MenuItem
-import java.awt.PopupMenu
-import java.awt.SystemTray
-import java.awt.Taskbar
-import java.awt.TrayIcon
+import java.awt.*
 import java.awt.event.ActionEvent
 import java.awt.event.ActionListener
-import java.awt.Color as AwtColor
 import java.io.PushbackInputStream
+import java.awt.Color as AwtColor
 
 fun main(args: Array<String>) {
     // Headless STDIO mode: allow MCP clients to spawn the app as an MCP server.

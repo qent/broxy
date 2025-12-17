@@ -3,16 +3,11 @@ package io.qent.broxy.core.mcp
 import io.qent.broxy.core.models.McpServerConfig
 import io.qent.broxy.core.models.TransportConfig
 import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.buildJsonArray
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
+import kotlinx.serialization.json.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
 
 private class MCServer(
     override val serverId: String,

@@ -1,13 +1,12 @@
 package io.qent.broxy.ui.adapter.store.internal
 
 import io.qent.broxy.core.models.Preset
-import io.qent.broxy.core.repository.ConfigurationRepository
 import io.qent.broxy.core.proxy.runtime.ProxyLifecycle
+import io.qent.broxy.core.repository.ConfigurationRepository
 import io.qent.broxy.core.utils.CollectingLogger
 import io.qent.broxy.ui.adapter.models.UiPresetCore
 import io.qent.broxy.ui.adapter.models.UiProxyStatus
 import io.qent.broxy.ui.adapter.models.UiStreamableHttpTransport
-import io.qent.broxy.ui.adapter.models.UiTransportConfig
 import io.qent.broxy.ui.adapter.remote.RemoteConnector
 
 internal class ProxyRuntime(

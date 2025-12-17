@@ -4,7 +4,6 @@ import io.modelcontextprotocol.kotlin.sdk.GetPromptResult
 import io.modelcontextprotocol.kotlin.sdk.ReadResourceResult
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonObject
-import org.mockito.kotlin.any
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever

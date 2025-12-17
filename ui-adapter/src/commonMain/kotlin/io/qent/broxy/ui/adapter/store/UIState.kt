@@ -1,12 +1,6 @@
 package io.qent.broxy.ui.adapter.store
 
-import io.qent.broxy.ui.adapter.models.UiLogEntry
-import io.qent.broxy.ui.adapter.models.UiServer
-import io.qent.broxy.ui.adapter.models.UiPreset
-import io.qent.broxy.ui.adapter.models.UiProxyStatus
-import io.qent.broxy.ui.adapter.models.UiServerDraft
-import io.qent.broxy.ui.adapter.models.UiPresetDraft
-import io.qent.broxy.ui.adapter.models.UiRemoteConnectionState
+import io.qent.broxy.ui.adapter.models.*
 
 // Sealed UI state for the entire app. UI collects this via Flow and renders.
 sealed class UIState {

@@ -4,14 +4,14 @@ import io.qent.broxy.core.mcp.McpClient
 import io.qent.broxy.core.mcp.TimeoutConfigurableMcpClient
 import io.qent.broxy.core.mcp.clients.KtorMcpClient
 import io.qent.broxy.core.mcp.clients.StdioMcpClient
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
 import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.Socket
 import java.nio.file.Path
 import kotlin.io.path.pathString
 import kotlin.test.fail
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.runBlocking
 
 internal object BroxyCliTestEnvironment {
     suspend fun startScenario(inboundScenario: InboundScenario): ScenarioHandle {

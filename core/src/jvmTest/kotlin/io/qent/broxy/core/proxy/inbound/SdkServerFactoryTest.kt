@@ -1,22 +1,18 @@
 package io.qent.broxy.core.proxy.inbound
 
+import io.modelcontextprotocol.kotlin.sdk.TextContent
 import io.modelcontextprotocol.kotlin.sdk.server.Server
 import io.modelcontextprotocol.kotlin.sdk.server.ServerOptions
 import io.modelcontextprotocol.kotlin.sdk.types.Implementation
-import io.modelcontextprotocol.kotlin.sdk.types.ServerCapabilities as SdkServerCapabilities
-import io.modelcontextprotocol.kotlin.sdk.TextContent
 import io.qent.broxy.core.mcp.PromptDescriptor
 import io.qent.broxy.core.mcp.ResourceDescriptor
-import io.qent.broxy.core.mcp.ServerCapabilities as ProxyServerCapabilities
 import io.qent.broxy.core.mcp.ToolDescriptor
 import io.qent.broxy.core.utils.ConsoleLogger
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertIs
-import kotlin.test.assertTrue
+import kotlin.test.*
+import io.modelcontextprotocol.kotlin.sdk.types.ServerCapabilities as SdkServerCapabilities
+import io.qent.broxy.core.mcp.ServerCapabilities as ProxyServerCapabilities
 
 class SdkServerFactoryTest {
     private val json = Json { ignoreUnknownKeys = true }

@@ -4,6 +4,9 @@ import io.qent.broxy.core.mcp.McpClient
 import io.qent.broxy.core.mcp.ServerCapabilities
 import io.qent.broxy.core.mcp.clients.KtorMcpClient
 import io.qent.broxy.core.mcp.clients.StdioMcpClient
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.*
 import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.Socket
@@ -12,17 +15,6 @@ import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.booleanOrNull
-import kotlinx.serialization.json.doubleOrNull
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 
 private const val HTTP_PATH = "/mcp"
 

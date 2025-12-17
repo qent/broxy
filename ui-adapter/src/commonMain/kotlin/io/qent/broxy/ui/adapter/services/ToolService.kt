@@ -1,17 +1,7 @@
 package io.qent.broxy.ui.adapter.services
 
 import io.qent.broxy.core.utils.Logger
-import io.qent.broxy.ui.adapter.models.UiMcpServerConfig
-import io.qent.broxy.ui.adapter.models.UiHttpDraft
-import io.qent.broxy.ui.adapter.models.UiServerDraft
-import io.qent.broxy.ui.adapter.models.UiStdioDraft
-import io.qent.broxy.ui.adapter.models.UiWebSocketDraft
-import io.qent.broxy.ui.adapter.models.UiStreamableHttpDraft
-import io.qent.broxy.ui.adapter.models.UiHttpTransport
-import io.qent.broxy.ui.adapter.models.UiStdioTransport
-import io.qent.broxy.ui.adapter.models.UiStreamableHttpTransport
-import io.qent.broxy.ui.adapter.models.UiWebSocketTransport
-import io.qent.broxy.ui.adapter.models.UiServerCapabilities
+import io.qent.broxy.ui.adapter.models.*
 
 /**
  * Provides access to server tools/capabilities for UI components.

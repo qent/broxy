@@ -1,48 +1,13 @@
 package io.qent.broxy.core.proxy.inbound
 
 import io.modelcontextprotocol.kotlin.sdk.LIB_VERSION
-import io.modelcontextprotocol.kotlin.sdk.server.Server
-import io.modelcontextprotocol.kotlin.sdk.server.ServerOptions
+import io.modelcontextprotocol.kotlin.sdk.server.*
 import io.modelcontextprotocol.kotlin.sdk.shared.IMPLEMENTATION_NAME
-import io.modelcontextprotocol.kotlin.sdk.types.AudioContent
-import io.modelcontextprotocol.kotlin.sdk.types.CallToolRequest
-import io.modelcontextprotocol.kotlin.sdk.types.CallToolRequestParams
-import io.modelcontextprotocol.kotlin.sdk.types.CallToolResult
-import io.modelcontextprotocol.kotlin.sdk.types.ContentBlock
-import io.modelcontextprotocol.kotlin.sdk.types.ContentTypes
-import io.modelcontextprotocol.kotlin.sdk.types.EmbeddedResource
-import io.modelcontextprotocol.kotlin.sdk.types.GetPromptResult
-import io.modelcontextprotocol.kotlin.sdk.types.Icon
-import io.modelcontextprotocol.kotlin.sdk.types.ImageContent
-import io.modelcontextprotocol.kotlin.sdk.types.Implementation
-import io.modelcontextprotocol.kotlin.sdk.types.Prompt
-import io.modelcontextprotocol.kotlin.sdk.types.PromptMessage
-import io.modelcontextprotocol.kotlin.sdk.types.ReadResourceResult
-import io.modelcontextprotocol.kotlin.sdk.types.RequestMeta
-import io.modelcontextprotocol.kotlin.sdk.types.ServerCapabilities
-import io.modelcontextprotocol.kotlin.sdk.types.TextContent
-import io.modelcontextprotocol.kotlin.sdk.types.Tool
-import io.modelcontextprotocol.kotlin.sdk.types.ToolSchema
-import io.modelcontextprotocol.kotlin.sdk.server.RegisteredPrompt
-import io.modelcontextprotocol.kotlin.sdk.server.RegisteredResource
-import io.modelcontextprotocol.kotlin.sdk.server.RegisteredTool
+import io.modelcontextprotocol.kotlin.sdk.types.*
 import io.qent.broxy.core.proxy.ProxyMcpServer
+import io.qent.broxy.core.utils.*
+import kotlinx.serialization.json.*
 import io.qent.broxy.core.mcp.ServerCapabilities as ProxyServerCapabilities
-import io.qent.broxy.core.utils.ConsoleLogger
-import io.qent.broxy.core.utils.Logger
-import io.qent.broxy.core.utils.errorJson
-import io.qent.broxy.core.utils.infoJson
-import io.qent.broxy.core.utils.putIfNotNull
-import io.qent.broxy.core.utils.warnJson
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonNull
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.booleanOrNull
-import kotlinx.serialization.json.encodeToJsonElement
-import kotlinx.serialization.json.jsonPrimitive
 
 /**
  * Builds an MCP Server (SDK) instance backed by our ProxyMcpServer for filtering and routing.

@@ -1,24 +1,14 @@
 package io.qent.broxy.ui.adapter.store
 
-import io.qent.broxy.core.models.McpServersConfig
-import io.qent.broxy.core.models.McpServerConfig
-import io.qent.broxy.core.models.Preset
-import io.qent.broxy.core.models.ToolReference
-import io.qent.broxy.core.models.TransportConfig
+import io.qent.broxy.core.models.*
 import io.qent.broxy.core.proxy.ProxyMcpServer
+import io.qent.broxy.core.proxy.runtime.ProxyController
 import io.qent.broxy.core.proxy.runtime.ProxyLifecycle
 import io.qent.broxy.core.repository.ConfigurationRepository
 import io.qent.broxy.core.utils.CollectingLogger
 import io.qent.broxy.core.utils.LogEvent
 import io.qent.broxy.core.utils.Logger
-import io.qent.broxy.ui.adapter.models.UiLogLevel
-import io.qent.broxy.ui.adapter.models.UiMcpServerConfig
-import io.qent.broxy.ui.adapter.models.UiPresetDraft
-import io.qent.broxy.ui.adapter.models.UiProxyStatus
-import io.qent.broxy.ui.adapter.models.UiServerConnStatus
-import io.qent.broxy.ui.adapter.models.UiServerCapabilities
-import io.qent.broxy.ui.adapter.models.UiTransportConfig
-import io.qent.broxy.core.proxy.runtime.ProxyController
+import io.qent.broxy.ui.adapter.models.*
 import io.qent.broxy.ui.adapter.remote.NoOpRemoteConnector
 import io.qent.broxy.ui.adapter.remote.defaultRemoteState
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -27,11 +17,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
-import kotlin.test.assertNull
-import kotlin.test.assertEquals
-import kotlin.test.assertIs
-import kotlin.test.assertNotNull
-import kotlin.test.assertTrue
+import kotlin.test.*
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class AppStoreTest {

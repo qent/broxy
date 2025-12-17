@@ -1,16 +1,11 @@
 package io.qent.broxy.ui.screens
 
 import AppSecondaryButton
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
 import io.qent.broxy.ui.adapter.models.UiServer
 import io.qent.broxy.ui.components.AppDialog
-import io.qent.broxy.ui.theme.AppTheme
 
 @Composable
 fun ServerDetailsDialog(cfg: UiServer, onClose: () -> Unit) {
