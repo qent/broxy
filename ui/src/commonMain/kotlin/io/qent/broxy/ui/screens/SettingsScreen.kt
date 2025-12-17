@@ -3,7 +3,9 @@ package io.qent.broxy.ui.screens
 import AppPrimaryButton
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -23,15 +25,12 @@ fun SettingsScreen(
     ui: UIState,
     notify: (String) -> Unit = {}
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(AppTheme.spacing.md)
-    ) {
+    Box(modifier = Modifier.fillMaxSize().padding(AppTheme.spacing.md)) {
         when (ui) {
             UIState.Loading -> Text("Loading...", style = MaterialTheme.typography.bodyMedium)
             is UIState.Error -> Text("Error: ${ui.message}", style = MaterialTheme.typography.bodyMedium)
             is UIState.Ready -> SettingsContent(
+                modifier = Modifier.fillMaxSize(),
                 requestTimeoutSeconds = ui.requestTimeoutSeconds,
                 capabilitiesTimeoutSeconds = ui.capabilitiesTimeoutSeconds,
                 capabilitiesRefreshIntervalSeconds = ui.capabilitiesRefreshIntervalSeconds,
@@ -70,6 +69,7 @@ fun SettingsScreen(
 
 @Composable
 private fun SettingsContent(
+    modifier: Modifier = Modifier,
     requestTimeoutSeconds: Int,
     capabilitiesTimeoutSeconds: Int,
     capabilitiesRefreshIntervalSeconds: Int,
@@ -131,88 +131,94 @@ private fun SettingsContent(
 
     val canSaveAny = canSaveRequest || canSaveCapabilities || canSaveRefresh || canSavePort
 
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)
-    ) {
-        TrayIconSetting(checked = showTrayIcon, onToggle = onToggleTrayIcon)
-        RemoteConnectorSetting(
-            remote = remote,
-            serverId = remoteServerId,
-            onServerIdChange = { value ->
-                if (value.all { it.isLetterOrDigit() || it in "-._" }) {
-                    remoteServerId = value
-                    onRemoteServerIdChange(value)
-                }
-            },
-            onAuthorize = onRemoteAuthorize,
-            onConnect = onRemoteConnect,
-            onDisconnect = onRemoteDisconnect,
-            onLogout = onRemoteLogout
-        )
-        TimeoutSetting(
-            title = "HTTP port",
-            description = "Port for the local HTTP-streamable MCP endpoint.",
-            value = inboundSsePortInput,
-            onValueChange = { value ->
-                if (value.isEmpty() || value.all { it.isDigit() }) {
-                    inboundSsePortInput = value
-                }
-            }
-        )
-        TimeoutSetting(
-            title = "Request timeout",
-            description = "Max time to wait for downstream calls (seconds).",
-            value = requestTimeoutInput,
-            onValueChange = { value ->
-                if (value.isEmpty() || value.all { it.isDigit() }) {
-                    requestTimeoutInput = value
-                }
-            }
-        )
-        TimeoutSetting(
-            title = "Capabilities timeout",
-            description = "Max time to wait for server listings (seconds).",
-            value = capabilitiesTimeoutInput,
-            onValueChange = { value ->
-                if (value.isEmpty() || value.all { it.isDigit() }) {
-                    capabilitiesTimeoutInput = value
-                }
-            }
-        )
-        TimeoutSetting(
-            title = "Capabilities refresh",
-            description = "Background refresh interval (seconds).",
-            value = capabilitiesRefreshInput,
-            onValueChange = { value ->
-                if (value.isEmpty() || value.all { it.isDigit() }) {
-                    capabilitiesRefreshInput = value
-                }
-            }
-        )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End
+    val scrollState = rememberScrollState()
+    val saveButtonHeight = 32.dp
+    val contentBottomPadding = AppTheme.spacing.lg + saveButtonHeight + AppTheme.spacing.md
+
+    Box(modifier = modifier) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState)
+                .padding(bottom = contentBottomPadding),
+            verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)
         ) {
-            AppPrimaryButton(
-                onClick = {
-                    if (canSaveRequest) {
-                        resolvedRequest?.let { onRequestTimeoutSave(it) }
-                    }
-                    if (canSaveCapabilities) {
-                        resolvedCapabilities?.let { onCapabilitiesTimeoutSave(it) }
-                    }
-                    if (canSaveRefresh) {
-                        resolvedRefresh?.let { onCapabilitiesRefreshIntervalSave(it) }
-                    }
-                    if (canSavePort) {
-                        resolvedPort?.let { onInboundSsePortSave(it) }
+            TrayIconSetting(checked = showTrayIcon, onToggle = onToggleTrayIcon)
+            RemoteConnectorSetting(
+                remote = remote,
+                serverId = remoteServerId,
+                onServerIdChange = { value ->
+                    if (value.all { it.isLetterOrDigit() || it in "-._" }) {
+                        remoteServerId = value
+                        onRemoteServerIdChange(value)
                     }
                 },
-                enabled = canSaveAny
-            ) {
-                Text("Save")
-            }
+                onAuthorize = onRemoteAuthorize,
+                onConnect = onRemoteConnect,
+                onDisconnect = onRemoteDisconnect,
+                onLogout = onRemoteLogout
+            )
+            TimeoutSetting(
+                title = "HTTP port",
+                description = "Port for the local HTTP-streamable MCP endpoint.",
+                value = inboundSsePortInput,
+                onValueChange = { value ->
+                    if (value.isEmpty() || value.all { it.isDigit() }) {
+                        inboundSsePortInput = value
+                    }
+                }
+            )
+            TimeoutSetting(
+                title = "Request timeout",
+                description = "Max time to wait for downstream calls (seconds).",
+                value = requestTimeoutInput,
+                onValueChange = { value ->
+                    if (value.isEmpty() || value.all { it.isDigit() }) {
+                        requestTimeoutInput = value
+                    }
+                }
+            )
+            TimeoutSetting(
+                title = "Capabilities timeout",
+                description = "Max time to wait for server listings (seconds).",
+                value = capabilitiesTimeoutInput,
+                onValueChange = { value ->
+                    if (value.isEmpty() || value.all { it.isDigit() }) {
+                        capabilitiesTimeoutInput = value
+                    }
+                }
+            )
+            TimeoutSetting(
+                title = "Capabilities refresh",
+                description = "Background refresh interval (seconds).",
+                value = capabilitiesRefreshInput,
+                onValueChange = { value ->
+                    if (value.isEmpty() || value.all { it.isDigit() }) {
+                        capabilitiesRefreshInput = value
+                    }
+                }
+            )
+        }
+
+        AppPrimaryButton(
+            onClick = {
+                if (canSaveRequest) {
+                    resolvedRequest?.let { onRequestTimeoutSave(it) }
+                }
+                if (canSaveCapabilities) {
+                    resolvedCapabilities?.let { onCapabilitiesTimeoutSave(it) }
+                }
+                if (canSaveRefresh) {
+                    resolvedRefresh?.let { onCapabilitiesRefreshIntervalSave(it) }
+                }
+                if (canSavePort) {
+                    resolvedPort?.let { onInboundSsePortSave(it) }
+                }
+            },
+            enabled = canSaveAny,
+            modifier = Modifier.align(Alignment.BottomEnd).height(saveButtonHeight)
+        ) {
+            Text("Save", style = MaterialTheme.typography.labelSmall)
         }
     }
 }
