@@ -13,12 +13,12 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.adapter.models.UiPreset
 import io.qent.broxy.ui.adapter.store.AppStore
 import io.qent.broxy.ui.adapter.store.UIState
 import io.qent.broxy.ui.components.AppDialog
+import io.qent.broxy.ui.components.SettingsLikeItem
 import io.qent.broxy.ui.theme.AppTheme
 import io.qent.broxy.ui.viewmodels.AppState
 
@@ -28,43 +28,47 @@ fun PresetsScreen(ui: UIState, state: AppState, store: AppStore) {
     var editing: UiPreset? by remember { mutableStateOf<UiPreset?>(null) }
     var pendingDeletion: UiPreset? by remember { mutableStateOf<UiPreset?>(null) }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(AppTheme.spacing.md)
-    ) {
-        OutlinedTextField(
-            value = query,
-            onValueChange = { query = it },
-            label = { Text("Search presets") },
-            modifier = Modifier.fillMaxWidth()
-        )
-        Spacer(Modifier.height(AppTheme.spacing.md))
+    Box(modifier = Modifier.fillMaxSize().padding(AppTheme.spacing.md)) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)
+        ) {
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                label = { Text("Search presets", style = MaterialTheme.typography.bodySmall) },
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                singleLine = true,
+                textStyle = MaterialTheme.typography.bodySmall
+            )
 
-        when (ui) {
-            is UIState.Loading -> Text("Loading...", style = MaterialTheme.typography.bodyMedium)
-            is UIState.Error -> Text("Error: ${ui.message}")
-            is UIState.Ready -> {
-                val presets = ui.presets
-                if (presets.isEmpty()) {
-                    EmptyState(
-                        title = "No presets yet",
-                        subtitle = "Use the + button to add your first preset"
-                    )
-                } else {
-                    val filtered = presets.filter { p ->
-                        p.name.contains(query, ignoreCase = true) || (p.description?.contains(query, ignoreCase = true) == true)
-                    }
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)
-                    ) {
-                        items(filtered, key = { it.id }) { preset ->
-                            PresetCard(
-                                preset = preset,
-                                onEdit = { editing = preset },
-                                onDelete = { pendingDeletion = preset }
-                            )
+            when (ui) {
+                is UIState.Loading -> Text("Loading...", style = MaterialTheme.typography.bodyMedium)
+                is UIState.Error -> Text("Error: ${ui.message}", style = MaterialTheme.typography.bodyMedium)
+                is UIState.Ready -> {
+                    val presets = ui.presets
+                    if (presets.isEmpty()) {
+                        EmptyState(
+                            title = "No presets yet",
+                            subtitle = "Use the + button to add your first preset"
+                        )
+                    } else {
+                        val filtered = presets.filter { p ->
+                            p.name.contains(query, ignoreCase = true) ||
+                                (p.description?.contains(query, ignoreCase = true) == true)
+                        }
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
+                            contentPadding = PaddingValues(bottom = PresetListBottomPadding)
+                        ) {
+                            items(filtered, key = { it.id }) { preset ->
+                                PresetCard(
+                                    preset = preset,
+                                    onEdit = { editing = preset },
+                                    onDelete = { pendingDeletion = preset }
+                                )
+                            }
                         }
                     }
                 }
@@ -101,65 +105,35 @@ private fun PresetCard(
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
-    Card(
-        onClick = onEdit,
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-        shape = AppTheme.shapes.item
-    ) {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(AppTheme.spacing.lg),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            val descriptionLine = preset.description
-                ?.lineSequence()
-                ?.firstOrNull()
-                ?.takeIf { it.isNotBlank() }
-                ?.trim()
+    val descriptionLine = preset.description
+        ?.lineSequence()
+        ?.firstOrNull()
+        ?.takeIf { it.isNotBlank() }
+        ?.trim()
 
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.xxs)
-            ) {
-                Text(
-                    preset.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                descriptionLine?.let {
-                    Text(
-                        it,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-                val countsText = buildString {
-                    append("tools ${preset.toolsCount}")
-                    append(" • prompts ${preset.promptsCount}")
-                    append(" • resources ${preset.resourcesCount}")
-                }
-                Text(
-                    countsText,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            Spacer(Modifier.width(AppTheme.spacing.sm))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onEdit) {
-                    Icon(Icons.Outlined.Edit, contentDescription = "Edit preset", tint = MaterialTheme.colorScheme.secondary)
-                }
-                IconButton(onClick = onDelete) {
-                    Icon(Icons.Outlined.Delete, contentDescription = "Delete preset", tint = MaterialTheme.colorScheme.secondary)
-                }
-            }
+    val countsText = buildString {
+        append("tools ${preset.toolsCount}")
+        append(" • prompts ${preset.promptsCount}")
+        append(" • resources ${preset.resourcesCount}")
+    }
+
+    SettingsLikeItem(
+        title = preset.name,
+        description = descriptionLine ?: "No description",
+        supportingContent = {
+            Text(
+                countsText,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        },
+        onClick = onEdit
+    ) {
+        IconButton(onClick = onEdit) {
+            Icon(Icons.Outlined.Edit, contentDescription = "Edit preset", tint = MaterialTheme.colorScheme.secondary)
+        }
+        IconButton(onClick = onDelete) {
+            Icon(Icons.Outlined.Delete, contentDescription = "Delete preset", tint = MaterialTheme.colorScheme.secondary)
         }
     }
 }
@@ -202,3 +176,5 @@ private fun EmptyState(title: String, subtitle: String) {
         Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
+
+private val PresetListBottomPadding = 88.dp
