@@ -27,6 +27,7 @@ import io.qent.broxy.core.utils.ConsoleLogger
 import io.qent.broxy.core.utils.Logger
 import io.modelcontextprotocol.kotlin.sdk.server.SseServerTransport
 import kotlinx.coroutines.Job
+import java.net.BindException
 import java.net.URI
 import java.util.concurrent.ConcurrentHashMap
 
@@ -96,32 +97,55 @@ private class KtorInboundServer(
         val displayPath = if (normalizedPath.display.isBlank()) "/" else normalizedPath.display
         logger.info("Starting HTTP SSE inbound at $scheme://$host:$port$displayPath")
         logger.debug("HTTP inbound route segments='${normalizedPath.routeSegments.ifBlank { "/" }}'")
-        engine = embeddedServer(Netty, host = host, port = port, module = {
-            install(CallLogging)
-            install(SSE)
-            routing {
-                val serverFactory: ServerSSESession.() -> Server = { buildSdkServer(proxy, logger) }
-                val registry = InboundSseRegistry(logger)
-                if (normalizedPath.routeSegments.isBlank()) {
-                    mountMcpRoute(endpointPath = normalizedPath.display, serverFactory = serverFactory, registry = registry)
-                } else {
-                    route("/${normalizedPath.routeSegments}") {
-                        mountMcpRoute(
-                            endpointPath = normalizedPath.display,
-                            serverFactory = serverFactory,
-                            registry = registry
-                        )
+        return try {
+            engine = embeddedServer(Netty, host = host, port = port, module = {
+                install(CallLogging)
+                install(SSE)
+                routing {
+                    val serverFactory: ServerSSESession.() -> Server = { buildSdkServer(proxy, logger) }
+                    val registry = InboundSseRegistry(logger)
+                    if (normalizedPath.routeSegments.isBlank()) {
+                        mountMcpRoute(endpointPath = normalizedPath.display, serverFactory = serverFactory, registry = registry)
+                    } else {
+                        route("/${normalizedPath.routeSegments}") {
+                            mountMcpRoute(
+                                endpointPath = normalizedPath.display,
+                                serverFactory = serverFactory,
+                                registry = registry
+                            )
+                        }
                     }
                 }
+            }).start(wait = false)
+            ServerStatus.Running
+        } catch (t: Throwable) {
+            engine = null
+            val bind = t.findCause<BindException>()
+            val message = if (bind != null) {
+                "Port $port is already in use"
+            } else {
+                t.message ?: "Failed to start HTTP SSE inbound server"
             }
-        }).start(wait = false)
-        return ServerStatus.Running
+            logger.error(message, t)
+            ServerStatus.Error(message)
+        }
     }
 
     override fun stop(): ServerStatus {
-        engine?.stop()
+        val srv = engine
+        engine = null
+        srv?.stop()
         return ServerStatus.Stopped
     }
+}
+
+private inline fun <reified T : Throwable> Throwable.findCause(): T? {
+    var cur: Throwable? = this
+    while (cur != null) {
+        if (cur is T) return cur
+        cur = cur.cause
+    }
+    return null
 }
 
 private fun parse(url: String): Triple<String, Int, String> {

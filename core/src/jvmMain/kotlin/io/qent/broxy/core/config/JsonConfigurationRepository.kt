@@ -30,6 +30,7 @@ class JsonConfigurationRepository(
         private const val DEFAULT_TIMEOUT_SECONDS = 60
         private const val DEFAULT_CAPABILITIES_TIMEOUT_SECONDS = 30
         private const val DEFAULT_CAPABILITIES_REFRESH_INTERVAL_SECONDS = 300
+        private const val DEFAULT_INBOUND_SSE_PORT = 3335
     }
 
     private val dir: Path = baseDir
@@ -114,10 +115,12 @@ class JsonConfigurationRepository(
         val showTrayIcon = root.showTrayIcon ?: true
         val capabilitiesRefreshIntervalSeconds = root.capabilitiesRefreshIntervalSeconds
             ?: DEFAULT_CAPABILITIES_REFRESH_INTERVAL_SECONDS
+        val inboundSsePort = root.inboundSsePort ?: DEFAULT_INBOUND_SSE_PORT
 
         return McpServersConfig(
             servers = servers,
             defaultPresetId = root.defaultPresetId?.takeIf { it.isNotBlank() },
+            inboundSsePort = inboundSsePort.coerceIn(1, 65535),
             requestTimeoutSeconds = timeoutSeconds,
             capabilitiesTimeoutSeconds = capabilitiesTimeoutSeconds,
             showTrayIcon = showTrayIcon,
@@ -128,6 +131,7 @@ class JsonConfigurationRepository(
     override fun saveMcpConfig(config: McpServersConfig) {
         val root = FileMcpRoot(
             defaultPresetId = config.defaultPresetId?.takeIf { it.isNotBlank() },
+            inboundSsePort = config.inboundSsePort.coerceIn(1, 65535),
             requestTimeoutSeconds = config.requestTimeoutSeconds,
             capabilitiesTimeoutSeconds = config.capabilitiesTimeoutSeconds,
             showTrayIcon = config.showTrayIcon,
@@ -255,6 +259,7 @@ class JsonConfigurationRepository(
     @Serializable
     private data class FileMcpRoot(
         val defaultPresetId: String? = null,
+        val inboundSsePort: Int? = null,
         val requestTimeoutSeconds: Int? = null,
         val capabilitiesTimeoutSeconds: Int? = null,
         val showTrayIcon: Boolean? = null,

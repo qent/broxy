@@ -6,7 +6,6 @@ import io.qent.broxy.ui.adapter.models.UiPreset
 import io.qent.broxy.ui.adapter.models.UiProxyStatus
 import io.qent.broxy.ui.adapter.models.UiServerDraft
 import io.qent.broxy.ui.adapter.models.UiPresetDraft
-import io.qent.broxy.ui.adapter.models.UiTransportDraft
 import io.qent.broxy.ui.adapter.models.UiRemoteConnectionState
 
 // Sealed UI state for the entire app. UI collects this via Flow and renders.
@@ -17,6 +16,7 @@ sealed class UIState {
         val servers: List<UiServer>,
         val presets: List<UiPreset>,
         val selectedPresetId: String?,
+        val inboundSsePort: Int,
         val proxyStatus: UiProxyStatus,
         val requestTimeoutSeconds: Int,
         val capabilitiesTimeoutSeconds: Int,
@@ -42,9 +42,7 @@ interface Intents {
     fun removePreset(id: String)
 
     fun selectProxyPreset(presetId: String?)
-    fun startProxySimple(presetId: String)
-    fun startProxy(presetId: String, inbound: UiTransportDraft)
-    fun stopProxy()
+    fun updateInboundSsePort(port: Int)
     fun updateRequestTimeout(seconds: Int)
     fun updateCapabilitiesTimeout(seconds: Int)
     fun updateCapabilitiesRefreshInterval(seconds: Int)

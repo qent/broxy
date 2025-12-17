@@ -6,6 +6,7 @@ import kotlinx.serialization.Serializable
 data class McpServersConfig(
     val servers: List<McpServerConfig> = emptyList(),
     val defaultPresetId: String? = null,
+    val inboundSsePort: Int = 3335,
     val requestTimeoutSeconds: Int = 60,
     val capabilitiesTimeoutSeconds: Int = 30,
     val showTrayIcon: Boolean = true,

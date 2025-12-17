@@ -1,6 +1,7 @@
 package io.qent.broxy.ui.adapter.headless
 
 import io.qent.broxy.core.config.JsonConfigurationRepository
+import io.qent.broxy.core.models.Preset
 import io.qent.broxy.core.models.TransportConfig
 import io.qent.broxy.core.utils.CollectingLogger
 import io.qent.broxy.core.utils.StdErrLogger
@@ -38,8 +39,11 @@ fun runStdioProxy(presetIdOverride: String? = null, configDir: String? = null): 
     val effectivePresetId = presetIdOverride?.takeIf { it.isNotBlank() }
         ?: cfg.defaultPresetId?.takeIf { it.isNotBlank() }
         ?: repo.listPresets().singleOrNull()?.id
-        ?: error("No default preset configured. Open broxy UI and select a preset (Proxy tab) to set it as default.")
-    val preset = repo.loadPreset(effectivePresetId)
+    val preset = if (effectivePresetId == null) {
+        Preset.empty()
+    } else {
+        runCatching { repo.loadPreset(effectivePresetId) }.getOrElse { Preset.empty() }
+    }
 
     val logger = CollectingLogger(delegate = StdErrLogger)
     val inbound = TransportConfig.StdioTransport(command = "", args = emptyList())
@@ -71,7 +75,7 @@ fun runStdioProxy(presetIdOverride: String? = null, configDir: String? = null): 
     transport.onClose { shutdownSignal.complete(Unit) }
 
     StdErrLogger.info(
-        "Starting broxy STDIO proxy (presetId='$effectivePresetId', configDir='${configDir ?: "~/.config/broxy"}')"
+        "Starting broxy STDIO proxy (presetId='${effectivePresetId ?: "none"}', configDir='${configDir ?: "~/.config/broxy"}')"
     )
 
     try {

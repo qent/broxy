@@ -58,8 +58,13 @@ fun SettingsScreen(
                 requestTimeoutSeconds = ui.requestTimeoutSeconds,
                 capabilitiesTimeoutSeconds = ui.capabilitiesTimeoutSeconds,
                 capabilitiesRefreshIntervalSeconds = ui.capabilitiesRefreshIntervalSeconds,
+                inboundSsePort = ui.inboundSsePort,
                 showTrayIcon = ui.showTrayIcon,
                 themeStyle = themeStyle,
+                onInboundSsePortSave = { port ->
+                    ui.intents.updateInboundSsePort(port)
+                    notify("SSE port saved: $port")
+                },
                 onRequestTimeoutSave = { seconds ->
                     ui.intents.updateRequestTimeout(seconds)
                     notify("Timeout saved: ${seconds}s")
@@ -93,8 +98,10 @@ private fun SettingsContent(
     requestTimeoutSeconds: Int,
     capabilitiesTimeoutSeconds: Int,
     capabilitiesRefreshIntervalSeconds: Int,
+    inboundSsePort: Int,
     showTrayIcon: Boolean,
     themeStyle: ThemeStyle,
+    onInboundSsePortSave: (Int) -> Unit,
     onRequestTimeoutSave: (Int) -> Unit,
     onCapabilitiesTimeoutSave: (Int) -> Unit,
     onCapabilitiesRefreshIntervalSave: (Int) -> Unit,
@@ -110,6 +117,7 @@ private fun SettingsContent(
     var requestTimeoutInput by rememberSaveable(requestTimeoutSeconds) { mutableStateOf(requestTimeoutSeconds.toString()) }
     var capabilitiesTimeoutInput by rememberSaveable(capabilitiesTimeoutSeconds) { mutableStateOf(capabilitiesTimeoutSeconds.toString()) }
     var capabilitiesRefreshInput by rememberSaveable(capabilitiesRefreshIntervalSeconds) { mutableStateOf(capabilitiesRefreshIntervalSeconds.toString()) }
+    var inboundSsePortInput by rememberSaveable(inboundSsePort) { mutableStateOf(inboundSsePort.toString()) }
     var remoteServerId by rememberSaveable(remote.serverIdentifier) { mutableStateOf(remote.serverIdentifier) }
 
     LaunchedEffect(requestTimeoutSeconds) {
@@ -122,6 +130,10 @@ private fun SettingsContent(
 
     LaunchedEffect(capabilitiesRefreshIntervalSeconds) {
         capabilitiesRefreshInput = capabilitiesRefreshIntervalSeconds.toString()
+    }
+
+    LaunchedEffect(inboundSsePort) {
+        inboundSsePortInput = inboundSsePort.toString()
     }
 
     LaunchedEffect(remote.serverIdentifier) {
@@ -139,7 +151,12 @@ private fun SettingsContent(
     val parsedRefresh = capabilitiesRefreshInput.toLongOrNull()
     val resolvedRefresh = parsedRefresh?.takeIf { it >= 30 && it <= Int.MAX_VALUE }?.toInt()
     val canSaveRefresh = resolvedRefresh != null && resolvedRefresh != capabilitiesRefreshIntervalSeconds
-    val canSaveAny = canSaveRequest || canSaveCapabilities || canSaveRefresh
+
+    val parsedPort = inboundSsePortInput.toLongOrNull()
+    val resolvedPort = parsedPort?.takeIf { it in 1..65535 }?.toInt()
+    val canSavePort = resolvedPort != null && resolvedPort != inboundSsePort
+
+    val canSaveAny = canSaveRequest || canSaveCapabilities || canSaveRefresh || canSavePort
 
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -163,6 +180,17 @@ private fun SettingsContent(
             onConnect = onRemoteConnect,
             onDisconnect = onRemoteDisconnect,
             onLogout = onRemoteLogout
+        )
+        TimeoutSetting(
+            title = "SSE port",
+            description = "Port for the local SSE MCP endpoint. Changing it restarts the local server.",
+            label = "Port",
+            value = inboundSsePortInput,
+            onValueChange = { value ->
+                if (value.isEmpty() || value.all { it.isDigit() }) {
+                    inboundSsePortInput = value
+                }
+            }
         )
         TimeoutSetting(
             title = "Request timeout",
@@ -211,6 +239,9 @@ private fun SettingsContent(
                     }
                     if (canSaveRefresh) {
                         resolvedRefresh?.let { onCapabilitiesRefreshIntervalSave(it) }
+                    }
+                    if (canSavePort) {
+                        resolvedPort?.let { onInboundSsePortSave(it) }
                     }
                 },
                 enabled = canSaveAny

@@ -80,7 +80,6 @@ class AppStore(
     private val intents: Intents = AppStoreIntents(
         scope = scope,
         logger = logger,
-        configurationRepository = configurationRepository,
         configurationManager = configurationManager,
         state = stateAccess,
         capabilityRefresher = capabilityRefresher,
@@ -109,10 +108,16 @@ class AppStore(
             }
             capabilityRefresher.syncWithServers(snapshot.servers)
             publishReady()
+            proxyRuntime.ensureSseRunning(forceRestart = true)
             capabilityRefresher.refreshEnabledServers(force = true)
             capabilityRefresher.restartBackgroundJob(enableBackgroundRefresh)
             remoteConnector.start()
         }
+    }
+
+    fun stop() {
+        runCatching { proxyRuntime.stopSse() }
+        runCatching { remoteConnector.disconnect() }
     }
 
     fun getServerDraft(id: String): UiServerDraft? {
@@ -199,6 +204,7 @@ class AppStore(
                 isLoading = false,
                 servers = config.servers,
                 selectedPresetId = config.defaultPresetId,
+                inboundSsePort = config.inboundSsePort,
                 requestTimeoutSeconds = config.requestTimeoutSeconds,
                 capabilitiesTimeoutSeconds = config.capabilitiesTimeoutSeconds,
                 capabilitiesRefreshIntervalSeconds = config.capabilitiesRefreshIntervalSeconds.coerceAtLeast(30),
@@ -213,6 +219,7 @@ class AppStore(
     private fun snapshotConfig(): UiMcpServersConfig = UiMcpServersConfig(
         servers = snapshot.servers,
         defaultPresetId = snapshot.selectedPresetId,
+        inboundSsePort = snapshot.inboundSsePort,
         requestTimeoutSeconds = snapshot.requestTimeoutSeconds,
         capabilitiesTimeoutSeconds = snapshot.capabilitiesTimeoutSeconds,
         showTrayIcon = snapshot.showTrayIcon,

@@ -103,3 +103,11 @@ Outbound API для MCP клиентов формирует SDK `Server`:
 
 - `--inbound stdio|http` (алиасы: `local|remote|sse`)
 - `--url http://0.0.0.0:3335/mcp` (для `http` inbound)
+
+## Desktop UI: auto SSE inbound
+
+В desktop UI режиме локальный HTTP SSE inbound поднимается автоматически при старте приложения и останавливается вместе с процессом.
+
+- Порт задаётся в `mcp.json` ключом `inboundSsePort` (default `3335`).
+- При изменении порта через UI сервер автоматически перезапускается.
+- Если порт занят, старт inbound завершится ошибкой (UI показывает статус “порт занят”).

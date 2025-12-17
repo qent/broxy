@@ -25,7 +25,6 @@ data class NavItem(
 private val navItems = listOf(
     NavItem(Screen.Servers, "MCP") { Icon(Icons.Outlined.Storage, contentDescription = "MCP servers") },
     NavItem(Screen.Presets, "Presets") { Icon(Icons.Outlined.Tune, contentDescription = "Presets") },
-    NavItem(Screen.Proxy, "Broxy") { Icon(Icons.Outlined.Dns, contentDescription = "Broxy") },
     NavItem(Screen.Logs, "Logs") { Icon(Icons.Outlined.List, contentDescription = "Logs") },
     NavItem(Screen.Settings, "Settings") { Icon(Icons.Outlined.Settings, contentDescription = "Settings") },
 )

@@ -33,6 +33,9 @@ class ConfigurationManager(
     fun updateCapabilitiesTimeout(config: McpServersConfig, seconds: Int): Result<McpServersConfig> =
         saveConfig(config.copy(capabilitiesTimeoutSeconds = seconds))
 
+    fun updateInboundSsePort(config: McpServersConfig, port: Int): Result<McpServersConfig> =
+        saveConfig(config.copy(inboundSsePort = port.coerceIn(1, 65535)))
+
     fun updateRefreshInterval(config: McpServersConfig, seconds: Int): Result<McpServersConfig> =
         saveConfig(config.copy(capabilitiesRefreshIntervalSeconds = seconds))
 

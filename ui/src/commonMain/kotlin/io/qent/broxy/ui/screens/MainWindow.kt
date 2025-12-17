@@ -6,6 +6,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -36,6 +37,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.animation.togetherWith
 import androidx.compose.ui.unit.sp
 import io.qent.broxy.ui.components.AppNavigationRail
+import io.qent.broxy.ui.components.GlobalHeader
 import io.qent.broxy.ui.theme.AppTheme
 import io.qent.broxy.ui.viewmodels.AppState
 import io.qent.broxy.ui.viewmodels.Screen
@@ -112,25 +114,31 @@ fun MainWindow(
                     modifier = Modifier.fillMaxHeight()
                 )
                 Spacer(Modifier.width(AppTheme.spacing.md))
-                Box(Modifier.fillMaxSize()) {
-                    AnimatedContent(
-                        targetState = screen,
-                        transitionSpec = {
-                            fadeIn(animationSpec = tween(150)) togetherWith fadeOut(animationSpec = tween(150))
-                        },
-                        label = "screen"
-                    ) { s ->
-                        when (s) {
-                            Screen.Servers -> ServersScreen(ui, state, store, notify)
-                            Screen.Presets -> PresetsScreen(ui, state, store)
-                            Screen.Proxy -> ProxyScreen(ui, state, notify)
-                            Screen.Logs -> LogsScreen(ui)
-                            Screen.Settings -> SettingsScreen(
-                                ui = ui,
-                                themeStyle = state.themeStyle.value,
-                                onThemeStyleChange = { state.themeStyle.value = it },
-                                notify = notify
-                            )
+                Column(Modifier.fillMaxSize()) {
+                    GlobalHeader(
+                        ui = ui,
+                        notify = notify,
+                        modifier = Modifier.padding(top = AppTheme.spacing.md, end = AppTheme.spacing.md)
+                    )
+                    Box(Modifier.fillMaxSize()) {
+                        AnimatedContent(
+                            targetState = screen,
+                            transitionSpec = {
+                                fadeIn(animationSpec = tween(150)) togetherWith fadeOut(animationSpec = tween(150))
+                            },
+                            label = "screen"
+                        ) { s ->
+                            when (s) {
+                                Screen.Servers -> ServersScreen(ui, state, store, notify)
+                                Screen.Presets -> PresetsScreen(ui, state, store)
+                                Screen.Logs -> LogsScreen(ui)
+                                Screen.Settings -> SettingsScreen(
+                                    ui = ui,
+                                    themeStyle = state.themeStyle.value,
+                                    onThemeStyleChange = { state.themeStyle.value = it },
+                                    notify = notify
+                                )
+                            }
                         }
                     }
                 }

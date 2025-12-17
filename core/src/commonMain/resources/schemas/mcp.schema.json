@@ -21,6 +21,13 @@
       "description": "Default preset ID to use in UI STDIO facade mode (when no preset is provided via CLI args).",
       "default": null
     },
+    "inboundSsePort": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535,
+      "description": "Port for the local HTTP SSE inbound server used by the desktop UI.",
+      "default": 3335
+    },
     "requestTimeoutSeconds": {
       "type": "integer",
       "minimum": 1,

@@ -200,7 +200,7 @@ private fun DeletePresetDialog(
                 style = MaterialTheme.typography.bodyMedium
             )
             Text(
-                text = "This preset will disappear from Broxy, including the CLI shortcuts that rely on it. This action cannot be undone.",
+                text = "This preset will disappear from broxy, including the CLI shortcuts that rely on it. This action cannot be undone.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

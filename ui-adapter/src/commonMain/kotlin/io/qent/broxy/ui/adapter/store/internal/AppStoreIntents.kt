@@ -2,14 +2,11 @@ package io.qent.broxy.ui.adapter.store.internal
 
 import io.qent.broxy.core.capabilities.CapabilityRefresher
 import io.qent.broxy.core.config.ConfigurationManager
-import io.qent.broxy.core.repository.ConfigurationRepository
 import io.qent.broxy.core.utils.CollectingLogger
-import io.qent.broxy.ui.adapter.models.UiHttpTransport
 import io.qent.broxy.ui.adapter.models.UiMcpServerConfig
 import io.qent.broxy.ui.adapter.models.UiPreset
 import io.qent.broxy.ui.adapter.models.UiPresetCore
 import io.qent.broxy.ui.adapter.models.UiPresetDraft
-import io.qent.broxy.ui.adapter.models.UiProxyStatus
 import io.qent.broxy.ui.adapter.models.UiServer
 import io.qent.broxy.ui.adapter.models.UiServerDraft
 import io.qent.broxy.ui.adapter.models.UiStdioTransport
@@ -26,7 +23,6 @@ import kotlinx.coroutines.launch
 internal class AppStoreIntents(
     private val scope: CoroutineScope,
     private val logger: CollectingLogger,
-    private val configurationRepository: ConfigurationRepository,
     private val configurationManager: ConfigurationManager,
     private val state: StoreStateAccess,
     private val capabilityRefresher: CapabilityRefresher,
@@ -50,6 +46,7 @@ internal class AppStoreIntents(
                 capabilityRefresher.syncWithServers(state.snapshot.servers)
             }
             publishReady()
+            proxyRuntime.ensureSseRunning(forceRestart = true)
             refreshEnabledCaps(true)
             restartRefreshJob()
         }
@@ -78,6 +75,7 @@ internal class AppStoreIntents(
                 val saved = result.getOrNull()
                 capabilityRefresher.syncWithServers(saved?.servers ?: updated)
                 triggerServerRefresh(setOf(ui.id), force = true)
+                proxyRuntime.ensureSseRunning(forceRestart = true)
             }
             publishReady()
         }
@@ -98,6 +96,7 @@ internal class AppStoreIntents(
                 revertServersOnFailure("addServerBasic", previousServers, result.exceptionOrNull(), "Failed to save servers")
             } else {
                 capabilityRefresher.syncWithServers(result.getOrNull()?.servers ?: updated)
+                proxyRuntime.ensureSseRunning(forceRestart = true)
             }
             publishReady()
         }
@@ -124,6 +123,7 @@ internal class AppStoreIntents(
             } else {
                 capabilityRefresher.syncWithServers(result.getOrNull()?.servers ?: updated)
                 triggerServerRefresh(setOf(draft.id), force = true)
+                proxyRuntime.ensureSseRunning(forceRestart = true)
             }
             publishReady()
         }
@@ -141,6 +141,7 @@ internal class AppStoreIntents(
             } else {
                 capabilityRefresher.syncWithServers(result.getOrNull()?.servers ?: updated)
                 capabilityRefresher.markServerRemoved(id)
+                proxyRuntime.ensureSseRunning(forceRestart = true)
             }
             publishReady()
         }
@@ -164,6 +165,7 @@ internal class AppStoreIntents(
                 } else {
                     triggerServerRefresh(setOf(id), force = true)
                 }
+                proxyRuntime.ensureSseRunning(forceRestart = true)
             }
             publishReady()
         }
@@ -207,27 +209,32 @@ internal class AppStoreIntents(
             val idx = updated.indexOfFirst { it.id == summary.id }
             if (idx >= 0) updated[idx] = summary else updated += summary
             state.updateSnapshot { copy(presets = updated) }
-            val shouldRestart = saveResult.isSuccess &&
-                state.snapshot.proxyStatus is UiProxyStatus.Running &&
-                state.snapshot.activeProxyPresetId == preset.id &&
-                state.snapshot.activeInbound != null
+            val shouldRestart = saveResult.isSuccess && state.snapshot.selectedPresetId == preset.id
             publishReady()
             if (shouldRestart) {
-                proxyRuntime.restartProxyWithPreset(preset.id, preset)
+                proxyRuntime.ensureSseRunning(forceRestart = true)
             }
         }
     }
 
     override fun removePreset(id: String) {
         scope.launch {
-            val previousPresets = state.snapshot.presets
-            val updated = previousPresets.filterNot { it.id == id }
-            state.updateSnapshot { copy(presets = updated) }
+            val previous = state.snapshot
+            val updated = previous.presets.filterNot { it.id == id }
+            state.updateSnapshot { withPresets(updated) }
             val result = configurationManager.deletePreset(id)
             if (result.isFailure) {
-                revertPresetsOnFailure("removePreset", previousPresets, result.exceptionOrNull(), "Failed to delete preset")
+                revertPresetsOnFailure("removePreset", previous.presets, result.exceptionOrNull(), "Failed to delete preset")
             }
             publishReady()
+            if (previous.selectedPresetId == id) {
+                val saveResult = configurationManager.updateDefaultPresetId(state.snapshotConfig(), null)
+                if (saveResult.isFailure) {
+                    val msg = saveResult.exceptionOrNull()?.message ?: "Failed to clear default preset"
+                    logger.info("[AppStore] removePreset failed to clear default preset: $msg")
+                }
+            }
+            proxyRuntime.ensureSseRunning(forceRestart = true)
         }
     }
 
@@ -247,46 +254,28 @@ internal class AppStoreIntents(
                 publishReady()
                 return@launch
             }
-            val shouldRestart = presetId != null &&
-                state.snapshot.proxyStatus is UiProxyStatus.Running &&
-                state.snapshot.activeInbound != null &&
-                presetId != state.snapshot.activeProxyPresetId
-            if (shouldRestart) {
-                proxyRuntime.restartProxyWithPreset(presetId!!)
-            }
+            proxyRuntime.ensureSseRunning(forceRestart = true)
         }
     }
 
-    override fun startProxySimple(presetId: String) {
+    override fun updateInboundSsePort(port: Int) {
         scope.launch {
-            proxyRuntime.startProxySimple(presetId)
-        }
-    }
-
-    override fun startProxy(presetId: String, inbound: UiTransportDraft) {
-        scope.launch {
-            val inboundTransport = inbound.toTransportConfig()
-            if (inboundTransport !is UiStdioTransport && inboundTransport !is UiHttpTransport) {
-                val msg = "Inbound transport not supported. Use Local (STDIO) or Remote (SSE)."
-                logger.info("[AppStore] startProxy unsupported inbound: ${inbound::class.simpleName}")
-                state.updateSnapshot {
-                    copy(
-                        proxyStatus = UiProxyStatus.Error(msg),
-                        selectedPresetId = presetId,
-                        activeProxyPresetId = null,
-                        activeInbound = null
-                    )
-                }
+            val clamped = port.coerceIn(1, 65535)
+            val previous = state.snapshot.inboundSsePort
+            if (previous == clamped) return@launch
+            val previousConfig = state.snapshotConfig()
+            state.updateSnapshot { copy(inboundSsePort = clamped) }
+            publishReady()
+            val result = configurationManager.updateInboundSsePort(previousConfig, clamped)
+            if (result.isFailure) {
+                val msg = result.exceptionOrNull()?.message ?: "Failed to update SSE port"
+                logger.info("[AppStore] updateInboundSsePort failed: $msg")
+                state.updateSnapshot { copy(inboundSsePort = previous) }
+                state.setError(msg)
                 publishReady()
                 return@launch
             }
-            proxyRuntime.startProxy(presetId, inboundTransport)
-        }
-    }
-
-    override fun stopProxy() {
-        scope.launch {
-            proxyRuntime.stopProxy()
+            proxyRuntime.ensureSseRunning(forceRestart = true)
         }
     }
 

@@ -21,7 +21,7 @@ data class ToolCallRequest(val name: String, val arguments: JsonObject = JsonObj
 /**
  * Dispatches incoming proxy requests to the appropriate downstream server.
  * - Parses prefixed tool names and forwards calls without prefix
- * - Enforces allowed tool set (empty set means allow all)
+ * - Enforces allowed tool set (empty set means allow all by default)
  * - Supports batch tool calls in parallel
  * - Resolves prompts/resources using provided resolvers or capability scan fallback
  */
@@ -35,6 +35,7 @@ interface RequestDispatcher {
 class DefaultRequestDispatcher(
     private val servers: List<McpServerConnection>,
     private val allowedPrefixedTools: () -> Set<String> = { emptySet() },
+    private val allowAllWhenNoAllowedTools: Boolean = true,
     private val promptServerResolver: (suspend (String) -> String?)? = null,
     private val resourceServerResolver: (suspend (String) -> String?)? = null,
     private val namespace: NamespaceManager = DefaultNamespaceManager(),
@@ -45,7 +46,8 @@ class DefaultRequestDispatcher(
     override suspend fun dispatchToolCall(request: ToolCallRequest): Result<JsonElement> {
         val allowed = allowedPrefixedTools()
         val name = request.name
-        if (allowed.isNotEmpty() && name !in allowed) {
+        val shouldEnforceAllowList = allowed.isNotEmpty() || !allowAllWhenNoAllowedTools
+        if (shouldEnforceAllowList && name !in allowed) {
             val msg = "Tool '$name' is not allowed by current preset"
             logger.warnJson("proxy.tool.denied") {
                 put("toolName", JsonPrimitive(name))

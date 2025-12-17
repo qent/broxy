@@ -49,4 +49,17 @@ class RequestRouterAllowedAllTest {
         assertTrue(res.isSuccess)
         assertTrue(res.getOrThrow().toString().contains("\"server\":\"s1\""))
     }
+
+    @Test
+    fun when_allow_all_is_disabled_empty_allowed_set_denies_all_tools() = runBlocking {
+        val s1 = SrvAllowed("s1", cfg("s1")) { tool -> buildJsonObject { put("server", "s1"); put("tool", tool) } }
+        val router = DefaultRequestDispatcher(
+            servers = listOf(s1),
+            allowedPrefixedTools = { emptySet() },
+            allowAllWhenNoAllowedTools = false
+        )
+
+        val res = router.dispatchToolCall(ToolCallRequest("s1:echo"))
+        assertTrue(res.isFailure)
+    }
 }

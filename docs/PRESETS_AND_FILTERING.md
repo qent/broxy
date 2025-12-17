@@ -59,7 +59,7 @@ data class Preset(
 
 Важная деталь:
 
-- если `preset.tools` пуст и `preset.prompts/resources == null`, то `inScopeServers` будет пуст → отфильтрованные capabilities будут пустыми.
+- если `preset.tools` пуст и `preset.prompts/resources` пусты (или `null`), то `inScopeServers` будет пуст → отфильтрованные capabilities будут пустыми.
 
 ### Шаг 3: tools — строгий allow-list + префиксация
 
@@ -132,7 +132,7 @@ data class Preset(
 Даже если внешний клиент “видит” tool в `tools/list`, реальная защита делается на этапе `tools/call`:
 
 - `DefaultRequestDispatcher.dispatchToolCall(...)`:
-  - если `allowedPrefixedTools` не пустой и `name !in allowed` → ошибка.
+  - в режиме прокси `ProxyMcpServer` используется strict enforcement: пустой allow-list означает **deny all** (чтобы `tools/call` не работал при отсутствии активного пресета).
 
 Файл: `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/RequestDispatcher.kt`
 
@@ -144,7 +144,8 @@ data class Preset(
 
 - `AppStoreIntents.selectProxyPreset(presetId)`:
   - меняет `selectedPresetId`;
-  - если прокси уже запущен и `presetId != activeProxyPresetId` → делает restart через `ProxyRuntime.restartProxyWithPreset(presetId)`.
+  - сохраняет `defaultPresetId` в `mcp.json`;
+  - рестартит локальный SSE inbound, чтобы внешний клиент получил обновлённый snapshot capabilities.
 
 Restart важен, потому что:
 
@@ -168,4 +169,3 @@ CLI watcher на изменение preset вызывает:
 Файлы:
 - `cli/src/main/kotlin/io/qent/broxy/cli/commands/ProxyCommand.kt`
 - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/runtime/ProxyLifecycle.kt`
-

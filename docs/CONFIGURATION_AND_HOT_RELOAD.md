@@ -32,7 +32,8 @@
    - `capabilitiesTimeoutSeconds` (default: 30)
    - `capabilitiesRefreshIntervalSeconds` (default: 300)
    - `showTrayIcon` (default: true)
-   - `defaultPresetId` (optional: preset по умолчанию для STDIO фасада UI-версии, когда preset не передаётся через CLI args)
+   - `inboundSsePort` (default: 3335, порт локального SSE inbound для desktop UI)
+   - `defaultPresetId` (optional: preset по умолчанию для STDIO режима; если не задан — broxy стартует с пустыми capabilities)
 
 Код:
 - `core/src/jvmMain/kotlin/io/qent/broxy/core/config/JsonConfigurationRepository.kt`

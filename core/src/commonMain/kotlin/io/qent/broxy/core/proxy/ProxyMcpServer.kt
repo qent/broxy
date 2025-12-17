@@ -37,6 +37,7 @@ class ProxyMcpServer(
     private var dispatcher: RequestDispatcher = DefaultRequestDispatcher(
         servers = downstreams,
         allowedPrefixedTools = { allowedTools },
+        allowAllWhenNoAllowedTools = false,
         promptServerResolver = { name -> promptServerByName[name] },
         resourceServerResolver = { uri -> resourceServerByUri[uri] },
         namespace = namespace,
@@ -118,6 +119,9 @@ class ProxyMcpServer(
 
     /** Fetches a prompt from the appropriate downstream based on mapping computed during filtering. */
     suspend fun getPrompt(name: String, arguments: Map<String, String>? = null): Result<JsonObject> {
+        if (filteredCaps.prompts.none { it.name == name }) {
+            return Result.failure(IllegalArgumentException("Unknown prompt: $name"))
+        }
         val result = dispatcher.dispatchPrompt(name, arguments)
         if (result.isSuccess) {
             logger.info("Delivered prompt '$name' back to LLM")
@@ -129,6 +133,9 @@ class ProxyMcpServer(
 
     /** Reads a resource from the appropriate downstream based on mapping computed during filtering. */
     suspend fun readResource(uri: String): Result<JsonObject> {
+        if (filteredCaps.resources.none { (it.uri ?: it.name) == uri }) {
+            return Result.failure(IllegalArgumentException("Unknown resource: $uri"))
+        }
         val result = dispatcher.dispatchResource(uri)
         if (result.isSuccess) {
             logger.info("Delivered resource '$uri' back to LLM")
