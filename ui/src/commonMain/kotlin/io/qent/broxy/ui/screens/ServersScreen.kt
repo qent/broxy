@@ -13,15 +13,14 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.adapter.models.UiServer
 import io.qent.broxy.ui.adapter.store.AppStore
 import io.qent.broxy.ui.adapter.store.UIState
 import io.qent.broxy.ui.components.AppDialog
+import io.qent.broxy.ui.components.CapabilitiesInlineSummary
 import io.qent.broxy.ui.components.SettingsLikeItem
 import io.qent.broxy.ui.theme.AppTheme
 import io.qent.broxy.ui.viewmodels.AppState
@@ -136,29 +135,51 @@ private fun ServerCard(
     val separatorColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (isDisabled) disabledAlpha else 1f)
     val statusTextColor = if (isDisabled) MaterialTheme.colorScheme.onSurfaceVariant else statusColor
     val showErrorStatus = cfg.enabled && cfg.status.name == "Error"
+    val showCapabilitiesSummary =
+        cfg.enabled &&
+            cfg.status.name == "Available" &&
+            cfg.toolsCount != null &&
+            cfg.promptsCount != null &&
+            cfg.resourcesCount != null
 
     SettingsLikeItem(
         title = cfg.name,
         titleColor = titleColor,
         descriptionContent = {
-            Text(
-                text = buildAnnotatedString {
-                    withStyle(SpanStyle(color = transportColor)) {
-                        append(cfg.transportLabel)
-                    }
-                    if (showErrorStatus) {
-                        withStyle(SpanStyle(color = separatorColor)) {
-                            append(" • ")
-                        }
-                        withStyle(SpanStyle(color = statusTextColor)) {
-                            append(cfg.status.name)
-                        }
-                    }
-                },
-                style = MaterialTheme.typography.bodySmall,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+            ) {
+                Text(
+                    text = cfg.transportLabel,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = transportColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+
+                if (showCapabilitiesSummary) {
+                    Text(" • ", style = MaterialTheme.typography.bodySmall, color = separatorColor)
+                    CapabilitiesInlineSummary(
+                        toolsCount = cfg.toolsCount ?: 0,
+                        promptsCount = cfg.promptsCount ?: 0,
+                        resourcesCount = cfg.resourcesCount ?: 0,
+                        tint = separatorColor,
+                        textStyle = MaterialTheme.typography.bodySmall
+                    )
+                } else if (showErrorStatus) {
+                    Text(" • ", style = MaterialTheme.typography.bodySmall, color = separatorColor)
+                    Text(
+                        text = cfg.status.name,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = statusTextColor,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.End
+                    )
+                }
+            }
         },
         onClick = onViewDetails
     ) {

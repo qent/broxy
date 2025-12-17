@@ -10,6 +10,11 @@
 - “снимки capabilities” для UI (кол-во tools/prompts/resources, аргументы по JSON Schema);
 - фоновые обновления по интервалу.
 
+В UI (Compose Desktop) эти снимки используются для компактного отображения summary по tools/prompts/resources:
+
+- в списке серверов — для enabled + `Available` серверов в строке с типом подключения;
+- в списке пресетов — в строке описания пресета.
+
 Файлы:
 
 - `ui-adapter/src/commonMain/kotlin/io/qent/broxy/ui/adapter/store/AppStore.kt`
@@ -111,4 +116,3 @@ UI store и proxy runtime независимы, но связаны через �
   - `ProxyLifecycle.updateCapabilitiesTimeout(...)`
 
 CapabilityRefresher использует `capabilitiesTimeoutSeconds` из store snapshot для UI-проверок/валидаторов.
-

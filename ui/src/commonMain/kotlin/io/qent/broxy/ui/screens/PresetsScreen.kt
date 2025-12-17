@@ -13,11 +13,13 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.adapter.models.UiPreset
 import io.qent.broxy.ui.adapter.store.AppStore
 import io.qent.broxy.ui.adapter.store.UIState
 import io.qent.broxy.ui.components.AppDialog
+import io.qent.broxy.ui.components.CapabilitiesInlineSummary
 import io.qent.broxy.ui.components.SettingsLikeItem
 import io.qent.broxy.ui.theme.AppTheme
 import io.qent.broxy.ui.viewmodels.AppState
@@ -111,21 +113,29 @@ private fun PresetCard(
         ?.takeIf { it.isNotBlank() }
         ?.trim()
 
-    val countsText = buildString {
-        append("tools ${preset.toolsCount}")
-        append(" • prompts ${preset.promptsCount}")
-        append(" • resources ${preset.resourcesCount}")
-    }
-
     SettingsLikeItem(
         title = preset.name,
-        description = descriptionLine ?: "No description",
-        supportingContent = {
-            Text(
-                countsText,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+        descriptionContent = {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = descriptionLine ?: "No description",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+                Text(" • ", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                CapabilitiesInlineSummary(
+                    toolsCount = preset.toolsCount,
+                    promptsCount = preset.promptsCount,
+                    resourcesCount = preset.resourcesCount,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         },
         onClick = onEdit
     ) {
