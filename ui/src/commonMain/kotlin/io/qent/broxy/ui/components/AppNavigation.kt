@@ -49,7 +49,7 @@ fun AppNavigationRail(
         modifier = modifier
             .width(AppTheme.layout.navigationRailWidth)
             .background(AppTheme.extendedColors.sidebarBackground)
-            .padding(vertical = AppTheme.spacing.lg),
+            .padding(vertical = AppTheme.spacing.md),
         horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Top
     ) {
