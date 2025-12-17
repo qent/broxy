@@ -380,17 +380,17 @@ Windows (MSI):
 
 macOS:
 ```bash
-/Applications/broxy.app/Contents/MacOS/broxy --stdio-proxy [--preset-id <preset>] [--config-dir ~/.config/broxy]
+/Applications/broxy.app/Contents/MacOS/broxy --stdio-proxy
 ```
 
 Windows:
 ```powershell
-"C:\\Program Files\\broxy\\broxy.exe" --stdio-proxy [--preset-id <preset>] [--config-dir "%APPDATA%\\broxy"]
+"C:\\Program Files\\broxy\\broxy.exe" --stdio-proxy
 ```
 
 Примечания:
-- `--preset-id` опционален. Если не указан, используется `defaultPresetId` из `mcp.json`.
-- `--config-dir` опционален. По умолчанию используется `~/.config/broxy` на macOS/Linux и `%USERPROFILE%\\.config\\broxy` на Windows.
+- Пресет берётся из `defaultPresetId` в `mcp.json` (задаётся через UI).
+- Конфиг читается из `~/.config/broxy` на macOS/Linux и `%USERPROFILE%\\.config\\broxy` на Windows.
 - Логи в этом режиме пишутся в stderr, а stdout используется только для MCP-протокола (не смешивается с логами).
 
 ### Быстрый запуск UI на macOS без сборки DMG

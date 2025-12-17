@@ -43,6 +43,7 @@ Inbound — это “как broxy принимает входящие MCP JSON-
 - В текущем MCP Kotlin SDK `server.connect(transport)` может **не блокировать** поток до закрытия сессии (соединение продолжает жить, пока процесс жив и transport не закрыт).
 - Поэтому процесс должен оставаться живым: либо “держать” основной поток (как делает CLI), либо явно ждать завершения STDIO сессии через `transport.onClose { ... }`.
   - См. `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/headless/HeadlessEntrypointJvm.kt` — headless STDIO режим ожидает закрытия transport, чтобы не завершать процесс сразу после запуска.
+  - В упакованном Desktop приложении этот режим запускается так: `broxy --stdio-proxy` (без дополнительных аргументов); пресет берётся из `defaultPresetId` в `mcp.json`, конфиг — из `~/.config/broxy` (macOS/Linux) или `%USERPROFILE%\\.config\\broxy` (Windows).
 
 См. также:
 - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/runtime/ProxyController.kt` → `createStdioProxyController(...)` (специализированный factory).

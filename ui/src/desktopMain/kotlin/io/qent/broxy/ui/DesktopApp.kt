@@ -27,12 +27,8 @@ import java.awt.Color as AwtColor
 fun main(args: Array<String>) {
     // Headless STDIO mode: allow MCP clients to spawn the app as an MCP server.
     // The preset is resolved from mcp.json (`defaultPresetId`) and is managed via the UI.
-    val forceStdio = args.contains("--stdio-proxy")
-    val autoStdio = !forceStdio && args.isEmpty() && probeStdinHasData(timeoutMillis = 200)
-    if (forceStdio || autoStdio) {
-        val presetId = args.indexOf("--preset-id").takeIf { it >= 0 }?.let { idx -> args.getOrNull(idx + 1) }
-        val configDir = args.indexOf("--config-dir").takeIf { it >= 0 }?.let { idx -> args.getOrNull(idx + 1) }
-        val r = runStdioProxy(presetIdOverride = presetId, configDir = configDir)
+    if (shouldRunHeadlessStdioProxy(args) { probeStdinHasData(timeoutMillis = 200) }) {
+        val r = runStdioProxy()
         if (r.isFailure) {
             logStdioInfo("[ERROR] Failed to start stdio proxy: ${r.exceptionOrNull()?.message}")
             kotlin.system.exitProcess(1)
@@ -153,6 +149,12 @@ fun main(args: Array<String>) {
             }
         }
     }
+}
+
+internal fun shouldRunHeadlessStdioProxy(args: Array<String>, stdinHasData: () -> Boolean): Boolean {
+    val forceStdio = args.contains("--stdio-proxy")
+    val autoStdio = !forceStdio && args.isEmpty() && stdinHasData()
+    return forceStdio || autoStdio
 }
 
 private fun probeStdinHasData(timeoutMillis: Long): Boolean {
