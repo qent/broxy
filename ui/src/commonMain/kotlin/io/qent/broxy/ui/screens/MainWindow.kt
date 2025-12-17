@@ -99,6 +99,7 @@ fun MainWindow(
                 AppNavigationRail(
                     selected = screen,
                     onSelect = { state.currentScreen.value = it },
+                    proxyStatus = (ui as? UIState.Ready)?.proxyStatus,
                     themeStyle = state.themeStyle.value,
                     onToggleTheme = {
                         state.themeStyle.value = when (state.themeStyle.value) {

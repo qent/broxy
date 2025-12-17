@@ -7,18 +7,15 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import io.qent.broxy.ui.adapter.models.UiProxyStatus
 import io.qent.broxy.ui.adapter.store.UIState
 import io.qent.broxy.ui.theme.AppTheme
 
@@ -32,20 +29,6 @@ fun GlobalHeader(
     colors: TopAppBarColors = TopAppBarDefaults.centerAlignedTopAppBarColors(),
     modifier: Modifier = Modifier
 ) {
-    val status = (ui as? UIState.Ready)?.proxyStatus
-    val (dotColor, statusText) = when (status) {
-        UiProxyStatus.Running -> AppTheme.extendedColors.success to "Running"
-        UiProxyStatus.Starting -> MaterialTheme.colorScheme.secondary to "Starting"
-        UiProxyStatus.Stopping -> MaterialTheme.colorScheme.secondary to "Stopping"
-        UiProxyStatus.Stopped, null -> MaterialTheme.colorScheme.outline to "Stopped"
-        is UiProxyStatus.Error -> {
-            val message = status.message.ifBlank { "Error" }
-            val portBusy = message.contains("already in use", ignoreCase = true) ||
-                message.contains("Address already in use", ignoreCase = true)
-            MaterialTheme.colorScheme.error to (if (portBusy) "Порт занят" else message)
-        }
-    }
-
     CenterAlignedTopAppBar(
         modifier = modifier,
         expandedHeight = GLOBAL_HEADER_HEIGHT,
@@ -53,46 +36,8 @@ fun GlobalHeader(
         title = {
             PresetDropdown(ui = ui, notify = notify, width = PRESET_SELECTOR_WIDTH)
         },
-        actions = {
-            Box(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .padding(top = AppTheme.spacing.md, end = AppTheme.spacing.sm)
-            ) {
-                ProxyStatusIndicator(
-                    dotColor = dotColor,
-                    statusText = statusText,
-                    modifier = Modifier.align(Alignment.TopEnd)
-                )
-            }
-        }
+        actions = {}
     )
-}
-
-@Composable
-private fun ProxyStatusIndicator(
-    dotColor: androidx.compose.ui.graphics.Color,
-    statusText: String,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(10.dp)
-                .clip(CircleShape)
-                .background(dotColor)
-        )
-        Spacer(Modifier.width(AppTheme.spacing.sm))
-        Text(
-            statusText,
-            style = MaterialTheme.typography.labelMedium,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-    }
 }
 
 @Composable

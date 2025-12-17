@@ -9,11 +9,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.qent.broxy.ui.adapter.models.UiProxyStatus
 import io.qent.broxy.ui.theme.AppTheme
 import io.qent.broxy.ui.theme.ThemeStyle
 import io.qent.broxy.ui.viewmodels.Screen
@@ -35,6 +37,7 @@ private val navItems = listOf(
 fun AppNavigationRail(
     selected: Screen,
     onSelect: (Screen) -> Unit,
+    proxyStatus: UiProxyStatus?,
     themeStyle: ThemeStyle,
     onToggleTheme: () -> Unit,
     modifier: Modifier = Modifier
@@ -135,6 +138,17 @@ fun AppNavigationRail(
                 maxLines = 1,
                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
             )
+        }
+
+        Spacer(modifier = Modifier.height(AppTheme.spacing.lg))
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = AppTheme.spacing.sm),
+            contentAlignment = Alignment.Center
+        ) {
+            ProxyStatusIndicator(status = proxyStatus)
         }
     }
 }
