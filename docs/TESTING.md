@@ -6,7 +6,7 @@ What to test first (critical path):
 - Core MCP flows: server connection, capabilities, tool routing.
 - Proxy filtering and routing: filtering by preset, allowed set enforcement, prompt/resource routing.
 - Client adapters (HTTP/SSE, WebSocket, STDIO): capability mapping, tool/prompt/resource calls.
-- Inbound HTTP SSE: SSE handler lifecycle (session must stay open).
+- Inbound HTTP Streamable: request/response over POST (JSON-only mode).
 - Caching and backoff: TTL behavior, backoff boundaries (no sleeps).
 
 Style and patterns:

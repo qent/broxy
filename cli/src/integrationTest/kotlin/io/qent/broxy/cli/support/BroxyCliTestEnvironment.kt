@@ -20,7 +20,7 @@ internal object BroxyCliTestEnvironment {
         return try {
             when (inboundScenario) {
                 InboundScenario.STDIO -> createStdioHandle(configDir, server)
-                InboundScenario.HTTP_SSE -> createHttpSseHandle(configDir, server)
+                InboundScenario.HTTP_STREAMABLE -> createHttpStreamableHandle(configDir, server)
             }
         } catch (error: Throwable) {
             configDir.toFile().deleteRecursively()
@@ -57,7 +57,7 @@ internal object BroxyCliTestEnvironment {
         }
     }
 
-    private suspend fun createHttpSseHandle(configDir: Path, server: TestServerInstance): ScenarioHandle {
+    private suspend fun createHttpStreamableHandle(configDir: Path, server: TestServerInstance): ScenarioHandle {
         var lastError: Throwable? = null
         repeat(BroxyCliIntegrationConfig.HTTP_INBOUND_ATTEMPTS) loop@{ attempt ->
             val port = nextFreePort()
@@ -67,11 +67,11 @@ internal object BroxyCliTestEnvironment {
                 listOf("--inbound", "http", "--url", url)
             )
             BroxyCliIntegrationConfig.log(
-                "Launching broxy CLI (HTTP SSE) listening at $url (attempt ${attempt + 1})"
+                "Launching broxy CLI (HTTP Streamable) listening at $url (attempt ${attempt + 1})"
             )
             val cliProcess = BroxyCliProcesses.startCliProcess(command)
             val client = KtorMcpClient(
-                mode = KtorMcpClient.Mode.Sse,
+                mode = KtorMcpClient.Mode.StreamableHttp,
                 url = url,
                 logger = BroxyCliIntegrationConfig.TEST_LOGGER
             )
@@ -79,7 +79,7 @@ internal object BroxyCliTestEnvironment {
             try {
                 connectWithRetries(client, serverLogs = { cliProcess.logs() }, serverProcess = cliProcess)
                 return ScenarioHandle(
-                    inboundScenario = InboundScenario.HTTP_SSE,
+                    inboundScenario = InboundScenario.HTTP_STREAMABLE,
                     client = client,
                     configDir = configDir,
                     cliProcess = cliProcess,
@@ -102,7 +102,7 @@ internal object BroxyCliTestEnvironment {
                 throw error
             }
         }
-        throw lastError ?: IllegalStateException("Failed to launch HTTP SSE scenario after retries")
+        throw lastError ?: IllegalStateException("Failed to launch HTTP Streamable scenario after retries")
     }
 
     private suspend fun startTestServer(): TestServerInstance {
@@ -112,7 +112,7 @@ internal object BroxyCliTestEnvironment {
         val command = buildList {
             add(BroxyCliIntegrationFiles.resolveTestServerCommand())
             add("--mode")
-            add("http-sse")
+            add("streamable-http")
             add("--host")
             add(BroxyCliIntegrationConfig.TEST_SERVER_HTTP_HOST)
             add("--port")
@@ -120,7 +120,7 @@ internal object BroxyCliTestEnvironment {
             add("--path")
             add(BroxyCliIntegrationConfig.TEST_SERVER_HTTP_PATH)
         }
-        BroxyCliIntegrationConfig.log("Launching test MCP server (HTTP SSE) at $url")
+        BroxyCliIntegrationConfig.log("Launching test MCP server (HTTP Streamable) at $url")
         val process = BroxyCliProcesses.startTestServerProcess(command)
         return try {
             waitForHttpServer(BroxyCliIntegrationConfig.TEST_SERVER_HTTP_HOST, port)

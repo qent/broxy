@@ -32,7 +32,7 @@ class ProxyCommand : CliktCommand(name = "proxy", help = "Run broxy server") {
 
     private val inbound: String by option("--inbound", help = "Inbound transport: stdio|http (aliases: local|remote|sse)").default("stdio")
 
-    private val url: String? by option("--url", help = "Listen URL for HTTP SSE inbound (e.g. http://0.0.0.0:3335/mcp)")
+    private val url: String? by option("--url", help = "Listen URL for HTTP Streamable inbound (e.g. http://localhost:3335/mcp)")
 
     private val logLevel: String by option("--log-level", help = "Log level: debug|info|warn|error").default("info")
 
@@ -57,7 +57,7 @@ class ProxyCommand : CliktCommand(name = "proxy", help = "Run broxy server") {
         val inboundKey = inbound.lowercase()
         val inboundTransport = when (inboundKey) {
             "stdio", "local" -> TransportConfig.StdioTransport(command = "", args = emptyList())
-            "http", "remote", "sse" -> TransportConfig.HttpTransport(url = url ?: "http://0.0.0.0:3335/mcp")
+            "http", "remote", "sse" -> TransportConfig.StreamableHttpTransport(url = url ?: "http://localhost:3335/mcp")
             else -> error("Unsupported inbound: $inbound")
         }
 

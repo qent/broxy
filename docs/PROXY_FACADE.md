@@ -4,7 +4,7 @@
 
 Под “фасадом” здесь понимается связка:
 
-1) **Inbound транспорт** (STDIO или HTTP SSE), который принимает MCP JSON-RPC сообщения от клиента (LLM/IDE/агента) и отдаёт ответы.
+1) **Inbound транспорт** (STDIO или HTTP Streamable), который принимает MCP JSON-RPC сообщения от клиента (LLM/IDE/агента) и отдаёт ответы.
 
 2) **MCP SDK Server**, построенный функцией:
 - `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/SdkServerFactory.kt` → `buildSdkServer(proxy: ProxyMcpServer, ...)`
@@ -51,15 +51,15 @@
 
 Файл: `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/InboundServers.kt`
 
-### HTTP SSE inbound
+### HTTP Streamable inbound
 
-`KtorInboundServer` поднимает embedded Ktor (Netty):
+`KtorStreamableHttpInboundServer` поднимает embedded Ktor (Netty):
 
-- `GET .../mcp` (SSE) держит соединение и создаёт `SseServerTransport`;
-- `POST .../mcp?sessionId=...` отправляет сообщения в соответствующую SSE-сессию.
+- `POST .../mcp` принимает MCP JSON-RPC сообщения (Streamable HTTP, JSON-only режим) и возвращает `application/json` для запросов (`JSONRPCResponse`).
+- `mcp-session-id` передаётся заголовком (не query параметром) и используется для мультисессионности.
 
 Реализация мультисессий:
-- `InboundSseRegistry` хранит `sessionId -> ServerSession` (а `SseServerTransport` берётся из `session.transport`).
+- `InboundStreamableHttpRegistry` хранит `sessionId -> ServerSession`.
 
 Файл: `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/InboundServers.kt`
 
@@ -80,7 +80,7 @@
 При `ProxyController.applyPreset(...)` broxy:
 
 1) пересчитывает `filteredCaps/allowedTools/...` в `ProxyMcpServer`;
-2) пересинхронизирует уже запущенный MCP SDK `Server` (inbound STDIO/SSE) через `syncSdkServer(...)`.
+2) пересинхронизирует уже запущенный MCP SDK `Server` (inbound STDIO/HTTP) через `syncSdkServer(...)`.
 
 Это означает, что при смене пресета **не требуется перезапуск inbound сервера**, а ответы `tools/list`/`prompts/list`/`resources/list` обновятся в рамках той же запущенной сессии.
 
@@ -92,7 +92,7 @@
 2) пересчитывает `filteredCaps` для текущего пресета;
 3) пересинхронизирует уже запущенный MCP SDK `Server` через `syncSdkServer(...)`.
 
-Фасад (inbound STDIO/SSE) при этом **не перезапускается**, но опубликованные capabilities меняются.
+Фасад (inbound STDIO/HTTP) при этом **не перезапускается**, но опубликованные capabilities меняются.
 
 ## Слой 3: ProxyMcpServer → RequestDispatcher → downstream
 

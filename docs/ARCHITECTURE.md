@@ -65,7 +65,7 @@ CLI поднимает прокси и watcher для хот-релоада:
 2. Собирается runtime:
    - downstream соединения: `DefaultMcpServerConnection` (по одному на сервер).
    - прокси-ядро: `ProxyMcpServer`.
-   - inbound server: STDIO или HTTP SSE (`InboundServerFactory`).
+   - inbound server: STDIO или HTTP Streamable (`InboundServerFactory`).
 3. На старте `ProxyMcpServer.start(...)` вычисляет отфильтрованные capabilities (см. `refreshFilteredCapabilities()`).
 4. Inbound-адаптер строит MCP SDK `Server` через `buildSdkServer(proxy)` и публикует наружу `tools/list`, `prompts/list`, `resources/list` и обработчики `callTool/getPrompt/readResource`.
 

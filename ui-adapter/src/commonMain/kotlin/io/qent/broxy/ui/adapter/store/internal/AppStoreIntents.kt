@@ -46,7 +46,7 @@ internal class AppStoreIntents(
                 capabilityRefresher.syncWithServers(state.snapshot.servers)
             }
             publishReady()
-            proxyRuntime.ensureSseRunning(forceRestart = true)
+            proxyRuntime.ensureInboundRunning(forceRestart = true)
             refreshEnabledCaps(true)
             restartRefreshJob()
         }
@@ -75,7 +75,7 @@ internal class AppStoreIntents(
                 val saved = result.getOrNull()
                 capabilityRefresher.syncWithServers(saved?.servers ?: updated)
                 triggerServerRefresh(setOf(ui.id), force = true)
-                proxyRuntime.ensureSseRunning(forceRestart = true)
+                proxyRuntime.ensureInboundRunning(forceRestart = true)
             }
             publishReady()
         }
@@ -96,7 +96,7 @@ internal class AppStoreIntents(
                 revertServersOnFailure("addServerBasic", previousServers, result.exceptionOrNull(), "Failed to save servers")
             } else {
                 capabilityRefresher.syncWithServers(result.getOrNull()?.servers ?: updated)
-                proxyRuntime.ensureSseRunning(forceRestart = true)
+                proxyRuntime.ensureInboundRunning(forceRestart = true)
             }
             publishReady()
         }
@@ -123,7 +123,7 @@ internal class AppStoreIntents(
             } else {
                 capabilityRefresher.syncWithServers(result.getOrNull()?.servers ?: updated)
                 triggerServerRefresh(setOf(draft.id), force = true)
-                proxyRuntime.ensureSseRunning(forceRestart = true)
+                proxyRuntime.ensureInboundRunning(forceRestart = true)
             }
             publishReady()
         }
@@ -141,7 +141,7 @@ internal class AppStoreIntents(
             } else {
                 capabilityRefresher.syncWithServers(result.getOrNull()?.servers ?: updated)
                 capabilityRefresher.markServerRemoved(id)
-                proxyRuntime.ensureSseRunning(forceRestart = true)
+                proxyRuntime.ensureInboundRunning(forceRestart = true)
             }
             publishReady()
         }
@@ -258,7 +258,7 @@ internal class AppStoreIntents(
             val shouldRestart = saveResult.isSuccess &&
                 (previousSnapshot.selectedPresetId == preset.id || (isRename && previousSnapshot.selectedPresetId == originalId))
             publishReady()
-            if (shouldRestart) proxyRuntime.ensureSseRunning(forceReloadPreset = true)
+            if (shouldRestart) proxyRuntime.ensureInboundRunning(forceReloadPreset = true)
         }
     }
 
@@ -279,7 +279,7 @@ internal class AppStoreIntents(
                     logger.info("[AppStore] removePreset failed to clear default preset: $msg")
                 }
             }
-            proxyRuntime.ensureSseRunning(forceReloadPreset = true)
+            proxyRuntime.ensureInboundRunning(forceReloadPreset = true)
         }
     }
 
@@ -299,7 +299,7 @@ internal class AppStoreIntents(
                 publishReady()
                 return@launch
             }
-            proxyRuntime.ensureSseRunning(forceReloadPreset = true)
+            proxyRuntime.ensureInboundRunning(forceReloadPreset = true)
         }
     }
 
@@ -320,7 +320,7 @@ internal class AppStoreIntents(
                 publishReady()
                 return@launch
             }
-            proxyRuntime.ensureSseRunning(forceRestart = true)
+            proxyRuntime.ensureInboundRunning(forceRestart = true)
         }
     }
 

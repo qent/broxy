@@ -1,25 +1,35 @@
 package io.qent.broxy.ui.screens
 
 import AppPrimaryButton
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -30,6 +40,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.adapter.store.UIState
@@ -48,8 +60,7 @@ fun SettingsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(AppTheme.spacing.md),
-        verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.lg)
+            .padding(AppTheme.spacing.md)
     ) {
         when (ui) {
             UIState.Loading -> Text("Loading...", style = MaterialTheme.typography.bodyMedium)
@@ -160,7 +171,7 @@ private fun SettingsContent(
 
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.lg)
+        verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)
     ) {
         ThemeStyleSetting(
             themeStyle = themeStyle,
@@ -183,8 +194,7 @@ private fun SettingsContent(
         )
         TimeoutSetting(
             title = "SSE port",
-            description = "Port for the local SSE MCP endpoint. Changing it restarts the local server.",
-            label = "Port",
+            description = "Port for the local SSE MCP endpoint. Restart required.",
             value = inboundSsePortInput,
             onValueChange = { value ->
                 if (value.isEmpty() || value.all { it.isDigit() }) {
@@ -194,8 +204,7 @@ private fun SettingsContent(
         )
         TimeoutSetting(
             title = "Request timeout",
-            description = "Set how long broxy waits for downstream MCP calls before timing out.",
-            label = "Seconds",
+            description = "Max time to wait for downstream calls (seconds).",
             value = requestTimeoutInput,
             onValueChange = { value ->
                 if (value.isEmpty() || value.all { it.isDigit() }) {
@@ -205,8 +214,7 @@ private fun SettingsContent(
         )
         TimeoutSetting(
             title = "Capabilities timeout",
-            description = "Limit how long broxy waits for tool/resource/prompt listings when connecting to servers.",
-            label = "Seconds",
+            description = "Max time to wait for server listings (seconds).",
             value = capabilitiesTimeoutInput,
             onValueChange = { value ->
                 if (value.isEmpty() || value.all { it.isDigit() }) {
@@ -215,9 +223,8 @@ private fun SettingsContent(
             }
         )
         TimeoutSetting(
-            title = "Capabilities refresh interval",
-            description = "Control how often cached MCP server capabilities are refreshed in the background.",
-            label = "Seconds",
+            title = "Capabilities refresh",
+            description = "Background refresh interval (seconds).",
             value = capabilitiesRefreshInput,
             onValueChange = { value ->
                 if (value.isEmpty() || value.all { it.isDigit() }) {
@@ -257,11 +264,22 @@ private fun TrayIconSetting(
     checked: Boolean,
     onToggle: (Boolean) -> Unit
 ) {
-    SettingCard(
+    SettingItem(
         title = "Show tray icon",
-        description = "Display the broxy icon in the system tray (macOS menu bar)."
+        description = "Display the broxy icon in the system tray."
     ) {
-        Switch(checked = checked, onCheckedChange = onToggle)
+        Switch(
+            checked = checked,
+            onCheckedChange = onToggle,
+            modifier = Modifier.scale(0.7f),
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                checkedTrackColor = MaterialTheme.colorScheme.primary,
+                uncheckedThumbColor = MaterialTheme.colorScheme.outline,
+                uncheckedTrackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                uncheckedBorderColor = MaterialTheme.colorScheme.outline
+            )
+        )
     }
 }
 
@@ -269,20 +287,17 @@ private fun TrayIconSetting(
 private fun TimeoutSetting(
     title: String,
     description: String,
-    label: String,
     value: String,
     onValueChange: (String) -> Unit
 ) {
-    SettingCard(
+    SettingItem(
         title = title,
         description = description
     ) {
-        OutlinedTextField(
+        CompactTextField(
             value = value,
             onValueChange = onValueChange,
-            modifier = Modifier.widthIn(min = SettingControlWidth, max = SettingControlWidth),
-            singleLine = true,
-            label = { Text(label) }
+            modifier = Modifier.widthIn(min = SettingControlWidth, max = SettingControlWidth)
         )
     }
 }
@@ -292,11 +307,11 @@ private fun ThemeStyleSetting(
     themeStyle: ThemeStyle,
     onThemeStyleChange: (ThemeStyle) -> Unit
 ) {
-    SettingCard(
+    SettingItem(
         title = "Appearance",
-        description = "Choose whether broxy follows the system theme or forces light or dark mode."
+        description = "Choose app theme preference."
     ) {
-        ThemeStyleDropdown(
+        CompactDropdown(
             modifier = Modifier.widthIn(min = SettingControlWidth, max = SettingControlWidth),
             selected = themeStyle,
             onSelected = onThemeStyleChange
@@ -305,7 +320,7 @@ private fun ThemeStyleSetting(
 }
 
 @Composable
-private fun SettingCard(
+private fun SettingItem(
     title: String,
     description: String,
     supportingContent: (@Composable ColumnScope.() -> Unit)? = null,
@@ -314,21 +329,20 @@ private fun SettingCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         shape = AppTheme.shapes.card
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(AppTheme.spacing.lg),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.lg)
+                .padding(horizontal = AppTheme.spacing.lg, vertical = AppTheme.spacing.md),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.xs)
+                verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                Text(title, style = MaterialTheme.typography.titleMedium)
+                Text(title, style = MaterialTheme.typography.titleSmall)
                 Text(
                     description,
                     style = MaterialTheme.typography.bodySmall,
@@ -345,9 +359,8 @@ private fun SettingCard(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ThemeStyleDropdown(
+private fun CompactDropdown(
     modifier: Modifier = Modifier,
     selected: ThemeStyle,
     onSelected: (ThemeStyle) -> Unit
@@ -361,21 +374,42 @@ private fun ThemeStyleDropdown(
         ThemeStyle.Light -> "Light"
     }
 
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = !expanded }
-    ) {
-        OutlinedTextField(
-            value = label,
-            onValueChange = {},
-            readOnly = true,
-            singleLine = true,
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = modifier.menuAnchor()
-        )
+    Box(modifier = modifier) {
+        CompactInputSurface(
+            modifier = Modifier.fillMaxWidth().clickable { expanded = !expanded }
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = AppTheme.spacing.md),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.xs)
+            ) {
+                Text(
+                    text = label,
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1
+                )
+                Icon(
+                    imageVector = Icons.Outlined.ExpandMore,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
+
         DropdownMenu(
             expanded = expanded,
-            onDismissRequest = { expanded = false }
+            onDismissRequest = { expanded = false },
+            modifier = Modifier
+                .widthIn(min = SettingControlWidth)
+                .background(color = AppTheme.colors.surface, shape = AppTheme.shapes.input)
+                .border(AppTheme.strokeWidths.thin, AppTheme.colors.outline, AppTheme.shapes.input),
+            shape = AppTheme.shapes.input,
+            containerColor = AppTheme.colors.surface,
+            tonalElevation = 0.dp,
+            shadowElevation = AppTheme.elevation.level2
         ) {
             options.forEach { option ->
                 val optionLabel = when (option) {
@@ -384,7 +418,17 @@ private fun ThemeStyleDropdown(
                     ThemeStyle.Light -> "Light"
                 }
                 DropdownMenuItem(
-                    text = { Text(optionLabel) },
+                    text = {
+                        Text(
+                            optionLabel,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = AppTheme.colors.onSurface
+                        )
+                    },
+                    contentPadding = PaddingValues(
+                        horizontal = AppTheme.spacing.md,
+                        vertical = AppTheme.spacing.xs
+                    ),
                     onClick = {
                         expanded = false
                         if (option != selected) {
@@ -397,7 +441,60 @@ private fun ThemeStyleDropdown(
     }
 }
 
-private val SettingControlWidth: Dp = 180.dp
+@Composable
+private fun CompactTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    label: String? = null
+) {
+    BasicTextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = modifier.height(32.dp),
+        textStyle = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurface),
+        singleLine = true,
+        decorationBox = { innerTextField ->
+            CompactInputSurface {
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = AppTheme.spacing.md),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(modifier = Modifier.weight(1f)) {
+                        if (value.isEmpty() && label != null) {
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        innerTextField()
+                    }
+                }
+            }
+        },
+        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary)
+    )
+}
+
+@Composable
+private fun CompactInputSurface(
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    Surface(
+        modifier = modifier.height(32.dp),
+        shape = AppTheme.shapes.input,
+        color = MaterialTheme.colorScheme.surface,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        border = BorderStroke(AppTheme.strokeWidths.thin, MaterialTheme.colorScheme.outline),
+        content = content
+    )
+}
+
+private val SettingControlWidth: Dp = 140.dp
 
 @Composable
 private fun RemoteConnectorSetting(
@@ -424,56 +521,51 @@ private fun RemoteConnectorSetting(
     val isBusy = remote.status in setOf(UiRemoteStatus.Authorizing, UiRemoteStatus.Registering)
     val isConnected = remote.status == UiRemoteStatus.WsOnline || remote.status == UiRemoteStatus.WsConnecting
 
-    SettingCard(
+    SettingItem(
         title = "Remote MCP proxy",
-        description = "Authorize broxy to connect to the remote MCP proxy backend over WebSocket.",
+        description = "Proxy connection status.",
         supportingContent = {
             Text(
-                "Server identifier is shared with the backend. Change it to avoid collisions.",
+                if (statusDetail.isNotBlank()) "$statusLabel — $statusDetail" else statusLabel,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = if (isConnected) AppTheme.extendedColors.success else MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)) {
-            OutlinedTextField(
-                value = serverId,
-                onValueChange = onServerIdChange,
-                label = { Text("Server identifier") },
-                singleLine = true,
-                modifier = Modifier.widthIn(min = 220.dp, max = 260.dp)
-            )
-            Text(
-                text = "$statusLabel${if (statusDetail.isNotBlank()) " — $statusDetail" else ""}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm, Alignment.End),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            if (isAuthorized) {
-                AppPrimaryButton(
-                    onClick = if (isConnected) onDisconnect else onConnect,
-                    enabled = !isBusy
-                ) {
-                    Text(if (isConnected) "Disconnect" else "Connect")
-                }
-                AppPrimaryButton(
-                    onClick = onLogout,
-                    enabled = !isBusy
-                ) {
-                    Text("Logout")
-                }
-            } else {
-                AppPrimaryButton(
-                    onClick = onAuthorize,
-                    enabled = !isBusy
-                ) {
-                    Text("Authorize")
-                }
-            }
-        }
+         if (isAuthorized) {
+             Row(
+                 horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.xs),
+                 verticalAlignment = Alignment.CenterVertically
+             ) {
+                 CompactTextField(
+                     value = serverId,
+                     onValueChange = onServerIdChange,
+                     modifier = Modifier.widthIn(min = 120.dp, max = 120.dp),
+                     label = "Server ID"
+                 )
+                 AppPrimaryButton(
+                     onClick = if (isConnected) onDisconnect else onConnect,
+                     enabled = !isBusy,
+                     modifier = Modifier.height(32.dp)
+                 ) {
+                     Text(if (isConnected) "Disconnect" else "Connect", style = MaterialTheme.typography.labelSmall)
+                 }
+                 AppPrimaryButton(
+                     onClick = onLogout,
+                     enabled = !isBusy,
+                     modifier = Modifier.height(32.dp)
+                 ) {
+                     Text("Logout", style = MaterialTheme.typography.labelSmall)
+                 }
+             }
+         } else {
+             AppPrimaryButton(
+                 onClick = onAuthorize,
+                 enabled = !isBusy,
+                 modifier = Modifier.height(32.dp)
+             ) {
+                 Text("Authorize", style = MaterialTheme.typography.labelSmall)
+             }
+         }
     }
 }

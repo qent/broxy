@@ -3,7 +3,7 @@ package io.qent.broxy.cli
 import io.qent.broxy.cli.support.InboundScenario
 import kotlin.test.Test
 
-internal class BroxyCliHttpSseIntegrationTest : BaseBroxyCliIntegrationTest(InboundScenario.HTTP_SSE) {
+internal class BroxyCliHttpStreamableIntegrationTest : BaseBroxyCliIntegrationTest(InboundScenario.HTTP_STREAMABLE) {
     @Test
     fun toolsCapabilitiesMatchPreset() = runScenarioTest("tool capabilities") { client ->
         val caps = clientInteractions.awaitFilteredCapabilities(client)

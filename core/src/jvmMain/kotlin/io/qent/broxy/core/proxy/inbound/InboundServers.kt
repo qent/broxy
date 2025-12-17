@@ -1,5 +1,6 @@
 package io.qent.broxy.core.proxy.inbound
 
+import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.application.install
@@ -7,14 +8,16 @@ import io.ktor.server.engine.EmbeddedServer
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import io.ktor.server.plugins.calllogging.CallLogging
+import io.ktor.server.request.contentType
+import io.ktor.server.request.receiveText
 import io.ktor.server.response.respond
+import io.ktor.server.response.respondText
 import io.ktor.server.routing.Route
+import io.ktor.server.routing.delete
+import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
-import io.ktor.server.sse.SSE
-import io.ktor.server.sse.ServerSSESession
-import io.ktor.server.sse.sse
 import io.modelcontextprotocol.kotlin.sdk.server.Server
 import io.modelcontextprotocol.kotlin.sdk.server.ServerSession
 import kotlinx.io.asSink
@@ -25,15 +28,25 @@ import io.qent.broxy.core.models.TransportConfig
 import io.qent.broxy.core.proxy.ProxyMcpServer
 import io.qent.broxy.core.utils.ConsoleLogger
 import io.qent.broxy.core.utils.Logger
-import io.modelcontextprotocol.kotlin.sdk.server.SseServerTransport
-import kotlinx.coroutines.Job
+import io.modelcontextprotocol.kotlin.sdk.shared.AbstractTransport
+import io.modelcontextprotocol.kotlin.sdk.shared.TransportSendOptions
+import io.modelcontextprotocol.kotlin.sdk.types.JSONRPCMessage
+import io.modelcontextprotocol.kotlin.sdk.types.JSONRPCRequest
+import io.modelcontextprotocol.kotlin.sdk.types.JSONRPCResponse
+import io.modelcontextprotocol.kotlin.sdk.types.McpJson
+import io.modelcontextprotocol.kotlin.sdk.types.RequestId
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.withTimeout
 import java.net.BindException
 import java.net.URI
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.concurrent.atomics.AtomicBoolean
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
 
 /**
  * Abstraction for platform-specific inbound transport servers that expose
- * the proxy over STDIO / HTTP(SSE). These classes adapt the
+ * the proxy over STDIO / HTTP(Streamable). These classes adapt the
  * wire protocol to the [ProxyMcpServer]'s filtering and routing.
  */
 interface InboundServer {
@@ -49,7 +62,14 @@ object InboundServerFactory {
         logger: Logger = ConsoleLogger
     ): InboundServer = when (transport) {
         is TransportConfig.StdioTransport -> StdioInboundServer(proxy, logger)
-        is TransportConfig.HttpTransport -> KtorInboundServer(
+        is TransportConfig.StreamableHttpTransport -> KtorStreamableHttpInboundServer(
+            url = transport.url,
+            proxy = proxy,
+            logger = logger
+        )
+        // Backward compatibility: historically inbound used HttpTransport (SSE).
+        // We now treat it as Streamable HTTP so older callers keep working.
+        is TransportConfig.HttpTransport -> KtorStreamableHttpInboundServer(
             url = transport.url,
             proxy = proxy,
             logger = logger
@@ -100,7 +120,7 @@ private class StdioInboundServer(
     }
 }
 
-private class KtorInboundServer(
+private class KtorStreamableHttpInboundServer(
     private val url: String,
     private val proxy: ProxyMcpServer,
     private val logger: Logger
@@ -114,25 +134,20 @@ private class KtorInboundServer(
         val scheme = runCatching { URI(url).scheme }.getOrNull()?.takeIf { it.isNotBlank() } ?: "http"
         val normalizedPath = normalizePath(rawPath)
         val displayPath = if (normalizedPath.display.isBlank()) "/" else normalizedPath.display
-        logger.info("Starting HTTP SSE inbound at $scheme://$host:$port$displayPath")
+        logger.info("Starting HTTP Streamable inbound at $scheme://$host:$port$displayPath")
         logger.debug("HTTP inbound route segments='${normalizedPath.routeSegments.ifBlank { "/" }}'")
         return try {
             val sdkServer = buildSdkServer(proxy, logger)
             server = sdkServer
+            val sessions = InboundStreamableHttpRegistry(logger)
             engine = embeddedServer(Netty, host = host, port = port, module = {
                 install(CallLogging)
-                install(SSE)
                 routing {
-                    val registry = InboundSseRegistry(logger)
                     if (normalizedPath.routeSegments.isBlank()) {
-                        mountMcpRoute(endpointPath = normalizedPath.display, server = sdkServer, registry = registry)
+                        mountStreamableHttpRoute(server = sdkServer, sessions = sessions)
                     } else {
                         route("/${normalizedPath.routeSegments}") {
-                            mountMcpRoute(
-                                endpointPath = normalizedPath.display,
-                                server = sdkServer,
-                                registry = registry
-                            )
+                            mountStreamableHttpRoute(server = sdkServer, sessions = sessions)
                         }
                     }
                 }
@@ -145,7 +160,7 @@ private class KtorInboundServer(
             val message = if (bind != null) {
                 "Port $port is already in use"
             } else {
-                t.message ?: "Failed to start HTTP SSE inbound server"
+                t.message ?: "Failed to start HTTP Streamable inbound server"
             }
             logger.error(message, t)
             ServerStatus.Error(message)
@@ -163,7 +178,7 @@ private class KtorInboundServer(
     }
 
     override fun refreshCapabilities(): Result<Unit> {
-        val sdkServer = server ?: return Result.failure(IllegalStateException("HTTP SSE inbound server is not running"))
+        val sdkServer = server ?: return Result.failure(IllegalStateException("HTTP inbound server is not running"))
         return runCatching { syncSdkServer(sdkServer, proxy, logger) }
     }
 }
@@ -198,61 +213,157 @@ private data class NormalizedPath(
     val routeSegments: String
 )
 
-private class InboundSseRegistry(
+private const val MCP_SESSION_ID_HEADER = "mcp-session-id"
+private const val DEFAULT_REQUEST_TIMEOUT_MILLIS = 60_000L
+
+private fun isApplicationJson(contentType: ContentType): Boolean =
+    contentType.contentType == ContentType.Application.Json.contentType &&
+        contentType.contentSubtype == ContentType.Application.Json.contentSubtype
+
+private class InboundStreamableHttpRegistry(
     private val logger: Logger
 ) {
-    private val sessions = ConcurrentHashMap<String, ServerSession>()
+    private val sessions = ConcurrentHashMap<String, StreamableHttpSession>()
 
-    fun add(transport: SseServerTransport, session: ServerSession) {
-        sessions[transport.sessionId] = session
-        logger.debug("Registered SSE session ${transport.sessionId}")
-    }
+    suspend fun getOrCreate(server: Server, requestedSessionId: String?): StreamableHttpSession {
+        if (!requestedSessionId.isNullOrBlank()) {
+            sessions[requestedSessionId]?.let { return it }
+        }
 
-    fun remove(sessionId: String?) {
-        if (sessionId.isNullOrBlank()) return
-        sessions.remove(sessionId)
-        logger.debug("Removed SSE session $sessionId")
-    }
-
-    fun transport(sessionId: String?): SseServerTransport? {
-        if (sessionId.isNullOrBlank()) return null
-        return (sessions[sessionId]?.transport as? SseServerTransport)
-    }
-}
-
-private fun Route.mountMcpRoute(
-    endpointPath: String,
-    server: Server,
-    registry: InboundSseRegistry
-) {
-    sse {
-        val transport = SseServerTransport(endpointPath, this)
+        val transport = StreamableHttpServerTransport(logger = logger)
         val session = server.createSession(transport)
-        registry.add(transport, session)
-
-        val done = Job()
-        session.onClose { done.complete() }
-
-        // Keep Ktor SSE handler alive until the MCP session closes.
-        try {
-            done.join()
-        } finally {
-            registry.remove(transport.sessionId)
-        }
+        val entry = StreamableHttpSession(transport, session)
+        sessions[transport.sessionId] = entry
+        logger.debug("Registered Streamable HTTP session ${transport.sessionId}")
+        return entry
     }
-    post {
-        val sessionId = call.request.queryParameters[SESSION_ID_PARAM]
-        if (sessionId.isNullOrBlank()) {
-            call.respond(HttpStatusCode.BadRequest, "sessionId query parameter is not provided")
-            return@post
-        }
-        val transport = registry.transport(sessionId)
-        if (transport == null) {
-            call.respond(HttpStatusCode.NotFound, "Session not found")
-            return@post
-        }
-        transport.handlePostMessage(call)
+
+    suspend fun remove(sessionId: String?): Result<Unit> = runCatching {
+        if (sessionId.isNullOrBlank()) return@runCatching
+        val existing = sessions.remove(sessionId) ?: return@runCatching
+        runCatching { existing.serverSession.close() }
+        runCatching { existing.transport.close() }
+        logger.debug("Removed Streamable HTTP session $sessionId")
     }
 }
 
-private const val SESSION_ID_PARAM = "sessionId"
+private data class StreamableHttpSession(
+    val transport: StreamableHttpServerTransport,
+    val serverSession: ServerSession
+)
+
+@OptIn(ExperimentalAtomicApi::class)
+private class StreamableHttpServerTransport(
+    private val logger: Logger
+) : AbstractTransport() {
+    private val initialized: AtomicBoolean = AtomicBoolean(false)
+    val sessionId: String = java.util.UUID.randomUUID().toString()
+
+    private val responseWaiters = ConcurrentHashMap<RequestId, CompletableDeferred<JSONRPCResponse>>()
+
+    override suspend fun start() {
+        if (!initialized.compareAndSet(expectedValue = false, newValue = true)) {
+            error("StreamableHttpServerTransport already started!")
+        }
+    }
+
+    suspend fun handleMessage(message: JSONRPCMessage) {
+        if (!initialized.load()) error("Transport is not started")
+        _onMessage.invoke(message)
+    }
+
+    suspend fun awaitResponse(
+        request: JSONRPCRequest,
+        timeoutMillis: Long = DEFAULT_REQUEST_TIMEOUT_MILLIS
+    ): JSONRPCResponse {
+        val deferred = CompletableDeferred<JSONRPCResponse>()
+        val previous = responseWaiters.putIfAbsent(request.id, deferred)
+        check(previous == null) { "Duplicate in-flight request id ${request.id}" }
+        try {
+            handleMessage(request)
+            return withTimeout(timeoutMillis) { deferred.await() }
+        } finally {
+            responseWaiters.remove(request.id)
+        }
+    }
+
+    override suspend fun send(message: JSONRPCMessage, options: TransportSendOptions?) {
+        if (!initialized.load()) error("Not connected")
+        when (message) {
+            is JSONRPCResponse -> {
+                val waiter = responseWaiters[message.id]
+                if (waiter != null && waiter.complete(message)) return
+                logger.warn("Dropping response for unknown request id ${message.id}")
+            }
+            else -> {
+                // JSON-only Streamable HTTP inbound: server-to-client notifications are best-effort dropped.
+                logger.debug("Dropping outbound message (no SSE): ${message::class.simpleName}")
+            }
+        }
+    }
+
+    override suspend fun close() {
+        if (!initialized.load()) return
+        initialized.store(false)
+        _onClose.invoke()
+    }
+}
+
+private fun Route.mountStreamableHttpRoute(
+    server: Server,
+    sessions: InboundStreamableHttpRegistry
+) {
+    get {
+        call.respond(HttpStatusCode.MethodNotAllowed, "SSE stream is not supported; use Streamable HTTP POST")
+    }
+
+    delete {
+        val sessionId = call.request.headers[MCP_SESSION_ID_HEADER]
+        if (sessionId.isNullOrBlank()) {
+            call.respond(HttpStatusCode.BadRequest, "Missing $MCP_SESSION_ID_HEADER header")
+            return@delete
+        }
+        sessions.remove(sessionId)
+        call.respond(HttpStatusCode.NoContent)
+    }
+
+    post {
+        val ct = call.request.contentType()
+        if (!isApplicationJson(ct)) {
+            call.respond(HttpStatusCode.BadRequest, "Unsupported content-type: $ct")
+            return@post
+        }
+
+        val requestedSessionId = call.request.headers[MCP_SESSION_ID_HEADER]
+        val session = sessions.getOrCreate(server, requestedSessionId)
+        call.response.headers.append(MCP_SESSION_ID_HEADER, session.transport.sessionId)
+
+        val body = call.receiveText()
+        val message = runCatching { McpJson.decodeFromString<JSONRPCMessage>(body) }
+            .getOrElse { error ->
+                call.respond(HttpStatusCode.BadRequest, "Invalid MCP message: ${error.message ?: error::class.simpleName}")
+                return@post
+            }
+
+        when (message) {
+            is JSONRPCRequest -> {
+                val response = runCatching {
+                    session.transport.awaitResponse(message, timeoutMillis = DEFAULT_REQUEST_TIMEOUT_MILLIS)
+                }.getOrElse { error ->
+                    val status = if (error is TimeoutCancellationException) HttpStatusCode.RequestTimeout else HttpStatusCode.InternalServerError
+                    call.respond(status, error.message ?: "Failed to handle MCP request")
+                    return@post
+                }
+                call.respondText(
+                    text = McpJson.encodeToString(JSONRPCMessage.serializer(), response),
+                    contentType = ContentType.Application.Json,
+                    status = HttpStatusCode.OK
+                )
+            }
+            else -> {
+                runCatching { session.transport.handleMessage(message) }
+                call.respond(HttpStatusCode.OK)
+            }
+        }
+    }
+}

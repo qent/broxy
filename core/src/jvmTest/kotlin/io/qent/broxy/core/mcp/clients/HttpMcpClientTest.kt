@@ -17,7 +17,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-class KtorMcpClientSseTest {
+class KtorMcpClientStreamableHttpTest {
     @Test
     fun connect_and_capabilities_and_callTool_with_mockito() {
         runBlocking {
@@ -35,7 +35,7 @@ class KtorMcpClientSseTest {
             )
 
             val client = KtorMcpClient(
-                mode = KtorMcpClient.Mode.Sse,
+                mode = KtorMcpClient.Mode.StreamableHttp,
                 url = "http://localhost",
                 headersMap = emptyMap(),
                 connector = SdkConnector { facade }

@@ -13,21 +13,21 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
-class HttpSseInboundServerTest {
+class HttpStreamableInboundServerTest {
     @Test
-    fun `http sse inbound accepts mcp sse client connection`() = runBlocking {
+    fun `http streamable inbound accepts mcp client connection`() = runBlocking {
         val port = ServerSocket(0).use { it.localPort }
         val url = "http://127.0.0.1:$port/mcp"
 
         val proxy = ProxyMcpServer(downstreams = emptyList())
         val inbound = InboundServerFactory.create(
-            transport = TransportConfig.HttpTransport(url = url),
+            transport = TransportConfig.StreamableHttpTransport(url = url),
             proxy = proxy
         )
 
         assertEquals(ServerStatus.Running, inbound.start())
 
-        val client = KtorMcpClient(mode = KtorMcpClient.Mode.Sse, url = url)
+        val client = KtorMcpClient(mode = KtorMcpClient.Mode.StreamableHttp, url = url)
         try {
             withTimeout(10.seconds) {
                 while (true) {
@@ -45,4 +45,3 @@ class HttpSseInboundServerTest {
         }
     }
 }
-

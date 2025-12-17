@@ -32,7 +32,7 @@
    - `capabilitiesTimeoutSeconds` (default: 30)
    - `capabilitiesRefreshIntervalSeconds` (default: 300)
    - `showTrayIcon` (default: true)
-   - `inboundSsePort` (default: 3335, порт локального SSE inbound для desktop UI)
+   - `inboundSsePort` (default: 3335, порт локального HTTP Streamable inbound для desktop UI; имя ключа историческое)
    - `defaultPresetId` (optional: preset по умолчанию для STDIO режима; если не задан — broxy стартует с пустыми capabilities)
 
 Код:

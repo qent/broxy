@@ -20,7 +20,7 @@ class KtorMcpClientExtrasTest {
             whenever(facade.readResource("u1")).thenReturn(ReadResourceResult(contents = emptyList(), meta = JsonObject(emptyMap())))
 
             val client = KtorMcpClient(
-                mode = KtorMcpClient.Mode.Sse,
+                mode = KtorMcpClient.Mode.StreamableHttp,
                 url = "http://localhost",
                 headersMap = emptyMap(),
                 connector = SdkConnector { facade }

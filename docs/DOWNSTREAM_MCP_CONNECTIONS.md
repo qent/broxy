@@ -32,7 +32,7 @@ JVM mapping (provider):
 | `StreamableHttpTransport` | streamable HTTP | `KtorMcpClient(Mode.StreamableHttp)` |
 | `WebSocketTransport` | WebSocket | `KtorMcpClient(Mode.WebSocket)` |
 
-Важно: inbound транспорт (то, “как broxy слушает”) ограничен STDIO/HTTP SSE, а downstream транспортов больше (включая WS).
+Важно: inbound транспорт (то, “как broxy слушает”) ограничен STDIO/HTTP Streamable, а downstream транспортов больше (включая SSE и WS).
 
 ## DefaultMcpServerConnection: модель “короткой сессии”
 
@@ -162,4 +162,3 @@ JVM mapping (provider):
 - `listPrefixedTools(allCaps)` — утилита для построения списка инструментов с `serverId:` префиксом.
 
 В `RequestDispatcher` используется для fallback-скана prompts/resources.
-

@@ -61,13 +61,13 @@ class SimpleTestMcpServerIntegrationTest {
     }
 
     @Test
-    fun httpSseMode_exposesToolsPromptsAndResources() = runBlocking {
+    fun httpStreamableMode_exposesToolsPromptsAndResources() = runBlocking {
         assumeLocalNetworkingAllowed()
         val port = nextFreePort()
         startHttpServerProcess(port).use { server ->
             waitForHttpServer(port, server)
             val client = KtorMcpClient(
-                mode = KtorMcpClient.Mode.Sse,
+                mode = KtorMcpClient.Mode.StreamableHttp,
                 url = "http://127.0.0.1:$port$HTTP_PATH"
             )
             client.updateTimeouts(15_000, 15_000)
@@ -75,13 +75,15 @@ class SimpleTestMcpServerIntegrationTest {
                 val connectResult = client.connect()
                 connectResult.exceptionOrNull()?.printStackTrace()
                 connectResult.exceptionOrNull()?.message?.let { msg ->
-                    if (msg.contains("SseClientTransport is not initialized", ignoreCase = true)) {
-                        assumeTrue(false, "Skipping HTTP SSE test: transport not permitted in this environment ($msg)")
+                    if (msg.contains("StreamableHttpClientTransport", ignoreCase = true) ||
+                        msg.contains("streamable", ignoreCase = true)
+                    ) {
+                        assumeTrue(false, "Skipping HTTP Streamable test: transport not permitted in this environment ($msg)")
                     }
                 }
                 assertTrue(
                     connectResult.isSuccess,
-                    "HTTP SSE client should connect to SimpleTestMcpServer (${connectResult.exceptionOrNull()?.message})"
+                    "HTTP Streamable client should connect to SimpleTestMcpServer (${connectResult.exceptionOrNull()?.message})"
                 )
                 verifyCapabilitiesAndOperations(client)
             } finally {
@@ -94,7 +96,7 @@ class SimpleTestMcpServerIntegrationTest {
         val canBind = runCatching {
             ServerSocket(0).use { }
         }.isSuccess
-        assumeTrue(canBind, "Local network sockets are not permitted in this environment; skipping HTTP SSE integration")
+        assumeTrue(canBind, "Local network sockets are not permitted in this environment; skipping HTTP Streamable integration")
     }
 
     private suspend fun verifyCapabilitiesAndOperations(client: McpClient) {
@@ -192,7 +194,7 @@ class SimpleTestMcpServerIntegrationTest {
         val command = listOf(
             serverExecutable,
             "--mode",
-            "http-sse",
+            "streamable-http",
             "--host",
             "127.0.0.1",
             "--port",
@@ -209,16 +211,16 @@ class SimpleTestMcpServerIntegrationTest {
     private suspend fun waitForHttpServer(port: Int, process: ManagedProcess) {
         repeat(100) {
             if (!process.isAlive()) {
-                assumeTrue(false, "HTTP SSE test server exited early: ${process.logs()}")
+                assumeTrue(false, "HTTP Streamable test server exited early: ${process.logs()}")
             }
             if (isPortOpen(port)) return
             delay(100)
         }
         val logSnapshot = process.logs()
         if (logSnapshot.contains("Operation not permitted")) {
-            assumeTrue(false, "HTTP SSE server cannot bind sockets in this environment; skipping test. Logs: $logSnapshot")
+            assumeTrue(false, "HTTP Streamable server cannot bind sockets in this environment; skipping test. Logs: $logSnapshot")
         }
-        fail("HTTP SSE server failed to start on port $port\n$logSnapshot")
+        fail("HTTP Streamable server failed to start on port $port\n$logSnapshot")
     }
 
     private fun isPortOpen(port: Int): Boolean = runCatching {

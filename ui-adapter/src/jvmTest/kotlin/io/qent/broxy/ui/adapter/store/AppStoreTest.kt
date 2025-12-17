@@ -164,7 +164,7 @@ class AppStoreTest {
     }
 
     @org.junit.Test
-    fun startAutomaticallyStartsSseProxy() = runTest {
+    fun startAutomaticallyStartsHttpProxy() = runTest {
         val server = McpServerConfig(
             id = "s1",
             name = "Server 1",
@@ -202,7 +202,7 @@ class AppStoreTest {
         val params = proxyController.startCalls.first()
         assertEquals(listOf("s1"), params.servers.map { it.id })
         assertEquals(Preset.EMPTY_PRESET_ID, params.preset.id)
-        assertIs<TransportConfig.HttpTransport>(params.inbound)
+        assertIs<TransportConfig.StreamableHttpTransport>(params.inbound)
         assertEquals(config.requestTimeoutSeconds, params.callTimeoutSeconds)
         assertEquals(config.capabilitiesTimeoutSeconds, params.capabilitiesTimeoutSeconds)
 
@@ -537,7 +537,7 @@ class AppStoreTest {
     }
 
     @org.junit.Test
-    fun updatingInboundSsePortRestartsProxy() = runTest {
+    fun updatingInboundPortRestartsProxy() = runTest {
         val server = McpServerConfig(
             id = "s1",
             name = "Server 1",
@@ -578,7 +578,7 @@ class AppStoreTest {
         storeScope.advanceUntilIdle()
 
         assertEquals(2, proxyController.startCalls.size)
-        val inbound = proxyController.startCalls.last().inbound as TransportConfig.HttpTransport
+        val inbound = proxyController.startCalls.last().inbound as TransportConfig.StreamableHttpTransport
         assertTrue(inbound.url.contains(":4444/"))
         assertEquals(4444, repository.config.inboundSsePort)
 

@@ -64,7 +64,7 @@ class ProxyMcpServerNoPresetTest {
             )
         )
         val proxy = ProxyMcpServer(downstreams = listOf(server))
-        proxy.start(Preset.empty(), TransportConfig.HttpTransport("http://0.0.0.0:3335/mcp"))
+        proxy.start(Preset.empty(), TransportConfig.StreamableHttpTransport("http://localhost:3335/mcp"))
 
         assertTrue(proxy.getCapabilities().tools.isEmpty())
         assertTrue(proxy.getCapabilities().prompts.isEmpty())
@@ -87,7 +87,7 @@ class ProxyMcpServerNoPresetTest {
             )
         )
         val proxy = ProxyMcpServer(downstreams = listOf(server))
-        proxy.start(Preset.empty(), TransportConfig.HttpTransport("http://0.0.0.0:3335/mcp"))
+        proxy.start(Preset.empty(), TransportConfig.StreamableHttpTransport("http://localhost:3335/mcp"))
 
         val preset = Preset(
             id = "main",
@@ -108,4 +108,3 @@ class ProxyMcpServerNoPresetTest {
         assertTrue(proxy.readResource("u1").isSuccess)
     }
 }
-

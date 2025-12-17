@@ -137,8 +137,7 @@ fun MainWindow(
                     onSelect = { state.currentScreen.value = it },
                     modifier = Modifier.fillMaxHeight()
                 )
-                Spacer(Modifier.width(AppTheme.spacing.md))
-                Box(Modifier.fillMaxSize()) {
+                Box(Modifier.fillMaxSize().padding(horizontal = AppTheme.spacing.xs)) {
                     AnimatedContent(
                         targetState = screen,
                         transitionSpec = {

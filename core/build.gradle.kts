@@ -31,7 +31,6 @@ kotlin {
                 implementation("io.ktor:ktor-server-content-negotiation:${property("ktorVersion")}")
                 implementation("io.ktor:ktor-serialization-kotlinx-json:${property("ktorVersion")}")
                 implementation("io.ktor:ktor-server-call-logging:${property("ktorVersion")}")
-                implementation("io.ktor:ktor-server-sse:${property("ktorVersion")}")
             }
         }
         val jvmTest by getting {

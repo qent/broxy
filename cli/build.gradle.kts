@@ -54,7 +54,7 @@ val testServerProject = project(":test-mcp-server")
 val testServerHome = testServerProject.layout.buildDirectory.dir("install/test-mcp-server")
 
 val integrationTest = tasks.register<Test>("integrationTest") {
-    description = "Runs broxy CLI jar integration tests (STDIO + HTTP SSE)."
+    description = "Runs broxy CLI jar integration tests (STDIO + HTTP Streamable)."
     group = "verification"
     testClassesDirs = integrationTestSourceSet.output.classesDirs
     classpath = integrationTestSourceSet.runtimeClasspath

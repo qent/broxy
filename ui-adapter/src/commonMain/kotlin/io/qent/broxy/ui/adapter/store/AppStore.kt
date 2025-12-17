@@ -108,7 +108,7 @@ class AppStore(
             }
             capabilityRefresher.syncWithServers(snapshot.servers)
             publishReady()
-            proxyRuntime.ensureSseRunning(forceRestart = true)
+            proxyRuntime.ensureInboundRunning(forceRestart = true)
             capabilityRefresher.refreshEnabledServers(force = true)
             capabilityRefresher.restartBackgroundJob(enableBackgroundRefresh)
             remoteConnector.start()
@@ -116,7 +116,7 @@ class AppStore(
     }
 
     fun stop() {
-        runCatching { proxyRuntime.stopSse() }
+        runCatching { proxyRuntime.stopInbound() }
         runCatching { remoteConnector.disconnect() }
     }
 

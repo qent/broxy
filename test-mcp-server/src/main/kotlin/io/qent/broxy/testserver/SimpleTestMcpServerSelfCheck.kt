@@ -41,8 +41,8 @@ class SimpleTestMcpServerSelfCheck(
         }
 
         verifyStdio(serverHome)
-        if (!options.skipHttpSse) {
-            verifyHttpSse(serverHome)
+        if (!options.skipHttp) {
+            verifyHttpStreamable(serverHome)
         }
         println("All SimpleTestMcpServer checks passed")
     }
@@ -64,20 +64,20 @@ class SimpleTestMcpServerSelfCheck(
         }
     }
 
-    private suspend fun verifyHttpSse(serverHome: Path) {
-        println("[SelfCheck] Verifying HTTP SSE mode...")
+    private suspend fun verifyHttpStreamable(serverHome: Path) {
+        println("[SelfCheck] Verifying HTTP Streamable mode...")
         val port = nextFreePort()
         startHttpServerProcess(serverHome, port).use { server ->
             waitForHttpServer(port, server)
             val client = KtorMcpClient(
-                mode = KtorMcpClient.Mode.Sse,
+                mode = KtorMcpClient.Mode.StreamableHttp,
                 url = "http://127.0.0.1:$port$HTTP_PATH"
             )
             client.updateTimeouts(15_000, 15_000)
             try {
-                client.connect().getOrThrow("HTTP SSE connect")
+                client.connect().getOrThrow("HTTP Streamable connect")
                 verifyCapabilitiesAndOperations(client)
-                println("[SelfCheck] HTTP SSE mode passed")
+                println("[SelfCheck] HTTP Streamable mode passed")
             } finally {
                 client.disconnect()
             }
@@ -177,7 +177,7 @@ class SimpleTestMcpServerSelfCheck(
         val command = listOf(
             serverExecutable(serverHome),
             "--mode",
-            "http-sse",
+            "streamable-http",
             "--host",
             "127.0.0.1",
             "--port",
@@ -194,12 +194,12 @@ class SimpleTestMcpServerSelfCheck(
     private suspend fun waitForHttpServer(port: Int, process: ManagedProcess) {
         repeat(100) {
             if (!process.isAlive()) {
-                error("HTTP SSE test server exited early: ${process.logs()}")
+                error("HTTP Streamable test server exited early: ${process.logs()}")
             }
             if (isPortOpen(port)) return
             delay(100)
         }
-        error("HTTP SSE server failed to start on port $port\n${process.logs()}")
+        error("HTTP Streamable server failed to start on port $port\n${process.logs()}")
     }
 
     private fun isPortOpen(port: Int): Boolean = runCatching {
@@ -253,23 +253,23 @@ private fun isWindows(): Boolean = System.getProperty("os.name").lowercase().con
 
 data class SelfCheckOptions(
     val serverHome: Path,
-    val skipHttpSse: Boolean
+    val skipHttp: Boolean
 ) {
     companion object {
         fun parse(args: Array<String>): SelfCheckOptions {
             var serverHome: Path? = System.getProperty("test.mcpServerHome")?.let { Paths.get(it) }
-            var skipHttpSse = false
+            var skipHttp = false
             var index = 0
             while (index < args.size) {
                 when (val arg = args[index]) {
                     "--server-home" -> serverHome = Paths.get(args.getOrNull(++index) ?: error("Missing value for --server-home"))
-                    "--skip-http" -> skipHttpSse = true
+                    "--skip-http" -> skipHttp = true
                     else -> error("Unknown argument '$arg'")
                 }
                 index++
             }
             val resolvedHome = serverHome ?: Paths.get("build/install/test-mcp-server").toAbsolutePath()
-            return SelfCheckOptions(serverHome = resolvedHome, skipHttpSse = skipHttpSse)
+            return SelfCheckOptions(serverHome = resolvedHome, skipHttp = skipHttp)
         }
     }
 }

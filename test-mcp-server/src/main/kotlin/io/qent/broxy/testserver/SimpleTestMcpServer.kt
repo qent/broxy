@@ -1,19 +1,22 @@
 package io.qent.broxy.testserver
 
+import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.application.install
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import io.ktor.server.plugins.calllogging.CallLogging
+import io.ktor.server.request.contentType
+import io.ktor.server.request.receiveText
+import io.ktor.server.response.respondText
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
+import io.ktor.server.routing.delete
+import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
-import io.ktor.server.sse.SSE
-import io.ktor.server.sse.ServerSSESession
-import io.ktor.server.sse.sse
 import io.modelcontextprotocol.kotlin.sdk.types.CallToolResult
 import io.modelcontextprotocol.kotlin.sdk.types.GetPromptResult
 import io.modelcontextprotocol.kotlin.sdk.types.Implementation
@@ -30,12 +33,18 @@ import io.modelcontextprotocol.kotlin.sdk.types.ToolSchema
 import io.modelcontextprotocol.kotlin.sdk.server.Server
 import io.modelcontextprotocol.kotlin.sdk.server.ServerOptions
 import io.modelcontextprotocol.kotlin.sdk.server.StdioServerTransport
-import io.modelcontextprotocol.kotlin.sdk.server.SseServerTransport
 import java.util.concurrent.ConcurrentHashMap
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.runBlocking
+import io.modelcontextprotocol.kotlin.sdk.shared.AbstractTransport
+import io.modelcontextprotocol.kotlin.sdk.shared.TransportSendOptions
+import io.modelcontextprotocol.kotlin.sdk.types.JSONRPCMessage
+import io.modelcontextprotocol.kotlin.sdk.types.JSONRPCRequest
+import io.modelcontextprotocol.kotlin.sdk.types.JSONRPCResponse
+import io.modelcontextprotocol.kotlin.sdk.types.McpJson
+import io.modelcontextprotocol.kotlin.sdk.types.RequestId
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.withTimeout
 import kotlinx.io.asSink
 import kotlinx.io.asSource
 import kotlinx.io.buffered
@@ -54,7 +63,7 @@ class SimpleTestMcpServer(
     fun start() {
         when (options.mode) {
             ServerCliOptions.Mode.STDIO -> runBlocking { startStdio() }
-            ServerCliOptions.Mode.HTTP_SSE -> startHttpSse()
+            ServerCliOptions.Mode.HTTP_STREAMABLE -> startHttpStreamable()
         }
     }
 
@@ -83,65 +92,83 @@ class SimpleTestMcpServer(
         }
     }
 
-    private fun startHttpSse() {
+    private fun startHttpStreamable() {
         val normalizedPath = normalizePath(options.path)
-        val registry = OutboundSseRegistry()
-        println("Starting HTTP SSE test server on http://${options.host}:${options.port}${normalizedPath.display}")
+        println("Starting HTTP Streamable test server on http://${options.host}:${options.port}${normalizedPath.display}")
+        val server = buildServer()
+        val sessions = StreamableHttpSessionRegistry(server)
         embeddedServer(
             Netty,
             host = options.host,
             port = options.port
         ) {
             install(CallLogging)
-            install(SSE)
             routing {
-                val serverFactory: ServerSSESession.() -> Server = { buildServer() }
                 if (normalizedPath.routeSegments.isBlank()) {
-                    mountHttpEndpoints("", serverFactory, registry)
+                    mountStreamableHttpRoute(sessions)
                 } else {
                     route("/${normalizedPath.routeSegments}") {
-                        mountHttpEndpoints(normalizedPath.routeSegments, serverFactory, registry)
+                        mountStreamableHttpRoute(sessions)
                     }
                 }
             }
         }.start(wait = true)
     }
 
-    private fun Route.mountHttpEndpoints(
-        endpointSegments: String,
-        serverFactory: ServerSSESession.() -> Server,
-        registry: OutboundSseRegistry
+    private fun Route.mountStreamableHttpRoute(
+        sessions: StreamableHttpSessionRegistry
     ) {
-        sse {
-            val transport = SseServerTransport(endpointSegments, this)
-            registry.add(transport)
-            val server = serverFactory(this)
-            try {
-                server.createSession(transport)
-                try {
-                    awaitCancellation()
-                } catch (_: CancellationException) {
-                    // Connection was cancelled by the client; allow shutdown
-                }
-            } catch (t: Throwable) {
-                registry.remove(transport.sessionId)
-                throw t
-            } finally {
-                registry.remove(transport.sessionId)
-            }
+        get {
+            call.respond(HttpStatusCode.MethodNotAllowed, "SSE stream is not supported; use Streamable HTTP POST")
         }
-        post {
-            val sessionId = call.request.queryParameters[SESSION_ID_PARAM]
+
+        delete {
+            val sessionId = call.request.headers[MCP_SESSION_ID_HEADER]
             if (sessionId.isNullOrBlank()) {
-                call.respond(HttpStatusCode.BadRequest, "sessionId query parameter is required")
+                call.respond(HttpStatusCode.BadRequest, "Missing $MCP_SESSION_ID_HEADER header")
+                return@delete
+            }
+            sessions.remove(sessionId)
+            call.respond(HttpStatusCode.NoContent)
+        }
+
+        post {
+            val ct = call.request.contentType()
+            if (!isApplicationJson(ct)) {
+                call.respond(HttpStatusCode.BadRequest, "Unsupported content-type: $ct")
                 return@post
             }
-            val transport = registry[sessionId]
-            if (transport == null) {
-                call.respond(HttpStatusCode.NotFound, "Session '$sessionId' not found")
-                return@post
+
+            val session = sessions.getOrCreate(call.request.headers[MCP_SESSION_ID_HEADER])
+            call.response.headers.append(MCP_SESSION_ID_HEADER, session.transport.sessionId)
+
+            val body = call.receiveText()
+            val message = runCatching { McpJson.decodeFromString<JSONRPCMessage>(body) }
+                .getOrElse { error ->
+                    call.respond(HttpStatusCode.BadRequest, "Invalid MCP message: ${error.message ?: error::class.simpleName}")
+                    return@post
+                }
+
+            when (message) {
+                is JSONRPCRequest -> {
+                    val response = runCatching { session.transport.awaitResponse(message) }
+                        .getOrElse { error ->
+                            val status =
+                                if (error is TimeoutCancellationException) HttpStatusCode.RequestTimeout else HttpStatusCode.InternalServerError
+                            call.respond(status, error.message ?: "Failed to handle MCP request")
+                            return@post
+                        }
+                    call.respondText(
+                        text = McpJson.encodeToString(JSONRPCMessage.serializer(), response),
+                        contentType = ContentType.Application.Json,
+                        status = HttpStatusCode.OK
+                    )
+                }
+                else -> {
+                    runCatching { session.transport.handleMessage(message) }
+                    call.respond(HttpStatusCode.OK)
+                }
             }
-            transport.handlePostMessage(call)
         }
     }
 
@@ -323,7 +350,7 @@ class SimpleTestMcpServer(
         private const val RESOURCE_BETA_URI = "test://resource/beta"
         private const val HELLO_PROMPT = "hello"
         private const val BYE_PROMPT = "bye"
-        private const val SESSION_ID_PARAM = "sessionId"
+        private const val MCP_SESSION_ID_HEADER = "mcp-session-id"
     }
 }
 
@@ -332,21 +359,81 @@ private data class NormalizedPath(
     val routeSegments: String
 )
 
-private class OutboundSseRegistry {
-    private val transports = ConcurrentHashMap<String, SseServerTransport>()
+private const val REQUEST_TIMEOUT_MILLIS = 60_000L
 
-    fun add(transport: SseServerTransport) {
-        transports[transport.sessionId] = transport
+private class StreamableHttpSessionRegistry(
+    private val server: Server
+) {
+    private val sessions = ConcurrentHashMap<String, StreamableHttpSession>()
+
+    suspend fun getOrCreate(requestedSessionId: String?): StreamableHttpSession {
+        if (!requestedSessionId.isNullOrBlank()) {
+            sessions[requestedSessionId]?.let { return it }
+        }
+        val transport = StreamableHttpServerTransport()
+        val session = server.createSession(transport)
+        val entry = StreamableHttpSession(transport, session)
+        sessions[transport.sessionId] = entry
+        return entry
     }
 
-    operator fun get(sessionId: String?): SseServerTransport? =
-        sessionId?.let { transports[it] }
-
-    fun remove(sessionId: String?) {
+    suspend fun remove(sessionId: String?) {
         if (sessionId.isNullOrBlank()) return
-        transports.remove(sessionId)
+        val existing = sessions.remove(sessionId) ?: return
+        runCatching { existing.session.close() }
+        runCatching { existing.transport.close() }
     }
 }
+
+private data class StreamableHttpSession(
+    val transport: StreamableHttpServerTransport,
+    val session: io.modelcontextprotocol.kotlin.sdk.server.ServerSession
+)
+
+private class StreamableHttpServerTransport : AbstractTransport() {
+    val sessionId: String = java.util.UUID.randomUUID().toString()
+    private val responseWaiters = ConcurrentHashMap<RequestId, CompletableDeferred<JSONRPCResponse>>()
+    @Volatile private var started: Boolean = false
+
+    override suspend fun start() {
+        check(!started) { "StreamableHttpServerTransport already started" }
+        started = true
+    }
+
+    suspend fun handleMessage(message: JSONRPCMessage) {
+        check(started) { "Transport is not started" }
+        _onMessage.invoke(message)
+    }
+
+    suspend fun awaitResponse(request: JSONRPCRequest): JSONRPCResponse {
+        val deferred = CompletableDeferred<JSONRPCResponse>()
+        val previous = responseWaiters.putIfAbsent(request.id, deferred)
+        check(previous == null) { "Duplicate in-flight request id ${request.id}" }
+        try {
+            handleMessage(request)
+            return withTimeout(REQUEST_TIMEOUT_MILLIS) { deferred.await() }
+        } finally {
+            responseWaiters.remove(request.id)
+        }
+    }
+
+    override suspend fun send(message: JSONRPCMessage, options: TransportSendOptions?) {
+        check(started) { "Not connected" }
+        when (message) {
+            is JSONRPCResponse -> responseWaiters[message.id]?.complete(message)
+            else -> Unit // JSON-only mode: drop server->client notifications
+        }
+    }
+
+    override suspend fun close() {
+        started = false
+        _onClose.invoke()
+    }
+}
+
+private fun isApplicationJson(contentType: ContentType): Boolean =
+    contentType.contentType == ContentType.Application.Json.contentType &&
+        contentType.contentSubtype == ContentType.Application.Json.contentSubtype
 
 data class ServerCliOptions(
     val mode: Mode = Mode.STDIO,
@@ -356,7 +443,7 @@ data class ServerCliOptions(
 ) {
     enum class Mode {
         STDIO,
-        HTTP_SSE
+        HTTP_STREAMABLE
     }
 
     companion object {
@@ -377,8 +464,10 @@ data class ServerCliOptions(
                         val value = args.getOrNull(++index) ?: error("Missing value for --mode")
                         mode = when (value.lowercase()) {
                             "stdio" -> Mode.STDIO
-                            "http-sse", "http" -> Mode.HTTP_SSE
-                            else -> error("Unsupported mode '$value'. Use 'stdio' or 'http-sse'.")
+                            "http", "http-streamable", "streamable-http" -> Mode.HTTP_STREAMABLE
+                            // Backward compatibility for older scripts
+                            "http-sse" -> Mode.HTTP_STREAMABLE
+                            else -> error("Unsupported mode '$value'. Use 'stdio' or 'streamable-http'.")
                         }
                     }
                     "--host" -> host = args.getOrNull(++index) ?: error("Missing value for --host")

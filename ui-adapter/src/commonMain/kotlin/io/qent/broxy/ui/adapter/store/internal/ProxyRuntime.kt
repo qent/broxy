@@ -4,9 +4,9 @@ import io.qent.broxy.core.models.Preset
 import io.qent.broxy.core.repository.ConfigurationRepository
 import io.qent.broxy.core.proxy.runtime.ProxyLifecycle
 import io.qent.broxy.core.utils.CollectingLogger
-import io.qent.broxy.ui.adapter.models.UiHttpTransport
 import io.qent.broxy.ui.adapter.models.UiPresetCore
 import io.qent.broxy.ui.adapter.models.UiProxyStatus
+import io.qent.broxy.ui.adapter.models.UiStreamableHttpTransport
 import io.qent.broxy.ui.adapter.models.UiTransportConfig
 import io.qent.broxy.ui.adapter.remote.RemoteConnector
 
@@ -18,9 +18,9 @@ internal class ProxyRuntime(
     private val publishReady: () -> Unit,
     private val remoteConnector: RemoteConnector
 ) {
-    suspend fun ensureSseRunning(forceRestart: Boolean = false, forceReloadPreset: Boolean = false) {
+    suspend fun ensureInboundRunning(forceRestart: Boolean = false, forceReloadPreset: Boolean = false) {
         val port = state.snapshot.inboundSsePort.coerceIn(1, 65535)
-        val inbound = UiHttpTransport(url = sseEndpointUrl(port))
+        val inbound = UiStreamableHttpTransport(url = inboundEndpointUrl(port))
         val presetId = state.snapshot.selectedPresetId
 
         val isRunning = state.snapshot.proxyStatus is UiProxyStatus.Running
@@ -36,7 +36,7 @@ internal class ProxyRuntime(
             val preset = loadPresetOrEmpty(presetId)
             if (preset.isFailure) {
                 val msg = preset.exceptionOrNull()?.message ?: "Failed to load preset"
-                logger.info("[AppStore] ensureSseRunning failed: $msg")
+                logger.info("[AppStore] ensureInboundRunning failed: $msg")
                 state.updateSnapshot {
                     copy(proxyStatus = UiProxyStatus.Error(msg), activeProxyPresetId = null, activeInbound = null)
                 }
@@ -56,8 +56,8 @@ internal class ProxyRuntime(
                 }
                 remoteConnector.onProxyRunningChanged(true)
             } else {
-                val msg = result.exceptionOrNull()?.message ?: "Failed to start SSE server"
-                logger.info("[AppStore] ensureSseRunning start failed: $msg")
+                val msg = result.exceptionOrNull()?.message ?: "Failed to start HTTP server"
+                logger.info("[AppStore] ensureInboundRunning start failed: $msg")
                 state.updateSnapshot { copy(proxyStatus = UiProxyStatus.Error(msg), activeProxyPresetId = null, activeInbound = null) }
                 remoteConnector.onProxyRunningChanged(false)
             }
@@ -70,7 +70,7 @@ internal class ProxyRuntime(
         val preset = loadPresetOrEmpty(presetId)
         if (preset.isFailure) {
             val msg = preset.exceptionOrNull()?.message ?: "Failed to load preset"
-            logger.info("[AppStore] ensureSseRunning applyPreset failed: $msg")
+            logger.info("[AppStore] ensureInboundRunning applyPreset failed: $msg")
             state.setError(msg)
             publishReady()
             return
@@ -81,13 +81,13 @@ internal class ProxyRuntime(
             state.updateSnapshot { copy(activeProxyPresetId = presetId) }
         } else {
             val msg = applyResult.exceptionOrNull()?.message ?: "Failed to apply preset"
-            logger.info("[AppStore] ensureSseRunning applyPreset failed: $msg")
+            logger.info("[AppStore] ensureInboundRunning applyPreset failed: $msg")
             state.setError(msg)
         }
         publishReady()
     }
 
-    fun stopSse(): Result<Unit> {
+    fun stopInbound(): Result<Unit> {
         state.updateSnapshot { copy(proxyStatus = UiProxyStatus.Stopping) }
         publishReady()
         val result = proxyLifecycle.stop()
@@ -95,7 +95,7 @@ internal class ProxyRuntime(
             state.updateSnapshot { copy(proxyStatus = UiProxyStatus.Stopped, activeProxyPresetId = null, activeInbound = null) }
             remoteConnector.onProxyRunningChanged(false)
         } else {
-            val msg = result.exceptionOrNull()?.message ?: "Failed to stop SSE server"
+            val msg = result.exceptionOrNull()?.message ?: "Failed to stop HTTP server"
             state.updateSnapshot { copy(proxyStatus = UiProxyStatus.Error(msg)) }
         }
         publishReady()
@@ -114,4 +114,4 @@ internal class ProxyRuntime(
     }
 }
 
-private fun sseEndpointUrl(port: Int): String = "http://0.0.0.0:${port.coerceIn(1, 65535)}/mcp"
+private fun inboundEndpointUrl(port: Int): String = "http://localhost:${port.coerceIn(1, 65535)}/mcp"
