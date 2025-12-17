@@ -2,10 +2,18 @@ package io.qent.broxy.ui.adapter.headless
 
 import io.qent.broxy.core.config.JsonConfigurationRepository
 import io.qent.broxy.core.models.TransportConfig
-import io.qent.broxy.core.proxy.runtime.ProxyLifecycle
-import io.qent.broxy.core.proxy.runtime.createStdioProxyController
 import io.qent.broxy.core.utils.CollectingLogger
 import io.qent.broxy.core.utils.StdErrLogger
+import io.qent.broxy.core.mcp.DefaultMcpServerConnection
+import io.qent.broxy.core.mcp.McpServerConnection
+import io.qent.broxy.core.proxy.ProxyMcpServer
+import io.qent.broxy.core.proxy.inbound.buildSdkServer
+import io.modelcontextprotocol.kotlin.sdk.server.StdioServerTransport
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.runBlocking
+import kotlinx.io.asSink
+import kotlinx.io.asSource
+import kotlinx.io.buffered
 import java.nio.file.Paths
 
 /**
@@ -34,14 +42,49 @@ fun runStdioProxy(presetIdOverride: String? = null, configDir: String? = null): 
     val preset = repo.loadPreset(effectivePresetId)
 
     val logger = CollectingLogger(delegate = StdErrLogger)
-    val controller = createStdioProxyController(logger)
-    val lifecycle = ProxyLifecycle(controller, logger)
     val inbound = TransportConfig.StdioTransport(command = "", args = emptyList())
-    val r = lifecycle.start(cfg, preset, inbound)
-    if (r.isFailure) throw r.exceptionOrNull() ?: IllegalStateException("Failed to start proxy")
-    // For STDIO inbound, controller.start() blocks inside InboundServers until the session ends.
-    // When it returns successfully, we treat it as a graceful exit.
-    Unit
+
+    val callTimeoutMillis = cfg.requestTimeoutSeconds.toLong() * 1_000L
+    val capabilitiesTimeoutMillis = cfg.capabilitiesTimeoutSeconds.toLong() * 1_000L
+
+    val downstreams: List<McpServerConnection> = cfg.servers
+        .filter { it.enabled }
+        .map { serverCfg ->
+            DefaultMcpServerConnection(
+                config = serverCfg,
+                logger = logger,
+                initialCallTimeoutMillis = callTimeoutMillis,
+                initialCapabilitiesTimeoutMillis = capabilitiesTimeoutMillis
+            )
+        }
+
+    val proxy = ProxyMcpServer(downstreams = downstreams, logger = logger)
+    proxy.start(preset, inbound)
+
+    val server = buildSdkServer(proxy, logger)
+    val transport = StdioServerTransport(
+        System.`in`.asSource().buffered(),
+        System.out.asSink().buffered()
+    )
+
+    val shutdownSignal = CompletableDeferred<Unit>()
+    transport.onClose { shutdownSignal.complete(Unit) }
+
+    StdErrLogger.info(
+        "Starting broxy STDIO proxy (presetId='$effectivePresetId', configDir='${configDir ?: "~/.config/broxy"}')"
+    )
+
+    try {
+        runBlocking {
+            server.connect(transport)
+            shutdownSignal.await()
+        }
+    } finally {
+        runBlocking { runCatching { transport.close() } }
+        runCatching { proxy.stop() }
+        runBlocking { downstreams.forEach { runCatching { it.disconnect() } } }
+        StdErrLogger.info("broxy STDIO proxy stopped")
+    }
 }
 
 fun logStdioInfo(message: String) {

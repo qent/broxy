@@ -37,6 +37,12 @@ Inbound — это “как broxy принимает входящие MCP JSON-
 
 - STDIO режим требует, чтобы stdout был “чистым” для MCP протокола. Поэтому в CLI используется `StderrLogger` (логи в stderr).
 
+Важно про жизненный цикл:
+
+- В текущем MCP Kotlin SDK `server.connect(transport)` может **не блокировать** поток до закрытия сессии (соединение продолжает жить, пока процесс жив и transport не закрыт).
+- Поэтому процесс должен оставаться живым: либо “держать” основной поток (как делает CLI), либо явно ждать завершения STDIO сессии через `transport.onClose { ... }`.
+  - См. `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/headless/HeadlessEntrypointJvm.kt` — headless STDIO режим ожидает закрытия transport, чтобы не завершать процесс сразу после запуска.
+
 См. также:
 - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/runtime/ProxyController.kt` → `createStdioProxyController(...)` (специализированный factory).
 
@@ -97,4 +103,3 @@ Outbound API для MCP клиентов формирует SDK `Server`:
 
 - `--inbound stdio|http` (алиасы: `local|remote|sse`)
 - `--url http://0.0.0.0:3335/mcp` (для `http` inbound)
-

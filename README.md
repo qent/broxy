@@ -351,7 +351,7 @@ Windows (MSI):
 
 ### Системные требования
 
-- `Java`: 17 или выше
+- `Java` (для сборки из исходников/CLI): JDK 17 или 21 (LTS). `./gradlew` не запускается на JDK 25+ из‑за ограничений Kotlin DSL в Gradle 8.13.
 - `ОС`: macOS (включая Apple Silicon M1), Windows 10/11, Linux (DEB пакеты)
 - `Память`: минимум 512MB RAM
 - `Дисковое пространство`: ~100MB
@@ -507,6 +507,9 @@ export OPENAI_API_KEY="sk-xxxxxxxxxxxx"
 ### Сборка из исходников
 
 ```bash
+# Важно: запускайте Gradle под JDK 17/21.
+# macOS: export JAVA_HOME=$(/usr/libexec/java_home -v 21)
+#
 # Клонировать репозиторий
 git clone https://github.com/qent/broxy.git
 cd broxy
@@ -539,6 +542,7 @@ cd broxy
 ### Пакетирование и подпись
 
 - Команда: `./gradlew :ui:packageDistributionForCurrentOS` генерирует DMG (macOS), MSI (Windows) или DEB (Linux) в `ui/build/compose/binaries/main/<format>/`.
+- По умолчанию отключена проверка vendor JDK в Compose-плагине (см. `compose.desktop.packaging.checkJdkVendor` в `gradle.properties`). Если хотите включить её обратно — установите `true` и используйте JDK от Corretto/Temurin/и т.п.
 - Иконки (опционально): положите файлы в `ui/src/desktopMain/resources/icons/`
   - macOS: `broxy.icns`
   - Windows: `broxy.ico`
