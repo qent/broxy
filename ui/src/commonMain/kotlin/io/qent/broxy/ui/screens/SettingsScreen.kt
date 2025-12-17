@@ -4,12 +4,10 @@ import AppPrimaryButton
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
@@ -19,12 +17,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -48,13 +42,10 @@ import io.qent.broxy.ui.adapter.store.UIState
 import io.qent.broxy.ui.adapter.models.UiRemoteConnectionState
 import io.qent.broxy.ui.adapter.models.UiRemoteStatus
 import io.qent.broxy.ui.theme.AppTheme
-import io.qent.broxy.ui.theme.ThemeStyle
 
 @Composable
 fun SettingsScreen(
     ui: UIState,
-    themeStyle: ThemeStyle,
-    onThemeStyleChange: (ThemeStyle) -> Unit,
     notify: (String) -> Unit = {}
 ) {
     Column(
@@ -71,7 +62,6 @@ fun SettingsScreen(
                 capabilitiesRefreshIntervalSeconds = ui.capabilitiesRefreshIntervalSeconds,
                 inboundSsePort = ui.inboundSsePort,
                 showTrayIcon = ui.showTrayIcon,
-                themeStyle = themeStyle,
                 onInboundSsePortSave = { port ->
                     ui.intents.updateInboundSsePort(port)
                     notify("SSE port saved: $port")
@@ -92,7 +82,6 @@ fun SettingsScreen(
                     ui.intents.updateTrayIconVisibility(enabled)
                     notify(if (enabled) "Tray icon enabled" else "Tray icon disabled")
                 },
-                onThemeStyleChange = onThemeStyleChange,
                 remote = ui.remote,
                 onRemoteServerIdChange = { ui.intents.updateRemoteServerIdentifier(it) },
                 onRemoteAuthorize = { ui.intents.startRemoteAuthorization() },
@@ -111,13 +100,11 @@ private fun SettingsContent(
     capabilitiesRefreshIntervalSeconds: Int,
     inboundSsePort: Int,
     showTrayIcon: Boolean,
-    themeStyle: ThemeStyle,
     onInboundSsePortSave: (Int) -> Unit,
     onRequestTimeoutSave: (Int) -> Unit,
     onCapabilitiesTimeoutSave: (Int) -> Unit,
     onCapabilitiesRefreshIntervalSave: (Int) -> Unit,
     onToggleTrayIcon: (Boolean) -> Unit,
-    onThemeStyleChange: (ThemeStyle) -> Unit,
     remote: UiRemoteConnectionState,
     onRemoteServerIdChange: (String) -> Unit,
     onRemoteAuthorize: () -> Unit,
@@ -173,10 +160,6 @@ private fun SettingsContent(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)
     ) {
-        ThemeStyleSetting(
-            themeStyle = themeStyle,
-            onThemeStyleChange = onThemeStyleChange
-        )
         TrayIconSetting(checked = showTrayIcon, onToggle = onToggleTrayIcon)
         RemoteConnectorSetting(
             remote = remote,
@@ -303,23 +286,6 @@ private fun TimeoutSetting(
 }
 
 @Composable
-private fun ThemeStyleSetting(
-    themeStyle: ThemeStyle,
-    onThemeStyleChange: (ThemeStyle) -> Unit
-) {
-    SettingItem(
-        title = "Appearance",
-        description = "Choose app theme preference."
-    ) {
-        CompactDropdown(
-            modifier = Modifier.widthIn(min = SettingControlWidth, max = SettingControlWidth),
-            selected = themeStyle,
-            onSelected = onThemeStyleChange
-        )
-    }
-}
-
-@Composable
 private fun SettingItem(
     title: String,
     description: String,
@@ -355,88 +321,6 @@ private fun SettingItem(
                 verticalAlignment = Alignment.CenterVertically,
                 content = control
             )
-        }
-    }
-}
-
-@Composable
-private fun CompactDropdown(
-    modifier: Modifier = Modifier,
-    selected: ThemeStyle,
-    onSelected: (ThemeStyle) -> Unit
-) {
-    var expanded by remember { mutableStateOf(false) }
-    val options = listOf(ThemeStyle.System, ThemeStyle.Dark, ThemeStyle.Light)
-
-    val label = when (selected) {
-        ThemeStyle.System -> "Match system"
-        ThemeStyle.Dark -> "Dark"
-        ThemeStyle.Light -> "Light"
-    }
-
-    Box(modifier = modifier) {
-        CompactInputSurface(
-            modifier = Modifier.fillMaxWidth().clickable { expanded = !expanded }
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = AppTheme.spacing.md),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.xs)
-            ) {
-                Text(
-                    text = label,
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.bodySmall,
-                    maxLines = 1
-                )
-                Icon(
-                    imageVector = Icons.Outlined.ExpandMore,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp)
-                )
-            }
-        }
-
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-            modifier = Modifier
-                .widthIn(min = SettingControlWidth)
-                .background(color = AppTheme.colors.surface, shape = AppTheme.shapes.input)
-                .border(AppTheme.strokeWidths.thin, AppTheme.colors.outline, AppTheme.shapes.input),
-            shape = AppTheme.shapes.input,
-            containerColor = AppTheme.colors.surface,
-            tonalElevation = 0.dp,
-            shadowElevation = AppTheme.elevation.level2
-        ) {
-            options.forEach { option ->
-                val optionLabel = when (option) {
-                    ThemeStyle.System -> "Match system"
-                    ThemeStyle.Dark -> "Dark"
-                    ThemeStyle.Light -> "Light"
-                }
-                DropdownMenuItem(
-                    text = {
-                        Text(
-                            optionLabel,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = AppTheme.colors.onSurface
-                        )
-                    },
-                    contentPadding = PaddingValues(
-                        horizontal = AppTheme.spacing.md,
-                        vertical = AppTheme.spacing.xs
-                    ),
-                    onClick = {
-                        expanded = false
-                        if (option != selected) {
-                            onSelected(option)
-                        }
-                    }
-                )
-            }
         }
     }
 }

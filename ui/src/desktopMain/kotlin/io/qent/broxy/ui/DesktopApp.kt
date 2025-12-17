@@ -1,6 +1,5 @@
 package io.qent.broxy.ui
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -72,11 +71,7 @@ fun main(args: Array<String>) {
         val trayPreference = (uiState as? UIState.Ready)?.showTrayIcon ?: true
         val trayActive = traySupported && trayPreference
         val isMacOs = remember { System.getProperty("os.name")?.contains("Mac", ignoreCase = true) == true }
-        val isDarkTheme = when (appState.themeStyle.value) {
-            ThemeStyle.System -> isSystemInDarkTheme()
-            ThemeStyle.Light -> false
-            ThemeStyle.Dark -> true
-        }
+        val isDarkTheme = appState.themeStyle.value == ThemeStyle.Dark
         val windowIconPainter = rememberApplicationIconPainter()
         val applicationIconImage = remember { createApplicationIconImage(size = 256) }
 

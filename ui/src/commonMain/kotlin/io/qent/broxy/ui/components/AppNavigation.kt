@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.qent.broxy.ui.theme.AppTheme
+import io.qent.broxy.ui.theme.ThemeStyle
 import io.qent.broxy.ui.viewmodels.Screen
 
 data class NavItem(
@@ -41,6 +42,8 @@ private val navItems = listOf(
 fun AppNavigationRail(
     selected: Screen,
     onSelect: (Screen) -> Unit,
+    themeStyle: ThemeStyle,
+    onToggleTheme: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val colors = MaterialTheme.colorScheme
@@ -100,6 +103,45 @@ fun AppNavigationRail(
                     )
                 }
             }
+        }
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        val currentThemeLabel = if (themeStyle == ThemeStyle.Dark) "Dark" else "Light"
+        val currentThemeIcon = if (themeStyle == ThemeStyle.Dark) Icons.Outlined.DarkMode else Icons.Outlined.LightMode
+
+        Column(
+            horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+            verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = AppTheme.spacing.sm)
+                .clip(AppTheme.shapes.button)
+                .clickable(onClick = onToggleTheme)
+                .padding(vertical = 7.dp, horizontal = 3.dp)
+        ) {
+            androidx.compose.runtime.CompositionLocalProvider(
+                androidx.compose.material3.LocalContentColor provides colors.secondary
+            ) {
+                Icon(
+                    imageVector = currentThemeIcon,
+                    contentDescription = "Theme: $currentThemeLabel",
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(3.dp))
+
+            Text(
+                text = currentThemeLabel,
+                style = MaterialTheme.typography.labelMedium.copy(
+                    fontSize = 10.sp,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
+                ),
+                color = colors.secondary,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+            )
         }
     }
 }

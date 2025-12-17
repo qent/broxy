@@ -1,6 +1,5 @@
 package io.qent.broxy.ui.theme
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -188,11 +187,10 @@ object AppTheme {
 
     @Composable
     operator fun invoke(
-        themeStyle: ThemeStyle = ThemeStyle.System,
+        themeStyle: ThemeStyle = ThemeStyle.Dark,
         content: @Composable () -> Unit
     ) {
         val darkTheme = when (themeStyle) {
-            ThemeStyle.System -> isSystemInDarkTheme()
             ThemeStyle.Light -> false
             ThemeStyle.Dark -> true
         }

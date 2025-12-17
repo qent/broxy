@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.sp
 import io.qent.broxy.ui.components.AppNavigationRail
 import io.qent.broxy.ui.components.GlobalHeader
 import io.qent.broxy.ui.theme.AppTheme
+import io.qent.broxy.ui.theme.ThemeStyle
 import io.qent.broxy.ui.viewmodels.AppState
 import io.qent.broxy.ui.viewmodels.Screen
 import io.qent.broxy.ui.adapter.store.UIState
@@ -135,6 +136,13 @@ fun MainWindow(
                 AppNavigationRail(
                     selected = screen,
                     onSelect = { state.currentScreen.value = it },
+                    themeStyle = state.themeStyle.value,
+                    onToggleTheme = {
+                        state.themeStyle.value = when (state.themeStyle.value) {
+                            ThemeStyle.Dark -> ThemeStyle.Light
+                            ThemeStyle.Light -> ThemeStyle.Dark
+                        }
+                    },
                     modifier = Modifier.fillMaxHeight()
                 )
                 Box(Modifier.fillMaxSize().padding(horizontal = AppTheme.spacing.xs)) {
@@ -149,12 +157,7 @@ fun MainWindow(
                             Screen.Servers -> ServersScreen(ui, state, store, notify)
                             Screen.Presets -> PresetsScreen(ui, state, store)
                             Screen.Logs -> LogsScreen(ui)
-                            Screen.Settings -> SettingsScreen(
-                                ui = ui,
-                                themeStyle = state.themeStyle.value,
-                                onThemeStyleChange = { state.themeStyle.value = it },
-                                notify = notify
-                            )
+                            Screen.Settings -> SettingsScreen(ui = ui, notify = notify)
                         }
                     }
                 }
