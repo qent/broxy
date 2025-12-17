@@ -92,14 +92,6 @@ fun main(args: Array<String>) {
                 (window as? Frame)?.iconImage = applicationIconImage
                 updateTaskbarIcon(applicationIconImage)
             }
-            val topBarModifier = remember(isMacOs, window) {
-                if (isMacOs) {
-                    Modifier.windowDrag(window)
-                } else {
-                    Modifier
-                }
-            }
-            val headerDragModifier = remember(window) { Modifier.windowDrag(window) }
 
             LaunchedEffect(isWindowVisible) {
                 if (isWindowVisible) {
@@ -136,8 +128,6 @@ fun main(args: Array<String>) {
                 state = appState,
                 ui = uiState,
                 store = store,
-                topBarModifier = topBarModifier.height(28.dp),
-                headerDragModifier = headerDragModifier,
                 useTransparentTitleBar = isMacOs
             )
         }

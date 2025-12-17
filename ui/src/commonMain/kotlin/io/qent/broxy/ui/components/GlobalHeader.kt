@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+
 package io.qent.broxy.ui.components
 
 import androidx.compose.foundation.BorderStroke
@@ -14,16 +16,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.adapter.models.UiProxyStatus
 import io.qent.broxy.ui.adapter.store.UIState
 import io.qent.broxy.ui.theme.AppTheme
 
+private val GLOBAL_HEADER_HEIGHT = 40.dp
+private val PRESET_SELECTOR_WIDTH = 220.dp
+
 @Composable
 fun GlobalHeader(
     ui: UIState,
     notify: (String) -> Unit = {},
-    dragAreaModifier: Modifier = Modifier,
+    colors: TopAppBarColors = TopAppBarDefaults.centerAlignedTopAppBarColors(),
     modifier: Modifier = Modifier
 ) {
     val status = (ui as? UIState.Ready)?.proxyStatus
@@ -40,38 +46,52 @@ fun GlobalHeader(
         }
     }
 
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = AppTheme.spacing.sm)
-            .padding(top = AppTheme.spacing.xxs, bottom = AppTheme.spacing.sm),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Row(
-            modifier = Modifier
-                .weight(1f)
-                .then(dragAreaModifier),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.xs)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Spacer(Modifier.width(AppTheme.spacing.xs))
-                Box(
-                    modifier = Modifier
-                        .size(10.dp)
-                        .clip(CircleShape)
-                        .background(dotColor)
-                )
-                Spacer(Modifier.width(AppTheme.spacing.sm))
-                Text(
-                    statusText,
-                    style = MaterialTheme.typography.labelMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+    CenterAlignedTopAppBar(
+        modifier = modifier,
+        expandedHeight = GLOBAL_HEADER_HEIGHT,
+        colors = colors,
+        title = {
+            PresetDropdown(ui = ui, notify = notify, width = PRESET_SELECTOR_WIDTH)
+        },
+        actions = {
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .padding(top = AppTheme.spacing.md, end = AppTheme.spacing.sm)
+            ) {
+                ProxyStatusIndicator(
+                    dotColor = dotColor,
+                    statusText = statusText,
+                    modifier = Modifier.align(Alignment.TopEnd)
                 )
             }
         }
-        PresetDropdown(ui = ui, notify = notify, modifier = Modifier.width(196.dp))
+    )
+}
+
+@Composable
+private fun ProxyStatusIndicator(
+    dotColor: androidx.compose.ui.graphics.Color,
+    statusText: String,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(10.dp)
+                .clip(CircleShape)
+                .background(dotColor)
+        )
+        Spacer(Modifier.width(AppTheme.spacing.sm))
+        Text(
+            statusText,
+            style = MaterialTheme.typography.labelMedium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 
@@ -79,21 +99,22 @@ fun GlobalHeader(
 private fun PresetDropdown(
     ui: UIState,
     notify: (String) -> Unit,
+    width: Dp,
     modifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
 
     when (ui) {
-        UIState.Loading -> HeaderField(text = "Loading…", modifier = modifier)
+        UIState.Loading -> HeaderField(text = "Loading…", modifier = modifier.width(width))
 
-        is UIState.Error -> HeaderField(text = "Unavailable", modifier = modifier)
+        is UIState.Error -> HeaderField(text = "Unavailable", modifier = modifier.width(width))
 
         is UIState.Ready -> {
             val selectedPresetId = ui.selectedPresetId
             val currentName = ui.presets.firstOrNull { it.id == selectedPresetId }?.name
                 ?: if (selectedPresetId == null) "No preset" else selectedPresetId
 
-            Box(modifier = modifier) {
+            Box(modifier = modifier.width(width)) {
                 HeaderField(
                     text = currentName,
                     modifier = Modifier.fillMaxWidth(),
@@ -110,7 +131,7 @@ private fun PresetDropdown(
                     expanded = expanded,
                     onDismissRequest = { expanded = false },
                     modifier = Modifier
-                        .width(196.dp)
+                        .width(width)
                         .background(color = AppTheme.colors.surface, shape = AppTheme.shapes.input)
                         .border(AppTheme.strokeWidths.thin, AppTheme.colors.outline, AppTheme.shapes.input),
                     shape = AppTheme.shapes.input,

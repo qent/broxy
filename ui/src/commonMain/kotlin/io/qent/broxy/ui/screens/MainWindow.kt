@@ -2,7 +2,6 @@ package io.qent.broxy.ui.screens
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
@@ -14,7 +13,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.unit.sp
 import io.qent.broxy.ui.adapter.store.AppStore
 import io.qent.broxy.ui.adapter.store.UIState
 import io.qent.broxy.ui.components.AppNavigationRail
@@ -31,8 +29,6 @@ fun MainWindow(
     state: AppState,
     ui: UIState,
     store: AppStore,
-    topBarModifier: Modifier = Modifier,
-    headerDragModifier: Modifier = Modifier,
     useTransparentTitleBar: Boolean = false
 ) {
     AppTheme(themeStyle = state.themeStyle.value) {
@@ -65,32 +61,22 @@ fun MainWindow(
                     MaterialTheme.colorScheme.onSurface
                 }
 
-                Column {
-                    TopAppBar(
-                        modifier = topBarModifier,
-                        title = { Text("", fontSize = 14.sp) },
-                        colors = if (useTransparentTitleBar) {
-                            TopAppBarDefaults.topAppBarColors(
-                                containerColor = chromeContainerColor,
-                                scrolledContainerColor = chromeContainerColor,
-                                titleContentColor = chromeContentColor,
-                                navigationIconContentColor = chromeContentColor,
-                                actionIconContentColor = chromeContentColor
-                            )
-                        } else {
-                            TopAppBarDefaults.topAppBarColors()
-                        }
-                    )
-
-                    GlobalHeader(
-                        ui = ui,
-                        notify = notify,
-                        dragAreaModifier = headerDragModifier,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(chromeContainerColor)
-                    )
-                }
+                GlobalHeader(
+                    ui = ui,
+                    notify = notify,
+                    colors = if (useTransparentTitleBar) {
+                        TopAppBarDefaults.centerAlignedTopAppBarColors(
+                            containerColor = chromeContainerColor,
+                            scrolledContainerColor = chromeContainerColor,
+                            titleContentColor = chromeContentColor,
+                            navigationIconContentColor = chromeContentColor,
+                            actionIconContentColor = chromeContentColor
+                        )
+                    } else {
+                        TopAppBarDefaults.centerAlignedTopAppBarColors()
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
             },
             snackbarHost = { SnackbarHost(snackbarHostState) },
             floatingActionButton = {
