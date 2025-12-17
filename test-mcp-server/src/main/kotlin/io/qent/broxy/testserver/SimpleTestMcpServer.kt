@@ -72,7 +72,7 @@ class SimpleTestMcpServer(
         }
         System.err.println("SimpleTestMcpServer: waiting for STDIO client")
         try {
-            server.connect(transport)
+            server.createSession(transport)
             shutdownSignal.await()
         } catch (t: Throwable) {
             System.err.println("SimpleTestMcpServer: STDIO connection failed - ${t.message}")
@@ -116,9 +116,8 @@ class SimpleTestMcpServer(
             val transport = SseServerTransport(endpointSegments, this)
             registry.add(transport)
             val server = serverFactory(this)
-            server.onClose { registry.remove(transport.sessionId) }
             try {
-                server.connect(transport)
+                server.createSession(transport)
                 try {
                     awaitCancellation()
                 } catch (_: CancellationException) {

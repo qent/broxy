@@ -59,7 +59,7 @@
 - `POST .../mcp?sessionId=...` отправляет сообщения в соответствующую SSE-сессию.
 
 Реализация мультисессий:
-- `InboundSseRegistry` хранит `sessionId -> SseServerTransport`.
+- `InboundSseRegistry` хранит `sessionId -> ServerSession` (а `SseServerTransport` берётся из `session.transport`).
 
 Файл: `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/InboundServers.kt`
 
@@ -184,4 +184,3 @@
 - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/RequestDispatcher.kt`
 - `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/SdkServerFactory.kt`
 - `core/src/commonMain/kotlin/io/qent/broxy/core/utils/JsonLogging.kt`
-

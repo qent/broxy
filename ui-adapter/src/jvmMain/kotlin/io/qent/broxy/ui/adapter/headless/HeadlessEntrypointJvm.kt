@@ -76,7 +76,7 @@ fun runStdioProxy(presetIdOverride: String? = null, configDir: String? = null): 
 
     try {
         runBlocking {
-            server.connect(transport)
+            server.createSession(transport)
             shutdownSignal.await()
         }
     } finally {

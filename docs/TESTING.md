@@ -6,6 +6,7 @@ What to test first (critical path):
 - Core MCP flows: server connection, capabilities, tool routing.
 - Proxy filtering and routing: filtering by preset, allowed set enforcement, prompt/resource routing.
 - Client adapters (HTTP/SSE, WebSocket, STDIO): capability mapping, tool/prompt/resource calls.
+- Inbound HTTP SSE: SSE handler lifecycle (session must stay open).
 - Caching and backoff: TTL behavior, backoff boundaries (no sleeps).
 
 Style and patterns:
@@ -32,6 +33,5 @@ Examples in this repo:
 
 Adding new tests:
 - Cover both happy and failure paths for core flows.
-- Keep tests independent; no network or disk I/O.
+- Keep tests independent; no external network or disk I/O (loopback/embedded servers are OK when testing inbound transports).
 - Prefer verifying public outcomes; verify interactions only for critical delegation/guard logic.
-

@@ -16,6 +16,7 @@ import io.ktor.server.sse.SSE
 import io.ktor.server.sse.ServerSSESession
 import io.ktor.server.sse.sse
 import io.modelcontextprotocol.kotlin.sdk.server.Server
+import io.modelcontextprotocol.kotlin.sdk.server.ServerSession
 import kotlinx.io.asSink
 import kotlinx.io.asSource
 import kotlinx.io.buffered
@@ -25,6 +26,7 @@ import io.qent.broxy.core.proxy.ProxyMcpServer
 import io.qent.broxy.core.utils.ConsoleLogger
 import io.qent.broxy.core.utils.Logger
 import io.modelcontextprotocol.kotlin.sdk.server.SseServerTransport
+import kotlinx.coroutines.Job
 import java.net.URI
 import java.util.concurrent.ConcurrentHashMap
 
@@ -65,7 +67,7 @@ private class StdioInboundServer(
         val transport = io.modelcontextprotocol.kotlin.sdk.server.StdioServerTransport(input, output)
         val server = buildSdkServer(proxy, logger)
         return try {
-            kotlinx.coroutines.runBlocking { server.connect(transport) }
+            kotlinx.coroutines.runBlocking { server.createSession(transport) }
             ServerStatus.Running
         } catch (t: Throwable) {
             logger.error("Failed to start STDIO MCP server", t)
@@ -101,14 +103,13 @@ private class KtorInboundServer(
                 val serverFactory: ServerSSESession.() -> Server = { buildSdkServer(proxy, logger) }
                 val registry = InboundSseRegistry(logger)
                 if (normalizedPath.routeSegments.isBlank()) {
-                    mountMcpRoute(endpointSegments = "", serverFactory = serverFactory, registry = registry, logger = logger)
+                    mountMcpRoute(endpointPath = normalizedPath.display, serverFactory = serverFactory, registry = registry)
                 } else {
                     route("/${normalizedPath.routeSegments}") {
                         mountMcpRoute(
-                            endpointSegments = normalizedPath.routeSegments,
+                            endpointPath = normalizedPath.display,
                             serverFactory = serverFactory,
-                            registry = registry,
-                            logger = logger
+                            registry = registry
                         )
                     }
                 }
@@ -147,38 +148,44 @@ private data class NormalizedPath(
 private class InboundSseRegistry(
     private val logger: Logger
 ) {
-    private val transports = ConcurrentHashMap<String, SseServerTransport>()
+    private val sessions = ConcurrentHashMap<String, ServerSession>()
 
-    fun add(transport: SseServerTransport) {
-        transports[transport.sessionId] = transport
+    fun add(transport: SseServerTransport, session: ServerSession) {
+        sessions[transport.sessionId] = session
         logger.debug("Registered SSE session ${transport.sessionId}")
     }
 
     fun remove(sessionId: String?) {
         if (sessionId.isNullOrBlank()) return
-        transports.remove(sessionId)
+        sessions.remove(sessionId)
         logger.debug("Removed SSE session $sessionId")
     }
 
-    operator fun get(sessionId: String?): SseServerTransport? = sessionId?.let { transports[it] }
+    fun transport(sessionId: String?): SseServerTransport? {
+        if (sessionId.isNullOrBlank()) return null
+        return (sessions[sessionId]?.transport as? SseServerTransport)
+    }
 }
 
 private fun Route.mountMcpRoute(
-    endpointSegments: String,
+    endpointPath: String,
     serverFactory: ServerSSESession.() -> Server,
-    registry: InboundSseRegistry,
-    logger: Logger
+    registry: InboundSseRegistry
 ) {
     sse {
-        val transport = SseServerTransport(endpointSegments, this)
-        registry.add(transport)
         val server = serverFactory(this)
-        server.onClose { registry.remove(transport.sessionId) }
+        val transport = SseServerTransport(endpointPath, this)
+        val session = server.createSession(transport)
+        registry.add(transport, session)
+
+        val done = Job()
+        session.onClose { done.complete() }
+
+        // Keep Ktor SSE handler alive until the MCP session closes.
         try {
-            server.connect(transport)
-        } catch (t: Throwable) {
+            done.join()
+        } finally {
             registry.remove(transport.sessionId)
-            throw t
         }
     }
     post {
@@ -187,7 +194,7 @@ private fun Route.mountMcpRoute(
             call.respond(HttpStatusCode.BadRequest, "sessionId query parameter is not provided")
             return@post
         }
-        val transport = registry[sessionId]
+        val transport = registry.transport(sessionId)
         if (transport == null) {
             call.respond(HttpStatusCode.NotFound, "Session not found")
             return@post

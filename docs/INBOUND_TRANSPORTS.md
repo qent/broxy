@@ -65,14 +65,14 @@ Inbound — это “как broxy принимает входящие MCP JSON-
 В `mountMcpRoute(...)` определены два обработчика:
 
 1) `sse { ... }`:
-   - создаёт `SseServerTransport(endpointSegments, this)`;
-   - регистрирует transport в `InboundSseRegistry` по `sessionId`;
+   - создаёт `SseServerTransport(endpointPath, this)` (endpoint для `POST` сообщений);
+   - создаёт `ServerSession` через `server.createSession(transport)` и регистрирует её в `InboundSseRegistry` по `sessionId`;
    - строит SDK `Server` через `serverFactory()`;
-   - делает `server.connect(transport)`.
+   - **держит handler живым** до закрытия сессии (иначе Ktor закроет SSE соединение и клиенты начнут переподключаться).
 
 2) `post { ... }`:
    - читает `sessionId` из query параметра `sessionId`;
-   - находит transport в registry;
+   - находит `ServerSession` в registry и достаёт её `transport`;
    - вызывает `transport.handlePostMessage(call)` (MCP SDK helper).
 
 Таким образом, клиент:
@@ -84,7 +84,7 @@ Inbound — это “как broxy принимает входящие MCP JSON-
 
 `InboundSseRegistry` (ConcurrentHashMap):
 
-- `add(transport)` добавляет по `transport.sessionId`;
+- хранит `sessionId -> ServerSession` (а `SseServerTransport` берётся из `session.transport`);
 - `remove(sessionId)` удаляет;
 - используется в `post` обработчике.
 
