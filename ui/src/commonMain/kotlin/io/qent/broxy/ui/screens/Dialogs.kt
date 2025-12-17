@@ -240,7 +240,8 @@ fun EditPresetDialog(
                         prompts = selectedPrompts.value,
                         resources = selectedResources.value,
                         promptsConfigured = promptsConfigured.value,
-                        resourcesConfigured = resourcesConfigured.value
+                        resourcesConfigured = resourcesConfigured.value,
+                        originalId = initial.originalId ?: initial.id
                     )
                     ui.intents.upsertPreset(draft)
                     onClose()

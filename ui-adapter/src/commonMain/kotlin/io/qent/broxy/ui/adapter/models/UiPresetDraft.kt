@@ -26,5 +26,6 @@ data class UiPresetDraft(
     val prompts: List<UiPromptRef> = emptyList(),
     val resources: List<UiResourceRef> = emptyList(),
     val promptsConfigured: Boolean = true,
-    val resourcesConfigured: Boolean = true
+    val resourcesConfigured: Boolean = true,
+    val originalId: String? = null
 )

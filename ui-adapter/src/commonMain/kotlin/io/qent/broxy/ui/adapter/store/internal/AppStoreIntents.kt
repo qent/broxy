@@ -197,23 +197,62 @@ internal class AppStoreIntents(
 
     override fun upsertPreset(draft: UiPresetDraft) {
         scope.launch {
-            val preset = draft.toCorePreset()
+            val originalId = draft.originalId?.trim()?.takeIf { it.isNotBlank() }
+            val trimmedId = draft.id.trim()
+            val normalizedDraft = if (trimmedId == draft.id) draft else draft.copy(id = trimmedId)
+            val preset = normalizedDraft.toCorePreset()
+            val previousSnapshot = state.snapshot
+            val previousConfig = state.snapshotConfig()
+            val isRename = originalId != null && originalId != preset.id
+
             val saveResult = configurationManager.savePreset(preset)
             if (saveResult.isFailure) {
                 val msg = saveResult.exceptionOrNull()?.message ?: "Failed to save preset"
                 logger.info("[AppStore] upsertPreset failed: $msg")
                 state.setError(msg)
             }
-            val summary = preset.toUiPresetSummary(draft.description)
-            val updated = state.snapshot.presets.toMutableList()
-            val idx = updated.indexOfFirst { it.id == summary.id }
-            if (idx >= 0) updated[idx] = summary else updated += summary
-            state.updateSnapshot { copy(presets = updated) }
-            val shouldRestart = saveResult.isSuccess && state.snapshot.selectedPresetId == preset.id
-            publishReady()
-            if (shouldRestart) {
-                proxyRuntime.ensureSseRunning(forceRestart = true)
+
+            val updatedPresets = previousSnapshot.presets.toMutableList()
+            val summary = preset.toUiPresetSummary(normalizedDraft.description)
+            val idx = updatedPresets.indexOfFirst { it.id == summary.id }
+            if (idx >= 0) updatedPresets[idx] = summary else updatedPresets += summary
+
+            var selectedPresetId = previousSnapshot.selectedPresetId
+            if (saveResult.isSuccess && isRename) {
+                val oldId = originalId ?: run {
+                    logger.info("[AppStore] upsertPreset rename skipped: missing originalId")
+                    state.updateSnapshot { copy(presets = updatedPresets) }
+                    publishReady()
+                    return@launch
+                }
+                val wasSelected = previousSnapshot.selectedPresetId == originalId
+                if (wasSelected) {
+                    val configSave = configurationManager.updateDefaultPresetId(previousConfig, preset.id)
+                    if (configSave.isFailure) {
+                        val msg = configSave.exceptionOrNull()?.message ?: "Failed to update default preset"
+                        logger.info("[AppStore] upsertPreset rename failed to update default preset: $msg")
+                        state.setError(msg)
+                        state.updateSnapshot { copy(presets = updatedPresets) }
+                        publishReady()
+                        return@launch
+                    }
+                    selectedPresetId = preset.id
+                }
+
+                val deleteResult = configurationManager.deletePreset(oldId)
+                if (deleteResult.isFailure) {
+                    val msg = deleteResult.exceptionOrNull()?.message ?: "Failed to remove old preset"
+                    logger.info("[AppStore] upsertPreset rename failed to delete old preset: $msg")
+                    state.setError(msg)
+                }
+                updatedPresets.removeAll { it.id == oldId }
             }
+
+            state.updateSnapshot { copy(presets = updatedPresets, selectedPresetId = selectedPresetId) }
+            val shouldRestart = saveResult.isSuccess &&
+                (previousSnapshot.selectedPresetId == preset.id || (isRename && previousSnapshot.selectedPresetId == originalId))
+            publishReady()
+            if (shouldRestart) proxyRuntime.ensureSseRunning(forceRestart = true)
         }
     }
 

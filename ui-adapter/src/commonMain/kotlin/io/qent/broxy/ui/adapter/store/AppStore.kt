@@ -154,7 +154,8 @@ class AppStore(
                         UiResourceRef(serverId = resource.serverId, resourceKey = resource.resourceKey, enabled = resource.enabled)
                     },
                     promptsConfigured = preset.prompts != null,
-                    resourcesConfigured = preset.resources != null
+                    resourcesConfigured = preset.resources != null,
+                    originalId = preset.id
                 )
             }
             .onFailure { error ->

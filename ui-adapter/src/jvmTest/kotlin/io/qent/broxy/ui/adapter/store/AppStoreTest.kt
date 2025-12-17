@@ -13,6 +13,7 @@ import io.qent.broxy.core.utils.LogEvent
 import io.qent.broxy.core.utils.Logger
 import io.qent.broxy.ui.adapter.models.UiLogLevel
 import io.qent.broxy.ui.adapter.models.UiMcpServerConfig
+import io.qent.broxy.ui.adapter.models.UiPresetDraft
 import io.qent.broxy.ui.adapter.models.UiProxyStatus
 import io.qent.broxy.ui.adapter.models.UiServerConnStatus
 import io.qent.broxy.ui.adapter.models.UiServerCapabilities
@@ -417,6 +418,78 @@ class AppStoreTest {
         val updated = store.state.value as UIState.Ready
         assertNull(updated.selectedPresetId)
         assertEquals(UiProxyStatus.Running, updated.proxyStatus)
+
+        storeScope.cancel()
+    }
+
+    @org.junit.Test
+    fun renamingSelectedPresetDoesNotCreateCopyAndRestartsProxy() = runTest {
+        val server = McpServerConfig(
+            id = "s1",
+            name = "Server 1",
+            transport = TransportConfig.StdioTransport(command = "cmd"),
+            env = emptyMap(),
+            enabled = true
+        )
+        val config = McpServersConfig(servers = listOf(server), defaultPresetId = "main")
+        val presetMain = Preset(
+            id = "main",
+            name = "Main",
+            description = "",
+            tools = listOf(ToolReference(serverId = "s1", toolName = "tool", enabled = true))
+        )
+        val repository = FakeConfigurationRepository(
+            config = config,
+            presets = mutableMapOf(presetMain.id to presetMain)
+        )
+        val capabilityFetcher = RecordingCapabilityFetcher(Result.success(UiServerCapabilities()))
+        val proxyController = FakeProxyController()
+        val proxyLifecycle = ProxyLifecycle(proxyController, noopLogger)
+        val logger = CollectingLogger(delegate = noopLogger)
+        val storeScope = TestScope(testScheduler)
+        val remoteConnector = NoOpRemoteConnector(defaultRemoteState())
+        val store = AppStore(
+            configurationRepository = repository,
+            proxyLifecycle = proxyLifecycle,
+            capabilityFetcher = capabilityFetcher::invoke,
+            logger = logger,
+            scope = storeScope,
+            now = { testScheduler.currentTime },
+            enableBackgroundRefresh = false,
+            remoteConnector = remoteConnector
+        )
+
+        store.start()
+        storeScope.advanceUntilIdle()
+
+        assertEquals(1, proxyController.startCalls.size)
+        assertEquals("main", proxyController.startCalls.last().preset.id)
+
+        val ready = store.state.value as UIState.Ready
+        ready.intents.upsertPreset(
+            UiPresetDraft(
+                id = "renamed",
+                name = "Renamed",
+                description = "updated",
+                tools = emptyList(),
+                prompts = emptyList(),
+                resources = emptyList(),
+                promptsConfigured = true,
+                resourcesConfigured = true,
+                originalId = "main"
+            )
+        )
+        storeScope.advanceUntilIdle()
+
+        assertEquals(listOf("renamed"), repository.listPresets().map { it.id }.sorted())
+        assertEquals("renamed", repository.config.defaultPresetId)
+
+        val updated = store.state.value as UIState.Ready
+        assertEquals("renamed", updated.selectedPresetId)
+        assertEquals(listOf("renamed"), updated.presets.map { it.id }.sorted())
+
+        assertEquals(2, proxyController.startCalls.size)
+        assertEquals("renamed", proxyController.startCalls.last().preset.id)
 
         storeScope.cancel()
     }
