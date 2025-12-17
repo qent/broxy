@@ -170,17 +170,14 @@ Claude Desktop подключается к прокси-серверу как к
 
 1) Без CLI — использовать установленное приложение (рекомендуется, если у вас только DMG/MSI):
 
+Перед подключением выберите пресет в UI broxy (вкладка **Proxy**). Выбранный пресет сохраняется в `~/.config/broxy/mcp.json` как `defaultPresetId` и используется в STDIO-режиме фасада.
+
 macOS (DMG):
 ```json
 {
   "mcpServers": {
     "broxy": {
-      "command": "/Applications/broxy.app/Contents/MacOS/broxy",
-      "args": [
-        "--stdio-proxy",
-        "--preset-id", "developer",
-        "--config-dir", "/Users/you/.config/broxy"
-      ]
+      "command": "/Applications/broxy.app/Contents/MacOS/broxy"
     }
   }
 }
@@ -191,12 +188,7 @@ Windows (MSI):
 {
   "mcpServers": {
     "broxy": {
-      "command": "C:\\Program Files\\broxy\\broxy.exe",
-      "args": [
-        "--stdio-proxy",
-        "--preset-id", "developer",
-        "--config-dir", "C:\\Users\\you\\.config\\broxy"
-      ]
+      "command": "C:\\Program Files\\broxy\\broxy.exe"
     }
   }
 }
@@ -380,20 +372,20 @@ Windows (MSI):
 
 ### STDIO режим без сборки CLI (из установленного приложения)
 
-Если у вас только установленное приложение (DMG/MSI) и вы не собирали отдельный CLI JAR, используйте бинарник приложения напрямую в режиме `--stdio-proxy`.
+Если у вас только установленное приложение (DMG/MSI) и вы не собирали отдельный CLI JAR, используйте бинарник приложения напрямую в STDIO-режиме. По умолчанию пресет берётся из `defaultPresetId` в `mcp.json` (задаётся через UI).
 
 macOS:
 ```bash
-/Applications/broxy.app/Contents/MacOS/broxy --stdio-proxy --preset-id <preset> [--config-dir ~/.config/broxy]
+/Applications/broxy.app/Contents/MacOS/broxy --stdio-proxy [--preset-id <preset>] [--config-dir ~/.config/broxy]
 ```
 
 Windows:
 ```powershell
-"C:\\Program Files\\broxy\\broxy.exe" --stdio-proxy --preset-id <preset> --config-dir "%APPDATA%\\broxy"
+"C:\\Program Files\\broxy\\broxy.exe" --stdio-proxy [--preset-id <preset>] [--config-dir "%APPDATA%\\broxy"]
 ```
 
 Примечания:
-- `--preset-id` обязателен — это пресет, который будет применён для фильтрации инструментов.
+- `--preset-id` опционален. Если не указан, используется `defaultPresetId` из `mcp.json`.
 - `--config-dir` опционален. По умолчанию используется `~/.config/broxy` на macOS/Linux и `%USERPROFILE%\\.config\\broxy` на Windows.
 - Логи в этом режиме пишутся в stderr, а stdout используется только для MCP-протокола (не смешивается с логами).
 

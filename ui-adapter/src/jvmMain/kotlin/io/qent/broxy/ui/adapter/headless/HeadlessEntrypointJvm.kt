@@ -11,19 +11,27 @@ import java.nio.file.Paths
 /**
  * Starts the proxy in STDIO inbound mode and blocks until the STDIO session ends.
  * This is intended to be called from a packaged Desktop app binary with
- * flags like `--stdio-proxy --preset-id <id>` so that Claude Desktop can
- * spawn it as an MCP STDIO server without a separate CLI jar.
+ * no CLI args so that Claude Desktop can spawn it as an MCP STDIO server
+ * without a separate CLI jar. The preset is resolved from:
  *
- * @param presetId Preset to apply for filtering and routing
+ * 1) [presetIdOverride] (if provided),
+ * 2) `defaultPresetId` in `mcp.json`,
+ * 3) the only available preset (if exactly one exists).
+ *
+ * @param presetIdOverride Optional preset ID override
  * @param configDir Optional configuration directory (defaults to ~/.config/broxy)
  */
-fun runStdioProxy(presetId: String, configDir: String? = null): Result<Unit> = runCatching {
+fun runStdioProxy(presetIdOverride: String? = null, configDir: String? = null): Result<Unit> = runCatching {
     val repo = if (configDir.isNullOrBlank())
         JsonConfigurationRepository(logger = StdErrLogger)
     else
         JsonConfigurationRepository(baseDir = Paths.get(configDir), logger = StdErrLogger)
     val cfg = repo.loadMcpConfig()
-    val preset = repo.loadPreset(presetId)
+    val effectivePresetId = presetIdOverride?.takeIf { it.isNotBlank() }
+        ?: cfg.defaultPresetId?.takeIf { it.isNotBlank() }
+        ?: repo.listPresets().singleOrNull()?.id
+        ?: error("No default preset configured. Open broxy UI and select a preset (Proxy tab) to set it as default.")
+    val preset = repo.loadPreset(effectivePresetId)
 
     val logger = CollectingLogger(delegate = StdErrLogger)
     val controller = createStdioProxyController(logger)

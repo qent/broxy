@@ -15,6 +15,12 @@
       },
       "additionalProperties": { "$ref": "#/definitions/FileMcpServer" }
     },
+    "defaultPresetId": {
+      "type": ["string", "null"],
+      "minLength": 1,
+      "description": "Default preset ID to use in UI STDIO facade mode (when no preset is provided via CLI args).",
+      "default": null
+    },
     "requestTimeoutSeconds": {
       "type": "integer",
       "minimum": 1,

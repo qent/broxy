@@ -5,6 +5,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class McpServersConfig(
     val servers: List<McpServerConfig> = emptyList(),
+    val defaultPresetId: String? = null,
     val requestTimeoutSeconds: Int = 60,
     val capabilitiesTimeoutSeconds: Int = 30,
     val showTrayIcon: Boolean = true,

@@ -39,6 +39,9 @@ class ConfigurationManager(
     fun updateTrayIconVisibility(config: McpServersConfig, visible: Boolean): Result<McpServersConfig> =
         saveConfig(config.copy(showTrayIcon = visible))
 
+    fun updateDefaultPresetId(config: McpServersConfig, presetId: String?): Result<McpServersConfig> =
+        saveConfig(config.copy(defaultPresetId = presetId?.takeIf { it.isNotBlank() }))
+
     fun savePreset(preset: Preset): Result<Preset> = runCatching {
         repository.savePreset(preset)
         preset

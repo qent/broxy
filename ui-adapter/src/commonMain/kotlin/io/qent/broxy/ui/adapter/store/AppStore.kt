@@ -198,6 +198,7 @@ class AppStore(
             copy(
                 isLoading = false,
                 servers = config.servers,
+                selectedPresetId = config.defaultPresetId,
                 requestTimeoutSeconds = config.requestTimeoutSeconds,
                 capabilitiesTimeoutSeconds = config.capabilitiesTimeoutSeconds,
                 capabilitiesRefreshIntervalSeconds = config.capabilitiesRefreshIntervalSeconds.coerceAtLeast(30),
@@ -211,6 +212,7 @@ class AppStore(
 
     private fun snapshotConfig(): UiMcpServersConfig = UiMcpServersConfig(
         servers = snapshot.servers,
+        defaultPresetId = snapshot.selectedPresetId,
         requestTimeoutSeconds = snapshot.requestTimeoutSeconds,
         capabilitiesTimeoutSeconds = snapshot.capabilitiesTimeoutSeconds,
         showTrayIcon = snapshot.showTrayIcon,

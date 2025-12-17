@@ -32,6 +32,7 @@
    - `capabilitiesTimeoutSeconds` (default: 30)
    - `capabilitiesRefreshIntervalSeconds` (default: 300)
    - `showTrayIcon` (default: true)
+   - `defaultPresetId` (optional: preset по умолчанию для STDIO фасада UI-версии, когда preset не передаётся через CLI args)
 
 Код:
 - `core/src/jvmMain/kotlin/io/qent/broxy/core/config/JsonConfigurationRepository.kt`
@@ -109,4 +110,3 @@
   - `ProxyLifecycle.restartWithConfig(config)` — перезапуск downstream соединений + inbound.
 - При изменении `preset_*.json`:
   - `ProxyLifecycle.applyPreset(preset)` — обновление фильтрации в прокси без рестарта inbound (см. ограничение в `docs/PRESETS_AND_FILTERING.md`).
-

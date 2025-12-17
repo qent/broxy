@@ -117,6 +117,7 @@ class JsonConfigurationRepository(
 
         return McpServersConfig(
             servers = servers,
+            defaultPresetId = root.defaultPresetId?.takeIf { it.isNotBlank() },
             requestTimeoutSeconds = timeoutSeconds,
             capabilitiesTimeoutSeconds = capabilitiesTimeoutSeconds,
             showTrayIcon = showTrayIcon,
@@ -126,6 +127,7 @@ class JsonConfigurationRepository(
 
     override fun saveMcpConfig(config: McpServersConfig) {
         val root = FileMcpRoot(
+            defaultPresetId = config.defaultPresetId?.takeIf { it.isNotBlank() },
             requestTimeoutSeconds = config.requestTimeoutSeconds,
             capabilitiesTimeoutSeconds = config.capabilitiesTimeoutSeconds,
             showTrayIcon = config.showTrayIcon,
@@ -252,6 +254,7 @@ class JsonConfigurationRepository(
 
     @Serializable
     private data class FileMcpRoot(
+        val defaultPresetId: String? = null,
         val requestTimeoutSeconds: Int? = null,
         val capabilitiesTimeoutSeconds: Int? = null,
         val showTrayIcon: Boolean? = null,

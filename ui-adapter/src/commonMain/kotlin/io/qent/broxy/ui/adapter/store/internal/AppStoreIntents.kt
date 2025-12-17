@@ -233,9 +233,20 @@ internal class AppStoreIntents(
 
     override fun selectProxyPreset(presetId: String?) {
         scope.launch {
-            if (state.snapshot.selectedPresetId == presetId) return@launch
+            val previousPresetId = state.snapshot.selectedPresetId
+            if (previousPresetId == presetId) return@launch
+            val previousConfig = state.snapshotConfig()
             state.updateSnapshot { copy(selectedPresetId = presetId) }
             publishReady()
+            val saveResult = configurationManager.updateDefaultPresetId(previousConfig, presetId)
+            if (saveResult.isFailure) {
+                val msg = saveResult.exceptionOrNull()?.message ?: "Failed to save preset selection"
+                logger.info("[AppStore] selectProxyPreset failed: $msg")
+                state.updateSnapshot { copy(selectedPresetId = previousPresetId) }
+                state.setError(msg)
+                publishReady()
+                return@launch
+            }
             val shouldRestart = presetId != null &&
                 state.snapshot.proxyStatus is UiProxyStatus.Running &&
                 state.snapshot.activeInbound != null &&

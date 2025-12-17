@@ -38,17 +38,17 @@ import java.awt.TrayIcon
 import java.awt.event.ActionEvent
 import java.awt.event.ActionListener
 import java.awt.Color as AwtColor
+import java.io.PushbackInputStream
 
 fun main(args: Array<String>) {
-    // Headless STDIO mode: allow Claude Desktop to spawn the app as an MCP server.
-    if (args.contains("--stdio-proxy")) {
+    // Headless STDIO mode: allow MCP clients to spawn the app as an MCP server.
+    // The preset is resolved from mcp.json (`defaultPresetId`) and is managed via the UI.
+    val forceStdio = args.contains("--stdio-proxy")
+    val autoStdio = !forceStdio && args.isEmpty() && probeStdinHasData(timeoutMillis = 200)
+    if (forceStdio || autoStdio) {
         val presetId = args.indexOf("--preset-id").takeIf { it >= 0 }?.let { idx -> args.getOrNull(idx + 1) }
         val configDir = args.indexOf("--config-dir").takeIf { it >= 0 }?.let { idx -> args.getOrNull(idx + 1) }
-        if (presetId.isNullOrBlank()) {
-            logStdioInfo("Usage: broxy --stdio-proxy --preset-id <id> [--config-dir <path>]")
-            kotlin.system.exitProcess(2)
-        }
-        val r = runStdioProxy(presetId, configDir)
+        val r = runStdioProxy(presetIdOverride = presetId, configDir = configDir)
         if (r.isFailure) {
             logStdioInfo("[ERROR] Failed to start stdio proxy: ${r.exceptionOrNull()?.message}")
             kotlin.system.exitProcess(1)
@@ -173,6 +173,30 @@ fun main(args: Array<String>) {
             }
         }
     }
+}
+
+private fun probeStdinHasData(timeoutMillis: Long): Boolean {
+    val original = System.`in`
+    val pushback = PushbackInputStream(original, 4096)
+    System.setIn(pushback)
+    val deadline = System.currentTimeMillis() + timeoutMillis.coerceAtLeast(0)
+    while (System.currentTimeMillis() < deadline) {
+        val available = runCatching { pushback.available() }.getOrDefault(0)
+        if (available > 0) {
+            val toRead = minOf(available, 4096)
+            val buffer = ByteArray(toRead)
+            val read = runCatching { pushback.read(buffer) }.getOrDefault(-1)
+            if (read > 0) {
+                pushback.unread(buffer, 0, read)
+                return true
+            }
+            break
+        }
+        Thread.sleep(10)
+    }
+    // No input detected quickly → restore original stdin and proceed with normal UI.
+    System.setIn(original)
+    return false
 }
 
 private fun updateTaskbarIcon(image: Image) {
