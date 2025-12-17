@@ -68,7 +68,7 @@ fun GlobalHeader(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = AppTheme.spacing.lg)
+            .padding(horizontal = AppTheme.spacing.sm)
             .padding(top = AppTheme.spacing.xxs, bottom = AppTheme.spacing.xs),
         verticalAlignment = Alignment.CenterVertically
     ) {

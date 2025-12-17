@@ -74,7 +74,7 @@ fun AppNavigationRail(
                         .clip(AppTheme.shapes.button)
                         .background(backgroundColor)
                         .clickable { onSelect(item.screen) }
-                        .padding(vertical = 10.dp, horizontal = 4.dp)
+                        .padding(vertical = 7.dp, horizontal = 3.dp)
                 ) {
                     androidx.compose.runtime.CompositionLocalProvider(
                         androidx.compose.material3.LocalContentColor provides contentColor
