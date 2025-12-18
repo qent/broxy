@@ -29,7 +29,6 @@ data class NavItem(
 private val navItems = listOf(
     NavItem(Screen.Servers, "MCP", Icons.Outlined.Storage),
     NavItem(Screen.Presets, "Presets", Icons.Outlined.Tune),
-    NavItem(Screen.Logs, "Logs", Icons.Outlined.List),
     NavItem(Screen.Settings, "Settings", Icons.Outlined.Settings),
 )
 

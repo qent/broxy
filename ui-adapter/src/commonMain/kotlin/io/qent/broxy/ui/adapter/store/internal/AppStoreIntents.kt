@@ -4,6 +4,7 @@ import io.qent.broxy.core.capabilities.CapabilityRefresher
 import io.qent.broxy.core.config.ConfigurationManager
 import io.qent.broxy.core.proxy.runtime.ProxyLifecycle
 import io.qent.broxy.core.utils.CollectingLogger
+import io.qent.broxy.ui.adapter.data.openLogsFolder as openLogsFolderPlatform
 import io.qent.broxy.ui.adapter.models.*
 import io.qent.broxy.ui.adapter.remote.RemoteConnector
 import io.qent.broxy.ui.adapter.store.Intents
@@ -388,6 +389,17 @@ internal class AppStoreIntents(
                 state.setError(msg)
             }
             publishReady()
+        }
+    }
+
+    override fun openLogsFolder() {
+        scope.launch {
+            val result = openLogsFolderPlatform()
+            if (result.isFailure) {
+                logger.info("[AppStore] openLogsFolder failed: ${result.exceptionOrNull()?.message}")
+            } else {
+                logger.info("[AppStore] logs folder opened")
+            }
         }
     }
 

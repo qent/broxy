@@ -10,6 +10,7 @@ import io.qent.broxy.core.proxy.runtime.ProxyLifecycle
 import io.qent.broxy.core.proxy.runtime.createProxyController
 import io.qent.broxy.core.repository.ConfigurationRepository
 import io.qent.broxy.core.utils.CollectingLogger
+import io.qent.broxy.ui.adapter.data.provideDefaultLogger
 import io.qent.broxy.ui.adapter.data.provideConfigurationRepository
 import io.qent.broxy.ui.adapter.models.*
 import io.qent.broxy.ui.adapter.remote.RemoteConnector
@@ -22,8 +23,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-private const val DEFAULT_MAX_LOGS = 500
-
 /**
  * AppStore implements UDF for the app: exposes Flow<UIState> and side-effecting intents.
  * No Compose dependencies. UI calls intents via functions inside the state.
@@ -35,13 +34,11 @@ class AppStore(
     private val logger: CollectingLogger,
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.Default),
     private val now: () -> Long = { System.currentTimeMillis() },
-    maxLogs: Int = DEFAULT_MAX_LOGS,
     private val enableBackgroundRefresh: Boolean = true,
     private val remoteConnector: RemoteConnector
 ) {
     private val capabilityCache = CapabilityCache(now)
     private val statusTracker = ServerStatusTracker()
-    private val logsBuffer = LogsBuffer(maxLogs)
 
     private val _state = MutableStateFlow<UIState>(UIState.Loading)
     val state: StateFlow<UIState> = _state
@@ -91,7 +88,6 @@ class AppStore(
     )
 
     init {
-        observeLogs()
         observeRemote()
     }
 
@@ -171,15 +167,6 @@ class AppStore(
         return capabilityRefresher.getServerCaps(serverId, forceRefresh)?.toUiModel()
     }
 
-    private fun observeLogs() {
-        scope.launch {
-            logger.events.collect { event ->
-                logsBuffer.append(event.toUiEntry())
-                publishReadyIfNotError()
-            }
-        }
-    }
-
     private fun observeRemote() {
         scope.launch {
             remoteConnector.state.collect { state ->
@@ -226,7 +213,7 @@ class AppStore(
     )
 
     private fun publishReady() {
-        _state.value = snapshot.toUiState(intents, logsBuffer.snapshot(), capabilityCache, statusTracker)
+        _state.value = snapshot.toUiState(intents, capabilityCache, statusTracker)
     }
 
     private fun publishReadyIfNotError() {
@@ -245,12 +232,11 @@ class AppStore(
 
 fun createAppStore(
     scope: CoroutineScope = CoroutineScope(Dispatchers.Default),
-    logger: CollectingLogger = CollectingLogger(),
+    logger: CollectingLogger = provideDefaultLogger(),
     repository: ConfigurationRepository = provideConfigurationRepository(),
     proxyFactory: (CollectingLogger) -> ProxyController = { createProxyController(it) },
     capabilityFetcher: CapabilityFetcher = { config, timeout -> fetchServerCapabilities(config, timeout, logger) },
     now: () -> Long = { System.currentTimeMillis() },
-    maxLogs: Int = DEFAULT_MAX_LOGS,
     enableBackgroundRefresh: Boolean = true
 ): AppStore {
     val proxyController = proxyFactory(logger)
@@ -267,7 +253,6 @@ fun createAppStore(
         logger = logger,
         scope = scope,
         now = now,
-        maxLogs = maxLogs,
         enableBackgroundRefresh = enableBackgroundRefresh,
         remoteConnector = remoteConnector
     )

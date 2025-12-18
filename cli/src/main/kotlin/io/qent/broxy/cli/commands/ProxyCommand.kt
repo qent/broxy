@@ -16,6 +16,8 @@ import io.qent.broxy.core.models.TransportConfig
 import io.qent.broxy.core.proxy.runtime.ProxyLifecycle
 import io.qent.broxy.core.proxy.runtime.createProxyController
 import io.qent.broxy.core.utils.CollectingLogger
+import io.qent.broxy.core.utils.CompositeLogger
+import io.qent.broxy.core.utils.DailyFileLogger
 import io.qent.broxy.core.utils.FilteredLogger
 import io.qent.broxy.core.utils.LogLevel
 import io.qent.broxy.core.utils.Logger
@@ -39,13 +41,14 @@ class ProxyCommand : CliktCommand(name = "proxy", help = "Run broxy server") {
     override fun run() {
         val json = Json { ignoreUnknownKeys = true }
 
-        val logger = createLogger(logLevel)
+        val baseDir = Paths.get(configDir.absolutePath)
+        val logger = createLogger(logLevel, baseDir)
         val collectingLogger = CollectingLogger(delegate = logger)
         val proxyController = createProxyController(collectingLogger)
         val proxyLifecycle = ProxyLifecycle(proxyController, logger)
 
         val repo = JsonConfigurationRepository(
-            baseDir = Paths.get(configDir.absolutePath),
+            baseDir = baseDir,
             json = json,
             logger = logger,
             envResolver = EnvironmentVariableResolver(logger = logger)
@@ -68,7 +71,7 @@ class ProxyCommand : CliktCommand(name = "proxy", help = "Run broxy server") {
         }
 
         val watcher = ConfigurationWatcher(
-            baseDir = Paths.get(configDir.absolutePath),
+            baseDir = baseDir,
             repo = repo,
             logger = logger,
             emitInitialState = false
@@ -110,7 +113,7 @@ class ProxyCommand : CliktCommand(name = "proxy", help = "Run broxy server") {
         while (true) Thread.sleep(60_000)
     }
 
-    private fun createLogger(level: String): Logger {
+    private fun createLogger(level: String, baseDir: java.nio.file.Path): Logger {
         val min = when (level.lowercase()) {
             "debug" -> LogLevel.DEBUG
             "info" -> LogLevel.INFO
@@ -118,6 +121,9 @@ class ProxyCommand : CliktCommand(name = "proxy", help = "Run broxy server") {
             "error" -> LogLevel.ERROR
             else -> LogLevel.INFO
         }
-        return FilteredLogger(min, StderrLogger)
+        return CompositeLogger(
+            FilteredLogger(min, StderrLogger),
+            DailyFileLogger(baseDir)
+        )
     }
 }

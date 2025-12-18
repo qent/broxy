@@ -23,6 +23,5 @@ class AppState(
 enum class Screen(val title: String) {
     Servers("Servers"),
     Presets("Presets"),
-    Logs("Logs"),
     Settings("Settings"),
 }

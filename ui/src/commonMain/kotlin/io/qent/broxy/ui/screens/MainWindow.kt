@@ -120,7 +120,6 @@ fun MainWindow(
                         when (s) {
                             Screen.Servers -> ServersScreen(ui, state, store, notify)
                             Screen.Presets -> PresetsScreen(ui, state, store)
-                            Screen.Logs -> LogsScreen(ui)
                             Screen.Settings -> SettingsScreen(ui = ui, notify = notify)
                         }
                     }

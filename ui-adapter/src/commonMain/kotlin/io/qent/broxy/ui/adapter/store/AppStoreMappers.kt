@@ -3,7 +3,6 @@ package io.qent.broxy.ui.adapter.store
 import io.qent.broxy.core.models.PromptReference
 import io.qent.broxy.core.models.ResourceReference
 import io.qent.broxy.core.models.ToolReference
-import io.qent.broxy.core.utils.LogEvent
 import io.qent.broxy.ui.adapter.models.*
 
 internal fun UiPresetCore.toUiPresetSummary(): UiPreset = UiPreset(
@@ -53,10 +52,3 @@ internal fun UiTransportDraft.toTransportConfig(): UiTransportConfig = when (thi
     is UiStreamableHttpDraft -> UiStreamableHttpTransport(url = url, headers = headers)
     is UiWebSocketDraft -> UiWebSocketTransport(url = url)
 }
-
-internal fun LogEvent.toUiEntry(): UiLogEntry = UiLogEntry(
-    timestampMillis = timestampMillis,
-    level = UiLogLevel.valueOf(level.name),
-    message = message,
-    throwableMessage = throwableMessage
-)

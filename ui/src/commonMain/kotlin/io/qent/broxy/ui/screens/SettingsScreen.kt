@@ -56,6 +56,10 @@ fun SettingsScreen(
                     ui.intents.updateTrayIconVisibility(enabled)
                     notify(if (enabled) "Tray icon enabled" else "Tray icon disabled")
                 },
+                onOpenLogsFolder = {
+                    ui.intents.openLogsFolder()
+                    notify("Opening logs folder…")
+                },
                 remote = ui.remote,
                 onRemoteServerIdChange = { ui.intents.updateRemoteServerIdentifier(it) },
                 onRemoteAuthorize = { ui.intents.startRemoteAuthorization() },
@@ -80,6 +84,7 @@ private fun SettingsContent(
     onCapabilitiesTimeoutSave: (Int) -> Unit,
     onCapabilitiesRefreshIntervalSave: (Int) -> Unit,
     onToggleTrayIcon: (Boolean) -> Unit,
+    onOpenLogsFolder: () -> Unit,
     remote: UiRemoteConnectionState,
     onRemoteServerIdChange: (String) -> Unit,
     onRemoteAuthorize: () -> Unit,
@@ -144,6 +149,7 @@ private fun SettingsContent(
             verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)
         ) {
             TrayIconSetting(checked = showTrayIcon, onToggle = onToggleTrayIcon)
+            LogsSetting(onOpenFolder = onOpenLogsFolder)
             RemoteConnectorSetting(
                 remote = remote,
                 serverId = remoteServerId,
@@ -244,6 +250,23 @@ private fun TrayIconSetting(
                 uncheckedBorderColor = MaterialTheme.colorScheme.outline
             )
         )
+    }
+}
+
+@Composable
+private fun LogsSetting(
+    onOpenFolder: () -> Unit
+) {
+    SettingItem(
+        title = "Logs",
+        description = "Application logs are stored in the logs/ folder next to the configuration files."
+    ) {
+        AppPrimaryButton(
+            onClick = onOpenFolder,
+            modifier = Modifier.height(32.dp)
+        ) {
+            Text("Open folder", style = MaterialTheme.typography.labelSmall)
+        }
     }
 }
 

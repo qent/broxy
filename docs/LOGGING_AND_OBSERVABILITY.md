@@ -8,9 +8,11 @@
 Реализации:
 
 - `ConsoleLogger` — пишет в stdout (удобно для локального дебага).
+- `DailyFileLogger(baseDir)` — пишет в `${baseDir}/logs/{YYYY-MM-DD}.log` (один файл на день, все уровни).
 - `FilteredLogger(minLevel, delegate)` — фильтрация по уровню (используется в CLI).
 - `CollectingLogger(delegate)` — пишет в delegate и публикует события через `SharedFlow<LogEvent>`.
   - файл: `core/src/commonMain/kotlin/io/qent/broxy/core/utils/CollectingLogger.kt`
+- `CompositeLogger(delegates)` — fan-out в несколько логгеров (например, stderr + файл).
 
 ### Важный нюанс STDIO режима
 
@@ -18,6 +20,17 @@
 
 - `cli/src/main/kotlin/io/qent/broxy/cli/support/StderrLogger.kt`
 - `cli/src/main/kotlin/io/qent/broxy/cli/commands/ProxyCommand.kt` → `FilteredLogger(min, StderrLogger)`
+
+При этом все уровни логов также пишутся в файл `${configDir}/logs/{YYYY-MM-DD}.log`.
+
+## Файловые логи
+
+Логи приложения пишутся рядом с конфигурацией (директория, где лежит `mcp.json`) в подпапку `logs/`.
+
+- Путь: `${configDir}/logs/`
+- Файл: `{YYYY-MM-DD}.log` (один файл на день)
+- Формат строки: `YYYY-MM-DD HH:mm:ss.SSS LEVEL событие`
+  - если в сообщении встречаются переводы строк, они экранируются как `\\n`, чтобы сохранить “одна строка = один лог”.
 
 ## JSON-логирование (структурированные события)
 
@@ -98,4 +111,3 @@ API:
    - проверьте логи `DefaultMcpServerConnection.getCapabilities(...)` (успех/ошибка/кеш);
    - для STDIO используйте `STDIO raw ...` события;
    - помните, что `KtorMcpClient.fetchCapabilities()` может вернуть пустые списки по таймауту отдельных операций.
-

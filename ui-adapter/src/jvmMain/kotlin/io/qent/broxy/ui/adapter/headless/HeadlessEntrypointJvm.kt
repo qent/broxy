@@ -9,6 +9,8 @@ import io.qent.broxy.core.models.TransportConfig
 import io.qent.broxy.core.proxy.ProxyMcpServer
 import io.qent.broxy.core.proxy.inbound.buildSdkServer
 import io.qent.broxy.core.utils.CollectingLogger
+import io.qent.broxy.core.utils.CompositeLogger
+import io.qent.broxy.core.utils.DailyFileLogger
 import io.qent.broxy.core.utils.StdErrLogger
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
@@ -31,10 +33,16 @@ import java.nio.file.Paths
  * @param configDir Optional configuration directory (defaults to ~/.config/broxy)
  */
 fun runStdioProxy(presetIdOverride: String? = null, configDir: String? = null): Result<Unit> = runCatching {
-    val repo = if (configDir.isNullOrBlank())
-        JsonConfigurationRepository(logger = StdErrLogger)
-    else
-        JsonConfigurationRepository(baseDir = Paths.get(configDir), logger = StdErrLogger)
+    val baseDir = if (configDir.isNullOrBlank()) {
+        Paths.get(System.getProperty("user.home"), ".config", "broxy")
+    } else {
+        Paths.get(configDir)
+    }
+    val sink = CompositeLogger(
+        StdErrLogger,
+        DailyFileLogger(baseDir)
+    )
+    val repo = JsonConfigurationRepository(baseDir = baseDir, logger = sink)
     val cfg = repo.loadMcpConfig()
     val effectivePresetId = presetIdOverride?.takeIf { it.isNotBlank() }
         ?: cfg.defaultPresetId?.takeIf { it.isNotBlank() }
@@ -45,7 +53,7 @@ fun runStdioProxy(presetIdOverride: String? = null, configDir: String? = null): 
         runCatching { repo.loadPreset(effectivePresetId) }.getOrElse { Preset.empty() }
     }
 
-    val logger = CollectingLogger(delegate = StdErrLogger)
+    val logger = CollectingLogger(delegate = sink)
     val inbound = TransportConfig.StdioTransport(command = "", args = emptyList())
 
     val callTimeoutMillis = cfg.requestTimeoutSeconds.toLong() * 1_000L
@@ -74,7 +82,7 @@ fun runStdioProxy(presetIdOverride: String? = null, configDir: String? = null): 
     val shutdownSignal = CompletableDeferred<Unit>()
     transport.onClose { shutdownSignal.complete(Unit) }
 
-    StdErrLogger.info(
+    sink.info(
         "Starting broxy STDIO proxy (presetId='${effectivePresetId ?: "none"}', configDir='${configDir ?: "~/.config/broxy"}')"
     )
 
@@ -87,7 +95,7 @@ fun runStdioProxy(presetIdOverride: String? = null, configDir: String? = null): 
         runBlocking { runCatching { transport.close() } }
         runCatching { proxy.stop() }
         runBlocking { downstreams.forEach { runCatching { it.disconnect() } } }
-        StdErrLogger.info("broxy STDIO proxy stopped")
+        sink.info("broxy STDIO proxy stopped")
     }
 }
 

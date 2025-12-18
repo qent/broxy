@@ -7,9 +7,8 @@ import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.*
 
 private object JsonLogFormatter {
-    private val pretty = Json {
-        prettyPrint = true
-        prettyPrintIndent = "  "
+    private val json = Json {
+        prettyPrint = false
         encodeDefaults = false
     }
 
@@ -20,7 +19,7 @@ private object JsonLogFormatter {
             put("event", JsonPrimitive(event))
             put("payload", payload)
         }
-        return pretty.encodeToString(JsonObject.serializer(), body)
+        return json.encodeToString(JsonObject.serializer(), body)
     }
 }
 

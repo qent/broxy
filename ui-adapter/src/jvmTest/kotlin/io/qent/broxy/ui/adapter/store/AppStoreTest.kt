@@ -73,7 +73,6 @@ class AppStoreTest {
             logger = logger,
             scope = storeScope,
             now = { testScheduler.currentTime },
-            maxLogs = 10,
             enableBackgroundRefresh = false,
             remoteConnector = remoteConnector
         )
@@ -96,55 +95,6 @@ class AppStoreTest {
         assertEquals(listOf(24), proxyController.capabilityTimeoutUpdates)
         assertEquals(listOf("s1"), capabilityFetcher.requestedIds)
         assertEquals(listOf(24), capabilityFetcher.requestedTimeouts)
-
-        storeScope.cancel()
-    }
-
-    @org.junit.Test
-    fun loggerEventsAppearInUiState() = runTest {
-        val server = McpServerConfig(
-            id = "s1",
-            name = "Server 1",
-            transport = TransportConfig.StdioTransport(command = "cmd"),
-            env = emptyMap(),
-            enabled = true
-        )
-        val config = McpServersConfig(servers = listOf(server))
-        val preset = Preset("dev", "Dev", "", emptyList())
-        val repository = FakeConfigurationRepository(
-            config = config,
-            presets = mutableMapOf(preset.id to preset)
-        )
-        val capabilityFetcher = RecordingCapabilityFetcher(Result.success(UiServerCapabilities()))
-        val proxyController = FakeProxyController()
-        val proxyLifecycle = ProxyLifecycle(proxyController, noopLogger)
-        val logger = CollectingLogger(delegate = noopLogger)
-        val storeScope = TestScope(testScheduler)
-        val remoteConnector = NoOpRemoteConnector(defaultRemoteState())
-        val store = AppStore(
-            configurationRepository = repository,
-            proxyLifecycle = proxyLifecycle,
-            capabilityFetcher = capabilityFetcher::invoke,
-            logger = logger,
-            scope = storeScope,
-            now = { testScheduler.currentTime },
-            enableBackgroundRefresh = false,
-            remoteConnector = remoteConnector
-        )
-
-        store.start()
-        storeScope.advanceUntilIdle()
-
-        logger.info("hello from logger")
-        storeScope.advanceUntilIdle()
-
-        val readyState = store.state.value
-        assertTrue(readyState is UIState.Ready, "Expected Ready state, got $readyState")
-        val ready = readyState as UIState.Ready
-        val logEntry = ready.logs.firstOrNull()
-        assertNotNull(logEntry)
-        assertEquals("hello from logger", logEntry.message)
-        assertEquals(UiLogLevel.INFO, logEntry.level)
 
         storeScope.cancel()
     }

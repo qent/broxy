@@ -16,7 +16,6 @@ sealed class UIState {
         val capabilitiesTimeoutSeconds: Int,
         val capabilitiesRefreshIntervalSeconds: Int,
         val showTrayIcon: Boolean,
-        val logs: List<UiLogEntry>,
         val intents: Intents,
         val remote: UiRemoteConnectionState
     ) : UIState()
@@ -41,6 +40,8 @@ interface Intents {
     fun updateCapabilitiesTimeout(seconds: Int)
     fun updateCapabilitiesRefreshInterval(seconds: Int)
     fun updateTrayIconVisibility(visible: Boolean)
+
+    fun openLogsFolder()
 
     fun updateRemoteServerIdentifier(value: String)
     fun startRemoteAuthorization()

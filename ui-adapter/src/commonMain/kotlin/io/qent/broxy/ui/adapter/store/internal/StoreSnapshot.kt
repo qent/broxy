@@ -41,7 +41,6 @@ internal fun StoreSnapshot.withPresets(newPresets: List<UiPreset>): StoreSnapsho
 
 internal fun StoreSnapshot.toUiState(
     intents: Intents,
-    logs: List<UiLogEntry>,
     cache: CapabilityCache,
     statuses: ServerStatusTracker
 ): UIState {
@@ -74,7 +73,6 @@ internal fun StoreSnapshot.toUiState(
         capabilitiesTimeoutSeconds = capabilitiesTimeoutSeconds,
         capabilitiesRefreshIntervalSeconds = capabilitiesRefreshIntervalSeconds,
         showTrayIcon = showTrayIcon,
-        logs = logs,
         intents = intents,
         remote = remote
     )
