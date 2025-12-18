@@ -59,8 +59,12 @@ private fun PresetDropdown(
     val defaultShape = AppTheme.shapes.input
     val headerShape = if (expanded) defaultShape.copy(bottomStart = CornerSize(0.dp), bottomEnd = CornerSize(0.dp)) else defaultShape
     val dropdownShape = if (expanded) defaultShape.copy(topStart = CornerSize(0.dp), topEnd = CornerSize(0.dp)) else defaultShape
-    // Offset to overlap the single-pixel borders, creating a unified look with a divider
-    val dropdownOffset = DpOffset(0.dp, -AppTheme.strokeWidths.thin)
+    
+    // We still might need a tiny negative offset if the borders are doubled, but ExposedDropdownMenu usually aligns perfectly.
+    // To be safe and ensure the "unified" single-border look, we can check. 
+    // Usually ExposedDropdownMenu places the menu directly below. 
+    // If we want to overlap the 1dp border, we might arguably need -1dp offset.
+    // Let's try standard first, but with the specific shapes it should look connected.
 
     when (ui) {
         UIState.Loading -> HeaderField(text = "Loading…", modifier = modifier.width(width))
@@ -72,12 +76,15 @@ private fun PresetDropdown(
             val currentName = ui.presets.firstOrNull { it.id == selectedPresetId }?.name
                 ?: if (selectedPresetId == null) "No preset" else selectedPresetId
 
-            Box(modifier = modifier.width(width)) {
+            ExposedDropdownMenuBox(
+                expanded = expanded,
+                onExpandedChange = { expanded = !expanded },
+                modifier = modifier.width(width)
+            ) {
                 HeaderField(
                     text = currentName,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().menuAnchor(),
                     shape = headerShape,
-                    onClick = { expanded = !expanded },
                     trailing = {
                         Icon(
                             imageVector = Icons.Outlined.ExpandMore,
@@ -88,20 +95,14 @@ private fun PresetDropdown(
                         )
                     }
                 )
-                DropdownMenu(
+                ExposedDropdownMenu(
                     expanded = expanded,
                     onDismissRequest = { expanded = false },
-                    offset = dropdownOffset,
                     modifier = Modifier
-                        .width(width)
                         .background(color = AppTheme.colors.surface, shape = dropdownShape)
                         .border(AppTheme.strokeWidths.thin, AppTheme.colors.outline, dropdownShape),
-                    shape = dropdownShape,
-                    containerColor = AppTheme.colors.surface,
-                    tonalElevation = 0.dp,
-                    shadowElevation = AppTheme.elevation.level2
                 ) {
-                    DropdownMenuItem(
+                     DropdownMenuItem(
                         text = {
                             Text(
                                 "No preset",
@@ -111,7 +112,7 @@ private fun PresetDropdown(
                         },
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(
                             horizontal = AppTheme.spacing.md,
-                            vertical = AppTheme.spacing.xs
+                            vertical = AppTheme.spacing.xxs
                         ),
                         onClick = {
                             expanded = false
@@ -121,11 +122,6 @@ private fun PresetDropdown(
                             }
                         }
                     )
-                    
-                    if (ui.presets.isNotEmpty()) {
-                        // Optional: Add a subtle divider or spacer if needed, or just list items.
-                        // Skipping explicit visual separator to keep it minimal as requested.
-                    }
 
                     ui.presets.forEach { p ->
                         val isSelected = p.id == selectedPresetId
@@ -139,7 +135,7 @@ private fun PresetDropdown(
                             },
                             contentPadding = androidx.compose.foundation.layout.PaddingValues(
                                 horizontal = AppTheme.spacing.md,
-                                vertical = AppTheme.spacing.xs
+                                vertical = AppTheme.spacing.xxs
                             ),
                             onClick = {
                                 expanded = false
