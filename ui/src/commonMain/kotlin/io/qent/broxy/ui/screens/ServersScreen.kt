@@ -37,6 +37,8 @@ fun ServersScreen(ui: UIState, state: AppState, store: AppStore, notify: (String
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)
         ) {
+            Spacer(Modifier.height(1.dp))
+
             OutlinedTextField(
                 value = query,
                 onValueChange = { query = it },
@@ -62,7 +64,7 @@ fun ServersScreen(ui: UIState, state: AppState, store: AppStore, notify: (String
                                 cfg.transportLabel.contains(query, ignoreCase = true)
                         }
                         LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier.weight(1f, fill = true),
                             verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
                             contentPadding = PaddingValues(bottom = ServerListBottomPadding)
                         ) {
@@ -81,6 +83,8 @@ fun ServersScreen(ui: UIState, state: AppState, store: AppStore, notify: (String
                     }
                 }
             }
+
+            Spacer(Modifier.height(AppTheme.spacing.md))
         }
 
         if (editing != null) {

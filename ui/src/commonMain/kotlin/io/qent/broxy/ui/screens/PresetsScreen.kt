@@ -32,12 +32,16 @@ fun PresetsScreen(ui: UIState, state: AppState, store: AppStore) {
 
     Box(modifier = Modifier.fillMaxSize().padding(horizontal = AppTheme.spacing.md)) {
         if (editor != null) {
-            PresetEditorScreen(
-                ui = ui,
-                store = store,
-                editor = editor,
-                onClose = { state.presetEditor.value = null }
-            )
+            Column(modifier = Modifier.fillMaxSize()) {
+                Spacer(Modifier.height(1.dp))
+                PresetEditorScreen(
+                    ui = ui,
+                    store = store,
+                    editor = editor,
+                    onClose = { state.presetEditor.value = null }
+                )
+                Spacer(Modifier.height(AppTheme.spacing.md))
+            }
             return@Box
         }
 
@@ -45,6 +49,8 @@ fun PresetsScreen(ui: UIState, state: AppState, store: AppStore) {
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)
         ) {
+            Spacer(Modifier.height(1.dp))
+
             OutlinedTextField(
                 value = query,
                 onValueChange = { query = it },
@@ -69,7 +75,7 @@ fun PresetsScreen(ui: UIState, state: AppState, store: AppStore) {
                                 p.id.contains(query, ignoreCase = true)
                         }
                         LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier.weight(1f, fill = true),
                             verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
                             contentPadding = PaddingValues(bottom = PresetListBottomPadding)
                         ) {
@@ -87,6 +93,8 @@ fun PresetsScreen(ui: UIState, state: AppState, store: AppStore) {
                     }
                 }
             }
+
+            Spacer(Modifier.height(AppTheme.spacing.md))
         }
 
         val readyUi = ui as? UIState.Ready

@@ -97,6 +97,8 @@ fun PresetEditorScreen(
                 .padding(bottom = contentBottomPadding),
             verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)
         ) {
+            Spacer(Modifier.height(AppTheme.spacing.xs))
+
             HeaderRow(
                 title = title,
                 onBack = onClose

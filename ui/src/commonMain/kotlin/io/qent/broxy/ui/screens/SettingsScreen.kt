@@ -161,6 +161,7 @@ private fun SettingsContent(
                 .padding(bottom = contentBottomPadding),
             verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)
         ) {
+            Spacer(Modifier.height(AppTheme.spacing.sm))
             ThemeSetting(
                 themeStyle = themeStyle,
                 onThemeStyleChange = onThemeStyleChange
@@ -221,27 +222,30 @@ private fun SettingsContent(
                     }
                 }
             )
+            Spacer(Modifier.height(AppTheme.spacing.md))
         }
 
-        AppPrimaryButton(
-            onClick = {
-                if (canSaveRequest) {
-                    resolvedRequest?.let { onRequestTimeoutSave(it) }
-                }
-                if (canSaveCapabilities) {
-                    resolvedCapabilities?.let { onCapabilitiesTimeoutSave(it) }
-                }
-                if (canSaveRefresh) {
-                    resolvedRefresh?.let { onCapabilitiesRefreshIntervalSave(it) }
-                }
-                if (canSavePort) {
-                    resolvedPort?.let { onInboundSsePortSave(it) }
-                }
-            },
-            enabled = canSaveAny,
-            modifier = Modifier.align(Alignment.BottomEnd).height(saveButtonHeight)
-        ) {
-            Text("Save", style = MaterialTheme.typography.labelSmall)
+        Box(Modifier.padding(vertical = AppTheme.spacing.md).align(Alignment.BottomEnd)) {
+            AppPrimaryButton(
+                onClick = {
+                    if (canSaveRequest) {
+                        resolvedRequest?.let { onRequestTimeoutSave(it) }
+                    }
+                    if (canSaveCapabilities) {
+                        resolvedCapabilities?.let { onCapabilitiesTimeoutSave(it) }
+                    }
+                    if (canSaveRefresh) {
+                        resolvedRefresh?.let { onCapabilitiesRefreshIntervalSave(it) }
+                    }
+                    if (canSavePort) {
+                        resolvedPort?.let { onInboundSsePortSave(it) }
+                    }
+                },
+                enabled = canSaveAny,
+                modifier = Modifier.height(saveButtonHeight)
+            ) {
+                Text("Save", style = MaterialTheme.typography.labelSmall)
+            }
         }
     }
 }
