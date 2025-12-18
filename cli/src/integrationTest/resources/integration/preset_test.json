@@ -1,7 +1,6 @@
 {
     "id": "test",
     "name": "test",
-    "description": "test agent",
     "tools": [
         {
             "serverId": "test-arithmetic",

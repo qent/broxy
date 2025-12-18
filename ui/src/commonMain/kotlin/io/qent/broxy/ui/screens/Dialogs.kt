@@ -9,9 +9,11 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
-import io.qent.broxy.ui.adapter.models.*
+import io.qent.broxy.ui.adapter.models.UiCapabilityArgument
+import io.qent.broxy.ui.adapter.models.UiServer
+import io.qent.broxy.ui.adapter.models.UiServerCapsSnapshot
+import io.qent.broxy.ui.adapter.models.UiServerDraft
 import io.qent.broxy.ui.adapter.services.validateServerConnection
 import io.qent.broxy.ui.adapter.store.AppStore
 import io.qent.broxy.ui.adapter.store.UIState
@@ -69,73 +71,6 @@ fun AddServerDialog(ui: UIState, state: AppState, notify: (String) -> Unit) {
 }
 
 @Composable
-fun AddPresetDialog(ui: UIState, state: AppState, store: AppStore) {
-    val name = remember { mutableStateOf(TextFieldValue("")) }
-    val description = remember { mutableStateOf(TextFieldValue("")) }
-    val selectedTools = remember { mutableStateOf<List<UiToolRef>>(emptyList()) }
-    val selectedPrompts = remember { mutableStateOf<List<UiPromptRef>>(emptyList()) }
-    val selectedResources = remember { mutableStateOf<List<UiResourceRef>>(emptyList()) }
-    val promptsConfigured = remember { mutableStateOf(true) }
-    val resourcesConfigured = remember { mutableStateOf(true) }
-
-    AppDialog(
-        title = "Add preset",
-        onDismissRequest = { state.showAddPresetDialog.value = false },
-        dismissButton = {
-            AppSecondaryButton(onClick = { state.showAddPresetDialog.value = false }) { Text("Cancel") }
-        },
-        confirmButton = {
-            AppPrimaryButton(onClick = {
-                if (name.value.text.isNotBlank() && ui is UIState.Ready) {
-                    val draft = UiPresetDraft(
-                        id = name.value.text.trim().lowercase().replace(" ", "-"),
-                        name = name.value.text.trim(),
-                        description = description.value.text.ifBlank { null },
-                        tools = selectedTools.value,
-                        prompts = selectedPrompts.value,
-                        resources = selectedResources.value,
-                        promptsConfigured = promptsConfigured.value,
-                        resourcesConfigured = resourcesConfigured.value
-                    )
-                    ui.intents.upsertPreset(draft)
-                    state.showAddPresetDialog.value = false
-                }
-            }) { Text("Add") }
-        }
-    ) {
-        OutlinedTextField(
-            value = name.value,
-            onValueChange = { name.value = it },
-            label = { Text("Name") },
-            modifier = Modifier.fillMaxWidth()
-        )
-        OutlinedTextField(
-            value = description.value,
-            onValueChange = { description.value = it },
-            label = { Text("Description (optional)") },
-            modifier = Modifier.fillMaxWidth()
-        )
-        Text(
-            "Select tools/prompts/resources from connected servers",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        PresetSelector(
-            store = store,
-            promptsConfigured = promptsConfigured.value,
-            resourcesConfigured = resourcesConfigured.value,
-            onSelectionChanged = { tools, prompts, resources ->
-                selectedTools.value = tools
-                selectedPrompts.value = prompts
-                selectedResources.value = resources
-            },
-            onPromptsConfiguredChange = { promptsConfigured.value = it },
-            onResourcesConfiguredChange = { resourcesConfigured.value = it }
-        )
-    }
-}
-
-@Composable
 fun EditServerDialog(
     initial: UiServerDraft,
     ui: UIState,
@@ -181,87 +116,6 @@ fun EditServerDialog(
         ServerForm(
             state = form.value,
             onStateChange = { form.value = it }
-        )
-    }
-}
-
-@Composable
-fun EditPresetDialog(
-    ui: UIState,
-    initial: UiPresetDraft,
-    onClose: () -> Unit,
-    store: AppStore
-) {
-    val name = remember { mutableStateOf(TextFieldValue(initial.name)) }
-    val id = remember { mutableStateOf(TextFieldValue(initial.id)) }
-    val description = remember { mutableStateOf(TextFieldValue(initial.description ?: "")) }
-    val selectedTools = remember { mutableStateOf<List<UiToolRef>>(initial.tools) }
-    val selectedPrompts = remember { mutableStateOf<List<UiPromptRef>>(initial.prompts) }
-    val selectedResources = remember { mutableStateOf<List<UiResourceRef>>(initial.resources) }
-    val promptsConfigured = remember { mutableStateOf(initial.promptsConfigured) }
-    val resourcesConfigured = remember { mutableStateOf(initial.resourcesConfigured) }
-
-    AppDialog(
-        title = "Edit preset",
-        onDismissRequest = onClose,
-        dismissButton = { AppSecondaryButton(onClick = onClose) { Text("Cancel") } },
-        confirmButton = {
-            AppPrimaryButton(onClick = {
-                if (ui is UIState.Ready) {
-                    val draft = UiPresetDraft(
-                        id = id.value.text.trim(),
-                        name = name.value.text.trim(),
-                        description = description.value.text.ifBlank { null },
-                        tools = selectedTools.value,
-                        prompts = selectedPrompts.value,
-                        resources = selectedResources.value,
-                        promptsConfigured = promptsConfigured.value,
-                        resourcesConfigured = resourcesConfigured.value,
-                        originalId = initial.originalId ?: initial.id
-                    )
-                    ui.intents.upsertPreset(draft)
-                    onClose()
-                }
-            }) { Text("Save") }
-        }
-    ) {
-        OutlinedTextField(
-            value = name.value,
-            onValueChange = { name.value = it },
-            label = { Text("Name") },
-            modifier = Modifier.fillMaxWidth()
-        )
-        OutlinedTextField(
-            value = id.value,
-            onValueChange = { id.value = it },
-            label = { Text("ID") },
-            modifier = Modifier.fillMaxWidth()
-        )
-        OutlinedTextField(
-            value = description.value,
-            onValueChange = { description.value = it },
-            label = { Text("Description") },
-            modifier = Modifier.fillMaxWidth()
-        )
-        Text(
-            "Select tools/prompts/resources from connected servers",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        PresetSelector(
-            store = store,
-            initialToolRefs = initial.tools,
-            initialPromptRefs = initial.prompts,
-            initialResourceRefs = initial.resources,
-            promptsConfigured = promptsConfigured.value,
-            resourcesConfigured = resourcesConfigured.value,
-            onSelectionChanged = { tools, prompts, resources ->
-                selectedTools.value = tools
-                selectedPrompts.value = prompts
-                selectedResources.value = resources
-            },
-            onPromptsConfiguredChange = { promptsConfigured.value = it },
-            onResourcesConfiguredChange = { resourcesConfigured.value = it }
         )
     }
 }

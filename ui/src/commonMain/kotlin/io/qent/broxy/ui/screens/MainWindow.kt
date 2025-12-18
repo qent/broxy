@@ -20,6 +20,7 @@ import io.qent.broxy.ui.components.GlobalHeader
 import io.qent.broxy.ui.theme.AppTheme
 import io.qent.broxy.ui.theme.ThemeStyle
 import io.qent.broxy.ui.viewmodels.AppState
+import io.qent.broxy.ui.viewmodels.PresetEditorState
 import io.qent.broxy.ui.viewmodels.Screen
 import kotlinx.coroutines.launch
 
@@ -84,8 +85,12 @@ fun MainWindow(
                     Screen.Servers -> FloatingActionButton(onClick = { state.showAddServerDialog.value = true }) {
                         Icon(Icons.Outlined.Add, contentDescription = "Add server")
                     }
-                    Screen.Presets -> FloatingActionButton(onClick = { state.showAddPresetDialog.value = true }) {
-                        Icon(Icons.Outlined.Add, contentDescription = "Add preset")
+                    Screen.Presets -> {
+                        if (state.presetEditor.value == null) {
+                            FloatingActionButton(onClick = { state.presetEditor.value = PresetEditorState.Create }) {
+                                Icon(Icons.Outlined.Add, contentDescription = "Add preset")
+                            }
+                        }
                     }
                     else -> {}
                 }
@@ -98,7 +103,12 @@ fun MainWindow(
             ) {
                 AppNavigationRail(
                     selected = screen,
-                    onSelect = { state.currentScreen.value = it },
+                    onSelect = {
+                        if (it != Screen.Presets) {
+                            state.presetEditor.value = null
+                        }
+                        state.currentScreen.value = it
+                    },
                     proxyStatus = (ui as? UIState.Ready)?.proxyStatus,
                     themeStyle = state.themeStyle.value,
                     onToggleTheme = {
@@ -129,6 +139,5 @@ fun MainWindow(
 
         // Dialogs
         if (state.showAddServerDialog.value) AddServerDialog(ui, state, notify)
-        if (state.showAddPresetDialog.value) AddPresetDialog(ui, state, store)
     }
 }

@@ -17,11 +17,19 @@ class AppState(
 
     // Dialog flags
     val showAddServerDialog: MutableState<Boolean> = mutableStateOf(false)
-    val showAddPresetDialog: MutableState<Boolean> = mutableStateOf(false)
+
+    // Sub-navigation inside Screens.Presets (keeps the Presets menu item active).
+    val presetEditor: MutableState<PresetEditorState?> = mutableStateOf(null)
 }
 
 enum class Screen(val title: String) {
     Servers("Servers"),
     Presets("Presets"),
     Settings("Settings"),
+}
+
+sealed interface PresetEditorState {
+    data object Create : PresetEditorState
+
+    data class Edit(val presetId: String) : PresetEditorState
 }

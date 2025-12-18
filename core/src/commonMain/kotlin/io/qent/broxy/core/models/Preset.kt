@@ -6,7 +6,6 @@ import kotlinx.serialization.Serializable
 data class Preset(
     val id: String,
     val name: String,
-    val description: String,
     val tools: List<ToolReference> = emptyList(),
     val prompts: List<PromptReference>? = null,
     val resources: List<ResourceReference>? = null
@@ -17,7 +16,6 @@ data class Preset(
         fun empty(): Preset = Preset(
             id = EMPTY_PRESET_ID,
             name = "No preset",
-            description = "No active preset selected",
             tools = emptyList(),
             prompts = emptyList(),
             resources = emptyList()

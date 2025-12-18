@@ -53,7 +53,6 @@ class ProxyMcpServerTest {
         val preset = Preset(
             id = "preset",
             name = "Preset",
-            description = "",
             tools = listOf(
                 ToolReference(serverId = "alpha", toolName = "search", enabled = true),
                 ToolReference(serverId = "beta", toolName = "translate", enabled = false)
@@ -103,7 +102,6 @@ class ProxyMcpServerTest {
         val initialPreset = Preset(
             id = "initial",
             name = "Initial",
-            description = "",
             tools = listOf(ToolReference(serverId = "alpha", toolName = "search", enabled = true))
         )
         proxy.start(initialPreset, TransportConfig.StdioTransport(command = "noop"))
@@ -111,7 +109,6 @@ class ProxyMcpServerTest {
         val newPreset = Preset(
             id = "new",
             name = "New",
-            description = "",
             tools = listOf(ToolReference(serverId = "beta", toolName = "translate", enabled = true))
         )
         proxy.applyPreset(newPreset)
@@ -152,7 +149,6 @@ class ProxyMcpServerTest {
         val preset = Preset(
             id = "preset",
             name = "Preset",
-            description = "",
             tools = listOf(
                 ToolReference(serverId = "alpha", toolName = "search", enabled = true),
                 ToolReference(serverId = "beta", toolName = "translate", enabled = true)

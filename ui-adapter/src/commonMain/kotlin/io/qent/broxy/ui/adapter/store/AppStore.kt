@@ -137,7 +137,6 @@ class AppStore(
                 UiPresetDraft(
                     id = preset.id,
                     name = preset.name,
-                    description = preset.description.ifBlank { null },
                     tools = preset.tools.map { tool ->
                         UiToolRef(serverId = tool.serverId, toolName = tool.toolName, enabled = tool.enabled)
                     },

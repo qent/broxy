@@ -22,7 +22,7 @@ class HeadlessEntrypointJvmTest {
         )
         Files.writeString(
             tempDir.resolve("preset_test.json"),
-            """{"id":"test","name":"Test","description":"Test preset","tools":[]}"""
+            """{"id":"test","name":"Test","tools":[]}"""
         )
 
         val originalIn = System.`in`
@@ -66,7 +66,7 @@ class HeadlessEntrypointJvmTest {
         )
         Files.writeString(
             tempDir.resolve("preset_test.json"),
-            """{"id":"test","name":"Test","description":"Test preset","tools":[]}"""
+            """{"id":"test","name":"Test","tools":[]}"""
         )
 
         val originalIn = System.`in`

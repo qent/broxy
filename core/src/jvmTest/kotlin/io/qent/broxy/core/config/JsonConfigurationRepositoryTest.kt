@@ -63,7 +63,7 @@ class JsonConfigurationRepositoryTest {
         try {
             val repo = JsonConfigurationRepository(baseDir = tmp)
             val preset = io.qent.broxy.core.models.Preset(
-                id = "developer", name = "Developer Assistant", description = "# Dev", tools = emptyList()
+                id = "developer", name = "Developer Assistant", tools = emptyList()
             )
             repo.savePreset(preset)
             val list = repo.listPresets()

@@ -8,16 +8,6 @@ import io.qent.broxy.ui.adapter.models.*
 internal fun UiPresetCore.toUiPresetSummary(): UiPreset = UiPreset(
     id = id,
     name = name,
-    description = description.ifBlank { null },
-    toolsCount = tools.count { it.enabled },
-    promptsCount = prompts?.count { it.enabled } ?: 0,
-    resourcesCount = resources?.count { it.enabled } ?: 0
-)
-
-internal fun UiPresetCore.toUiPresetSummary(descriptionOverride: String?): UiPreset = UiPreset(
-    id = id,
-    name = name,
-    description = descriptionOverride ?: description.ifBlank { null },
     toolsCount = tools.count { it.enabled },
     promptsCount = prompts?.count { it.enabled } ?: 0,
     resourcesCount = resources?.count { it.enabled } ?: 0
@@ -26,7 +16,6 @@ internal fun UiPresetCore.toUiPresetSummary(descriptionOverride: String?): UiPre
 internal fun UiPresetDraft.toCorePreset(): UiPresetCore = UiPresetCore(
     id = id,
     name = name,
-    description = description ?: "",
     tools = tools.map { tool ->
         ToolReference(serverId = tool.serverId, toolName = tool.toolName, enabled = tool.enabled)
     },

@@ -37,7 +37,7 @@ class ProxyMcpServerMockitoTest {
         runBlocking { whenever(s1.readResource("u1")).thenReturn(Result.success(buildJsonObject { put("contents", "[]"); put("_meta", "{}") })) }
 
         val proxy = ProxyMcpServer(listOf(s1))
-        val preset = Preset("p", "name", "d", tools = listOf(ToolReference("s1", "any", true)))
+        val preset = Preset(id = "p", name = "name", tools = listOf(ToolReference("s1", "any", true)))
         proxy.start(preset, TransportConfig.HttpTransport("http://0.0.0.0:0/mcp"))
 
         val pr = kotlinx.coroutines.runBlocking { proxy.getPrompt("p1") }
@@ -65,7 +65,7 @@ class ProxyMcpServerMockitoTest {
         ) }
 
         val proxy = ProxyMcpServer(listOf(s1))
-        val preset = Preset("p", "name", "d", tools = listOf(ToolReference("s1", "any", true)))
+        val preset = Preset(id = "p", name = "name", tools = listOf(ToolReference("s1", "any", true)))
         proxy.start(preset, TransportConfig.HttpTransport("http://0.0.0.0:0/mcp"))
 
         val pr = kotlinx.coroutines.runBlocking { proxy.getPrompt("unknown") }

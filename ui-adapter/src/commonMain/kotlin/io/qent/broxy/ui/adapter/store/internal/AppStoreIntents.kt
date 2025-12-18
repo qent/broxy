@@ -182,7 +182,6 @@ internal class AppStoreIntents(
                 UiPresetCore(
                     id = preset.id,
                     name = preset.name,
-                    description = preset.description ?: "",
                     tools = emptyList(),
                     prompts = null,
                     resources = null
@@ -213,7 +212,7 @@ internal class AppStoreIntents(
             }
 
             val updatedPresets = previousSnapshot.presets.toMutableList()
-            val summary = preset.toUiPresetSummary(normalizedDraft.description)
+            val summary = preset.toUiPresetSummary()
             val idx = updatedPresets.indexOfFirst { it.id == summary.id }
             if (idx >= 0) updatedPresets[idx] = summary else updatedPresets += summary
 

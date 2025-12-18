@@ -56,7 +56,6 @@ class ModelsSerializationTest {
         val preset = Preset(
             id = "dev",
             name = "Developer",
-            description = "Developer preset",
             tools = listOf(
                 ToolReference(serverId = "s1", toolName = "t1", enabled = true),
                 ToolReference(serverId = "s2", toolName = "t2", enabled = false)

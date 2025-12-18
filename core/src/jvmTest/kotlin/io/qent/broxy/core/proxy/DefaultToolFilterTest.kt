@@ -30,7 +30,6 @@ class DefaultToolFilterTest {
         val preset = Preset(
             id = "id",
             name = "name",
-            description = "desc",
             tools = listOf(
                 ToolReference("s1", "t1", enabled = true),
                 ToolReference("s2", "t3", enabled = true),
@@ -82,7 +81,6 @@ class DefaultToolFilterTest {
         val preset = Preset(
             id = "id",
             name = "name",
-            description = "desc",
             tools = listOf(
                 ToolReference("s1", "t1", enabled = true)
             ),

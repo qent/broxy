@@ -82,7 +82,6 @@ class ProxyMcpServerNoPresetTest {
         val preset = Preset(
             id = "main",
             name = "Main",
-            description = "",
             tools = listOf(ToolReference(serverId = "s1", toolName = "echo", enabled = true)),
             prompts = null,
             resources = null

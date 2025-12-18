@@ -47,7 +47,6 @@ class AppStoreTest {
         val preset = Preset(
             id = "dev",
             name = "Dev",
-            description = "",
             tools = emptyList()
         )
         val repository = FakeConfigurationRepository(
@@ -109,7 +108,7 @@ class AppStoreTest {
             enabled = true
         )
         val config = McpServersConfig(servers = listOf(server))
-        val preset = Preset("main", "Main", "", emptyList())
+        val preset = Preset("main", "Main", emptyList())
         val repository = FakeConfigurationRepository(
             config = config,
             presets = mutableMapOf(preset.id to preset)
@@ -162,7 +161,7 @@ class AppStoreTest {
             enabled = true
         )
         val config = McpServersConfig(servers = listOf(server))
-        val preset = Preset("main", "Main", "", emptyList())
+        val preset = Preset("main", "Main", emptyList())
         val repository = FakeConfigurationRepository(config, mutableMapOf(preset.id to preset))
         val capabilityFetcher = RecordingCapabilityFetcher(Result.success(UiServerCapabilities()))
         val proxyController = FakeProxyController()
@@ -215,7 +214,7 @@ class AppStoreTest {
             enabled = true
         )
         val config = McpServersConfig(servers = listOf(server), requestTimeoutSeconds = 42)
-        val preset = Preset("main", "Main", "", emptyList())
+        val preset = Preset("main", "Main", emptyList())
         val repository = FakeConfigurationRepository(config, mutableMapOf(preset.id to preset))
         val capabilityFetcher = RecordingCapabilityFetcher(Result.success(UiServerCapabilities()))
         val proxyController = FakeProxyController()
@@ -263,13 +262,11 @@ class AppStoreTest {
         val presetMain = Preset(
             id = "main",
             name = "Main",
-            description = "",
             tools = listOf(ToolReference(serverId = "s1", toolName = "tool", enabled = true))
         )
         val presetAlt = Preset(
             id = "alt",
             name = "Alt",
-            description = "",
             tools = listOf(ToolReference(serverId = "s1", toolName = "tool", enabled = true))
         )
         val repository = FakeConfigurationRepository(
@@ -320,7 +317,7 @@ class AppStoreTest {
             enabled = true
         )
         val config = McpServersConfig(servers = listOf(server), defaultPresetId = "main")
-        val presetMain = Preset(id = "main", name = "Main", description = "", tools = emptyList())
+        val presetMain = Preset(id = "main", name = "Main", tools = emptyList())
         val repository = FakeConfigurationRepository(
             config = config,
             presets = mutableMapOf(presetMain.id to presetMain)
@@ -374,7 +371,6 @@ class AppStoreTest {
         val presetMain = Preset(
             id = "main",
             name = "Main",
-            description = "",
             tools = listOf(ToolReference(serverId = "s1", toolName = "tool", enabled = true))
         )
         val repository = FakeConfigurationRepository(
@@ -409,7 +405,6 @@ class AppStoreTest {
             UiPresetDraft(
                 id = "renamed",
                 name = "Renamed",
-                description = "updated",
                 tools = emptyList(),
                 prompts = emptyList(),
                 resources = emptyList(),
@@ -482,7 +477,7 @@ class AppStoreTest {
             enabled = true
         )
         val config = McpServersConfig(servers = listOf(server), inboundSsePort = 3335)
-        val preset = Preset("main", "Main", "", emptyList())
+        val preset = Preset("main", "Main", emptyList())
         val repository = FakeConfigurationRepository(
             config = config,
             presets = mutableMapOf(preset.id to preset)

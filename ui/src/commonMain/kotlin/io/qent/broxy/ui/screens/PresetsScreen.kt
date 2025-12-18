@@ -23,14 +23,25 @@ import io.qent.broxy.ui.components.CapabilitiesInlineSummary
 import io.qent.broxy.ui.components.SettingsLikeItem
 import io.qent.broxy.ui.theme.AppTheme
 import io.qent.broxy.ui.viewmodels.AppState
+import io.qent.broxy.ui.viewmodels.PresetEditorState
 
 @Composable
 fun PresetsScreen(ui: UIState, state: AppState, store: AppStore) {
     var query by rememberSaveable { mutableStateOf("") }
-    var editing: UiPreset? by remember { mutableStateOf<UiPreset?>(null) }
     var pendingDeletion: UiPreset? by remember { mutableStateOf<UiPreset?>(null) }
+    val editor = state.presetEditor.value
 
     Box(modifier = Modifier.fillMaxSize().padding(AppTheme.spacing.md)) {
+        if (editor != null) {
+            PresetEditorScreen(
+                ui = ui,
+                store = store,
+                editor = editor,
+                onClose = { state.presetEditor.value = null }
+            )
+            return@Box
+        }
+
         Column(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)
@@ -57,7 +68,7 @@ fun PresetsScreen(ui: UIState, state: AppState, store: AppStore) {
                     } else {
                         val filtered = presets.filter { p ->
                             p.name.contains(query, ignoreCase = true) ||
-                                (p.description?.contains(query, ignoreCase = true) == true)
+                                p.id.contains(query, ignoreCase = true)
                         }
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
@@ -67,22 +78,16 @@ fun PresetsScreen(ui: UIState, state: AppState, store: AppStore) {
                             items(filtered, key = { it.id }) { preset ->
                                 PresetCard(
                                     preset = preset,
-                                    onEdit = { editing = preset },
+                                    onEdit = {
+                                        pendingDeletion = null
+                                        state.presetEditor.value = PresetEditorState.Edit(preset.id)
+                                    },
                                     onDelete = { pendingDeletion = preset }
                                 )
                             }
                         }
                     }
                 }
-            }
-        }
-
-        if (editing != null) {
-            val draft = store.getPresetDraft(editing!!.id)
-            if (draft != null) {
-                EditPresetDialog(ui = ui, initial = draft, onClose = { editing = null }, store = store)
-            } else {
-                editing = null
             }
         }
 
@@ -107,12 +112,6 @@ private fun PresetCard(
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
-    val descriptionLine = preset.description
-        ?.lineSequence()
-        ?.firstOrNull()
-        ?.takeIf { it.isNotBlank() }
-        ?.trim()
-
     SettingsLikeItem(
         title = preset.name,
         descriptionContent = {
@@ -121,7 +120,7 @@ private fun PresetCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = descriptionLine ?: "No description",
+                    text = preset.id,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,

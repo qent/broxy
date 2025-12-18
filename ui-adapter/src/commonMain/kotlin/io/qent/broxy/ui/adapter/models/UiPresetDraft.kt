@@ -21,7 +21,6 @@ data class UiResourceRef(
 data class UiPresetDraft(
     val id: String,
     val name: String,
-    val description: String? = null,
     val tools: List<UiToolRef> = emptyList(),
     val prompts: List<UiPromptRef> = emptyList(),
     val resources: List<UiResourceRef> = emptyList(),
