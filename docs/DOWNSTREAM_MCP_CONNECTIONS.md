@@ -2,37 +2,43 @@
 
 ## Задача слоя downstream
 
-Downstream слой отвечает за “подключиться → выполнить операцию → отключиться” к конкретному MCP серверу и вернуть `Result<T>` наверх, не утягивая наружу детали транспорта.
+Downstream слой отвечает за “подключиться → выполнить операцию → отключиться” к конкретному MCP серверу и вернуть
+`Result<T>` наверх, не утягивая наружу детали транспорта.
 
 Основная абстракция:
 
 - `core/src/commonMain/kotlin/io/qent/broxy/core/mcp/McpServerConnection.kt` — интерфейс соединения.
-- `core/src/commonMain/kotlin/io/qent/broxy/core/mcp/DefaultMcpServerConnection.kt` — реализация с retry/backoff и кешем capabilities.
+- `core/src/commonMain/kotlin/io/qent/broxy/core/mcp/DefaultMcpServerConnection.kt` — реализация с retry/backoff и кешем
+  capabilities.
 
 Клиентский транспорт:
 
 - `core/src/commonMain/kotlin/io/qent/broxy/core/mcp/McpClient.kt` — интерфейс клиента.
 - `core/src/commonMain/kotlin/io/qent/broxy/core/mcp/McpClientFactory.kt` — фабрика через provider.
-- `core/src/jvmMain/kotlin/io/qent/broxy/core/mcp/McpClientFactoryJvm.kt` — JVM provider: STDIO / SSE / Streamable HTTP / WebSocket.
+- `core/src/jvmMain/kotlin/io/qent/broxy/core/mcp/McpClientFactoryJvm.kt` — JVM provider: STDIO / SSE / Streamable
+  HTTP / WebSocket.
 
 ## TransportConfig и mapping в клиентов
 
 Модель:
+
 - `core/src/commonMain/kotlin/io/qent/broxy/core/models/TransportConfig.kt`
 
 JVM mapping (provider):
+
 - `core/src/jvmMain/kotlin/io/qent/broxy/core/mcp/McpClientFactoryJvm.kt`
 
 Таблица:
 
-| TransportConfig | Downstream клиент | Реализация |
-|---|---|---|
-| `StdioTransport` | процесс + stdio transport | `StdioMcpClient` |
-| `HttpTransport` | HTTP SSE | `KtorMcpClient(Mode.Sse)` |
-| `StreamableHttpTransport` | streamable HTTP | `KtorMcpClient(Mode.StreamableHttp)` |
-| `WebSocketTransport` | WebSocket | `KtorMcpClient(Mode.WebSocket)` |
+| TransportConfig           | Downstream клиент         | Реализация                           |
+|---------------------------|---------------------------|--------------------------------------|
+| `StdioTransport`          | процесс + stdio transport | `StdioMcpClient`                     |
+| `HttpTransport`           | HTTP SSE                  | `KtorMcpClient(Mode.Sse)`            |
+| `StreamableHttpTransport` | streamable HTTP           | `KtorMcpClient(Mode.StreamableHttp)` |
+| `WebSocketTransport`      | WebSocket                 | `KtorMcpClient(Mode.WebSocket)`      |
 
-Важно: inbound транспорт (то, “как broxy слушает”) ограничен STDIO/HTTP Streamable, а downstream транспортов больше (включая SSE и WS).
+Важно: inbound транспорт (то, “как broxy слушает”) ограничен STDIO/HTTP Streamable, а downstream транспортов больше (
+включая SSE и WS).
 
 ## DefaultMcpServerConnection: модель “короткой сессии”
 
@@ -40,7 +46,8 @@ JVM mapping (provider):
 
 Ключевые свойства:
 
-- На **каждую операцию** создаётся новый `McpClient` (`newClient()`), выполняется `connect()` и после операции — `disconnect()`.
+- На **каждую операцию** создаётся новый `McpClient` (`newClient()`), выполняется `connect()` и после операции —
+  `disconnect()`.
 - Это снижает риски “висячих” соединений и упрощает lifecycle; статус соединения отражает последнюю попытку.
 
 ### Статусы
@@ -65,7 +72,8 @@ JVM mapping (provider):
 - `updateCallTimeout(millis)`
 - `updateCapabilitiesTimeout(millis)` (также синхронизирует `connectTimeoutMillis`)
 
-В runtime эти значения прокидываются из `ProxyLifecycle.updateCallTimeout(...)` и `updateCapabilitiesTimeout(...)` (см. `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/runtime/ProxyLifecycle.kt` и JVM-реализацию `ProxyControllerJvm`).
+В runtime эти значения прокидываются из `ProxyLifecycle.updateCallTimeout(...)` и `updateCapabilitiesTimeout(...)` (см.
+`core/src/commonMain/kotlin/io/qent/broxy/core/proxy/runtime/ProxyLifecycle.kt` и JVM-реализацию `ProxyControllerJvm`).
 
 ### Retry/backoff на connect
 
@@ -91,9 +99,9 @@ JVM mapping (provider):
 - TTL по умолчанию 5 минут (можно задать через `cacheTtlMs` в `DefaultMcpServerConnection`).
 - Потокобезопасность через `Mutex`.
 - `getCapabilities(forceRefresh = false)`:
-  - сначала пытается вернуть кеш;
-  - иначе делает fetch и кладёт в кеш;
-  - при ошибке пытается вернуть “протухший” кеш как fallback, чтобы прокси мог продолжать работу.
+    - сначала пытается вернуть кеш;
+    - иначе делает fetch и кладёт в кеш;
+    - при ошибке пытается вернуть “протухший” кеш как fallback, чтобы прокси мог продолжать работу.
 
 Эта логика критична для стабильности прокси: отсутствие caps у одного сервера не должно “ронять” весь агрегатор.
 
@@ -105,11 +113,12 @@ JVM mapping (provider):
 
 - На connect создаётся `HttpClient(CIO)` + `HttpTimeout` с `request/socket/connectTimeoutMillis = connectTimeoutMillis`.
 - Получение capabilities (`fetchCapabilities`) вызывает три операции:
-  - `getTools()`, `getResources()`, `getPrompts()`
-  - каждая обёрнута в `withTimeout(capabilitiesTimeoutMillis)`
-  - при таймауте/ошибке возвращается **пустой список**, а не ошибка (логируется `warn`).
+    - `getTools()`, `getResources()`, `getPrompts()`
+    - каждая обёрнута в `withTimeout(capabilitiesTimeoutMillis)`
+    - при таймауте/ошибке возвращается **пустой список**, а не ошибка (логируется `warn`).
 
-Это сделано намеренно: “частично доступные capabilities” предпочтительнее полного фейла (например, если `resources/list` висит, но tools работают).
+Это сделано намеренно: “частично доступные capabilities” предпочтительнее полного фейла (например, если `resources/list`
+висит, но tools работают).
 
 ## StdioMcpClient (процесс + STDIO transport)
 

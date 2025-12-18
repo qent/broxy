@@ -19,7 +19,6 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.adapter.store.UIState
 import io.qent.broxy.ui.theme.AppTheme
@@ -57,9 +56,11 @@ private fun PresetDropdown(
 
     // Shape logic for unified block look
     val defaultShape = AppTheme.shapes.input
-    val headerShape = if (expanded) defaultShape.copy(bottomStart = CornerSize(0.dp), bottomEnd = CornerSize(0.dp)) else defaultShape
-    val dropdownShape = if (expanded) defaultShape.copy(topStart = CornerSize(0.dp), topEnd = CornerSize(0.dp)) else defaultShape
-    
+    val headerShape =
+        if (expanded) defaultShape.copy(bottomStart = CornerSize(0.dp), bottomEnd = CornerSize(0.dp)) else defaultShape
+    val dropdownShape =
+        if (expanded) defaultShape.copy(topStart = CornerSize(0.dp), topEnd = CornerSize(0.dp)) else defaultShape
+
     // We still might need a tiny negative offset if the borders are doubled, but ExposedDropdownMenu usually aligns perfectly.
     // To be safe and ensure the "unified" single-border look, we can check. 
     // Usually ExposedDropdownMenu places the menu directly below. 
@@ -102,7 +103,7 @@ private fun PresetDropdown(
                         .background(color = AppTheme.colors.surface, shape = dropdownShape)
                         .border(AppTheme.strokeWidths.thin, AppTheme.colors.outline, dropdownShape),
                 ) {
-                     DropdownMenuItem(
+                    DropdownMenuItem(
                         text = {
                             Text(
                                 "No preset",

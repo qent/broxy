@@ -29,7 +29,10 @@ class LoopbackCallbackServer(
                     bind(InetSocketAddress("127.0.0.1", port))
                     logger?.info("[RemoteAuth] Loopback callback server listening on 127.0.0.1:$port for state=$expectedState")
                 } catch (ex: Exception) {
-                    logger?.error("[RemoteAuth] Failed to start loopback callback server on 127.0.0.1:$port: ${ex.message}", ex)
+                    logger?.error(
+                        "[RemoteAuth] Failed to start loopback callback server on 127.0.0.1:$port: ${ex.message}",
+                        ex
+                    )
                     throw ex
                 }
             }
@@ -39,7 +42,10 @@ class LoopbackCallbackServer(
                     acceptOnce(socket, expectedState)
                 }
             } catch (t: TimeoutCancellationException) {
-                logger?.warn("[RemoteAuth] OAuth callback wait timed out after ${timeoutMillis}ms for state=$expectedState", t)
+                logger?.warn(
+                    "[RemoteAuth] OAuth callback wait timed out after ${timeoutMillis}ms for state=$expectedState",
+                    t
+                )
                 null
             } catch (ex: Exception) {
                 logger?.error("[RemoteAuth] OAuth callback wait failed: ${ex.message}", ex)

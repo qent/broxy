@@ -49,7 +49,10 @@ class ProxyWebSocketTransportTest {
 
         assertTrue(summary.contains("tools=1"), summary)
         assertTrue(summary.contains("tool_names=s1:search"), summary)
-        assertTrue(summary.contains("input_schema_fields=") && summary.contains("query") && summary.contains("top_k"), summary)
+        assertTrue(
+            summary.contains("input_schema_fields=") && summary.contains("query") && summary.contains("top_k"),
+            summary
+        )
         assertTrue(summary.contains("output_schema_fields=") && summary.contains("results"), summary)
         assertTrue(summary.contains("prompts=1"), summary)
         assertTrue(summary.contains("resources=1"), summary)
@@ -78,7 +81,10 @@ class ProxyWebSocketTransportTest {
         )
         val requestSummary = describeJsonRpcPayload(request)
         assertTrue(requestSummary.contains("target=s1:search"), requestSummary)
-        assertTrue(requestSummary.contains("args=") && requestSummary.contains("query") && requestSummary.contains("top_k"), requestSummary)
+        assertTrue(
+            requestSummary.contains("args=") && requestSummary.contains("query") && requestSummary.contains("top_k"),
+            requestSummary
+        )
         assertTrue(requestSummary.contains("meta=trace_id"), requestSummary)
 
         val response = json.parseToJsonElement(
@@ -106,7 +112,11 @@ class ProxyWebSocketTransportTest {
         assertTrue(responseSummary.contains("content=1"), responseSummary)
         assertTrue(responseSummary.contains("content_types=text"), responseSummary)
         assertTrue(responseSummary.contains("structured_keys=") && responseSummary.contains("result"), responseSummary)
-        assertTrue(responseSummary.contains("meta_keys=") && responseSummary.contains("trace_id") && responseSummary.contains("duration_ms"), responseSummary)
+        assertTrue(
+            responseSummary.contains("meta_keys=") && responseSummary.contains("trace_id") && responseSummary.contains(
+                "duration_ms"
+            ), responseSummary
+        )
         assertTrue(responseSummary.contains("is_error=false"), responseSummary)
     }
 }

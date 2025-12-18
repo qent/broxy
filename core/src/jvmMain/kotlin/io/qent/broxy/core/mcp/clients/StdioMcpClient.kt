@@ -38,8 +38,10 @@ class StdioMcpClient(
     private var stderrThread: Thread? = null
     private val json = Json { ignoreUnknownKeys = true }
     private val envResolver = EnvironmentVariableResolver(logger = logger)
+
     @Volatile
     private var connectTimeoutMillis: Long = DEFAULT_CONNECT_TIMEOUT_MILLIS
+
     @Volatile
     private var capabilitiesTimeoutMillis: Long = DEFAULT_CAPABILITIES_TIMEOUT_MILLIS
 
@@ -51,41 +53,41 @@ class StdioMcpClient(
     override suspend fun connect(): Result<Unit> = coroutineScope {
         runCatching {
             if (client != null || process?.isAlive == true) return@runCatching
-        if (connector != null) {
-            client = connector.connect()
-            logger.info("Connected via test connector for stdio client")
-            return@runCatching
-        }
-        val resolvedEnv = try {
-            envResolver.resolveMap(env)
-        } catch (ex: ConfigurationException) {
-            logger.error("Failed to resolve environment for stdio client '$command'", ex)
-            throw ex
-        }
-        val pb = ProcessBuilder(listOf(command) + args)
-        val envMap = pb.environment()
-        resolvedEnv.forEach { (k, v) -> envMap[k] = v }
-        envResolver.logResolvedEnv("Launching stdio MCP process '$command'", resolvedEnv)
-        val proc = runCatching { pb.start() }
-            .onFailure { ex -> logger.error("Failed to launch stdio MCP process '$command'", ex) }
-            .getOrThrow()
+            if (connector != null) {
+                client = connector.connect()
+                logger.info("Connected via test connector for stdio client")
+                return@runCatching
+            }
+            val resolvedEnv = try {
+                envResolver.resolveMap(env)
+            } catch (ex: ConfigurationException) {
+                logger.error("Failed to resolve environment for stdio client '$command'", ex)
+                throw ex
+            }
+            val pb = ProcessBuilder(listOf(command) + args)
+            val envMap = pb.environment()
+            resolvedEnv.forEach { (k, v) -> envMap[k] = v }
+            envResolver.logResolvedEnv("Launching stdio MCP process '$command'", resolvedEnv)
+            val proc = runCatching { pb.start() }
+                .onFailure { ex -> logger.error("Failed to launch stdio MCP process '$command'", ex) }
+                .getOrThrow()
             process = proc
             stderrThread?.takeIf { it.isAlive }?.interrupt()
             stderrThread = thread(name = "StdioMcpClient-stderr-$command") {
-            runCatching {
-                proc.errorStream.bufferedReader().useLines { lines ->
-                    lines.forEach { line ->
-                        if (line.isNotBlank()) {
-                            logger.warn("[STDERR][$command] $line")
+                runCatching {
+                    proc.errorStream.bufferedReader().useLines { lines ->
+                        lines.forEach { line ->
+                            if (line.isNotBlank()) {
+                                logger.warn("[STDERR][$command] $line")
+                            }
                         }
                     }
-                }
-            }.onFailure { ex ->
-                if (!Thread.currentThread().isInterrupted) {
-                    logger.warn("Error reading stderr from '$command'", ex)
+                }.onFailure { ex ->
+                    if (!Thread.currentThread().isInterrupted) {
+                        logger.warn("Error reading stderr from '$command'", ex)
+                    }
                 }
             }
-        }
 
             val handshake = async(Dispatchers.IO) {
                 val source = proc.inputStream.asSource().buffered()
@@ -203,7 +205,8 @@ class StdioMcpClient(
         return runCatching {
             withTimeout(timeoutMillis) { fetch() }
         }.onFailure { ex ->
-            val kind = if (ex is TimeoutCancellationException) "timed out after ${timeoutMillis}ms" else ex.message ?: ex::class.simpleName
+            val kind = if (ex is TimeoutCancellationException) "timed out after ${timeoutMillis}ms" else ex.message
+                ?: ex::class.simpleName
             logger.warn("$operation $kind; treating as empty.", ex)
         }.getOrDefault(defaultValue)
     }
@@ -231,10 +234,12 @@ private class LoggingTransport(
                     trackedRequests[message.id] = "tools/list"
                     logger.info("STDIO tools/list request id=${message.id}")
                 }
+
                 Method.Defined.ResourcesList.value -> {
                     trackedRequests[message.id] = "resources/list"
                     logger.info("STDIO resources/list request id=${message.id}")
                 }
+
                 Method.Defined.PromptsList.value -> {
                     trackedRequests[message.id] = "prompts/list"
                     logger.info("STDIO prompts/list request id=${message.id}")
@@ -266,20 +271,24 @@ private class LoggingTransport(
                     }
                     message
                 }
+
                 is JSONRPCNotification -> {
                     when (message.method) {
                         Method.Defined.NotificationsResourcesListChanged.value -> {
                             logRaw("resources/list_changed notification", message)
                         }
+
                         Method.Defined.NotificationsToolsListChanged.value -> {
                             logRaw("tools/list_changed notification", message)
                         }
+
                         Method.Defined.NotificationsPromptsListChanged.value -> {
                             logRaw("prompts/list_changed notification", message)
                         }
                     }
                     message
                 }
+
                 else -> message
             }
             block(processed)

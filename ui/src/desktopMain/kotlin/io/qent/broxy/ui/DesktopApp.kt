@@ -1,9 +1,6 @@
 package io.qent.broxy.ui
 
-import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
@@ -317,11 +314,13 @@ private class DesktopTrayController {
                 menu.addSeparator()
                 menu.add(disabledItem("Server status: unknown"))
             }
+
             is TrayMenuContent.Error -> {
                 menu.add(disabledItem(content.message))
                 menu.addSeparator()
                 menu.add(disabledItem("Server status: unavailable"))
             }
+
             is TrayMenuContent.Ready -> {
                 if (content.presets.isEmpty()) {
                     menu.add(disabledItem("No presets available"))

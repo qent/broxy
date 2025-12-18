@@ -92,7 +92,7 @@ internal object BroxyCliTestEnvironment {
                 cliProcess.close()
                 val isPortInUse =
                     error.message?.contains("Address already in use") == true ||
-                        cliLogs.contains("Address already in use")
+                            cliLogs.contains("Address already in use")
                 val hasAttemptsRemaining = attempt + 1 < BroxyCliIntegrationConfig.HTTP_INBOUND_ATTEMPTS
                 if (isPortInUse && hasAttemptsRemaining) {
                     BroxyCliIntegrationConfig.log("Inbound port $port unavailable, retrying with a new port")
@@ -152,7 +152,7 @@ internal object BroxyCliTestEnvironment {
                 val message = buildString {
                     append(
                         "Inbound process exited before connection succeeded: " +
-                            (lastError?.message ?: "unknown error")
+                                (lastError?.message ?: "unknown error")
                     )
                     if (serverLogs != null) {
                         append("\nServer output:\n")
@@ -167,7 +167,7 @@ internal object BroxyCliTestEnvironment {
         val message = buildString {
             append(
                 "Failed to connect after ${BroxyCliIntegrationConfig.CONNECT_ATTEMPTS} attempts: " +
-                    (lastError?.message ?: "unknown error")
+                        (lastError?.message ?: "unknown error")
             )
             if (serverLogs != null) {
                 append("\nServer output:\n")

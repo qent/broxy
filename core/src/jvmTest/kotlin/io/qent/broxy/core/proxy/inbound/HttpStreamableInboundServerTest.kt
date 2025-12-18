@@ -38,7 +38,10 @@ class HttpStreamableInboundServerTest {
             }
 
             val caps = withTimeout(5.seconds) { client.fetchCapabilities() }
-            assertTrue(caps.isSuccess, "Client should fetch capabilities after connect (${caps.exceptionOrNull()?.message})")
+            assertTrue(
+                caps.isSuccess,
+                "Client should fetch capabilities after connect (${caps.exceptionOrNull()?.message})"
+            )
         } finally {
             runCatching { client.disconnect() }
             runCatching { inbound.stop() }

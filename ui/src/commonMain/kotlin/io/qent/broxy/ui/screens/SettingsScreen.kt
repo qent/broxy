@@ -3,22 +3,18 @@
 package io.qent.broxy.ui.screens
 
 import AppPrimaryButton
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.adapter.models.UiRemoteConnectionState
@@ -106,8 +102,16 @@ private fun SettingsContent(
     onRemoteLogout: () -> Unit
 ) {
     var requestTimeoutInput by rememberSaveable(requestTimeoutSeconds) { mutableStateOf(requestTimeoutSeconds.toString()) }
-    var capabilitiesTimeoutInput by rememberSaveable(capabilitiesTimeoutSeconds) { mutableStateOf(capabilitiesTimeoutSeconds.toString()) }
-    var capabilitiesRefreshInput by rememberSaveable(capabilitiesRefreshIntervalSeconds) { mutableStateOf(capabilitiesRefreshIntervalSeconds.toString()) }
+    var capabilitiesTimeoutInput by rememberSaveable(capabilitiesTimeoutSeconds) {
+        mutableStateOf(
+            capabilitiesTimeoutSeconds.toString()
+        )
+    }
+    var capabilitiesRefreshInput by rememberSaveable(capabilitiesRefreshIntervalSeconds) {
+        mutableStateOf(
+            capabilitiesRefreshIntervalSeconds.toString()
+        )
+    }
     var inboundSsePortInput by rememberSaveable(inboundSsePort) { mutableStateOf(inboundSsePort.toString()) }
     var remoteServerId by rememberSaveable(remote.serverIdentifier) { mutableStateOf(remote.serverIdentifier) }
 
@@ -559,40 +563,40 @@ private fun RemoteConnectorSetting(
             )
         }
     ) {
-         if (isAuthorized) {
-             Row(
-                 horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.xs),
-                 verticalAlignment = Alignment.CenterVertically
-             ) {
-                 CompactTextField(
-                     value = serverId,
-                     onValueChange = onServerIdChange,
-                     modifier = Modifier.widthIn(min = 120.dp, max = 120.dp),
-                     label = "Server ID"
-                 )
-                 AppPrimaryButton(
-                     onClick = if (isConnected) onDisconnect else onConnect,
-                     enabled = !isBusy,
-                     modifier = Modifier.height(32.dp)
-                 ) {
-                     Text(if (isConnected) "Disconnect" else "Connect", style = MaterialTheme.typography.labelSmall)
-                 }
-                 AppPrimaryButton(
-                     onClick = onLogout,
-                     enabled = !isBusy,
-                     modifier = Modifier.height(32.dp)
-                 ) {
-                     Text("Logout", style = MaterialTheme.typography.labelSmall)
-                 }
-             }
-         } else {
-             AppPrimaryButton(
-                 onClick = onAuthorize,
-                 enabled = !isBusy,
-                 modifier = Modifier.height(32.dp)
-             ) {
-                 Text("Authorize", style = MaterialTheme.typography.labelSmall)
-             }
-         }
+        if (isAuthorized) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.xs),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                CompactTextField(
+                    value = serverId,
+                    onValueChange = onServerIdChange,
+                    modifier = Modifier.widthIn(min = 120.dp, max = 120.dp),
+                    label = "Server ID"
+                )
+                AppPrimaryButton(
+                    onClick = if (isConnected) onDisconnect else onConnect,
+                    enabled = !isBusy,
+                    modifier = Modifier.height(32.dp)
+                ) {
+                    Text(if (isConnected) "Disconnect" else "Connect", style = MaterialTheme.typography.labelSmall)
+                }
+                AppPrimaryButton(
+                    onClick = onLogout,
+                    enabled = !isBusy,
+                    modifier = Modifier.height(32.dp)
+                ) {
+                    Text("Logout", style = MaterialTheme.typography.labelSmall)
+                }
+            }
+        } else {
+            AppPrimaryButton(
+                onClick = onAuthorize,
+                enabled = !isBusy,
+                modifier = Modifier.height(32.dp)
+            ) {
+                Text("Authorize", style = MaterialTheme.typography.labelSmall)
+            }
+        }
     }
 }

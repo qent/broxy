@@ -36,6 +36,7 @@ class ProxyMcpServer(
 
     private val namespace: NamespaceManager = DefaultNamespaceManager()
     private val presetEngine: PresetEngine = DefaultPresetEngine(toolFilter)
+
     @Volatile
     private var dispatcher: RequestDispatcher = buildDispatcher(downstreams)
 

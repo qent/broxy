@@ -84,6 +84,7 @@ fun MainWindow(
                     Screen.Servers -> FloatingActionButton(onClick = { state.showAddServerDialog.value = true }) {
                         Icon(Icons.Outlined.Add, contentDescription = "Add server")
                     }
+
                     Screen.Presets -> {
                         if (state.presetEditor.value == null) {
                             FloatingActionButton(onClick = { state.presetEditor.value = PresetEditorState.Create }) {
@@ -91,6 +92,7 @@ fun MainWindow(
                             }
                         }
                     }
+
                     else -> {}
                 }
             }

@@ -60,8 +60,8 @@ fun ServersScreen(ui: UIState, state: AppState, store: AppStore, notify: (String
                     } else {
                         val filtered = servers.filter { cfg ->
                             cfg.name.contains(query, ignoreCase = true) ||
-                                cfg.id.contains(query, ignoreCase = true) ||
-                                cfg.transportLabel.contains(query, ignoreCase = true)
+                                    cfg.id.contains(query, ignoreCase = true) ||
+                                    cfg.transportLabel.contains(query, ignoreCase = true)
                         }
                         LazyColumn(
                             modifier = Modifier.weight(1f, fill = true),
@@ -140,10 +140,10 @@ private fun ServerCard(
     val showErrorStatus = cfg.enabled && cfg.status.name == "Error"
     val showCapabilitiesSummary =
         cfg.enabled &&
-            cfg.status.name == "Available" &&
-            cfg.toolsCount != null &&
-            cfg.promptsCount != null &&
-            cfg.resourcesCount != null
+                cfg.status.name == "Available" &&
+                cfg.toolsCount != null &&
+                cfg.promptsCount != null &&
+                cfg.resourcesCount != null
 
     SettingsLikeItem(
         title = cfg.name,

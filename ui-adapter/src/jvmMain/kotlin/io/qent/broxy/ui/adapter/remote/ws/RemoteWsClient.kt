@@ -77,7 +77,11 @@ class RemoteWsClient(
                                             return@consumeEach
                                         }
                                         logger.info(
-                                            "[RemoteWsClient] Inbound message session=${inbound.sessionIdentifier} ${describeJsonRpcPayload(inbound.message)}"
+                                            "[RemoteWsClient] Inbound message session=${inbound.sessionIdentifier} ${
+                                                describeJsonRpcPayload(
+                                                    inbound.message
+                                                )
+                                            }"
                                         )
                                         val message = runCatching {
                                             McpJson.decodeFromJsonElement(JSONRPCMessage.serializer(), inbound.message)
@@ -99,6 +103,7 @@ class RemoteWsClient(
                                         }
                                         onStatus(UiRemoteStatus.WsOnline, null)
                                     }
+
                                     is Frame.Close -> {
                                         val reason = frame.readReason()
                                         val textReason = reason?.message
@@ -109,6 +114,7 @@ class RemoteWsClient(
                                             onStatus(UiRemoteStatus.WsOffline, textReason ?: "Disconnected")
                                         }
                                     }
+
                                     else -> Unit
                                 }
                             }
@@ -154,7 +160,9 @@ class RemoteWsClient(
             }
         }
 
-        return Result.failure(lastError ?: IllegalStateException("WebSocket connect failed after $maxAttempts attempts"))
+        return Result.failure(
+            lastError ?: IllegalStateException("WebSocket connect failed after $maxAttempts attempts")
+        )
     }
 
     suspend fun close() {

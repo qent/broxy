@@ -1,6 +1,7 @@
 # Capabilities в UI: кеш, статусы и фоновое обновление
 
-Этот документ описывает UI-ориентированную подсистему capabilities (для отображения и валидации), которая живёт отдельно от “прокси-фильтрации” пресета.
+Этот документ описывает UI-ориентированную подсистему capabilities (для отображения и валидации), которая живёт отдельно
+от “прокси-фильтрации” пресета.
 
 ## Где используется
 
@@ -27,12 +28,13 @@
 
 Важно различать:
 
-1) `core.mcp.ServerCapabilities` — “сырые” MCP capabilities (ToolDescriptor/PromptDescriptor/ResourceDescriptor), используются в `ProxyMcpServer` для публикации наружу и фильтрации.
+1) `core.mcp.ServerCapabilities` — “сырые” MCP capabilities (ToolDescriptor/PromptDescriptor/ResourceDescriptor),
+   используются в `ProxyMcpServer` для публикации наружу и фильтрации.
 
 2) `core.capabilities.ServerCapsSnapshot` — UI-friendly summary:
-   - упрощённые `ToolSummary/PromptSummary/ResourceSummary`;
-   - список аргументов и типов (best-effort из JSON Schema);
-   - хранит `serverId` и `name`.
+    - упрощённые `ToolSummary/PromptSummary/ResourceSummary`;
+    - список аргументов и типов (best-effort из JSON Schema);
+    - хранит `serverId` и `name`.
 
 UI snapshots не участвуют в `tools/call` маршрутизации: это только отображение/инспекция.
 
@@ -43,8 +45,8 @@ UI snapshots не участвуют в `tools/call` маршрутизации:
 Входные зависимости:
 
 - `capabilityFetcher: CapabilityFetcher` — функция `(McpServerConfig, timeoutSeconds) -> Result<ServerCapabilities>`.
-  - в UI на JVM реализована через `DefaultMcpServerConnection(...).getCapabilities(forceRefresh=true)`:
-    - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/services/ToolServiceJvm.kt`
+    - в UI на JVM реализована через `DefaultMcpServerConnection(...).getCapabilities(forceRefresh=true)`:
+        - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/services/ToolServiceJvm.kt`
 - `capabilityCache: CapabilityCache` — хранит snapshot + timestamp.
 - `statusTracker: ServerStatusTracker` — transient статусы для UI.
 - `serversProvider()` — текущий список серверов (из store snapshot).
@@ -71,8 +73,8 @@ UI snapshots не участвуют в `tools/call` маршрутизации:
 
 - отменяет старую job;
 - если включено, запускает цикл:
-  - `delay(refreshIntervalMillis())`
-  - `refreshEnabledServers(force=false)`
+    - `delay(refreshIntervalMillis())`
+    - `refreshEnabledServers(force=false)`
 
 ### Статусы
 
@@ -99,20 +101,21 @@ UI отображает статусы из `CapabilityCache` и `ServerStatusTr
 - берём `ToolDescriptor.inputSchema`;
 - читаем `properties` и `required`;
 - для каждого property пытаемся извлечь тип:
-  - `type`, `items`, `anyOf/oneOf/allOf`, `enum`, `format` → `schemaTypeLabel()`
+    - `type`, `items`, `anyOf/oneOf/allOf`, `enum`, `format` → `schemaTypeLabel()`
 
 Это best-effort: если schema сложная или не содержит `properties`, аргументы будут пустыми.
 
 ### Resource arguments из URI
 
-Если `ResourceDescriptor.uri` содержит `{placeholder}`, то placeholder превращается в `CapabilityArgument(name=..., required=true)`.
+Если `ResourceDescriptor.uri` содержит `{placeholder}`, то placeholder превращается в
+`CapabilityArgument(name=..., required=true)`.
 
 ## Связь с proxy runtime
 
 UI store и proxy runtime независимы, но связаны через конфигурацию:
 
 - при обновлении таймаутов UI вызывает:
-  - `ProxyLifecycle.updateCallTimeout(...)`
-  - `ProxyLifecycle.updateCapabilitiesTimeout(...)`
+    - `ProxyLifecycle.updateCallTimeout(...)`
+    - `ProxyLifecycle.updateCapabilitiesTimeout(...)`
 
 CapabilityRefresher использует `capabilitiesTimeoutSeconds` из store snapshot для UI-проверок/валидаторов.

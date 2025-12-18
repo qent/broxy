@@ -4,43 +4,52 @@
 
 Под “фасадом” здесь понимается связка:
 
-1) **Inbound транспорт** (STDIO или HTTP Streamable), который принимает MCP JSON-RPC сообщения от клиента (LLM/IDE/агента) и отдаёт ответы.
+1) **Inbound транспорт** (STDIO или HTTP Streamable), который принимает MCP JSON-RPC сообщения от клиента (
+   LLM/IDE/агента) и отдаёт ответы.
 
 2) **MCP SDK Server**, построенный функцией:
-- `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/SdkServerFactory.kt` → `buildSdkServer(proxy: ProxyMcpServer, ...)`
+
+- `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/SdkServerFactory.kt` →
+  `buildSdkServer(proxy: ProxyMcpServer, ...)`
 
 3) **ProxyMcpServer**, который фильтрует capabilities по пресету и маршрутизирует вызовы вниз:
+
 - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/ProxyMcpServer.kt`
 
-Цель фасада: сделать `ProxyMcpServer` “MCP-совместимым сервером” для внешнего мира, не смешивая wire-адаптеры с business-логикой фильтрации и роутинга.
+Цель фасада: сделать `ProxyMcpServer` “MCP-совместимым сервером” для внешнего мира, не смешивая wire-адаптеры с
+business-логикой фильтрации и роутинга.
 
 ## Карта ключевых классов
 
 - Inbound:
-  - `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/InboundServers.kt`
-  - `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/SdkServerFactory.kt`
+    - `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/InboundServers.kt`
+    - `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/SdkServerFactory.kt`
 - Proxy:
-  - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/ProxyMcpServer.kt`
-  - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/RequestDispatcher.kt`
-  - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/NamespaceManager.kt`
-  - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/ToolFilter.kt`
+    - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/ProxyMcpServer.kt`
+    - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/RequestDispatcher.kt`
+    - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/NamespaceManager.kt`
+    - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/ToolFilter.kt`
 
 ## Контракт namespace: `serverId:toolName`
 
 ### Зачем префикс нужен
 
-В нескольких downstream серверах могут существовать инструменты с одинаковыми именами. Чтобы избежать коллизий, broxy использует namespace:
+В нескольких downstream серверах могут существовать инструменты с одинаковыми именами. Чтобы избежать коллизий, broxy
+использует namespace:
 
 - входящее имя инструмента: `serverId:toolName`;
 - downstream инструмент вызывается без префикса (`toolName`).
 
 Реализация:
+
 - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/DefaultNamespaceManager.parsePrefixedToolName(...)`
 - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/DefaultNamespaceManager.prefixToolName(...)`
 
 ### Ошибка формата
 
-Если имя не соответствует формату (нет `:` или он в неправильном месте), `parsePrefixedToolName` кидает `IllegalArgumentException`. Это важно: для большинства клиентов “без префикса” вызов считается некорректным и будет отклонён.
+Если имя не соответствует формату (нет `:` или он в неправильном месте), `parsePrefixedToolName` кидает
+`IllegalArgumentException`. Это важно: для большинства клиентов “без префикса” вызов считается некорректным и будет
+отклонён.
 
 ## Слой 1: InboundServer → MCP SDK Server
 
@@ -55,10 +64,12 @@
 
 `KtorStreamableHttpInboundServer` поднимает embedded Ktor (Netty):
 
-- `POST .../mcp` принимает MCP JSON-RPC сообщения (Streamable HTTP, JSON-only режим) и возвращает `application/json` для запросов (`JSONRPCResponse`).
+- `POST .../mcp` принимает MCP JSON-RPC сообщения (Streamable HTTP, JSON-only режим) и возвращает `application/json` для
+  запросов (`JSONRPCResponse`).
 - `mcp-session-id` передаётся заголовком (не query параметром) и используется для мультисессионности.
 
 Реализация мультисессий:
+
 - `InboundStreamableHttpRegistry` хранит `sessionId -> ServerSession`.
 
 Файл: `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/InboundServers.kt`
@@ -82,11 +93,13 @@
 1) пересчитывает `filteredCaps/allowedTools/...` в `ProxyMcpServer`;
 2) пересинхронизирует уже запущенный MCP SDK `Server` (inbound STDIO/HTTP) через `syncSdkServer(...)`.
 
-Это означает, что при смене пресета **не требуется перезапуск inbound сервера**, а ответы `tools/list`/`prompts/list`/`resources/list` обновятся в рамках той же запущенной сессии.
+Это означает, что при смене пресета **не требуется перезапуск inbound сервера**, а ответы `tools/list`/`prompts/list`/
+`resources/list` обновятся в рамках той же запущенной сессии.
 
 ### Runtime обновление capabilities при включении/выключении downstream серверов
 
-При изменении списка активных downstream серверов (например, включение/выключение уже настроенного сервера) broxy использует тот же принцип, что и при смене пресета:
+При изменении списка активных downstream серверов (например, включение/выключение уже настроенного сервера) broxy
+использует тот же принцип, что и при смене пресета:
 
 1) обновляет набор downstream соединений в `ProxyMcpServer` (без пересоздания inbound);
 2) пересчитывает `filteredCaps` для текущего пресета;
@@ -151,7 +164,8 @@
 
 ### Batch вызовы
 
-`dispatchBatch(requests)` обрабатывает параллельно (`async/awaitAll`) и делегирует в `dispatchToolCall(...)`. Это не “MCP batch” на wire-уровне, а утилита для внутренних сценариев.
+`dispatchBatch(requests)` обрабатывает параллельно (`async/awaitAll`) и делегирует в `dispatchToolCall(...)`. Это не
+“MCP batch” на wire-уровне, а утилита для внутренних сценариев.
 
 ## Преобразование результатов: decode/fallback
 
@@ -164,7 +178,7 @@
 
 - выполняется нормализация content-блоков (добавление `type`, если он отсутствует);
 - иначе используется `fallbackCallToolResult(raw)`, который превращает произвольный JSON в:
-  - `CallToolResult(content = [TextContent(text = raw.toString())], structuredContent = rawObjectOrWrapped, ...)`
+    - `CallToolResult(content = [TextContent(text = raw.toString())], structuredContent = rawObjectOrWrapped, ...)`
 
 Файл: `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/SdkServerFactory.kt`
 
@@ -180,6 +194,7 @@
 - `facade_to_llm.decode_failed` — downstream прислал payload, который не декодируется как `CallToolResult`.
 
 Файлы:
+
 - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/RequestDispatcher.kt`
 - `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/SdkServerFactory.kt`
 - `core/src/commonMain/kotlin/io/qent/broxy/core/utils/JsonLogging.kt`

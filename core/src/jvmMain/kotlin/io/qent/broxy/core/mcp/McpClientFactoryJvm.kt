@@ -13,18 +13,21 @@ private object DefaultJvmMcpClientProvider : McpClientProvider {
             env = env,
             logger = logger
         )
+
         is TransportConfig.HttpTransport -> KtorMcpClient(
             mode = KtorMcpClient.Mode.Sse,
             url = config.url,
             headersMap = config.headers,
             logger = logger
         )
+
         is TransportConfig.StreamableHttpTransport -> KtorMcpClient(
             mode = KtorMcpClient.Mode.StreamableHttp,
             url = config.url,
             headersMap = config.headers,
             logger = logger
         )
+
         is TransportConfig.WebSocketTransport -> KtorMcpClient(
             mode = KtorMcpClient.Mode.WebSocket,
             url = config.url,

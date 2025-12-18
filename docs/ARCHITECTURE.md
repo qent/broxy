@@ -16,36 +16,36 @@
 Содержит платформенно-независимую бизнес-логику прокси и модели:
 
 - Прокси и маршрутизация:
-  - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/ProxyMcpServer.kt`
-  - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/RequestDispatcher.kt`
-  - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/ToolFilter.kt`
-  - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/NamespaceManager.kt`
+    - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/ProxyMcpServer.kt`
+    - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/RequestDispatcher.kt`
+    - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/ToolFilter.kt`
+    - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/NamespaceManager.kt`
 - Подключения downstream MCP:
-  - `core/src/commonMain/kotlin/io/qent/broxy/core/mcp/DefaultMcpServerConnection.kt`
-  - `core/src/jvmMain/kotlin/io/qent/broxy/core/mcp/clients/StdioMcpClient.kt`
-  - `core/src/jvmMain/kotlin/io/qent/broxy/core/mcp/clients/KtorMcpClient.kt`
+    - `core/src/commonMain/kotlin/io/qent/broxy/core/mcp/DefaultMcpServerConnection.kt`
+    - `core/src/jvmMain/kotlin/io/qent/broxy/core/mcp/clients/StdioMcpClient.kt`
+    - `core/src/jvmMain/kotlin/io/qent/broxy/core/mcp/clients/KtorMcpClient.kt`
 - Конфигурация и хот-релоад:
-  - `core/src/jvmMain/kotlin/io/qent/broxy/core/config/JsonConfigurationRepository.kt`
-  - `core/src/jvmMain/kotlin/io/qent/broxy/core/config/ConfigurationWatcher.kt`
-  - `core/src/jvmMain/kotlin/io/qent/broxy/core/config/EnvironmentVariableResolver.kt`
+    - `core/src/jvmMain/kotlin/io/qent/broxy/core/config/JsonConfigurationRepository.kt`
+    - `core/src/jvmMain/kotlin/io/qent/broxy/core/config/ConfigurationWatcher.kt`
+    - `core/src/jvmMain/kotlin/io/qent/broxy/core/config/EnvironmentVariableResolver.kt`
 - Runtime wiring (JVM):
-  - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/runtime/ProxyLifecycle.kt`
-  - `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/runtime/ProxyControllerJvm.kt`
-  - `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/InboundServers.kt`
-  - `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/SdkServerFactory.kt`
+    - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/runtime/ProxyLifecycle.kt`
+    - `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/runtime/ProxyControllerJvm.kt`
+    - `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/InboundServers.kt`
+    - `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/SdkServerFactory.kt`
 
 ### `ui-adapter/` (presentation adapter, UDF/MVI)
 
 Слой презентации без Compose-зависимостей: состояния, интенты, фоновые джобы.
 
 - Store и intents:
-  - `ui-adapter/src/commonMain/kotlin/io/qent/broxy/ui/adapter/store/AppStore.kt`
-  - `ui-adapter/src/commonMain/kotlin/io/qent/broxy/ui/adapter/store/internal/AppStoreIntents.kt`
-  - `ui-adapter/src/commonMain/kotlin/io/qent/broxy/ui/adapter/store/internal/ProxyRuntime.kt`
+    - `ui-adapter/src/commonMain/kotlin/io/qent/broxy/ui/adapter/store/AppStore.kt`
+    - `ui-adapter/src/commonMain/kotlin/io/qent/broxy/ui/adapter/store/internal/AppStoreIntents.kt`
+    - `ui-adapter/src/commonMain/kotlin/io/qent/broxy/ui/adapter/store/internal/ProxyRuntime.kt`
 - Remote режим (OAuth + WebSocket):
-  - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/RemoteConnectorImpl.kt`
-  - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/ws/RemoteWsClient.kt`
-  - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/ws/ProxyWebSocketTransport.kt`
+    - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/RemoteConnectorImpl.kt`
+    - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/ws/RemoteWsClient.kt`
+    - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/ws/ProxyWebSocketTransport.kt`
 
 ### `ui/` (Compose Desktop, “тонкий UI”)
 
@@ -63,11 +63,12 @@ CLI поднимает прокси и watcher для хот-релоада:
 
 1. Загружается конфигурация (`mcp.json`) и пресет (`preset_<id>.json`).
 2. Собирается runtime:
-   - downstream соединения: `DefaultMcpServerConnection` (по одному на сервер).
-   - прокси-ядро: `ProxyMcpServer`.
-   - inbound server: STDIO или HTTP Streamable (`InboundServerFactory`).
+    - downstream соединения: `DefaultMcpServerConnection` (по одному на сервер).
+    - прокси-ядро: `ProxyMcpServer`.
+    - inbound server: STDIO или HTTP Streamable (`InboundServerFactory`).
 3. На старте `ProxyMcpServer.start(...)` вычисляет отфильтрованные capabilities (см. `refreshFilteredCapabilities()`).
-4. Inbound-адаптер строит MCP SDK `Server` через `buildSdkServer(proxy)` и публикует наружу `tools/list`, `prompts/list`, `resources/list` и обработчики `callTool/getPrompt/readResource`.
+4. Inbound-адаптер строит MCP SDK `Server` через `buildSdkServer(proxy)` и публикует наружу `tools/list`,
+   `prompts/list`, `resources/list` и обработчики `callTool/getPrompt/readResource`.
 
 ### 2) Вызов инструмента (LLM → broxy → downstream)
 
@@ -99,8 +100,11 @@ sequenceDiagram
 В CLI и (частично) в UI используется `ConfigurationWatcher`:
 
 - на изменение `mcp.json` → `onConfigurationChanged(...)` → `ProxyLifecycle.restartWithConfig(...)`;
-- на изменение `preset_*.json` → `onPresetChanged(...)` → `ProxyLifecycle.applyPreset(...)` (пересчёт filtered capabilities в прокси + обновление списка capabilities наружу без рестарта inbound; подробности — в `docs/PRESETS_AND_FILTERING.md`).
+- на изменение `preset_*.json` → `onPresetChanged(...)` → `ProxyLifecycle.applyPreset(...)` (пересчёт filtered
+  capabilities в прокси + обновление списка capabilities наружу без рестарта inbound; подробности — в
+  `docs/PRESETS_AND_FILTERING.md`).
 
 ### 4) Remote режим (UI): авторизация + WebSocket
 
-UI-adapter выполняет OAuth и регистрирует “сервер-идентификатор” на `broxy.run`, затем поднимает WebSocket, в котором проксируются MCP JSON-RPC сообщения (см. `docs/REMOTE_AUTH_AND_WEBSOCKET.md`).
+UI-adapter выполняет OAuth и регистрирует “сервер-идентификатор” на `broxy.run`, затем поднимает WebSocket, в котором
+проксируются MCP JSON-RPC сообщения (см. `docs/REMOTE_AUTH_AND_WEBSOCKET.md`).

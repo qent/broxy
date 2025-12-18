@@ -72,7 +72,7 @@ fun PresetsScreen(ui: UIState, state: AppState, store: AppStore) {
                     } else {
                         val filtered = presets.filter { p ->
                             p.name.contains(query, ignoreCase = true) ||
-                                p.id.contains(query, ignoreCase = true)
+                                    p.id.contains(query, ignoreCase = true)
                         }
                         LazyColumn(
                             modifier = Modifier.weight(1f, fill = true),
@@ -134,7 +134,11 @@ private fun PresetCard(
             Icon(Icons.Outlined.Edit, contentDescription = "Edit preset", tint = MaterialTheme.colorScheme.secondary)
         }
         IconButton(onClick = onDelete) {
-            Icon(Icons.Outlined.Delete, contentDescription = "Delete preset", tint = MaterialTheme.colorScheme.secondary)
+            Icon(
+                Icons.Outlined.Delete,
+                contentDescription = "Delete preset",
+                tint = MaterialTheme.colorScheme.secondary
+            )
         }
     }
 }

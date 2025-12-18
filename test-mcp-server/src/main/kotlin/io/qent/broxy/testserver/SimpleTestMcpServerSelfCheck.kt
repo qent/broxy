@@ -88,10 +88,12 @@ class SimpleTestMcpServerSelfCheck(
         require(caps.tools.map { it.name }.toSet() == setOf("add", "subtract")) {
             "Tool capabilities mismatch: ${caps.tools}"
         }
-        require(caps.resources.map { it.uri ?: it.name }.toSet() == setOf(
-            "test://resource/alpha",
-            "test://resource/beta"
-        )) {
+        require(
+            caps.resources.map { it.uri ?: it.name }.toSet() == setOf(
+                "test://resource/alpha",
+                "test://resource/beta"
+            )
+        ) {
             "Resource capabilities mismatch: ${caps.resources}"
         }
         require(caps.prompts.map { it.name }.toSet() == setOf("hello", "bye")) {
@@ -158,7 +160,12 @@ class SimpleTestMcpServerSelfCheck(
     }
 
     private fun <T> Result<T>.getOrThrow(operation: String): T =
-        getOrElse { error -> throw IllegalStateException("$operation failed: ${error.message ?: error::class.simpleName}", error) }
+        getOrElse { error ->
+            throw IllegalStateException(
+                "$operation failed: ${error.message ?: error::class.simpleName}",
+                error
+            )
+        }
 
     private fun serverExecutable(serverHome: Path): String {
         val scriptName = if (isWindows()) "test-mcp-server.bat" else "test-mcp-server"
@@ -254,7 +261,9 @@ data class SelfCheckOptions(
             var index = 0
             while (index < args.size) {
                 when (val arg = args[index]) {
-                    "--server-home" -> serverHome = Paths.get(args.getOrNull(++index) ?: error("Missing value for --server-home"))
+                    "--server-home" -> serverHome =
+                        Paths.get(args.getOrNull(++index) ?: error("Missing value for --server-home"))
+
                     "--skip-http" -> skipHttp = true
                     else -> error("Unknown argument '$arg'")
                 }

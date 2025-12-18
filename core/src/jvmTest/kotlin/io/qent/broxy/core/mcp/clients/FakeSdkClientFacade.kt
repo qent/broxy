@@ -36,5 +36,6 @@ class FakeSdkClientFacade(
     override suspend fun readResource(uri: String): ReadResourceResult =
         ReadResourceResult(contents = emptyList(), meta = JsonObject(emptyMap()))
 
-    override suspend fun close() { /* no-op */ }
+    override suspend fun close() { /* no-op */
+    }
 }

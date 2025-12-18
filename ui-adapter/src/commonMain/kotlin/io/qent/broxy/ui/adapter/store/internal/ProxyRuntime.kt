@@ -57,7 +57,13 @@ internal class ProxyRuntime(
             } else {
                 val msg = result.exceptionOrNull()?.message ?: "Failed to start HTTP server"
                 logger.info("[AppStore] ensureInboundRunning start failed: $msg")
-                state.updateSnapshot { copy(proxyStatus = UiProxyStatus.Error(msg), activeProxyPresetId = null, activeInbound = null) }
+                state.updateSnapshot {
+                    copy(
+                        proxyStatus = UiProxyStatus.Error(msg),
+                        activeProxyPresetId = null,
+                        activeInbound = null
+                    )
+                }
                 remoteConnector.onProxyRunningChanged(false)
             }
             publishReady()
@@ -91,7 +97,13 @@ internal class ProxyRuntime(
         publishReady()
         val result = proxyLifecycle.stop()
         if (result.isSuccess) {
-            state.updateSnapshot { copy(proxyStatus = UiProxyStatus.Stopped, activeProxyPresetId = null, activeInbound = null) }
+            state.updateSnapshot {
+                copy(
+                    proxyStatus = UiProxyStatus.Stopped,
+                    activeProxyPresetId = null,
+                    activeInbound = null
+                )
+            }
             remoteConnector.onProxyRunningChanged(false)
         } else {
             val msg = result.exceptionOrNull()?.message ?: "Failed to stop HTTP server"

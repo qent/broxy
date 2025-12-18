@@ -29,14 +29,17 @@ class DefaultMcpServerConnection(
     initialConnectTimeoutMillis: Long = initialCapabilitiesTimeoutMillis
 ) : McpServerConnection {
     override val serverId: String = config.id
+
     @Volatile
     override var status: ServerStatus = ServerStatus.Stopped
         private set
 
     @Volatile
     private var callTimeoutMillis: Long = initialCallTimeoutMillis.coerceAtLeast(1)
+
     @Volatile
     private var capabilitiesTimeoutMillis: Long = initialCapabilitiesTimeoutMillis.coerceAtLeast(1)
+
     @Volatile
     private var connectTimeoutMillis: Long = initialConnectTimeoutMillis.coerceAtLeast(1)
 

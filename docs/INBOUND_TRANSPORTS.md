@@ -20,7 +20,8 @@ Inbound — это “как broxy принимает входящие MCP JSON-
 
 - `TransportConfig.StdioTransport` → `StdioInboundServer`
 - `TransportConfig.StreamableHttpTransport` → `KtorStreamableHttpInboundServer`
-- `TransportConfig.HttpTransport` → backward compatible alias (исторически был SSE inbound; теперь трактуется как Streamable HTTP inbound)
+- `TransportConfig.HttpTransport` → backward compatible alias (исторически был SSE inbound; теперь трактуется как
+  Streamable HTTP inbound)
 - другие типы inbound не поддерживаются (ошибка).
 
 Важно: downstream поддерживает больше транспортов, чем inbound.
@@ -36,17 +37,25 @@ Inbound — это “как broxy принимает входящие MCP JSON-
 
 Особенность:
 
-- STDIO режим требует, чтобы stdout был “чистым” для MCP протокола. Поэтому в CLI используется `StderrLogger` (логи в stderr).
+- STDIO режим требует, чтобы stdout был “чистым” для MCP протокола. Поэтому в CLI используется `StderrLogger` (логи в
+  stderr).
 
 Важно про жизненный цикл:
 
-- В текущем MCP Kotlin SDK `server.connect(transport)` может **не блокировать** поток до закрытия сессии (соединение продолжает жить, пока процесс жив и transport не закрыт).
-- Поэтому процесс должен оставаться живым: либо “держать” основной поток (как делает CLI), либо явно ждать завершения STDIO сессии через `transport.onClose { ... }`.
-  - См. `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/headless/HeadlessEntrypointJvm.kt` — headless STDIO режим ожидает закрытия transport, чтобы не завершать процесс сразу после запуска.
-  - В упакованном Desktop приложении этот режим запускается так: `broxy --stdio-proxy` (без дополнительных аргументов); пресет берётся из `defaultPresetId` в `mcp.json`, конфиг — из `~/.config/broxy` (macOS/Linux) или `%USERPROFILE%\\.config\\broxy` (Windows).
+- В текущем MCP Kotlin SDK `server.connect(transport)` может **не блокировать** поток до закрытия сессии (соединение
+  продолжает жить, пока процесс жив и transport не закрыт).
+- Поэтому процесс должен оставаться живым: либо “держать” основной поток (как делает CLI), либо явно ждать завершения
+  STDIO сессии через `transport.onClose { ... }`.
+    - См. `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/headless/HeadlessEntrypointJvm.kt` — headless STDIO
+      режим ожидает закрытия transport, чтобы не завершать процесс сразу после запуска.
+    - В упакованном Desktop приложении этот режим запускается так: `broxy --stdio-proxy` (без дополнительных
+      аргументов); пресет берётся из `defaultPresetId` в `mcp.json`, конфиг — из `~/.config/broxy` (macOS/Linux) или
+      `%USERPROFILE%\\.config\\broxy` (Windows).
 
 См. также:
-- `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/runtime/ProxyController.kt` → `createStdioProxyController(...)` (специализированный factory).
+
+- `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/runtime/ProxyController.kt` → `createStdioProxyController(...)` (
+  специализированный factory).
 
 ## HTTP Streamable inbound
 
@@ -60,6 +69,7 @@ Inbound — это “как broxy принимает входящие MCP JSON-
 - route segments вычисляются через `normalizePath(...)`.
 
 Файлы:
+
 - `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/InboundServers.kt`
 
 ### Один endpoint: `POST /mcp`
@@ -67,17 +77,17 @@ Inbound — это “как broxy принимает входящие MCP JSON-
 В `mountStreamableHttpRoute(...)` определены обработчики:
 
 1) `post { ... }`:
-   - читает MCP JSON-RPC сообщение из body (ожидается `Content-Type: application/json`);
-   - определяет `sessionId` по заголовку `mcp-session-id` (если заголовка нет — создаётся новая сессия);
-   - создаёт MCP SDK `ServerSession` через `server.createSession(transport)` и кладёт её в registry по `sessionId`;
-   - для `JSONRPCRequest` возвращает `application/json` с `JSONRPCResponse` (т.е. “JSON-only” режим Streamable HTTP);
-   - для уведомлений возвращает `200 OK` без тела.
+    - читает MCP JSON-RPC сообщение из body (ожидается `Content-Type: application/json`);
+    - определяет `sessionId` по заголовку `mcp-session-id` (если заголовка нет — создаётся новая сессия);
+    - создаёт MCP SDK `ServerSession` через `server.createSession(transport)` и кладёт её в registry по `sessionId`;
+    - для `JSONRPCRequest` возвращает `application/json` с `JSONRPCResponse` (т.е. “JSON-only” режим Streamable HTTP);
+    - для уведомлений возвращает `200 OK` без тела.
 
 2) `get { ... }`:
-   - возвращает `405 Method Not Allowed` (SSE stream не используется в текущей реализации).
+    - возвращает `405 Method Not Allowed` (SSE stream не используется в текущей реализации).
 
 3) `delete { ... }`:
-   - удаляет `sessionId` из registry и закрывает MCP SDK сессию (`204 No Content`).
+    - удаляет `sessionId` из registry и закрывает MCP SDK сессию (`204 No Content`).
 
 Важно: такой “JSON-only” Streamable HTTP режим совместим с `mcpStreamableHttp(...)` клиентом MCP Kotlin SDK.
 
@@ -92,7 +102,8 @@ Inbound — это “как broxy принимает входящие MCP JSON-
 
 Outbound API для MCP клиентов формирует SDK `Server`:
 
-- синхронизирует зарегистрированные tools/prompts/resources с `proxy.getCapabilities()` и может пересинхронизироваться при смене пресета без рестарта inbound;
+- синхронизирует зарегистрированные tools/prompts/resources с `proxy.getCapabilities()` и может пересинхронизироваться
+  при смене пресета без рестарта inbound;
 - перенаправляет `callTool/getPrompt/readResource` в `ProxyMcpServer`.
 
 Подробности — `docs/PROXY_FACADE.md`.
@@ -106,8 +117,10 @@ Outbound API для MCP клиентов формирует SDK `Server`:
 
 ## Desktop UI: auto HTTP inbound
 
-В desktop UI режиме локальный HTTP Streamable inbound поднимается автоматически при старте приложения и останавливается вместе с процессом.
+В desktop UI режиме локальный HTTP Streamable inbound поднимается автоматически при старте приложения и останавливается
+вместе с процессом.
 
-- Порт задаётся в `mcp.json` ключом `inboundSsePort` (default `3335`). (Историческое имя ключа сохранено для совместимости.)
+- Порт задаётся в `mcp.json` ключом `inboundSsePort` (default `3335`). (Историческое имя ключа сохранено для
+  совместимости.)
 - При изменении порта через UI сервер автоматически перезапускается.
 - Если порт занят, старт inbound завершится ошибкой (UI показывает статус “порт занят”).

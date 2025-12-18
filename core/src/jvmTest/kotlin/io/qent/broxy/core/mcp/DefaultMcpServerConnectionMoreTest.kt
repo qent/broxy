@@ -24,8 +24,18 @@ class DefaultMcpServerConnectionMoreTest {
         runBlocking {
             val client: McpClient = mock()
             whenever(client.connect()).thenReturn(Result.success(Unit))
-            whenever(client.getPrompt("p1", null)).thenReturn(Result.success(buildJsonObject { put("description", "d"); put("messages", "[]") }))
-            whenever(client.readResource("u1")).thenReturn(Result.success(buildJsonObject { put("contents", "[]"); put("_meta", "{}") }))
+            whenever(client.getPrompt("p1", null)).thenReturn(Result.success(buildJsonObject {
+                put(
+                    "description",
+                    "d"
+                ); put("messages", "[]")
+            }))
+            whenever(client.readResource("u1")).thenReturn(Result.success(buildJsonObject {
+                put(
+                    "contents",
+                    "[]"
+                ); put("_meta", "{}")
+            }))
 
             val conn = DefaultMcpServerConnection(config(), clientFactory = { client })
 
@@ -60,15 +70,22 @@ class DefaultMcpServerConnectionMoreTest {
             val slowClient = object : McpClient {
                 override suspend fun connect(): Result<Unit> = Result.success(Unit)
                 override suspend fun disconnect() {}
-                override suspend fun fetchCapabilities(): Result<ServerCapabilities> = Result.success(ServerCapabilities())
-                override suspend fun callTool(name: String, arguments: JsonObject): Result<kotlinx.serialization.json.JsonElement> {
+                override suspend fun fetchCapabilities(): Result<ServerCapabilities> =
+                    Result.success(ServerCapabilities())
+
+                override suspend fun callTool(
+                    name: String,
+                    arguments: JsonObject
+                ): Result<kotlinx.serialization.json.JsonElement> {
                     delay(50)
                     return Result.success(buildJsonObject { put("ok", true) })
                 }
 
                 override suspend fun getPrompt(name: String, arguments: Map<String, String>?): Result<JsonObject> =
                     Result.success(JsonObject(emptyMap()))
-                override suspend fun readResource(uri: String): Result<JsonObject> = Result.success(JsonObject(emptyMap()))
+
+                override suspend fun readResource(uri: String): Result<JsonObject> =
+                    Result.success(JsonObject(emptyMap()))
             }
 
             val conn = DefaultMcpServerConnection(

@@ -10,8 +10,8 @@ import io.qent.broxy.core.proxy.runtime.ProxyLifecycle
 import io.qent.broxy.core.proxy.runtime.createProxyController
 import io.qent.broxy.core.repository.ConfigurationRepository
 import io.qent.broxy.core.utils.CollectingLogger
-import io.qent.broxy.ui.adapter.data.provideDefaultLogger
 import io.qent.broxy.ui.adapter.data.provideConfigurationRepository
+import io.qent.broxy.ui.adapter.data.provideDefaultLogger
 import io.qent.broxy.ui.adapter.models.*
 import io.qent.broxy.ui.adapter.remote.RemoteConnector
 import io.qent.broxy.ui.adapter.remote.createRemoteConnector
@@ -141,10 +141,18 @@ class AppStore(
                         UiToolRef(serverId = tool.serverId, toolName = tool.toolName, enabled = tool.enabled)
                     },
                     prompts = preset.prompts.orEmpty().map { prompt ->
-                        UiPromptRef(serverId = prompt.serverId, promptName = prompt.promptName, enabled = prompt.enabled)
+                        UiPromptRef(
+                            serverId = prompt.serverId,
+                            promptName = prompt.promptName,
+                            enabled = prompt.enabled
+                        )
                     },
                     resources = preset.resources.orEmpty().map { resource ->
-                        UiResourceRef(serverId = resource.serverId, resourceKey = resource.resourceKey, enabled = resource.enabled)
+                        UiResourceRef(
+                            serverId = resource.serverId,
+                            resourceKey = resource.resourceKey,
+                            enabled = resource.enabled
+                        )
                     },
                     promptsConfigured = preset.prompts != null,
                     resourcesConfigured = preset.resources != null,

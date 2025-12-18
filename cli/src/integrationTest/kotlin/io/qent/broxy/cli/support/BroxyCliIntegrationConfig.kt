@@ -25,6 +25,7 @@ internal object BroxyCliIntegrationConfig {
     const val CAPABILITIES_REQUEST_TIMEOUT_MILLIS = 500L
     const val CAPABILITIES_TIMEOUT_MILLIS = 4_000L
     const val CAPABILITIES_WARMUP_TIMEOUT_MILLIS = 10_000L
+
     // Allow extra startup time: CLI performs upstream capability sync before exposing inbound HTTP.
     const val CONNECT_ATTEMPTS = 120
     const val CONNECT_DELAY_MILLIS = 250L

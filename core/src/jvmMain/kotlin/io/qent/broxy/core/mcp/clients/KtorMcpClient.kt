@@ -39,8 +39,10 @@ class KtorMcpClient(
     private var ktor: HttpClient? = null
     private var client: SdkClientFacade? = null
     private val json = Json { ignoreUnknownKeys = true }
+
     @Volatile
     private var connectTimeoutMillis: Long = DEFAULT_CONNECT_TIMEOUT_MILLIS
+
     @Volatile
     private var capabilitiesTimeoutMillis: Long = DEFAULT_CAPABILITIES_TIMEOUT_MILLIS
 
@@ -81,7 +83,12 @@ class KtorMcpClient(
         }
 
         val sdk = when (mode) {
-            Mode.Sse -> requireNotNull(ktor).mcpSse(urlString = url, reconnectionTime = 3.seconds, requestBuilder = reqBuilder)
+            Mode.Sse -> requireNotNull(ktor).mcpSse(
+                urlString = url,
+                reconnectionTime = 3.seconds,
+                requestBuilder = reqBuilder
+            )
+
             Mode.StreamableHttp -> requireNotNull(ktor).mcpStreamableHttp(url = url, requestBuilder = reqBuilder)
             Mode.WebSocket -> requireNotNull(ktor).mcpWebSocket(urlString = url, requestBuilder = reqBuilder)
         }
@@ -142,7 +149,8 @@ class KtorMcpClient(
         return runCatching {
             withTimeout(timeoutMillis) { fetch() }
         }.onFailure { ex ->
-            val kind = if (ex is TimeoutCancellationException) "timed out after ${timeoutMillis}ms" else ex.message ?: ex::class.simpleName
+            val kind = if (ex is TimeoutCancellationException) "timed out after ${timeoutMillis}ms" else ex.message
+                ?: ex::class.simpleName
             logger.warn("$operation $kind; treating as empty.", ex)
         }.getOrDefault(defaultValue)
     }

@@ -44,7 +44,10 @@ class SimpleTestMcpServerIntegrationTest {
         try {
             val connectResult = client.connect()
             connectResult.exceptionOrNull()?.printStackTrace()
-            assertTrue(connectResult.isSuccess, "STDIO client should connect to SimpleTestMcpServer (${connectResult.exceptionOrNull()?.message})")
+            assertTrue(
+                connectResult.isSuccess,
+                "STDIO client should connect to SimpleTestMcpServer (${connectResult.exceptionOrNull()?.message})"
+            )
             verifyCapabilitiesAndOperations(client)
         } finally {
             client.disconnect()
@@ -69,7 +72,10 @@ class SimpleTestMcpServerIntegrationTest {
                     if (msg.contains("StreamableHttpClientTransport", ignoreCase = true) ||
                         msg.contains("streamable", ignoreCase = true)
                     ) {
-                        assumeTrue(false, "Skipping HTTP Streamable test: transport not permitted in this environment ($msg)")
+                        assumeTrue(
+                            false,
+                            "Skipping HTTP Streamable test: transport not permitted in this environment ($msg)"
+                        )
                     }
                 }
                 assertTrue(
@@ -87,7 +93,10 @@ class SimpleTestMcpServerIntegrationTest {
         val canBind = runCatching {
             ServerSocket(0).use { }
         }.isSuccess
-        assumeTrue(canBind, "Local network sockets are not permitted in this environment; skipping HTTP Streamable integration")
+        assumeTrue(
+            canBind,
+            "Local network sockets are not permitted in this environment; skipping HTTP Streamable integration"
+        )
     }
 
     private suspend fun verifyCapabilitiesAndOperations(client: McpClient) {
@@ -209,7 +218,10 @@ class SimpleTestMcpServerIntegrationTest {
         }
         val logSnapshot = process.logs()
         if (logSnapshot.contains("Operation not permitted")) {
-            assumeTrue(false, "HTTP Streamable server cannot bind sockets in this environment; skipping test. Logs: $logSnapshot")
+            assumeTrue(
+                false,
+                "HTTP Streamable server cannot bind sockets in this environment; skipping test. Logs: $logSnapshot"
+            )
         }
         fail("HTTP Streamable server failed to start on port $port\n$logSnapshot")
     }

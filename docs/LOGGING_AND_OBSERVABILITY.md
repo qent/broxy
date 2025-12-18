@@ -3,6 +3,7 @@
 ## Логгер: интерфейс и реализации
 
 Интерфейс:
+
 - `core/src/commonMain/kotlin/io/qent/broxy/core/utils/Logger.kt`
 
 Реализации:
@@ -11,7 +12,7 @@
 - `DailyFileLogger(baseDir)` — пишет в `${baseDir}/logs/{YYYY-MM-DD}.log` (один файл на день, все уровни).
 - `FilteredLogger(minLevel, delegate)` — фильтрация по уровню (используется в CLI).
 - `CollectingLogger(delegate)` — пишет в delegate и публикует события через `SharedFlow<LogEvent>`.
-  - файл: `core/src/commonMain/kotlin/io/qent/broxy/core/utils/CollectingLogger.kt`
+    - файл: `core/src/commonMain/kotlin/io/qent/broxy/core/utils/CollectingLogger.kt`
 - `CompositeLogger(delegates)` — fan-out в несколько логгеров (например, stderr + файл).
 
 ### Важный нюанс STDIO режима
@@ -30,11 +31,12 @@
 - Путь: `${configDir}/logs/`
 - Файл: `{YYYY-MM-DD}.log` (один файл на день)
 - Формат строки: `YYYY-MM-DD HH:mm:ss.SSS LEVEL событие`
-  - если в сообщении встречаются переводы строк, они экранируются как `\\n`, чтобы сохранить “одна строка = один лог”.
+    - если в сообщении встречаются переводы строк, они экранируются как `\\n`, чтобы сохранить “одна строка = один лог”.
 
 ## JSON-логирование (структурированные события)
 
 Файл:
+
 - `core/src/commonMain/kotlin/io/qent/broxy/core/utils/JsonLogging.kt`
 
 Формат события:
@@ -75,6 +77,7 @@ API:
 ### STDIO downstream: сырой JSON-RPC
 
 Файл:
+
 - `core/src/jvmMain/kotlin/io/qent/broxy/core/mcp/clients/StdioMcpClient.kt`
 
 `LoggingTransport` пишет строки вроде:
@@ -88,6 +91,7 @@ API:
 ### Remote WebSocket: сводка JSON-RPC
 
 Файл:
+
 - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/ws/ProxyWebSocketTransport.kt`
 
 `describeJsonRpcPayload(...)` пишет:
@@ -102,12 +106,12 @@ API:
 ## Рекомендации по трассировке для AI-агентов
 
 1) Для диагностики вызова инструмента ищите в логах цепочку:
-   - `llm_to_facade.request` → `facade_to_downstream.request` → `downstream.response` → `facade_to_llm.response`.
+    - `llm_to_facade.request` → `facade_to_downstream.request` → `downstream.response` → `facade_to_llm.response`.
 
 2) При отказах по пресету:
-   - ищите `proxy.tool.denied` и проверяйте `allowedPrefixedTools` в текущем пресете.
+    - ищите `proxy.tool.denied` и проверяйте `allowedPrefixedTools` в текущем пресете.
 
 3) При “пустых capabilities”:
-   - проверьте логи `DefaultMcpServerConnection.getCapabilities(...)` (успех/ошибка/кеш);
-   - для STDIO используйте `STDIO raw ...` события;
-   - помните, что `KtorMcpClient.fetchCapabilities()` может вернуть пустые списки по таймауту отдельных операций.
+    - проверьте логи `DefaultMcpServerConnection.getCapabilities(...)` (успех/ошибка/кеш);
+    - для STDIO используйте `STDIO raw ...` события;
+    - помните, что `KtorMcpClient.fetchCapabilities()` может вернуть пустые списки по таймауту отдельных операций.

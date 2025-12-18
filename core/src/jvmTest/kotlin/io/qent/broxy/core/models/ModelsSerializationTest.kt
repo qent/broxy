@@ -28,7 +28,10 @@ class ModelsSerializationTest {
         val cfg = McpServerConfig(
             id = "s1s",
             name = "Server 1S",
-            transport = TransportConfig.StreamableHttpTransport(url = "http://localhost:1234/mcp", headers = mapOf("X" to "y")),
+            transport = TransportConfig.StreamableHttpTransport(
+                url = "http://localhost:1234/mcp",
+                headers = mapOf("X" to "y")
+            ),
             enabled = true
         )
         val encoded = json.encodeToString(McpServerConfig.serializer(), cfg)

@@ -66,6 +66,7 @@ class RemoteConnectorImpl(
     override val state: StateFlow<UiRemoteConnectionState> = _state
 
     private var cachedConfig: LoadedRemoteConfig? = null
+
     @Volatile
     private var proxyRunning: Boolean = false
     private var wsClient: RemoteWsClient? = null
@@ -142,7 +143,8 @@ class RemoteConnectorImpl(
             }
                 .onFailure { logger.error("[RemoteAuth] login failed: ${it.message}") }
                 .getOrElse {
-                    _state.value = _state.value.copy(status = UiRemoteStatus.Error, message = "Login failed: ${it.message}")
+                    _state.value =
+                        _state.value.copy(status = UiRemoteStatus.Error, message = "Login failed: ${it.message}")
                     return@launch
                 }
             logger.debug("[RemoteAuth] Login response received: state=${login.state}, redirect=${login.authorizationUrl}")
@@ -151,7 +153,8 @@ class RemoteConnectorImpl(
                 parseQueryString(uri.rawQuery ?: "").getAll("redirect_uri")?.firstOrNull()
             }.getOrNull()
             if (redirectInAuthUrl == null) {
-                val msg = "Authorization URL missing redirect_uri; backend may be outdated or redirect_uri not forwarded"
+                val msg =
+                    "Authorization URL missing redirect_uri; backend may be outdated or redirect_uri not forwarded"
                 logger.error("[RemoteAuth] $msg")
                 _state.value = _state.value.copy(status = UiRemoteStatus.Error, message = msg)
                 return@launch
@@ -170,7 +173,10 @@ class RemoteConnectorImpl(
                 ?: run {
                     val msg = callbackResult.exceptionOrNull()?.let { "Callback server failed: ${it.message}" }
                         ?: "Authorization timed out"
-                    logger.error("[RemoteAuth] Authorization failed before callback: $msg", callbackResult.exceptionOrNull())
+                    logger.error(
+                        "[RemoteAuth] Authorization failed before callback: $msg",
+                        callbackResult.exceptionOrNull()
+                    )
                     _state.value = _state.value.copy(status = UiRemoteStatus.Error, message = msg)
                     return@launch
                 }
@@ -189,7 +195,8 @@ class RemoteConnectorImpl(
                 }.body<TokenResponse>()
             }.onFailure { logger.error("[RemoteAuth] callback exchange failed: ${it.message}") }
                 .getOrElse {
-                    _state.value = _state.value.copy(status = UiRemoteStatus.Error, message = "Exchange failed: ${it.message}")
+                    _state.value =
+                        _state.value.copy(status = UiRemoteStatus.Error, message = "Exchange failed: ${it.message}")
                     return@launch
                 }
             if (!tokenResp.tokenType.equals("bearer", ignoreCase = true)) {
@@ -214,7 +221,11 @@ class RemoteConnectorImpl(
             logTokenSnapshot("Access token received", tokenResp.accessToken, null)
             val register = registerServer(tokenResp.accessToken)
             if (register == null) {
-                _state.value = _state.value.copy(status = UiRemoteStatus.Error, message = "Register failed", hasCredentials = false)
+                _state.value = _state.value.copy(
+                    status = UiRemoteStatus.Error,
+                    message = "Register failed",
+                    hasCredentials = false
+                )
                 return@launch
             }
             val wsExpiry = accessExpiry?.plusSeconds(24 * 3600) // backend default, best effort
@@ -424,6 +435,7 @@ class RemoteConnectorImpl(
                 if (it.response.status.value == 403) "Server identifier is already in use"
                 else "Register failed (${it.response.status.value})"
             }
+
             else -> it.message ?: "Register failed"
         }
         _state.value = _state.value.copy(status = UiRemoteStatus.Error, message = msg, hasCredentials = true)

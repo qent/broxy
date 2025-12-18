@@ -4,7 +4,6 @@ import io.qent.broxy.core.capabilities.CapabilityRefresher
 import io.qent.broxy.core.config.ConfigurationManager
 import io.qent.broxy.core.proxy.runtime.ProxyLifecycle
 import io.qent.broxy.core.utils.CollectingLogger
-import io.qent.broxy.ui.adapter.data.openLogsFolder as openLogsFolderPlatform
 import io.qent.broxy.ui.adapter.models.*
 import io.qent.broxy.ui.adapter.remote.RemoteConnector
 import io.qent.broxy.ui.adapter.store.Intents
@@ -13,6 +12,7 @@ import io.qent.broxy.ui.adapter.store.toTransportConfig
 import io.qent.broxy.ui.adapter.store.toUiPresetSummary
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import io.qent.broxy.ui.adapter.data.openLogsFolder as openLogsFolderPlatform
 
 internal class AppStoreIntents(
     private val scope: CoroutineScope,
@@ -63,7 +63,12 @@ internal class AppStoreIntents(
             state.updateSnapshot { copy(servers = updated) }
             val result = configurationManager.upsertServer(previousConfig, merged)
             if (result.isFailure) {
-                revertServersOnFailure("addOrUpdateServerUi", previousServers, result.exceptionOrNull(), "Failed to save servers")
+                revertServersOnFailure(
+                    "addOrUpdateServerUi",
+                    previousServers,
+                    result.exceptionOrNull(),
+                    "Failed to save servers"
+                )
             } else {
                 capabilityRefresher.updateCachedName(ui.id, ui.name)
                 val saved = result.getOrNull()
@@ -87,7 +92,12 @@ internal class AppStoreIntents(
             val newServer = updated.first { it.id == id }
             val result = configurationManager.upsertServer(previousConfig, newServer)
             if (result.isFailure) {
-                revertServersOnFailure("addServerBasic", previousServers, result.exceptionOrNull(), "Failed to save servers")
+                revertServersOnFailure(
+                    "addServerBasic",
+                    previousServers,
+                    result.exceptionOrNull(),
+                    "Failed to save servers"
+                )
             } else {
                 capabilityRefresher.syncWithServers(result.getOrNull()?.servers ?: updated)
                 proxyRuntime.ensureInboundRunning(forceRestart = true)
@@ -113,7 +123,12 @@ internal class AppStoreIntents(
             state.updateSnapshot { copy(servers = updated) }
             val result = configurationManager.upsertServer(previousConfig, cfg)
             if (result.isFailure) {
-                revertServersOnFailure("upsertServer", previousServers, result.exceptionOrNull(), "Failed to save server")
+                revertServersOnFailure(
+                    "upsertServer",
+                    previousServers,
+                    result.exceptionOrNull(),
+                    "Failed to save server"
+                )
             } else {
                 capabilityRefresher.syncWithServers(result.getOrNull()?.servers ?: updated)
                 triggerServerRefresh(setOf(draft.id), force = true)
@@ -131,7 +146,12 @@ internal class AppStoreIntents(
             state.updateSnapshot { copy(servers = updated) }
             val result = configurationManager.removeServer(previousConfig, id)
             if (result.isFailure) {
-                revertServersOnFailure("removeServer", previousServers, result.exceptionOrNull(), "Failed to save servers")
+                revertServersOnFailure(
+                    "removeServer",
+                    previousServers,
+                    result.exceptionOrNull(),
+                    "Failed to save servers"
+                )
             } else {
                 capabilityRefresher.syncWithServers(result.getOrNull()?.servers ?: updated)
                 capabilityRefresher.markServerRemoved(id)
@@ -152,7 +172,12 @@ internal class AppStoreIntents(
             state.updateSnapshot { copy(servers = updated) }
             val result = configurationManager.toggleServer(previousConfig, id, enabled)
             if (result.isFailure) {
-                revertServersOnFailure("toggleServer", previousServers, result.exceptionOrNull(), "Failed to save server state")
+                revertServersOnFailure(
+                    "toggleServer",
+                    previousServers,
+                    result.exceptionOrNull(),
+                    "Failed to save server state"
+                )
             } else {
                 val savedConfig = result.getOrNull()
                 if (!enabled) {
@@ -188,7 +213,12 @@ internal class AppStoreIntents(
                 )
             )
             if (result.isFailure) {
-                revertPresetsOnFailure("addOrUpdatePreset", previousPresets, result.exceptionOrNull(), "Failed to save preset")
+                revertPresetsOnFailure(
+                    "addOrUpdatePreset",
+                    previousPresets,
+                    result.exceptionOrNull(),
+                    "Failed to save preset"
+                )
             }
             publishReady()
         }
@@ -249,7 +279,7 @@ internal class AppStoreIntents(
 
             state.updateSnapshot { copy(presets = updatedPresets, selectedPresetId = selectedPresetId) }
             val shouldRestart = saveResult.isSuccess &&
-                (previousSnapshot.selectedPresetId == preset.id || (isRename && previousSnapshot.selectedPresetId == originalId))
+                    (previousSnapshot.selectedPresetId == preset.id || (isRename && previousSnapshot.selectedPresetId == originalId))
             publishReady()
             if (shouldRestart) proxyRuntime.ensureInboundRunning(forceReloadPreset = true)
         }
@@ -262,7 +292,12 @@ internal class AppStoreIntents(
             state.updateSnapshot { withPresets(updated) }
             val result = configurationManager.deletePreset(id)
             if (result.isFailure) {
-                revertPresetsOnFailure("removePreset", previous.presets, result.exceptionOrNull(), "Failed to delete preset")
+                revertPresetsOnFailure(
+                    "removePreset",
+                    previous.presets,
+                    result.exceptionOrNull(),
+                    "Failed to delete preset"
+                )
             }
             publishReady()
             if (previous.selectedPresetId == id) {

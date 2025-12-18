@@ -45,7 +45,10 @@ class RealSdkClientFacade(
         logger.warn("Failed to call tool '$name': ${ex.message}", ex)
     }.getOrNull()
 
-    override suspend fun getPrompt(name: String, arguments: Map<String, String>?): io.modelcontextprotocol.kotlin.sdk.types.GetPromptResult =
+    override suspend fun getPrompt(
+        name: String,
+        arguments: Map<String, String>?
+    ): io.modelcontextprotocol.kotlin.sdk.types.GetPromptResult =
         client.getPrompt(
             GetPromptRequest(
                 GetPromptRequestParams(

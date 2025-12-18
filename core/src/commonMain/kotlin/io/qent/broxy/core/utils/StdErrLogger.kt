@@ -9,11 +9,18 @@ object StdErrLogger : Logger {
         System.err.println(text)
     }
 
-    override fun debug(message: String) { errln("[DEBUG] $message") }
-    override fun info(message: String) { errln("[INFO] $message") }
+    override fun debug(message: String) {
+        errln("[DEBUG] $message")
+    }
+
+    override fun info(message: String) {
+        errln("[INFO] $message")
+    }
+
     override fun warn(message: String, throwable: Throwable?) {
         errln("[WARN] $message" + (throwable?.let { ": ${it.message}" } ?: ""))
     }
+
     override fun error(message: String, throwable: Throwable?) {
         errln("[ERROR] $message" + (throwable?.let { ": ${it.message}" } ?: ""))
     }

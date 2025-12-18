@@ -162,7 +162,8 @@ class DefaultMcpServerConnectionTest {
     ) : McpClient, TimeoutConfigurableMcpClient {
         private val connectQueue = connectResults
         private val capsQueue = capabilityResults
-        private var lastCaps: Result<ServerCapabilities> = capabilityResults.firstOrNull() ?: Result.success(ServerCapabilities())
+        private var lastCaps: Result<ServerCapabilities> =
+            capabilityResults.firstOrNull() ?: Result.success(ServerCapabilities())
 
         var callToolDelayMillis: Long = 0
         var capabilityDelayMillis: Long = 0
@@ -208,7 +209,8 @@ class DefaultMcpServerConnectionTest {
             return callToolResult
         }
 
-        override suspend fun getPrompt(name: String, arguments: Map<String, String>?): Result<JsonObject> = Result.success(JsonObject(emptyMap()))
+        override suspend fun getPrompt(name: String, arguments: Map<String, String>?): Result<JsonObject> =
+            Result.success(JsonObject(emptyMap()))
 
         override suspend fun readResource(uri: String): Result<JsonObject> = Result.success(JsonObject(emptyMap()))
 

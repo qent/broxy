@@ -132,6 +132,7 @@ private fun JsonElement.schemaTypeLabel(): String? = when (this) {
         .distinct()
         .joinToString(" | ")
         .ifBlank { null }
+
     else -> null
 }
 

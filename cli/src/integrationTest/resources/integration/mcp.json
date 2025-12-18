@@ -1,19 +1,19 @@
 {
-    "requestTimeoutSeconds": 60,
-    "showTrayIcon": true,
-    "mcpServers": {
-        "test-arithmetic": {
-            "name": "Test Arithmetic",
-            "enabled": true,
-            "transport": "stdio",
-            "command": "__TEST_MCP_SERVER_COMMAND__",
-            "args": []
-        },
-        "test-arithmetic-http": {
-            "name": "Test Arithmetic HTTP",
-            "enabled": true,
-            "transport": "streamable-http",
-            "url": "__TEST_MCP_SERVER_HTTP_URL__"
-        }
+  "requestTimeoutSeconds": 60,
+  "showTrayIcon": true,
+  "mcpServers": {
+    "test-arithmetic": {
+      "name": "Test Arithmetic",
+      "enabled": true,
+      "transport": "stdio",
+      "command": "__TEST_MCP_SERVER_COMMAND__",
+      "args": []
+    },
+    "test-arithmetic-http": {
+      "name": "Test Arithmetic HTTP",
+      "enabled": true,
+      "transport": "streamable-http",
+      "url": "__TEST_MCP_SERVER_HTTP_URL__"
     }
+  }
 }

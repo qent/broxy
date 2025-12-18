@@ -119,7 +119,10 @@ class SimpleTestMcpServer(
             val body = call.receiveText()
             val message = runCatching { McpJson.decodeFromString<JSONRPCMessage>(body) }
                 .getOrElse { error ->
-                    call.respond(HttpStatusCode.BadRequest, "Invalid MCP message: ${error.message ?: error::class.simpleName}")
+                    call.respond(
+                        HttpStatusCode.BadRequest,
+                        "Invalid MCP message: ${error.message ?: error::class.simpleName}"
+                    )
                     return@post
                 }
 
@@ -138,6 +141,7 @@ class SimpleTestMcpServer(
                         status = HttpStatusCode.OK
                     )
                 }
+
                 else -> {
                     runCatching { session.transport.handleMessage(message) }
                     call.respond(HttpStatusCode.OK)
@@ -367,7 +371,8 @@ private data class StreamableHttpSession(
 private class StreamableHttpServerTransport : AbstractTransport() {
     val sessionId: String = java.util.UUID.randomUUID().toString()
     private val responseWaiters = ConcurrentHashMap<RequestId, CompletableDeferred<JSONRPCResponse>>()
-    @Volatile private var started: Boolean = false
+    @Volatile
+    private var started: Boolean = false
 
     override suspend fun start() {
         check(!started) { "StreamableHttpServerTransport already started" }
@@ -407,7 +412,7 @@ private class StreamableHttpServerTransport : AbstractTransport() {
 
 private fun isApplicationJson(contentType: ContentType): Boolean =
     contentType.contentType == ContentType.Application.Json.contentType &&
-        contentType.contentSubtype == ContentType.Application.Json.contentSubtype
+            contentType.contentSubtype == ContentType.Application.Json.contentSubtype
 
 data class ServerCliOptions(
     val mode: Mode = Mode.STDIO,
@@ -444,11 +449,13 @@ data class ServerCliOptions(
                             else -> error("Unsupported mode '$value'. Use 'stdio' or 'streamable-http'.")
                         }
                     }
+
                     "--host" -> host = args.getOrNull(++index) ?: error("Missing value for --host")
                     "--port" -> {
                         val value = args.getOrNull(++index) ?: error("Missing value for --port")
                         port = value.toIntOrNull() ?: error("Invalid port '$value'")
                     }
+
                     "--path" -> path = args.getOrNull(++index) ?: error("Missing value for --path")
                     else -> error("Unknown argument '$arg'")
                 }

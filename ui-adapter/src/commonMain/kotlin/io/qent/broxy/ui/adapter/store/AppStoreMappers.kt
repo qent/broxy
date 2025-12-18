@@ -28,7 +28,11 @@ internal fun UiPresetDraft.toCorePreset(): UiPresetCore = UiPresetCore(
     },
     resources = if (resourcesConfigured) {
         resources.map { resource ->
-            ResourceReference(serverId = resource.serverId, resourceKey = resource.resourceKey, enabled = resource.enabled)
+            ResourceReference(
+                serverId = resource.serverId,
+                resourceKey = resource.resourceKey,
+                enabled = resource.enabled
+            )
         }
     } else {
         null

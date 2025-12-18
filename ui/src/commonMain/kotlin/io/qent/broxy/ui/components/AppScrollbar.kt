@@ -156,8 +156,8 @@ private abstract class StableLazyLineContentAdapter : ScrollbarAdapter {
         get() {
             val total = totalLineCount()
             return averageVisibleLineSize * total +
-                lineSpacing * (total - 1).coerceAtLeast(0) +
-                contentPadding()
+                    lineSpacing * (total - 1).coerceAtLeast(0) +
+                    contentPadding()
         }
 
     override suspend fun scrollTo(scrollOffset: Double) {

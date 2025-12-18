@@ -42,24 +42,27 @@ fun ServerFormState.toDraft(): UiServerDraft {
             command = command.trim(),
             args = args.split(',').mapNotNull { it.trim().takeIf { v -> v.isNotEmpty() } }
         )
+
         "HTTP" -> UiHttpDraft(
             url = url.trim(),
             headers = headers.lines().mapNotNull { line ->
                 val idx = line.indexOf(':')
                 if (idx <= 0) null else (
-                    line.substring(0, idx).trim() to line.substring(idx + 1).trim()
-                )
+                        line.substring(0, idx).trim() to line.substring(idx + 1).trim()
+                        )
             }.toMap()
         )
+
         "STREAMABLE_HTTP" -> UiStreamableHttpDraft(
             url = url.trim(),
             headers = headers.lines().mapNotNull { line ->
                 val idx = line.indexOf(':')
                 if (idx <= 0) null else (
-                    line.substring(0, idx).trim() to line.substring(idx + 1).trim()
-                )
+                        line.substring(0, idx).trim() to line.substring(idx + 1).trim()
+                        )
             }.toMap()
         )
+
         else -> UiWebSocketDraft(url = url.trim())
     }
     return UiServerDraft(
@@ -76,7 +79,13 @@ object ServerFormStateFactory {
         val (transportType, command, args, url, headers) = when (val t = initial.transport) {
             is UiStdioDraft -> arrayOf("STDIO", t.command, t.args.joinToString(","), "", "")
             is UiHttpDraft -> arrayOf("HTTP", "", "", t.url, t.headers.entries.joinToString("\n") { (k, v) -> "$k:$v" })
-            is UiStreamableHttpDraft -> arrayOf("STREAMABLE_HTTP", "", "", t.url, t.headers.entries.joinToString("\n") { (k, v) -> "$k:$v" })
+            is UiStreamableHttpDraft -> arrayOf(
+                "STREAMABLE_HTTP",
+                "",
+                "",
+                t.url,
+                t.headers.entries.joinToString("\n") { (k, v) -> "$k:$v" })
+
             is UiWebSocketDraft -> arrayOf("WS", "", "", t.url, "")
             else -> arrayOf("STDIO", "", "", "", "")
         }
@@ -128,7 +137,12 @@ fun ServerForm(
             FormDivider()
             when (state.transportType) {
                 "STDIO" -> StdIoFields(state, onStateChange)
-                "HTTP", "STREAMABLE_HTTP" -> HttpFields(state, onStateChange, isStreamable = state.transportType == "STREAMABLE_HTTP")
+                "HTTP", "STREAMABLE_HTTP" -> HttpFields(
+                    state,
+                    onStateChange,
+                    isStreamable = state.transportType == "STREAMABLE_HTTP"
+                )
+
                 else -> WebSocketFields(state, onStateChange)
             }
         }
@@ -240,7 +254,7 @@ private fun RowScope.TransportOptionCard(
         .onPointerEvent(PointerEventType.Exit) {
             hovered = false
         }
-    
+
     val borderColor = when {
         selected -> MaterialTheme.colorScheme.primary
         hovered -> MaterialTheme.colorScheme.outline

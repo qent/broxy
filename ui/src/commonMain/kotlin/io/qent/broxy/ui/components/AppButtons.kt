@@ -57,7 +57,10 @@ fun AppSecondaryButton(
         enabled = enabled,
         shape = AppTheme.shapes.button,
         colors = AppButtonDefaults.secondaryColors(),
-        border = BorderStroke(1.dp, if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)),
+        border = BorderStroke(
+            1.dp,
+            if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+        ),
         content = content
     )
 }

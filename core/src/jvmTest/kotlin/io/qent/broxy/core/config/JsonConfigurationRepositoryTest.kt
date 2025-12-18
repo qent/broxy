@@ -84,7 +84,10 @@ class JsonConfigurationRepositoryTest {
             {"mcpServers":{"s":{"transport":"http","url":"http://","env":{"X":"${'$'}{MISSING}"}}}}
             """.trimIndent()
             tmp.resolve("mcp.json").writeText(mcpJson)
-            val repo = JsonConfigurationRepository(baseDir = tmp, envResolver = EnvironmentVariableResolver(envProvider = { emptyMap() }))
+            val repo = JsonConfigurationRepository(
+                baseDir = tmp,
+                envResolver = EnvironmentVariableResolver(envProvider = { emptyMap() })
+            )
             assertFailsWith<ConfigurationException> { repo.loadMcpConfig() }
         } finally {
             tmp.toFile().deleteRecursively()

@@ -58,7 +58,11 @@ class ProxyWebSocketTransport(
             message = messageElement
         )
         logger.info(
-            "[RemoteWsClient] Outbound message session=$sessionId target=$serverIdentifier ${describeJsonRpcPayload(messageElement)}"
+            "[RemoteWsClient] Outbound message session=$sessionId target=$serverIdentifier ${
+                describeJsonRpcPayload(
+                    messageElement
+                )
+            }"
         )
         sender(payload)
     }
@@ -166,7 +170,8 @@ private fun describeCallResult(obj: JsonObject): String? {
     val isError = obj.field("is_error", "isError")?.jsonPrimitive?.booleanOrNull
     val parts = mutableListOf<String>()
     content?.let {
-        val contentTypes = it.mapNotNull { entry -> entry.contentTypeLabel() }.distinct().takeIf { types -> types.isNotEmpty() }
+        val contentTypes =
+            it.mapNotNull { entry -> entry.contentTypeLabel() }.distinct().takeIf { types -> types.isNotEmpty() }
         parts += "content=${it.size}"
         contentTypes?.let { types -> parts += "content_types=${preview(types)}" }
     }
@@ -208,5 +213,6 @@ private fun JsonElement.contentTypeLabel(): String? = when (this) {
             "data" in this && this["mimeType"] != null -> this["mimeType"]?.jsonPrimitive?.contentOrNull
             else -> null
         }
+
     else -> null
 }

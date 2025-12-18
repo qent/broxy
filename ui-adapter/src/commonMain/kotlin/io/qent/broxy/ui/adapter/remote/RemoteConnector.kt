@@ -26,6 +26,7 @@ class NoOpRemoteConnector(
     override fun updateServerIdentifier(value: String) {
         _state.value = _state.value.copy(serverIdentifier = value)
     }
+
     override fun beginAuthorization() {}
     override fun connect() {}
     override fun disconnect() {}

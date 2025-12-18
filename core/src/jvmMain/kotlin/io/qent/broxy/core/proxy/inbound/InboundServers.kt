@@ -60,6 +60,7 @@ object InboundServerFactory {
             proxy = proxy,
             logger = logger
         )
+
         else -> error("Unsupported inbound transport: ${transport::class.simpleName}")
     }
 }
@@ -204,7 +205,7 @@ private const val DEFAULT_REQUEST_TIMEOUT_MILLIS = 60_000L
 
 private fun isApplicationJson(contentType: ContentType): Boolean =
     contentType.contentType == ContentType.Application.Json.contentType &&
-        contentType.contentSubtype == ContentType.Application.Json.contentSubtype
+            contentType.contentSubtype == ContentType.Application.Json.contentSubtype
 
 private class InboundStreamableHttpRegistry(
     private val logger: Logger
@@ -281,6 +282,7 @@ private class StreamableHttpServerTransport(
                 if (waiter != null && waiter.complete(message)) return
                 logger.warn("Dropping response for unknown request id ${message.id}")
             }
+
             else -> {
                 // JSON-only Streamable HTTP inbound: server-to-client notifications are best-effort dropped.
                 logger.debug("Dropping outbound message (no SSE): ${message::class.simpleName}")
@@ -327,7 +329,10 @@ private fun Route.mountStreamableHttpRoute(
         val body = call.receiveText()
         val message = runCatching { McpJson.decodeFromString<JSONRPCMessage>(body) }
             .getOrElse { error ->
-                call.respond(HttpStatusCode.BadRequest, "Invalid MCP message: ${error.message ?: error::class.simpleName}")
+                call.respond(
+                    HttpStatusCode.BadRequest,
+                    "Invalid MCP message: ${error.message ?: error::class.simpleName}"
+                )
                 return@post
             }
 
@@ -336,7 +341,8 @@ private fun Route.mountStreamableHttpRoute(
                 val response = runCatching {
                     session.transport.awaitResponse(message, timeoutMillis = DEFAULT_REQUEST_TIMEOUT_MILLIS)
                 }.getOrElse { error ->
-                    val status = if (error is TimeoutCancellationException) HttpStatusCode.RequestTimeout else HttpStatusCode.InternalServerError
+                    val status =
+                        if (error is TimeoutCancellationException) HttpStatusCode.RequestTimeout else HttpStatusCode.InternalServerError
                     call.respond(status, error.message ?: "Failed to handle MCP request")
                     return@post
                 }
@@ -346,6 +352,7 @@ private fun Route.mountStreamableHttpRoute(
                     status = HttpStatusCode.OK
                 )
             }
+
             else -> {
                 runCatching { session.transport.handleMessage(message) }
                 call.respond(HttpStatusCode.OK)

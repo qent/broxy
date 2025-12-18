@@ -1,34 +1,34 @@
 {
-    "id": "test",
-    "name": "test",
-    "tools": [
-        {
-            "serverId": "test-arithmetic",
-            "toolName": "add"
-        },
-        {
-            "serverId": "test-arithmetic-http",
-            "toolName": "subtract"
-        }
-    ],
-    "prompts": [
-        {
-            "serverId": "test-arithmetic",
-            "promptName": "hello"
-        },
-        {
-            "serverId": "test-arithmetic-http",
-            "promptName": "bye"
-        }
-    ],
-    "resources": [
-        {
-            "serverId": "test-arithmetic",
-            "resourceKey": "test://resource/alpha"
-        },
-        {
-            "serverId": "test-arithmetic-http",
-            "resourceKey": "test://resource/beta"
-        }
-    ]
+  "id": "test",
+  "name": "test",
+  "tools": [
+    {
+      "serverId": "test-arithmetic",
+      "toolName": "add"
+    },
+    {
+      "serverId": "test-arithmetic-http",
+      "toolName": "subtract"
+    }
+  ],
+  "prompts": [
+    {
+      "serverId": "test-arithmetic",
+      "promptName": "hello"
+    },
+    {
+      "serverId": "test-arithmetic-http",
+      "promptName": "bye"
+    }
+  ],
+  "resources": [
+    {
+      "serverId": "test-arithmetic",
+      "resourceKey": "test://resource/alpha"
+    },
+    {
+      "serverId": "test-arithmetic-http",
+      "resourceKey": "test://resource/beta"
+    }
+  ]
 }

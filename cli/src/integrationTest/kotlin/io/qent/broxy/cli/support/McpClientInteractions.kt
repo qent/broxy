@@ -157,8 +157,8 @@ internal class McpClientInteractions(
         val promptNames = caps.prompts.map { it.name }.toSet()
         val resourceKeys = caps.resources.map { it.uri ?: it.name }.toSet()
         return toolNames == config.EXPECTED_TOOLS &&
-            promptNames == config.EXPECTED_PROMPTS &&
-            resourceKeys == config.EXPECTED_RESOURCES
+                promptNames == config.EXPECTED_PROMPTS &&
+                resourceKeys == config.EXPECTED_RESOURCES
     }
 
     private fun buildPromptArguments(descriptor: PromptDescriptor?): Map<String, String> {

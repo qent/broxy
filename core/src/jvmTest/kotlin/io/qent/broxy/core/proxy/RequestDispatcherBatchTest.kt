@@ -17,6 +17,7 @@ private class DServer(
 ) : Conn {
     override var status: ServerStatus = ServerStatus.Running
         private set
+
     override suspend fun connect(): Result<Unit> = Result.success(Unit)
     override suspend fun disconnect() {}
     override suspend fun getCapabilities(forceRefresh: Boolean): Result<ServerCapabilities> = Result.success(caps)
@@ -30,8 +31,10 @@ private class DServer(
             put("isError", JsonPrimitive(false))
             put("_meta", JsonObject(emptyMap()))
         })
+
     override suspend fun getPrompt(name: String, arguments: Map<String, String>?): Result<JsonObject> =
         Result.success(buildJsonObject { put("description", "desc-$name"); put("messages", "[]") })
+
     override suspend fun readResource(uri: String): Result<JsonObject> =
         Result.success(buildJsonObject { put("contents", "[]"); put("_meta", "{}") })
 }
@@ -80,10 +83,12 @@ class RequestDispatcherBatchTest {
             allowedPrefixedTools = { setOf("s2:ping") }
         )
 
-        val results = dispatcher.dispatchBatch(listOf(
-            ToolCallRequest("s1:echo"),
-            ToolCallRequest("s2:ping")
-        ))
+        val results = dispatcher.dispatchBatch(
+            listOf(
+                ToolCallRequest("s1:echo"),
+                ToolCallRequest("s2:ping")
+            )
+        )
 
         assertTrue(results[0].isFailure)
         assertTrue(results[1].isSuccess)

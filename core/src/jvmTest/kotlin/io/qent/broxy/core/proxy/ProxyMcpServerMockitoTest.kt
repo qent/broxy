@@ -25,16 +25,32 @@ class ProxyMcpServerMockitoTest {
         whenever(s1.serverId).thenReturn("s1")
         whenever(s1.config).thenReturn(cfg("s1"))
         runBlocking { whenever(s1.connect()).thenReturn(Result.success(Unit)) }
-        runBlocking { whenever(s1.getCapabilities(any())).thenReturn(
-            Result.success(
-                ServerCapabilities(
-                    prompts = listOf(io.qent.broxy.core.mcp.PromptDescriptor("p1")),
-                    resources = listOf(io.qent.broxy.core.mcp.ResourceDescriptor("r1", uri = "u1"))
+        runBlocking {
+            whenever(s1.getCapabilities(any())).thenReturn(
+                Result.success(
+                    ServerCapabilities(
+                        prompts = listOf(io.qent.broxy.core.mcp.PromptDescriptor("p1")),
+                        resources = listOf(io.qent.broxy.core.mcp.ResourceDescriptor("r1", uri = "u1"))
+                    )
                 )
             )
-        ) }
-        runBlocking { whenever(s1.getPrompt("p1", null)).thenReturn(Result.success(buildJsonObject { put("description", "d"); put("messages", "[]") })) }
-        runBlocking { whenever(s1.readResource("u1")).thenReturn(Result.success(buildJsonObject { put("contents", "[]"); put("_meta", "{}") })) }
+        }
+        runBlocking {
+            whenever(s1.getPrompt("p1", null)).thenReturn(Result.success(buildJsonObject {
+                put(
+                    "description",
+                    "d"
+                ); put("messages", "[]")
+            }))
+        }
+        runBlocking {
+            whenever(s1.readResource("u1")).thenReturn(Result.success(buildJsonObject {
+                put(
+                    "contents",
+                    "[]"
+                ); put("_meta", "{}")
+            }))
+        }
 
         val proxy = ProxyMcpServer(listOf(s1))
         val preset = Preset(id = "p", name = "name", tools = listOf(ToolReference("s1", "any", true)))
@@ -55,14 +71,16 @@ class ProxyMcpServerMockitoTest {
         whenever(s1.serverId).thenReturn("s1")
         whenever(s1.config).thenReturn(cfg("s1"))
         runBlocking { whenever(s1.connect()).thenReturn(Result.success(Unit)) }
-        runBlocking { whenever(s1.getCapabilities(any())).thenReturn(
-            Result.success(
-                ServerCapabilities(
-                    prompts = listOf(io.qent.broxy.core.mcp.PromptDescriptor("p1")),
-                    resources = listOf(io.qent.broxy.core.mcp.ResourceDescriptor("r1", uri = "u1"))
+        runBlocking {
+            whenever(s1.getCapabilities(any())).thenReturn(
+                Result.success(
+                    ServerCapabilities(
+                        prompts = listOf(io.qent.broxy.core.mcp.PromptDescriptor("p1")),
+                        resources = listOf(io.qent.broxy.core.mcp.ResourceDescriptor("r1", uri = "u1"))
+                    )
                 )
             )
-        ) }
+        }
 
         val proxy = ProxyMcpServer(listOf(s1))
         val preset = Preset(id = "p", name = "name", tools = listOf(ToolReference("s1", "any", true)))

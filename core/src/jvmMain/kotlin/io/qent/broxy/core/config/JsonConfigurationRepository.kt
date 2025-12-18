@@ -64,21 +64,25 @@ class JsonConfigurationRepository(
                         ?: fail("Server '$id' (stdio): 'command' is required")
                     TransportConfig.StdioTransport(command = cmd, args = e.args ?: emptyList())
                 }
+
                 "http" -> {
                     val url = e.url?.takeIf { it.isNotBlank() }
                         ?: fail("Server '$id' (http): 'url' is required")
                     TransportConfig.HttpTransport(url = url, headers = e.headers ?: emptyMap())
                 }
+
                 "streamable-http", "streamhttp", "streamable" -> {
                     val url = e.url?.takeIf { it.isNotBlank() }
                         ?: fail("Server '$id' (streamable-http): 'url' is required")
                     TransportConfig.StreamableHttpTransport(url = url, headers = e.headers ?: emptyMap())
                 }
+
                 "ws", "websocket" -> {
                     val url = e.url?.takeIf { it.isNotBlank() }
                         ?: fail("Server '$id' (websocket): 'url' is required")
                     TransportConfig.WebSocketTransport(url = url)
                 }
+
                 else -> fail("Server '$id': unsupported transport '${e.transport}'")
             }
 
@@ -145,6 +149,7 @@ class JsonConfigurationRepository(
                         args = t.args,
                         env = s.env
                     )
+
                     is TransportConfig.HttpTransport -> FileMcpServer(
                         name = s.name,
                         enabled = s.enabled,
@@ -153,6 +158,7 @@ class JsonConfigurationRepository(
                         headers = t.headers,
                         env = s.env
                     )
+
                     is TransportConfig.StreamableHttpTransport -> FileMcpServer(
                         name = s.name,
                         enabled = s.enabled,
@@ -161,6 +167,7 @@ class JsonConfigurationRepository(
                         headers = t.headers,
                         env = s.env
                     )
+
                     is TransportConfig.WebSocketTransport -> FileMcpServer(
                         name = s.name,
                         enabled = s.enabled,
@@ -187,8 +194,14 @@ class JsonConfigurationRepository(
     override fun loadPreset(id: String): Preset {
         val file = dir.resolve("preset_${id}.json")
         if (!file.exists() || !file.isRegularFile()) throw ConfigurationException("Preset '$id' not found at ${file.toAbsolutePath()}")
-        val text = try { Files.readString(file) } catch (e: IOException) { throw ConfigurationException("Failed to read ${file.name}: ${e.message}") }
-        val preset = try { json.decodeFromString(Preset.serializer(), text) } catch (e: Exception) {
+        val text = try {
+            Files.readString(file)
+        } catch (e: IOException) {
+            throw ConfigurationException("Failed to read ${file.name}: ${e.message}")
+        }
+        val preset = try {
+            json.decodeFromString(Preset.serializer(), text)
+        } catch (e: Exception) {
             throw ConfigurationException("Invalid preset '${file.name}': ${e.message}")
         }
         if (preset.id != id) throw ConfigurationException("Preset file '${file.name}' id '${preset.id}' does not match requested id '$id'")

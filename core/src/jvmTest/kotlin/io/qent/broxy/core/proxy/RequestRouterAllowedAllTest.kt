@@ -17,9 +17,12 @@ private class SrvAllowed(
 ) : Conn {
     override var status: ServerStatus = ServerStatus.Running
         private set
+
     override suspend fun connect(): Result<Unit> = Result.success(Unit)
     override suspend fun disconnect() {}
-    override suspend fun getCapabilities(forceRefresh: Boolean): Result<ServerCapabilities> = Result.success(ServerCapabilities())
+    override suspend fun getCapabilities(forceRefresh: Boolean): Result<ServerCapabilities> =
+        Result.success(ServerCapabilities())
+
     override suspend fun callTool(toolName: String, arguments: JsonObject): Result<JsonElement> =
         Result.success(buildJsonObject {
             put("content", buildJsonArray { })
@@ -27,8 +30,10 @@ private class SrvAllowed(
             put("isError", JsonPrimitive(false))
             put("_meta", JsonObject(emptyMap()))
         })
+
     override suspend fun getPrompt(name: String, arguments: Map<String, String>?): Result<JsonObject> =
         Result.failure(UnsupportedOperationException())
+
     override suspend fun readResource(uri: String): Result<JsonObject> = Result.failure(UnsupportedOperationException())
 }
 

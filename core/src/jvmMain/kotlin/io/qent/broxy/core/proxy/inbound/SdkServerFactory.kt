@@ -185,10 +185,19 @@ internal fun syncSdkServer(
                     logger.info("Forwarding resource '$uri' result from downstream to LLM")
                     Json.decodeFromJsonElement(ReadResourceResult.serializer(), el)
                 } else {
-                    logger.error("Resource '$uri' failed: ${readResult.exceptionOrNull()?.message}", readResult.exceptionOrNull())
+                    logger.error(
+                        "Resource '$uri' failed: ${readResult.exceptionOrNull()?.message}",
+                        readResult.exceptionOrNull()
+                    )
                     ReadResourceResult(
                         contents = emptyList(),
-                        meta = JsonObject(mapOf("error" to JsonPrimitive(readResult.exceptionOrNull()?.message ?: "readResource failed")))
+                        meta = JsonObject(
+                            mapOf(
+                                "error" to JsonPrimitive(
+                                    readResult.exceptionOrNull()?.message ?: "readResource failed"
+                                )
+                            )
+                        )
                     )
                 }
             }
@@ -271,6 +280,7 @@ private fun normalizeContentElement(element: JsonElement): JsonElement? = when (
         }
         if (changed) JsonArray(normalizedItems) else null
     }
+
     else -> null
 }
 
@@ -284,6 +294,7 @@ private fun inferContentType(obj: JsonObject): ContentTypes? = when {
     "type" in obj -> obj["type"]?.jsonPrimitive?.content?.let { typeValue ->
         ContentTypes.entries.firstOrNull { it.value == typeValue }
     }
+
     "text" in obj -> ContentTypes.TEXT
     "image" in obj -> ContentTypes.IMAGE
     "data" in obj && obj["mimeType"]?.jsonPrimitive?.content?.startsWith("image/") == true -> ContentTypes.IMAGE
@@ -327,5 +338,6 @@ private fun JsonElement.toTextContentOrNull(): TextContent? = when (this) {
         }
         TextContent(text = textValue)
     }
+
     else -> null
 }

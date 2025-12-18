@@ -15,8 +15,19 @@ class KtorMcpClientExtrasTest {
     fun getPrompt_and_readResource_with_mockito() {
         runBlocking {
             val facade: SdkClientFacade = mock()
-            whenever(facade.getPrompt("p1", null)).thenReturn(GetPromptResult(description = "d", messages = emptyList(), meta = JsonObject(emptyMap())))
-            whenever(facade.readResource("u1")).thenReturn(ReadResourceResult(contents = emptyList(), meta = JsonObject(emptyMap())))
+            whenever(facade.getPrompt("p1", null)).thenReturn(
+                GetPromptResult(
+                    description = "d",
+                    messages = emptyList(),
+                    meta = JsonObject(emptyMap())
+                )
+            )
+            whenever(facade.readResource("u1")).thenReturn(
+                ReadResourceResult(
+                    contents = emptyList(),
+                    meta = JsonObject(emptyMap())
+                )
+            )
 
             val client = KtorMcpClient(
                 mode = KtorMcpClient.Mode.StreamableHttp,

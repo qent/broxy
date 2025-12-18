@@ -4,22 +4,38 @@
   "title": "Preset Configuration",
   "type": "object",
   "additionalProperties": false,
-  "required": ["id", "name", "tools"],
+  "required": [
+    "id",
+    "name",
+    "tools"
+  ],
   "properties": {
-    "id": { "type": "string", "minLength": 1 },
-    "name": { "type": "string", "minLength": 1 },
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
     "tools": {
       "type": "array",
-      "items": { "$ref": "#/definitions/ToolReference" }
+      "items": {
+        "$ref": "#/definitions/ToolReference"
+      }
     },
     "prompts": {
       "type": "array",
-      "items": { "$ref": "#/definitions/PromptReference" },
+      "items": {
+        "$ref": "#/definitions/PromptReference"
+      },
       "default": []
     },
     "resources": {
       "type": "array",
-      "items": { "$ref": "#/definitions/ResourceReference" },
+      "items": {
+        "$ref": "#/definitions/ResourceReference"
+      },
       "default": []
     }
   },
@@ -27,31 +43,67 @@
     "ToolReference": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["serverId", "toolName", "enabled"],
+      "required": [
+        "serverId",
+        "toolName",
+        "enabled"
+      ],
       "properties": {
-        "serverId": { "type": "string", "minLength": 1 },
-        "toolName": { "type": "string", "minLength": 1 },
-        "enabled": { "type": "boolean" }
+        "serverId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "toolName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "enabled": {
+          "type": "boolean"
+        }
       }
     },
     "PromptReference": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["serverId", "promptName", "enabled"],
+      "required": [
+        "serverId",
+        "promptName",
+        "enabled"
+      ],
       "properties": {
-        "serverId": { "type": "string", "minLength": 1 },
-        "promptName": { "type": "string", "minLength": 1 },
-        "enabled": { "type": "boolean" }
+        "serverId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "promptName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "enabled": {
+          "type": "boolean"
+        }
       }
     },
     "ResourceReference": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["serverId", "resourceKey", "enabled"],
+      "required": [
+        "serverId",
+        "resourceKey",
+        "enabled"
+      ],
       "properties": {
-        "serverId": { "type": "string", "minLength": 1 },
-        "resourceKey": { "type": "string", "minLength": 1 },
-        "enabled": { "type": "boolean" }
+        "serverId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "resourceKey": {
+          "type": "string",
+          "minLength": 1
+        },
+        "enabled": {
+          "type": "boolean"
+        }
       }
     }
   }

@@ -25,11 +25,21 @@ class ConfigurationWatcher(
     private var dirtyConfig = false
     private val dirtyPresets = mutableSetOf<Path>()
 
-    fun addObserver(observer: ConfigurationObserver) { observers.add(observer) }
-    fun removeObserver(observer: ConfigurationObserver) { observers.remove(observer) }
+    fun addObserver(observer: ConfigurationObserver) {
+        observers.add(observer)
+    }
 
-    fun triggerConfigReload() { markConfigDirtyAndSchedule() }
-    fun triggerPresetReload(id: String) { markPresetDirtyAndSchedule(Paths.get("preset_${id}.json")) }
+    fun removeObserver(observer: ConfigurationObserver) {
+        observers.remove(observer)
+    }
+
+    fun triggerConfigReload() {
+        markConfigDirtyAndSchedule()
+    }
+
+    fun triggerPresetReload(id: String) {
+        markPresetDirtyAndSchedule(Paths.get("preset_${id}.json"))
+    }
 
     fun start() {
         if (watchJob != null) return
@@ -40,7 +50,12 @@ class ConfigurationWatcher(
         val ws = FileSystems.getDefault().newWatchService()
         watchService = ws
         try {
-            baseDir.register(ws, StandardWatchEventKinds.ENTRY_CREATE, StandardWatchEventKinds.ENTRY_MODIFY, StandardWatchEventKinds.ENTRY_DELETE)
+            baseDir.register(
+                ws,
+                StandardWatchEventKinds.ENTRY_CREATE,
+                StandardWatchEventKinds.ENTRY_MODIFY,
+                StandardWatchEventKinds.ENTRY_DELETE
+            )
         } catch (e: IOException) {
             logger?.warn("Failed to register watcher: ${e.message}", e)
             return
@@ -56,7 +71,11 @@ class ConfigurationWatcher(
             // Watcher loop
             withContext(Dispatchers.IO) {
                 while (true) {
-                    val key = try { ws.take() } catch (_: ClosedWatchServiceException) { break }
+                    val key = try {
+                        ws.take()
+                    } catch (_: ClosedWatchServiceException) {
+                        break
+                    }
                     for (event in key.pollEvents()) {
                         val kind = event.kind()
                         if (kind == StandardWatchEventKinds.OVERFLOW) continue
@@ -76,7 +95,9 @@ class ConfigurationWatcher(
         }
     }
 
-    fun stop() { close() }
+    fun stop() {
+        close()
+    }
 
     override fun close() {
         runCatching { watchService?.close() }

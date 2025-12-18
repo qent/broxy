@@ -4,7 +4,9 @@
   "title": "MCP Servers Configuration",
   "type": "object",
   "additionalProperties": false,
-  "required": ["mcpServers"],
+  "required": [
+    "mcpServers"
+  ],
   "properties": {
     "mcpServers": {
       "type": "object",
@@ -13,10 +15,15 @@
         "type": "string",
         "minLength": 1
       },
-      "additionalProperties": { "$ref": "#/definitions/FileMcpServer" }
+      "additionalProperties": {
+        "$ref": "#/definitions/FileMcpServer"
+      }
     },
     "defaultPresetId": {
-      "type": ["string", "null"],
+      "type": [
+        "string",
+        "null"
+      ],
       "minLength": 1,
       "description": "Default preset ID to use in UI STDIO facade mode (when no preset is provided via CLI args).",
       "default": null
@@ -56,51 +63,137 @@
     "FileMcpServer": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["transport"],
+      "required": [
+        "transport"
+      ],
       "properties": {
-        "name": { "type": "string", "minLength": 1 },
-        "enabled": { "type": "boolean", "default": true },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
         "transport": {
           "type": "string",
-          "enum": ["stdio", "http", "streamable-http", "websocket", "ws"]
+          "enum": [
+            "stdio",
+            "http",
+            "streamable-http",
+            "websocket",
+            "ws"
+          ]
         },
-        "command": { "type": "string", "minLength": 1 },
+        "command": {
+          "type": "string",
+          "minLength": 1
+        },
         "args": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "default": []
         },
-        "url": { "type": "string", "minLength": 1 },
+        "url": {
+          "type": "string",
+          "minLength": 1
+        },
         "headers": {
           "type": "object",
-          "additionalProperties": { "type": "string" },
+          "additionalProperties": {
+            "type": "string"
+          },
           "default": {}
         },
         "env": {
           "type": "object",
-          "additionalProperties": { "type": "string" },
+          "additionalProperties": {
+            "type": "string"
+          },
           "default": {}
         }
       },
       "allOf": [
         {
-          "if": { "properties": { "transport": { "const": "stdio" } }, "required": ["transport"] },
-          "then": { "required": ["command"], "properties": { "args": { "type": "array", "items": { "type": "string" } } } }
-        },
-        {
-          "if": { "properties": { "transport": { "const": "http" } }, "required": ["transport"] },
-          "then": { "required": ["url"] }
-        },
-        {
-          "if": { "properties": { "transport": { "const": "streamable-http" } }, "required": ["transport"] },
-          "then": { "required": ["url"] }
+          "if": {
+            "properties": {
+              "transport": {
+                "const": "stdio"
+              }
+            },
+            "required": [
+              "transport"
+            ]
+          },
+          "then": {
+            "required": [
+              "command"
+            ],
+            "properties": {
+              "args": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
         },
         {
           "if": {
-            "properties": { "transport": { "enum": ["websocket", "ws"] } },
-            "required": ["transport"]
+            "properties": {
+              "transport": {
+                "const": "http"
+              }
+            },
+            "required": [
+              "transport"
+            ]
           },
-          "then": { "required": ["url"] }
+          "then": {
+            "required": [
+              "url"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "transport": {
+                "const": "streamable-http"
+              }
+            },
+            "required": [
+              "transport"
+            ]
+          },
+          "then": {
+            "required": [
+              "url"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "transport": {
+                "enum": [
+                  "websocket",
+                  "ws"
+                ]
+              }
+            },
+            "required": [
+              "transport"
+            ]
+          },
+          "then": {
+            "required": [
+              "url"
+            ]
+          }
         }
       ]
     }

@@ -62,8 +62,8 @@ class ToolRegistry(
         if (q.isEmpty()) return getTools()
         return getTools().filter { e ->
             e.prefixedName.lowercase().contains(q) ||
-                e.name.lowercase().contains(q) ||
-                (e.description?.lowercase()?.contains(q) == true)
+                    e.name.lowercase().contains(q) ||
+                    (e.description?.lowercase()?.contains(q) == true)
         }
     }
 

@@ -33,7 +33,12 @@ private class StaticServer(
         )
 
     override suspend fun getPrompt(name: String, arguments: Map<String, String>?): Result<JsonObject> =
-        Result.success(buildJsonObject { put("description", JsonPrimitive("desc-$name")); put("messages", JsonPrimitive("[]")) })
+        Result.success(buildJsonObject {
+            put("description", JsonPrimitive("desc-$name")); put(
+            "messages",
+            JsonPrimitive("[]")
+        )
+        })
 
     override suspend fun readResource(uri: String): Result<JsonObject> =
         Result.success(buildJsonObject { put("contents", JsonPrimitive("[]")); put("_meta", JsonPrimitive("{}")) })

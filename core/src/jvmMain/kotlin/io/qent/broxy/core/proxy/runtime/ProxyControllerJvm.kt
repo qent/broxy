@@ -20,8 +20,10 @@ private class JvmProxyController(
     private var downstreams: List<McpServerConnection> = emptyList()
     private var proxy: ProxyMcpServer? = null
     private var inboundServer: InboundServer? = null
+
     @Volatile
     private var callTimeoutMillis: Long = 60_000
+
     @Volatile
     private var capabilitiesTimeoutMillis: Long = 30_000
 
