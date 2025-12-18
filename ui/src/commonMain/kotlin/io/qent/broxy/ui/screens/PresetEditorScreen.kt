@@ -3,34 +3,17 @@ package io.qent.broxy.ui.screens
 import AppPrimaryButton
 import AppSecondaryButton
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.adapter.models.UiPresetDraft
 import io.qent.broxy.ui.adapter.models.UiPromptRef
@@ -40,7 +23,6 @@ import io.qent.broxy.ui.adapter.store.AppStore
 import io.qent.broxy.ui.adapter.store.UIState
 import io.qent.broxy.ui.components.CompactTextField
 import io.qent.broxy.ui.components.PresetSelector
-import io.qent.broxy.ui.components.SettingsLikeItem
 import io.qent.broxy.ui.theme.AppTheme
 import io.qent.broxy.ui.viewmodels.PresetEditorState
 
@@ -121,24 +103,11 @@ fun PresetEditorScreen(
                 onBack = onClose
             )
 
-            SettingsLikeItem(
-                title = "Name",
-                descriptionContent = {
-                    Text(
-                        text = resolvedId.ifBlank { "—" },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                },
-                onClick = null
-            ) {
-                CompactTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    modifier = Modifier.widthIn(min = 240.dp, max = 360.dp),
-                    placeholder = "Preset name"
-                )
-            }
+            PresetIdentityCard(
+                name = name,
+                onNameChange = { name = it },
+                resolvedId = resolvedId
+            )
 
             FormCard(title = "Capabilities") {
                 Text(
@@ -198,6 +167,42 @@ fun PresetEditorScreen(
             ) {
                 Text(primaryActionLabel, style = MaterialTheme.typography.labelSmall)
             }
+        }
+    }
+}
+
+@Composable
+private fun PresetIdentityCard(
+    name: String,
+    onNameChange: (String) -> Unit,
+    resolvedId: String
+) {
+    FormCard(title = "Name") {
+        Spacer(Modifier.height(0.5.dp))
+        CompactTextField(
+            value = name,
+            onValueChange = onNameChange,
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = "Preset name"
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)
+        ) {
+            Text(
+                text = "ID:",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Text(
+                text = resolvedId.ifBlank { "—" },
+                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }
