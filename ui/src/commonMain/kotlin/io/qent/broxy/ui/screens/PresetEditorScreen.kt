@@ -12,8 +12,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.style.TextOverflow
+
 import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.adapter.models.UiPresetDraft
 import io.qent.broxy.ui.adapter.models.UiPromptRef
@@ -21,7 +20,7 @@ import io.qent.broxy.ui.adapter.models.UiResourceRef
 import io.qent.broxy.ui.adapter.models.UiToolRef
 import io.qent.broxy.ui.adapter.store.AppStore
 import io.qent.broxy.ui.adapter.store.UIState
-import io.qent.broxy.ui.components.CompactTextField
+
 import io.qent.broxy.ui.components.PresetSelector
 import io.qent.broxy.ui.theme.AppTheme
 import io.qent.broxy.ui.viewmodels.PresetEditorState
@@ -177,34 +176,13 @@ private fun PresetIdentityCard(
     onNameChange: (String) -> Unit,
     resolvedId: String
 ) {
-    FormCard(title = "Name") {
-        Spacer(Modifier.height(0.2.dp))
-        CompactTextField(
-            value = name,
-            onValueChange = onNameChange,
-            modifier = Modifier.fillMaxWidth(),
-            placeholder = "Preset name"
-        )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)
-        ) {
-            Text(
-                text = "ID:",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Text(
-                text = resolvedId.ifBlank { "—" },
-                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-    }
+    OutlinedTextField(
+        value = name,
+        onValueChange = onNameChange,
+        label = { Text("Name") },
+        modifier = Modifier.fillMaxWidth(),
+        singleLine = true
+    )
 }
 
 @Composable
