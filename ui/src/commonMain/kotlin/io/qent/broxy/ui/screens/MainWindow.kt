@@ -18,7 +18,6 @@ import io.qent.broxy.ui.adapter.store.UIState
 import io.qent.broxy.ui.components.AppNavigationRail
 import io.qent.broxy.ui.components.GlobalHeader
 import io.qent.broxy.ui.theme.AppTheme
-import io.qent.broxy.ui.theme.ThemeStyle
 import io.qent.broxy.ui.viewmodels.AppState
 import io.qent.broxy.ui.viewmodels.PresetEditorState
 import io.qent.broxy.ui.viewmodels.Screen
@@ -110,13 +109,6 @@ fun MainWindow(
                         state.currentScreen.value = it
                     },
                     proxyStatus = (ui as? UIState.Ready)?.proxyStatus,
-                    themeStyle = state.themeStyle.value,
-                    onToggleTheme = {
-                        state.themeStyle.value = when (state.themeStyle.value) {
-                            ThemeStyle.Dark -> ThemeStyle.Light
-                            ThemeStyle.Light -> ThemeStyle.Dark
-                        }
-                    },
                     modifier = Modifier.fillMaxHeight()
                 )
                 Box(Modifier.fillMaxSize().padding(horizontal = AppTheme.spacing.xs)) {
@@ -130,7 +122,12 @@ fun MainWindow(
                         when (s) {
                             Screen.Servers -> ServersScreen(ui, state, store, notify)
                             Screen.Presets -> PresetsScreen(ui, state, store)
-                            Screen.Settings -> SettingsScreen(ui = ui, notify = notify)
+                            Screen.Settings -> SettingsScreen(
+                                ui = ui,
+                                themeStyle = state.themeStyle.value,
+                                onThemeStyleChange = { state.themeStyle.value = it },
+                                notify = notify
+                            )
                         }
                     }
                 }

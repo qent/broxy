@@ -32,7 +32,7 @@ fun ServersScreen(ui: UIState, state: AppState, store: AppStore, notify: (String
     var viewing: UiServer? by remember { mutableStateOf<UiServer?>(null) }
     var pendingDeletion: UiServer? by remember { mutableStateOf<UiServer?>(null) }
 
-    Box(modifier = Modifier.fillMaxSize().padding(AppTheme.spacing.md)) {
+    Box(modifier = Modifier.fillMaxSize().padding(horizontal = AppTheme.spacing.md)) {
         Column(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)
@@ -40,10 +40,9 @@ fun ServersScreen(ui: UIState, state: AppState, store: AppStore, notify: (String
             OutlinedTextField(
                 value = query,
                 onValueChange = { query = it },
-                label = { Text("Search servers", style = MaterialTheme.typography.bodySmall) },
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                singleLine = true,
-                textStyle = MaterialTheme.typography.bodySmall
+                label = { Text("Search servers") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
             )
 
             when (ui) {

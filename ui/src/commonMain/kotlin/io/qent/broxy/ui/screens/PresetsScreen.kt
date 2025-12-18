@@ -30,7 +30,7 @@ fun PresetsScreen(ui: UIState, state: AppState, store: AppStore) {
     var pendingDeletion: UiPreset? by remember { mutableStateOf<UiPreset?>(null) }
     val editor = state.presetEditor.value
 
-    Box(modifier = Modifier.fillMaxSize().padding(AppTheme.spacing.md)) {
+    Box(modifier = Modifier.fillMaxSize().padding(horizontal = AppTheme.spacing.md)) {
         if (editor != null) {
             PresetEditorScreen(
                 ui = ui,
@@ -48,10 +48,9 @@ fun PresetsScreen(ui: UIState, state: AppState, store: AppStore) {
             OutlinedTextField(
                 value = query,
                 onValueChange = { query = it },
-                label = { Text("Search presets", style = MaterialTheme.typography.bodySmall) },
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                singleLine = true,
-                textStyle = MaterialTheme.typography.bodySmall
+                label = { Text("Search presets") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
             )
 
             when (ui) {

@@ -1,9 +1,14 @@
+@file:OptIn(ExperimentalMaterial3Api::class)
+
 package io.qent.broxy.ui.screens
 
 import AppPrimaryButton
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
@@ -13,24 +18,30 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.adapter.models.UiRemoteConnectionState
 import io.qent.broxy.ui.adapter.models.UiRemoteStatus
 import io.qent.broxy.ui.adapter.store.UIState
 import io.qent.broxy.ui.theme.AppTheme
+import io.qent.broxy.ui.theme.ThemeStyle
 
 @Composable
 fun SettingsScreen(
     ui: UIState,
+    themeStyle: ThemeStyle,
+    onThemeStyleChange: (ThemeStyle) -> Unit,
     notify: (String) -> Unit = {}
 ) {
-    Box(modifier = Modifier.fillMaxSize().padding(AppTheme.spacing.md)) {
+    Box(modifier = Modifier.fillMaxSize().padding(horizontal = AppTheme.spacing.md)) {
         when (ui) {
             UIState.Loading -> Text("Loading...", style = MaterialTheme.typography.bodyMedium)
             is UIState.Error -> Text("Error: ${ui.message}", style = MaterialTheme.typography.bodyMedium)
             is UIState.Ready -> SettingsContent(
                 modifier = Modifier.fillMaxSize(),
+                themeStyle = themeStyle,
+                onThemeStyleChange = onThemeStyleChange,
                 requestTimeoutSeconds = ui.requestTimeoutSeconds,
                 capabilitiesTimeoutSeconds = ui.capabilitiesTimeoutSeconds,
                 capabilitiesRefreshIntervalSeconds = ui.capabilitiesRefreshIntervalSeconds,
@@ -74,6 +85,8 @@ fun SettingsScreen(
 @Composable
 private fun SettingsContent(
     modifier: Modifier = Modifier,
+    themeStyle: ThemeStyle,
+    onThemeStyleChange: (ThemeStyle) -> Unit,
     requestTimeoutSeconds: Int,
     capabilitiesTimeoutSeconds: Int,
     capabilitiesRefreshIntervalSeconds: Int,
@@ -148,6 +161,10 @@ private fun SettingsContent(
                 .padding(bottom = contentBottomPadding),
             verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)
         ) {
+            ThemeSetting(
+                themeStyle = themeStyle,
+                onThemeStyleChange = onThemeStyleChange
+            )
             TrayIconSetting(checked = showTrayIcon, onToggle = onToggleTrayIcon)
             LogsSetting(onOpenFolder = onOpenLogsFolder)
             RemoteConnectorSetting(
@@ -238,18 +255,20 @@ private fun TrayIconSetting(
         title = "Show tray icon",
         description = "Display the broxy icon in the system tray."
     ) {
-        Switch(
-            checked = checked,
-            onCheckedChange = onToggle,
-            modifier = Modifier.scale(0.7f),
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
-                checkedTrackColor = MaterialTheme.colorScheme.primary,
-                uncheckedThumbColor = MaterialTheme.colorScheme.outline,
-                uncheckedTrackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                uncheckedBorderColor = MaterialTheme.colorScheme.outline
+        SettingControlBox {
+            Switch(
+                checked = checked,
+                onCheckedChange = onToggle,
+                modifier = Modifier.scale(0.7f),
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                    checkedTrackColor = MaterialTheme.colorScheme.primary,
+                    uncheckedThumbColor = MaterialTheme.colorScheme.outline,
+                    uncheckedTrackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    uncheckedBorderColor = MaterialTheme.colorScheme.outline
+                )
             )
-        )
+        }
     }
 }
 
@@ -281,11 +300,13 @@ private fun TimeoutSetting(
         title = title,
         description = description
     ) {
-        CompactTextField(
-            value = value,
-            onValueChange = onValueChange,
-            modifier = Modifier.widthIn(min = SettingControlWidth, max = SettingControlWidth)
-        )
+        SettingControlBox {
+            CompactTextField(
+                value = value,
+                onValueChange = onValueChange,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
     }
 }
 
@@ -327,6 +348,109 @@ private fun SettingItem(
             )
         }
     }
+}
+
+@Composable
+private fun ThemeSetting(
+    themeStyle: ThemeStyle,
+    onThemeStyleChange: (ThemeStyle) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val label = when (themeStyle) {
+        ThemeStyle.Dark -> "Dark"
+        ThemeStyle.Light -> "Light"
+    }
+
+    val fieldShape = if (expanded) {
+        AppTheme.shapes.input.copy(bottomStart = CornerSize(0.dp), bottomEnd = CornerSize(0.dp))
+    } else {
+        AppTheme.shapes.input
+    }
+    val dropdownShape = if (expanded) {
+        AppTheme.shapes.input.copy(topStart = CornerSize(0.dp), topEnd = CornerSize(0.dp))
+    } else {
+        AppTheme.shapes.input
+    }
+
+    SettingItem(
+        title = "Theme",
+        description = "Choose light or dark appearance."
+    ) {
+        ExposedDropdownMenuBox(
+            expanded = expanded,
+            onExpandedChange = { expanded = !expanded },
+            modifier = Modifier.widthIn(min = SettingControlWidth, max = SettingControlWidth)
+        ) {
+            ThemeDropdownField(
+                text = label,
+                modifier = Modifier.fillMaxWidth().menuAnchor(),
+                expanded = expanded,
+                shape = fieldShape
+            )
+            ExposedDropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+                modifier = Modifier
+                    .background(color = MaterialTheme.colorScheme.surface, shape = dropdownShape)
+                    .border(BorderStroke(AppTheme.strokeWidths.thin, MaterialTheme.colorScheme.outline), dropdownShape)
+            ) {
+                ThemeDropdownItem(
+                    text = "Dark",
+                    onClick = {
+                        expanded = false
+                        if (themeStyle != ThemeStyle.Dark) onThemeStyleChange(ThemeStyle.Dark)
+                    }
+                )
+                ThemeDropdownItem(
+                    text = "Light",
+                    onClick = {
+                        expanded = false
+                        if (themeStyle != ThemeStyle.Light) onThemeStyleChange(ThemeStyle.Light)
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ThemeDropdownField(
+    text: String,
+    modifier: Modifier = Modifier,
+    expanded: Boolean,
+    shape: Shape = AppTheme.shapes.input
+) {
+    Surface(
+        modifier = modifier.height(32.dp),
+        shape = shape,
+        color = MaterialTheme.colorScheme.surface,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp,
+        border = BorderStroke(AppTheme.strokeWidths.thin, MaterialTheme.colorScheme.outline)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = AppTheme.spacing.md),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(text = text, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+            ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+        }
+    }
+}
+
+@Composable
+private fun ThemeDropdownItem(
+    text: String,
+    onClick: () -> Unit
+) {
+    DropdownMenuItem(
+        text = { Text(text, style = MaterialTheme.typography.bodySmall) },
+        contentPadding = PaddingValues(horizontal = AppTheme.spacing.md, vertical = AppTheme.spacing.xxs),
+        onClick = onClick
+    )
 }
 
 @Composable
@@ -383,6 +507,17 @@ private fun CompactInputSurface(
 }
 
 private val SettingControlWidth: Dp = 140.dp
+
+@Composable
+private fun SettingControlBox(
+    content: @Composable BoxScope.() -> Unit
+) {
+    Box(
+        modifier = Modifier.widthIn(min = SettingControlWidth, max = SettingControlWidth).height(32.dp),
+        contentAlignment = Alignment.CenterEnd,
+        content = content
+    )
+}
 
 @Composable
 private fun RemoteConnectorSetting(
