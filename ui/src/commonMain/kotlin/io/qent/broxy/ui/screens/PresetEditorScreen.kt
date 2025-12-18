@@ -178,7 +178,7 @@ private fun PresetIdentityCard(
     resolvedId: String
 ) {
     FormCard(title = "Name") {
-        Spacer(Modifier.height(0.5.dp))
+        Spacer(Modifier.height(0.2.dp))
         CompactTextField(
             value = name,
             onValueChange = onNameChange,
