@@ -31,7 +31,7 @@ jobs:
         run: ./gradlew --no-daemon :cli:shadowJar
 
       - name: Upload broxy-cli.jar artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: broxy-cli-jar
           path: cli/build/libs/broxy-cli-*.jar
