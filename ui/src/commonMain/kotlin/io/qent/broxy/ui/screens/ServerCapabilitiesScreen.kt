@@ -173,15 +173,11 @@ private fun HeaderRow(
         )
         
         if (caps != null) {
-            val baseStyle = MaterialTheme.typography.bodySmall
             CapabilitiesInlineSummary(
                 toolsCount = caps.tools.size,
                 promptsCount = caps.prompts.size,
-                resourcesCount = caps.resources.size,
-                iconSize = 21.dp, // 14.dp * 1.5
-                textStyle = baseStyle.copy(fontSize = baseStyle.fontSize * 1.5f)
+                resourcesCount = caps.resources.size
             )
-            Spacer(Modifier.width(AppTheme.spacing.sm))
         }
     }
 }
