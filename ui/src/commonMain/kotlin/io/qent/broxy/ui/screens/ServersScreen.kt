@@ -17,6 +17,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.adapter.models.UiServer
+import io.qent.broxy.ui.adapter.models.UiServerConnStatus
 import io.qent.broxy.ui.adapter.store.AppStore
 import io.qent.broxy.ui.adapter.store.UIState
 import io.qent.broxy.ui.components.AppDialog
@@ -25,6 +26,7 @@ import io.qent.broxy.ui.components.SettingsLikeItem
 import io.qent.broxy.ui.theme.AppTheme
 import io.qent.broxy.ui.viewmodels.AppState
 import io.qent.broxy.ui.viewmodels.ServerEditorState
+import kotlinx.coroutines.delay
 
 @Composable
 fun ServersScreen(ui: UIState, state: AppState, store: AppStore, notify: (String) -> Unit = {}) {
@@ -133,27 +135,35 @@ private fun ServerCard(
     onDelete: () -> Unit,
     onEdit: () -> Unit
 ) {
-    val statusColor = when (cfg.status.name) {
-        "Available" -> AppTheme.extendedColors.success
-        "Error" -> MaterialTheme.colorScheme.error
-        "Disabled" -> MaterialTheme.colorScheme.outline
-        else -> MaterialTheme.colorScheme.secondary
+    val statusColor = when (cfg.status) {
+        UiServerConnStatus.Available -> AppTheme.extendedColors.success
+        UiServerConnStatus.Error -> MaterialTheme.colorScheme.error
+        UiServerConnStatus.Disabled -> MaterialTheme.colorScheme.outline
+        UiServerConnStatus.Connecting -> MaterialTheme.colorScheme.secondary
     }
 
     val isDisabled = !cfg.enabled
+    val isConnecting = cfg.enabled && cfg.status == UiServerConnStatus.Connecting
     val disabledAlpha = 0.55f
     val titleColor = MaterialTheme.colorScheme.onSurface.copy(alpha = if (isDisabled) disabledAlpha else 1f)
     val transportColor =
         MaterialTheme.colorScheme.primary.copy(alpha = if (isDisabled) disabledAlpha else 1f)
     val separatorColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (isDisabled) disabledAlpha else 1f)
     val statusTextColor = if (isDisabled) MaterialTheme.colorScheme.onSurfaceVariant else statusColor
-    val showErrorStatus = cfg.enabled && cfg.status.name == "Error"
+    val connectingSeconds by rememberConnectingSeconds(isConnecting, cfg.connectingSinceEpochMillis)
+    val showErrorStatus = cfg.enabled && cfg.status == UiServerConnStatus.Error
     val showCapabilitiesSummary =
         cfg.enabled &&
-                cfg.status.name == "Available" &&
+                cfg.status == UiServerConnStatus.Available &&
                 cfg.toolsCount != null &&
                 cfg.promptsCount != null &&
                 cfg.resourcesCount != null
+    val showStatusText = isConnecting || showErrorStatus
+    val statusText = when {
+        isConnecting -> "Connecting: ${connectingSeconds} s"
+        showErrorStatus -> UiServerConnStatus.Error.name
+        else -> null
+    }
 
     SettingsLikeItem(
         title = cfg.name,
@@ -181,10 +191,10 @@ private fun ServerCard(
                         tint = separatorColor,
                         textStyle = MaterialTheme.typography.bodySmall
                     )
-                } else if (showErrorStatus) {
+                } else if (showStatusText && statusText != null) {
                     Text(" • ", style = MaterialTheme.typography.bodySmall, color = separatorColor)
                     Text(
-                        text = cfg.status.name,
+                        text = statusText,
                         style = MaterialTheme.typography.bodySmall,
                         color = statusTextColor,
                         maxLines = 1,
@@ -214,6 +224,23 @@ private fun ServerCard(
         IconButton(onClick = onDelete) {
             Icon(Icons.Outlined.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.secondary)
         }
+    }
+}
+
+@Composable
+private fun rememberConnectingSeconds(
+    isConnecting: Boolean,
+    connectingSinceEpochMillis: Long?
+): State<Long> = produceState(initialValue = 0L, key1 = isConnecting, key2 = connectingSinceEpochMillis) {
+    if (!isConnecting) {
+        value = 0L
+        return@produceState
+    }
+    val startMillis = connectingSinceEpochMillis ?: System.currentTimeMillis()
+    while (true) {
+        val elapsedSeconds = ((System.currentTimeMillis() - startMillis) / 1_000L).coerceAtLeast(0)
+        value = elapsedSeconds
+        delay(1_000L)
     }
 }
 

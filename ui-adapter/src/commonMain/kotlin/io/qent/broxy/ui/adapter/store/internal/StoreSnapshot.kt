@@ -52,12 +52,18 @@ internal fun StoreSnapshot.toUiState(
             snapshot != null -> UiServerConnStatus.Available
             else -> statuses.statusFor(server.id)?.toUiStatus() ?: UiServerConnStatus.Connecting
         }
+        val connectingSince = if (derivedStatus == UiServerConnStatus.Connecting) {
+            statuses.connectingSince(server.id)
+        } else {
+            null
+        }
         UiServer(
             id = server.id,
             name = server.name,
             transportLabel = server.transport.transportLabel(),
             enabled = server.enabled,
             status = derivedStatus,
+            connectingSinceEpochMillis = connectingSince,
             toolsCount = snapshot?.tools?.size,
             promptsCount = snapshot?.prompts?.size,
             resourcesCount = snapshot?.resources?.size

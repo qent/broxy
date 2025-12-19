@@ -81,6 +81,7 @@ UI snapshots не участвуют в `tools/call` маршрутизации:
 До выполнения запросов:
 
 - `statusTracker.setAll(targetIds, Connecting)`
+    - UI в списке серверов показывает `Connecting: {n} s`, где `n` — секунды с момента начала подключения.
 
 После:
 
