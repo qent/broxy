@@ -12,16 +12,18 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import io.qent.broxy.ui.adapter.models.UiCapabilityArgument
 import io.qent.broxy.ui.adapter.models.UiPresetDraft
 import io.qent.broxy.ui.adapter.models.UiPromptRef
 import io.qent.broxy.ui.adapter.models.UiResourceRef
+import io.qent.broxy.ui.adapter.models.UiServerCapsSnapshot
 import io.qent.broxy.ui.adapter.models.UiToolRef
 import io.qent.broxy.ui.adapter.store.AppStore
 import io.qent.broxy.ui.adapter.store.UIState
 
+import io.qent.broxy.ui.components.CapabilityArgumentList
 import io.qent.broxy.ui.components.PresetSelector
 import io.qent.broxy.ui.theme.AppTheme
 import io.qent.broxy.ui.viewmodels.PresetEditorState
@@ -90,6 +92,24 @@ fun PresetEditorScreen(
     val actionRowHeight = 40.dp
     val serverNamesById = remember(ui) {
         (ui as? UIState.Ready)?.servers?.associate { it.id to it.name }.orEmpty()
+    }
+    val serverCapsSnapshots = remember { mutableStateOf<List<UiServerCapsSnapshot>>(emptyList()) }
+
+    LaunchedEffect(editor) {
+        serverCapsSnapshots.value = store.listEnabledServerCaps()
+    }
+
+    val serverCapsById = remember(serverCapsSnapshots.value) {
+        serverCapsSnapshots.value.associateBy { it.serverId }
+    }
+    val toolItems = remember(selectedTools, serverCapsById, serverNamesById) {
+        buildToolCapabilityItems(selectedTools, serverNamesById, serverCapsById)
+    }
+    val promptItems = remember(selectedPrompts, serverCapsById, serverNamesById) {
+        buildPromptCapabilityItems(selectedPrompts, serverNamesById, serverCapsById)
+    }
+    val resourceItems = remember(selectedResources, serverCapsById, serverNamesById) {
+        buildResourceCapabilityItems(selectedResources, serverNamesById, serverCapsById)
     }
 
     Column(
@@ -164,14 +184,9 @@ fun PresetEditorScreen(
             )
         }
 
-        FormCard(title = "Preset capabilities") {
-            PresetCapabilitiesSummary(
-                tools = selectedTools,
-                prompts = selectedPrompts,
-                resources = selectedResources,
-                serverNames = serverNamesById
-            )
-        }
+        PresetCapabilitiesCard(title = "Tools", items = toolItems)
+        PresetCapabilitiesCard(title = "Prompts", items = promptItems)
+        PresetCapabilitiesCard(title = "Resources", items = resourceItems)
     }
 }
 
@@ -249,71 +264,92 @@ private fun FormCard(
     }
 }
 
+private data class PresetCapabilityItem(
+    val title: String,
+    val description: String,
+    val arguments: List<UiCapabilityArgument>
+)
+
 @Composable
-private fun PresetCapabilitiesSummary(
-    tools: List<UiToolRef>,
-    prompts: List<UiPromptRef>,
-    resources: List<UiResourceRef>,
-    serverNames: Map<String, String>
+private fun PresetCapabilitiesCard(
+    title: String,
+    items: List<PresetCapabilityItem>
 ) {
-    val toolItems = tools.filter { it.enabled }.map { ref ->
-        formatCapabilityLabel(serverNames, ref.serverId, ref.toolName)
+    if (items.isEmpty()) return
+    FormCard(title = title) {
+        Column(verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)) {
+            items.forEachIndexed { index, item ->
+                PresetCapabilityRow(item)
+                if (index < items.lastIndex) {
+                    HorizontalDivider(
+                        thickness = AppTheme.strokeWidths.hairline,
+                        color = MaterialTheme.colorScheme.outlineVariant
+                    )
+                }
+            }
+        }
     }
-    val promptItems = prompts.filter { it.enabled }.map { ref ->
-        formatCapabilityLabel(serverNames, ref.serverId, ref.promptName)
-    }
-    val resourceItems = resources.filter { it.enabled }.map { ref ->
-        formatCapabilityLabel(serverNames, ref.serverId, ref.resourceKey)
-    }
+}
 
-    val sections = listOf(
-        "Tools" to toolItems,
-        "Prompts" to promptItems,
-        "Resources" to resourceItems
-    ).filter { it.second.isNotEmpty() }
-
-    if (sections.isEmpty()) {
+@Composable
+private fun PresetCapabilityRow(item: PresetCapabilityItem) {
+    Column(verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.xs)) {
+        Text(item.title, style = MaterialTheme.typography.bodyMedium)
         Text(
-            "No capabilities selected yet",
+            item.description,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        return
-    }
-
-    Column(verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)) {
-        sections.forEachIndexed { index, (label, items) ->
-            if (index > 0) {
-                HorizontalDivider(
-                    thickness = AppTheme.strokeWidths.hairline,
-                    color = MaterialTheme.colorScheme.outlineVariant
-                )
-            }
-            PresetCapabilitiesSection(label = label, items = items)
-        }
+        CapabilityArgumentList(
+            arguments = item.arguments,
+            modifier = Modifier.padding(top = AppTheme.spacing.xs)
+        )
     }
 }
 
-@Composable
-private fun PresetCapabilitiesSection(
-    label: String,
-    items: List<String>
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.xs)) {
-        Text(label, style = MaterialTheme.typography.labelLarge)
-        Column(verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.xxs)) {
-            items.forEach { item ->
-                Text(
-                    text = "- $item",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
+private fun buildToolCapabilityItems(
+    tools: List<UiToolRef>,
+    serverNames: Map<String, String>,
+    serverCapsById: Map<String, UiServerCapsSnapshot>
+): List<PresetCapabilityItem> {
+    return tools.filter { it.enabled }.map { ref ->
+        val summary = serverCapsById[ref.serverId]?.tools?.firstOrNull { it.name == ref.toolName }
+        val title = formatCapabilityTitle(serverNames, ref.serverId, summary?.name ?: ref.toolName)
+        val description = summary?.description?.takeIf { it.isNotBlank() } ?: "No description provided"
+        PresetCapabilityItem(title, description, summary?.arguments.orEmpty())
     }
 }
 
-private fun formatCapabilityLabel(
+private fun buildPromptCapabilityItems(
+    prompts: List<UiPromptRef>,
+    serverNames: Map<String, String>,
+    serverCapsById: Map<String, UiServerCapsSnapshot>
+): List<PresetCapabilityItem> {
+    return prompts.filter { it.enabled }.map { ref ->
+        val summary = serverCapsById[ref.serverId]?.prompts?.firstOrNull { it.name == ref.promptName }
+        val title = formatCapabilityTitle(serverNames, ref.serverId, summary?.name ?: ref.promptName)
+        val description = summary?.description?.takeIf { it.isNotBlank() } ?: "No description provided"
+        PresetCapabilityItem(title, description, summary?.arguments.orEmpty())
+    }
+}
+
+private fun buildResourceCapabilityItems(
+    resources: List<UiResourceRef>,
+    serverNames: Map<String, String>,
+    serverCapsById: Map<String, UiServerCapsSnapshot>
+): List<PresetCapabilityItem> {
+    return resources.filter { it.enabled }.map { ref ->
+        val summary = serverCapsById[ref.serverId]?.resources?.firstOrNull { it.key == ref.resourceKey }
+        val displayName = summary?.name?.ifBlank { ref.resourceKey } ?: ref.resourceKey
+        val title = formatCapabilityTitle(serverNames, ref.serverId, displayName)
+        val description = summary?.description?.takeIf { it.isNotBlank() }
+            ?: summary?.key
+            ?: ref.resourceKey
+        PresetCapabilityItem(title, description, summary?.arguments.orEmpty())
+    }
+}
+
+private fun formatCapabilityTitle(
     serverNames: Map<String, String>,
     serverId: String,
     capabilityName: String

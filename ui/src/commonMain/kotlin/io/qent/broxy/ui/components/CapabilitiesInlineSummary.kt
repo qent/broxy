@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
@@ -30,7 +31,7 @@ fun CapabilitiesInlineSummary(
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         CapabilitiesInlineItem(
             icon = Icons.Outlined.Construction,
@@ -68,14 +69,23 @@ private fun CapabilitiesInlineItem(
     iconSize: Dp,
     textStyle: TextStyle
 ) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        modifier = Modifier.widthIn(min = 40.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         Icon(
             imageVector = icon,
             contentDescription = contentDescription,
             tint = tint,
             modifier = Modifier.size(iconSize)
         )
-        Spacer(Modifier.width(4.dp))
-        Text(text = count.toString(), style = textStyle, color = tint)
+        Spacer(Modifier.width(6.dp))
+        Text(
+            text = count.toString(),
+            style = textStyle,
+            color = tint,
+            modifier = Modifier.widthIn(min = 16.dp),
+            textAlign = TextAlign.Center
+        )
     }
 }
