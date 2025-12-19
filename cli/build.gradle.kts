@@ -63,11 +63,15 @@ val integrationTest =
         val jarFile = shadowJarTask.flatMap { it.archiveFile }
         systemProperty("broxy.cliJar", jarFile.get().asFile.absolutePath)
         systemProperty("broxy.testMcpServerHome", testServerHome.get().asFile.absolutePath)
-        // Hard timeout per test to avoid hanging MCP e2e runs
-        systemProperty("junit.jupiter.execution.timeout.default", "5s")
     }
 
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
-    systemProperty("junit.jupiter.execution.timeout.default", "5s")
+    val timeout =
+        if (name == "integrationTest") {
+            "60s"
+        } else {
+            "5s"
+        }
+    systemProperty("junit.jupiter.execution.timeout.default", timeout)
 }

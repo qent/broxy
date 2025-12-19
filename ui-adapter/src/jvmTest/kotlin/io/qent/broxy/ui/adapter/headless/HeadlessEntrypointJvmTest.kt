@@ -87,16 +87,16 @@ class HeadlessEntrypointJvmTest {
 
             val future = executor.submit(Callable { runStdioProxy(configDir = tempDir.toString()).isSuccess })
 
-            // Wait until startup logs show selected preset.
-            val deadline = System.currentTimeMillis() + 2_000
-            while (System.currentTimeMillis() < deadline) {
+            val expectedPresetLog = "presetId='test'"
+            val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
+            while (System.nanoTime() < deadline) {
                 val text = capturedErr.toString(Charsets.UTF_8)
-                if (text.contains("Starting broxy STDIO proxy")) break
+                if (text.contains(expectedPresetLog)) break
                 Thread.sleep(10)
             }
 
             val logs = capturedErr.toString(Charsets.UTF_8)
-            assertContains(logs, "presetId='test'")
+            assertContains(logs, expectedPresetLog)
 
             pipedOut.close()
             val ok = future.get(5, TimeUnit.SECONDS)

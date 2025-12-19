@@ -3,6 +3,7 @@ package io.qent.broxy.ui.adapter.store
 import io.qent.broxy.core.models.McpServerConfig
 import io.qent.broxy.core.models.McpServersConfig
 import io.qent.broxy.core.models.Preset
+import io.qent.broxy.core.models.ToolReference
 import io.qent.broxy.core.models.TransportConfig
 import io.qent.broxy.core.proxy.ProxyMcpServer
 import io.qent.broxy.core.proxy.runtime.ProxyController
