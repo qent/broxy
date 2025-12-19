@@ -20,6 +20,7 @@ import io.qent.broxy.ui.components.GlobalHeader
 import io.qent.broxy.ui.theme.AppTheme
 import io.qent.broxy.ui.viewmodels.AppState
 import io.qent.broxy.ui.viewmodels.PresetEditorState
+import io.qent.broxy.ui.viewmodels.ServerEditorState
 import io.qent.broxy.ui.viewmodels.Screen
 import kotlinx.coroutines.launch
 
@@ -81,8 +82,12 @@ fun MainWindow(
             snackbarHost = { SnackbarHost(snackbarHostState) },
             floatingActionButton = {
                 when (screen) {
-                    Screen.Servers -> FloatingActionButton(onClick = { state.showAddServerDialog.value = true }) {
-                        Icon(Icons.Outlined.Add, contentDescription = "Add server")
+                    Screen.Servers -> {
+                        if (state.serverEditor.value == null) {
+                            FloatingActionButton(onClick = { state.serverEditor.value = ServerEditorState.Create }) {
+                                Icon(Icons.Outlined.Add, contentDescription = "Add server")
+                            }
+                        }
                     }
 
                     Screen.Presets -> {
@@ -107,6 +112,9 @@ fun MainWindow(
                     onSelect = {
                         if (it != Screen.Presets) {
                             state.presetEditor.value = null
+                        }
+                        if (it != Screen.Servers) {
+                            state.serverEditor.value = null
                         }
                         state.currentScreen.value = it
                     },
@@ -135,8 +143,5 @@ fun MainWindow(
                 }
             }
         }
-
-        // Dialogs
-        if (state.showAddServerDialog.value) AddServerDialog(ui, state, notify)
     }
 }

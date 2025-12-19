@@ -5,5 +5,6 @@ data class UiServerDraft(
     val name: String,
     val enabled: Boolean,
     val transport: UiTransportDraft,
-    val env: Map<String, String> = emptyMap()
+    val env: Map<String, String> = emptyMap(),
+    val originalId: String? = null
 )

@@ -16,6 +16,18 @@ class ConfigurationManager(
             if (idx >= 0) servers[idx] = server else servers += server
         })
 
+    fun renameServer(
+        config: McpServersConfig,
+        oldId: String,
+        server: McpServerConfig
+    ): Result<McpServersConfig> = saveConfig(mutateServers(config) { servers ->
+        if (oldId.isNotBlank() && oldId != server.id) {
+            servers.removeAll { it.id == oldId }
+        }
+        val idx = servers.indexOfFirst { it.id == server.id }
+        if (idx >= 0) servers[idx] = server else servers += server
+    })
+
     fun removeServer(config: McpServersConfig, serverId: String): Result<McpServersConfig> =
         saveConfig(mutateServers(config) { servers ->
             servers.removeAll { it.id == serverId }

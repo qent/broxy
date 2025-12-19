@@ -81,7 +81,7 @@ fun main(args: Array<String>) {
             val window = this.window
             // Set minimum window height (in pixels). Width left unconstrained.
             SideEffect {
-                window.minimumSize = Dimension(720, 640)
+                window.minimumSize = Dimension(780, 640)
                 (window as? Frame)?.iconImage = applicationIconImage
                 updateTaskbarIcon(applicationIconImage)
             }

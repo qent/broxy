@@ -76,6 +76,7 @@ class AppStore(
         scope = scope,
         logger = logger,
         configurationManager = configurationManager,
+        configurationRepository = configurationRepository,
         state = stateAccess,
         capabilityRefresher = capabilityRefresher,
         proxyRuntime = proxyRuntime,
@@ -127,7 +128,8 @@ class AppStore(
             name = cfg.name,
             enabled = cfg.enabled,
             transport = draftTransport,
-            env = cfg.env
+            env = cfg.env,
+            originalId = cfg.id
         )
     }
 

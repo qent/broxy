@@ -44,6 +44,13 @@
 
 - `core/src/jvmMain/kotlin/io/qent/broxy/core/config/JsonConfigurationRepository.kt`
 
+### Примечание про serverId в Desktop UI
+
+- В `mcp.json` `serverId` является ключом в `mcpServers` и участвует в namespace инструментов: `serverId:toolName`.
+- Desktop UI генерирует `serverId` автоматически из `name` (slugify).
+- При изменении имени сервера Desktop UI может выполнить rename (`oldId` → `newId`) и также обновит все `preset_*.json`,
+  заменив ссылки на старый `serverId` в tools/prompts/resources.
+
 ### Поддерживаемые транспорты downstream
 
 Парсинг `transport` (строка) в `TransportConfig`:

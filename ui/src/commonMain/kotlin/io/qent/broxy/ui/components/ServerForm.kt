@@ -17,7 +17,6 @@ import io.qent.broxy.ui.theme.AppTheme
 
 data class ServerFormState(
     val name: String = "",
-    val id: String = "",
     val enabled: Boolean = true,
     val transportType: String = "STDIO", // one of: STDIO, HTTP, STREAMABLE_HTTP, WS
     val command: String = "",
@@ -27,7 +26,11 @@ data class ServerFormState(
     val env: String = ""
 )
 
-fun ServerFormState.toDraft(): UiServerDraft {
+fun ServerFormState.toDraft(
+    id: String,
+    name: String,
+    originalId: String?
+): UiServerDraft {
     val envMap = env.lines().mapNotNull { line ->
         val trimmed = line.trim()
         if (trimmed.isEmpty()) return@mapNotNull null
@@ -70,7 +73,8 @@ fun ServerFormState.toDraft(): UiServerDraft {
         name = name.trim(),
         enabled = enabled,
         transport = draftTransport,
-        env = if (transportType == "STDIO") envMap else emptyMap()
+        env = if (transportType == "STDIO") envMap else emptyMap(),
+        originalId = originalId
     )
 }
 
@@ -91,7 +95,6 @@ object ServerFormStateFactory {
         }
         return ServerFormState(
             name = initial.name,
-            id = initial.id,
             enabled = initial.enabled,
             transportType = transportType,
             command = command,
@@ -112,39 +115,22 @@ fun ServerForm(
         Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)
     ) {
-        FormSection(title = "General") {
-            OutlinedTextField(
-                value = state.name,
-                onValueChange = { onStateChange(state.copy(name = it)) },
-                label = { Text("Name") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
-            )
-            OutlinedTextField(
-                value = state.id,
-                onValueChange = { onStateChange(state.copy(id = it)) },
-                label = { Text("ID") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
-            )
-        }
-
         FormSection(title = "Transport") {
             TransportSelector(
                 selected = state.transportType,
                 onSelected = { onStateChange(state.copy(transportType = it)) }
             )
-            FormDivider()
-            when (state.transportType) {
-                "STDIO" -> StdIoFields(state, onStateChange)
-                "HTTP", "STREAMABLE_HTTP" -> HttpFields(
-                    state,
-                    onStateChange,
-                    isStreamable = state.transportType == "STREAMABLE_HTTP"
-                )
+        }
 
-                else -> WebSocketFields(state, onStateChange)
-            }
+        when (state.transportType) {
+            "STDIO" -> StdIoFields(state, onStateChange)
+            "HTTP", "STREAMABLE_HTTP" -> HttpFields(
+                state,
+                onStateChange,
+                isStreamable = state.transportType == "STREAMABLE_HTTP"
+            )
+
+            else -> WebSocketFields(state, onStateChange)
         }
     }
 }
@@ -189,7 +175,7 @@ private fun HttpFields(
         OutlinedTextField(
             value = state.url,
             onValueChange = { onStateChange(state.copy(url = it)) },
-            label = { Text(if (isStreamable) "Streamable HTTP URL" else "HTTP URL") },
+            label = { Text(if (isStreamable) "HTTP Streamable URL" else "HTTP SSE URL") },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true
         )
@@ -220,10 +206,10 @@ private fun TransportSelector(
     onSelected: (String) -> Unit
 ) {
     val options = listOf(
-        TransportOption("STDIO", "STDIO", "Local process"),
-        TransportOption("HTTP", "HTTP", "Proxy over HTTP"),
-        TransportOption("STREAMABLE_HTTP", "Streamable HTTP", "Server-sent events"),
-        TransportOption("WS", "WebSocket", "Persistent socket")
+        TransportOption("STDIO", "STDIO"),
+        TransportOption("STREAMABLE_HTTP", "HTTP Streamable"),
+        TransportOption("HTTP", "HTTP SSE"),
+        TransportOption("WS", "WebSocket")
     )
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -258,7 +244,7 @@ private fun RowScope.TransportOptionCard(
     val borderColor = when {
         selected -> MaterialTheme.colorScheme.primary
         hovered -> MaterialTheme.colorScheme.outline
-        else -> MaterialTheme.colorScheme.outlineVariant
+        else -> MaterialTheme.colorScheme.background
     }
 
     androidx.compose.material3.Card(
@@ -275,15 +261,10 @@ private fun RowScope.TransportOptionCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = AppTheme.spacing.sm, vertical = AppTheme.spacing.md),
-            verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.xs)
+                .padding(horizontal = AppTheme.spacing.lg, vertical = AppTheme.spacing.md),
+            verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.none)
         ) {
-            Text(option.label, style = MaterialTheme.typography.bodyMedium)
-            Text(
-                option.hint,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Text(option.label, style = MaterialTheme.typography.titleSmall)
         }
     }
 }
@@ -304,7 +285,7 @@ private fun FormSection(
                 text = title,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = AppTheme.spacing.md, vertical = AppTheme.spacing.sm),
+                    .padding(start = AppTheme.spacing.md, end = AppTheme.spacing.md, top = AppTheme.spacing.md),
                 style = MaterialTheme.typography.labelLarge
             )
             FormDivider()
@@ -330,6 +311,5 @@ private fun FormDivider() {
 
 private data class TransportOption(
     val value: String,
-    val label: String,
-    val hint: String
+    val label: String
 )

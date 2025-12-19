@@ -1,6 +1,5 @@
 package io.qent.broxy.ui.screens
 
-import AppPrimaryButton
 import AppSecondaryButton
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.HorizontalDivider
@@ -12,112 +11,10 @@ import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.adapter.models.UiCapabilityArgument
 import io.qent.broxy.ui.adapter.models.UiServer
 import io.qent.broxy.ui.adapter.models.UiServerCapsSnapshot
-import io.qent.broxy.ui.adapter.models.UiServerDraft
-import io.qent.broxy.ui.adapter.services.validateServerConnection
 import io.qent.broxy.ui.adapter.store.AppStore
-import io.qent.broxy.ui.adapter.store.UIState
 import io.qent.broxy.ui.components.*
 import io.qent.broxy.ui.theme.AppTheme
-import io.qent.broxy.ui.viewmodels.AppState
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.launch
-
-@Composable
-fun AddServerDialog(ui: UIState, state: AppState, notify: (String) -> Unit) {
-    val form = remember { mutableStateOf(ServerFormState()) }
-    val scope = rememberCoroutineScope()
-
-    AppDialog(
-        title = "Add server",
-        onDismissRequest = { state.showAddServerDialog.value = false },
-        dismissButton = {
-            AppSecondaryButton(onClick = { state.showAddServerDialog.value = false }) { Text("Cancel") }
-        },
-        confirmButton = {
-            AppPrimaryButton(onClick = {
-                if (ui is UIState.Ready) {
-                    val draft: UiServerDraft = form.value.toDraft()
-                    scope.launch {
-                        var toSave = draft
-                        if (draft.enabled) {
-                            val result = validateServerConnection(draft)
-                            if (result.isFailure) {
-                                val e = result.exceptionOrNull()
-                                val isTimeout = e?.message?.contains("timed out", ignoreCase = true) == true
-                                if (isTimeout) {
-                                    notify("Connection timed out. Saved as disabled.")
-                                } else {
-                                    val errMsg = e?.message?.takeIf { it.isNotBlank() }
-                                    val details = errMsg?.let { ": $it" } ?: ""
-                                    notify("Connection failed$details. Saved as disabled.")
-                                }
-                                toSave = draft.copy(enabled = false)
-                            }
-                        }
-                        ui.intents.upsertServer(toSave)
-                        state.showAddServerDialog.value = false
-                        notify("Saved ${toSave.name}")
-                    }
-                }
-            }) { Text("Save") }
-        }
-    ) {
-        ServerForm(
-            state = form.value,
-            onStateChange = { form.value = it }
-        )
-    }
-}
-
-@Composable
-fun EditServerDialog(
-    initial: UiServerDraft,
-    ui: UIState,
-    onClose: () -> Unit,
-    notify: (String) -> Unit = {}
-) {
-    val form = remember { mutableStateOf(ServerFormStateFactory.from(initial)) }
-    val scope = rememberCoroutineScope()
-
-    AppDialog(
-        title = "Edit server",
-        onDismissRequest = onClose,
-        dismissButton = { AppSecondaryButton(onClick = onClose) { Text("Cancel") } },
-        confirmButton = {
-            AppPrimaryButton(onClick = {
-                if (ui is UIState.Ready) {
-                    val draft = form.value.toDraft()
-                    scope.launch {
-                        var toSave = draft
-                        if (draft.enabled) {
-                            val result = validateServerConnection(draft)
-                            if (result.isFailure) {
-                                val e = result.exceptionOrNull()
-                                val isTimeout = e?.message?.contains("timed out", ignoreCase = true) == true
-                                if (isTimeout) {
-                                    notify("Connection timed out. Saved as disabled.")
-                                } else {
-                                    val errMsg = e?.message?.takeIf { it.isNotBlank() }
-                                    val details = errMsg?.let { ": $it" } ?: ""
-                                    notify("Connection failed$details. Saved as disabled.")
-                                }
-                                toSave = draft.copy(enabled = false)
-                            }
-                        }
-                        ui.intents.upsertServer(toSave)
-                        onClose()
-                        notify("Saved ${toSave.name}")
-                    }
-                }
-            }) { Text("Save") }
-        }
-    ) {
-        ServerForm(
-            state = form.value,
-            onStateChange = { form.value = it }
-        )
-    }
-}
 
 @Composable
 fun ServerDetailsDialog(

@@ -1,0 +1,246 @@
+package io.qent.broxy.ui.screens
+
+import AppPrimaryButton
+import AppSecondaryButton
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import io.qent.broxy.ui.adapter.models.UiServerDraft
+import io.qent.broxy.ui.adapter.models.UiStdioDraft
+import io.qent.broxy.ui.adapter.services.validateServerConnection
+import io.qent.broxy.ui.adapter.store.AppStore
+import io.qent.broxy.ui.adapter.store.UIState
+import io.qent.broxy.ui.components.ServerForm
+import io.qent.broxy.ui.components.ServerFormStateFactory
+import io.qent.broxy.ui.components.toDraft
+import io.qent.broxy.ui.theme.AppTheme
+import io.qent.broxy.ui.viewmodels.ServerEditorState
+import kotlinx.coroutines.launch
+
+@Composable
+fun ServerEditorScreen(
+    ui: UIState,
+    store: AppStore,
+    editor: ServerEditorState,
+    onClose: () -> Unit,
+    notify: (String) -> Unit = {}
+) {
+    val initialDraft = remember(editor) {
+        when (editor) {
+            ServerEditorState.Create -> UiServerDraft(
+                id = "",
+                name = "",
+                enabled = true,
+                transport = UiStdioDraft(command = "", args = emptyList()),
+                env = emptyMap(),
+                originalId = null
+            )
+
+            is ServerEditorState.Edit -> store.getServerDraft(editor.serverId)
+        }
+    }
+
+    if (initialDraft == null) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)
+        ) {
+            HeaderRow(
+                title = "Edit server",
+                onBack = onClose
+            )
+            Text(
+                text = "Server not found.",
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+        return
+    }
+
+    val isCreate = editor is ServerEditorState.Create
+    val title = if (isCreate) "Add server" else "Edit server"
+    val primaryActionLabel = if (isCreate) "Add" else "Save"
+
+    var form by remember(editor) { mutableStateOf(ServerFormStateFactory.from(initialDraft)) }
+
+    val resolvedName = form.name.trim()
+    val baseGeneratedId = generateServerId(resolvedName)
+    val existingServerIds = (ui as? UIState.Ready)?.servers?.asSequence()?.map { it.id }?.toSet().orEmpty()
+    val occupiedIds = if (isCreate) existingServerIds else existingServerIds - initialDraft.id
+    val resolvedId = generateUniqueServerId(baseGeneratedId, occupiedIds)
+
+    val hasValidTransportFields = when (form.transportType) {
+        "STDIO" -> form.command.trim().isNotBlank()
+        "HTTP", "STREAMABLE_HTTP", "WS" -> form.url.trim().isNotBlank()
+        else -> true
+    }
+
+    val canSubmit = ui is UIState.Ready &&
+        resolvedName.isNotBlank() &&
+        resolvedId.isNotBlank() &&
+        hasValidTransportFields
+
+    val scope = rememberCoroutineScope()
+
+    val scrollState = rememberScrollState()
+    val actionRowHeight = 40.dp
+    val contentBottomPadding = AppTheme.spacing.lg + actionRowHeight + AppTheme.spacing.md
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState)
+                .padding(bottom = contentBottomPadding),
+            verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)
+        ) {
+            Spacer(Modifier.height(AppTheme.spacing.xs))
+
+            HeaderRow(
+                title = title,
+                onBack = onClose
+            )
+
+            OutlinedTextField(
+                value = form.name,
+                onValueChange = { form = form.copy(name = it) },
+                label = { Text("Name") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+
+            ServerForm(
+                state = form,
+                onStateChange = { form = it }
+            )
+        }
+
+        Row(
+            modifier = Modifier
+                .align(Alignment.BottomEnd),
+            horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AppSecondaryButton(
+                onClick = onClose,
+                modifier = Modifier.height(actionRowHeight)
+            ) {
+                Text("Cancel", style = MaterialTheme.typography.labelSmall)
+            }
+            AppPrimaryButton(
+                onClick = {
+                    val readyUi = ui as? UIState.Ready ?: return@AppPrimaryButton
+                    scope.launch {
+                        val originalId = if (isCreate) null else (initialDraft.originalId ?: initialDraft.id)
+                        val draft = form.toDraft(
+                            id = resolvedId,
+                            name = resolvedName,
+                            originalId = originalId
+                        )
+
+                        var toSave = draft
+                        if (draft.enabled) {
+                            val result = validateServerConnection(draft)
+                            if (result.isFailure) {
+                                val e = result.exceptionOrNull()
+                                val isTimeout = e?.message?.contains("timed out", ignoreCase = true) == true
+                                if (isTimeout) {
+                                    notify("Connection timed out. Saved as disabled.")
+                                } else {
+                                    val errMsg = e?.message?.takeIf { it.isNotBlank() }
+                                    val details = errMsg?.let { ": $it" } ?: ""
+                                    notify("Connection failed$details. Saved as disabled.")
+                                }
+                                toSave = draft.copy(enabled = false)
+                            }
+                        }
+
+                        readyUi.intents.upsertServer(toSave)
+                        onClose()
+                        notify("Saved ${toSave.name}")
+                    }
+                },
+                enabled = canSubmit,
+                modifier = Modifier.height(actionRowHeight)
+            ) {
+                Text(primaryActionLabel, style = MaterialTheme.typography.labelSmall)
+            }
+        }
+    }
+}
+
+@Composable
+private fun HeaderRow(
+    title: String,
+    onBack: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)
+    ) {
+        IconButton(onClick = onBack) {
+            Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back")
+        }
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleLarge
+        )
+    }
+}
+
+private fun generateServerId(name: String): String {
+    val normalized = name.trim().lowercase()
+    if (normalized.isBlank()) return ""
+
+    val sb = StringBuilder()
+    var lastWasDash = false
+    for (ch in normalized) {
+        val isAllowed = ch.isLetterOrDigit()
+        if (isAllowed) {
+            sb.append(ch)
+            lastWasDash = false
+        } else if (!lastWasDash) {
+            sb.append('-')
+            lastWasDash = true
+        }
+    }
+
+    return sb.toString().trim('-')
+}
+
+private fun generateUniqueServerId(baseId: String, occupiedIds: Set<String>): String {
+    if (baseId.isBlank()) return ""
+    if (baseId !in occupiedIds) return baseId
+
+    var suffix = 2
+    while (true) {
+        val candidate = "$baseId-$suffix"
+        if (candidate !in occupiedIds) return candidate
+        suffix++
+    }
+}

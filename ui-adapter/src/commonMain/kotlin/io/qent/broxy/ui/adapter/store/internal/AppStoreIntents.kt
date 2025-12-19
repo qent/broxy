@@ -3,6 +3,7 @@ package io.qent.broxy.ui.adapter.store.internal
 import io.qent.broxy.core.capabilities.CapabilityRefresher
 import io.qent.broxy.core.config.ConfigurationManager
 import io.qent.broxy.core.proxy.runtime.ProxyLifecycle
+import io.qent.broxy.core.repository.ConfigurationRepository
 import io.qent.broxy.core.utils.CollectingLogger
 import io.qent.broxy.ui.adapter.models.*
 import io.qent.broxy.ui.adapter.remote.RemoteConnector
@@ -18,6 +19,7 @@ internal class AppStoreIntents(
     private val scope: CoroutineScope,
     private val logger: CollectingLogger,
     private val configurationManager: ConfigurationManager,
+    private val configurationRepository: ConfigurationRepository,
     private val state: StoreStateAccess,
     private val capabilityRefresher: CapabilityRefresher,
     private val proxyRuntime: ProxyRuntime,
@@ -108,20 +110,39 @@ internal class AppStoreIntents(
 
     override fun upsertServer(draft: UiServerDraft) {
         scope.launch {
+            val originalId = draft.originalId?.trim()?.takeIf { it.isNotBlank() }
+            val trimmedId = draft.id.trim()
+            val normalizedDraft = if (trimmedId == draft.id && originalId == draft.originalId) {
+                draft
+            } else {
+                draft.copy(id = trimmedId, originalId = originalId)
+            }
+
             val previousServers = state.snapshot.servers
             val previousConfig = state.snapshotConfig()
             val updated = previousServers.toMutableList()
-            val idx = updated.indexOfFirst { it.id == draft.id }
+            val oldId = originalId?.takeIf { it != normalizedDraft.id }
+            val isRename = oldId != null
+            if (isRename) {
+                updated.removeAll { it.id == oldId }
+            }
             val cfg = UiMcpServerConfig(
-                id = draft.id,
-                name = draft.name,
-                enabled = draft.enabled,
-                transport = draft.transport.toTransportConfig(),
-                env = draft.env
+                id = normalizedDraft.id,
+                name = normalizedDraft.name,
+                enabled = normalizedDraft.enabled,
+                transport = normalizedDraft.transport.toTransportConfig(),
+                env = normalizedDraft.env
             )
+            val idx = updated.indexOfFirst { it.id == cfg.id }
             if (idx >= 0) updated[idx] = cfg else updated += cfg
             state.updateSnapshot { copy(servers = updated) }
-            val result = configurationManager.upsertServer(previousConfig, cfg)
+
+            val result = if (isRename) {
+                configurationManager.renameServer(previousConfig, oldId = oldId!!, server = cfg)
+            } else {
+                configurationManager.upsertServer(previousConfig, cfg)
+            }
+
             if (result.isFailure) {
                 revertServersOnFailure(
                     "upsertServer",
@@ -131,7 +152,16 @@ internal class AppStoreIntents(
                 )
             } else {
                 capabilityRefresher.syncWithServers(result.getOrNull()?.servers ?: updated)
-                triggerServerRefresh(setOf(draft.id), force = true)
+                if (isRename) {
+                    capabilityRefresher.markServerRemoved(oldId!!)
+                    migratePresetsServerId(oldId = oldId, newId = cfg.id)
+                        .onFailure { error ->
+                            val msg = error.message ?: "Failed to update presets after server rename"
+                            logger.info("[AppStore] upsertServer rename preset migration failed: $msg")
+                            state.setError(msg)
+                        }
+                }
+                triggerServerRefresh(setOf(cfg.id), force = true)
                 proxyRuntime.ensureInboundRunning(forceRestart = true)
             }
             publishReady()
@@ -484,5 +514,26 @@ internal class AppStoreIntents(
     private fun triggerServerRefresh(ids: Set<String>, force: Boolean) {
         if (ids.isEmpty()) return
         scope.launch { capabilityRefresher.refreshServersById(ids, force) }
+    }
+
+    private suspend fun migratePresetsServerId(oldId: String, newId: String): Result<Unit> = runCatching {
+        if (oldId == newId) return@runCatching
+        val presets = configurationRepository.listPresets()
+        presets.forEach { preset ->
+            val updated = preset.copy(
+                tools = preset.tools.map { ref ->
+                    if (ref.serverId == oldId) ref.copy(serverId = newId) else ref
+                },
+                prompts = preset.prompts?.map { ref ->
+                    if (ref.serverId == oldId) ref.copy(serverId = newId) else ref
+                },
+                resources = preset.resources?.map { ref ->
+                    if (ref.serverId == oldId) ref.copy(serverId = newId) else ref
+                }
+            )
+            if (updated != preset) {
+                configurationRepository.savePreset(updated)
+            }
+        }
     }
 }

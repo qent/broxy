@@ -15,8 +15,8 @@ class AppState(
     val currentScreen: MutableState<Screen> = mutableStateOf(initialScreen)
     val themeStyle: MutableState<ThemeStyle> = mutableStateOf(initialTheme)
 
-    // Dialog flags
-    val showAddServerDialog: MutableState<Boolean> = mutableStateOf(false)
+    // Sub-navigation inside Screens.Servers (keeps the Servers menu item active).
+    val serverEditor: MutableState<ServerEditorState?> = mutableStateOf(null)
 
     // Sub-navigation inside Screens.Presets (keeps the Presets menu item active).
     val presetEditor: MutableState<PresetEditorState?> = mutableStateOf(null)
@@ -32,4 +32,10 @@ sealed interface PresetEditorState {
     data object Create : PresetEditorState
 
     data class Edit(val presetId: String) : PresetEditorState
+}
+
+sealed interface ServerEditorState {
+    data object Create : ServerEditorState
+
+    data class Edit(val serverId: String) : ServerEditorState
 }

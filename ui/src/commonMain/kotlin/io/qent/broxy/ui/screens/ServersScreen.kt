@@ -24,15 +24,31 @@ import io.qent.broxy.ui.components.CapabilitiesInlineSummary
 import io.qent.broxy.ui.components.SettingsLikeItem
 import io.qent.broxy.ui.theme.AppTheme
 import io.qent.broxy.ui.viewmodels.AppState
+import io.qent.broxy.ui.viewmodels.ServerEditorState
 
 @Composable
 fun ServersScreen(ui: UIState, state: AppState, store: AppStore, notify: (String) -> Unit = {}) {
     var query by rememberSaveable { mutableStateOf("") }
-    var editing: UiServer? by remember { mutableStateOf<UiServer?>(null) }
     var viewing: UiServer? by remember { mutableStateOf<UiServer?>(null) }
     var pendingDeletion: UiServer? by remember { mutableStateOf<UiServer?>(null) }
+    val editor = state.serverEditor.value
 
     Box(modifier = Modifier.fillMaxSize().padding(horizontal = AppTheme.spacing.md)) {
+        if (editor != null) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                Spacer(Modifier.height(1.dp))
+                ServerEditorScreen(
+                    ui = ui,
+                    store = store,
+                    editor = editor,
+                    onClose = { state.serverEditor.value = null },
+                    notify = notify
+                )
+                Spacer(Modifier.height(AppTheme.spacing.md))
+            }
+            return@Box
+        }
+
         Column(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)
@@ -75,7 +91,10 @@ fun ServersScreen(ui: UIState, state: AppState, store: AppStore, notify: (String
                                     onToggle = { id, enabled ->
                                         ui.intents.toggleServer(id, enabled)
                                     },
-                                    onEdit = { editing = cfg },
+                                    onEdit = {
+                                        pendingDeletion = null
+                                        state.serverEditor.value = ServerEditorState.Edit(cfg.id)
+                                    },
                                     onDelete = { pendingDeletion = cfg }
                                 )
                             }
@@ -85,15 +104,6 @@ fun ServersScreen(ui: UIState, state: AppState, store: AppStore, notify: (String
             }
 
             Spacer(Modifier.height(AppTheme.spacing.md))
-        }
-
-        if (editing != null) {
-            val draft = store.getServerDraft(editing!!.id)
-            if (draft != null) {
-                EditServerDialog(initial = draft, ui = ui, onClose = { editing = null }, notify = notify)
-            } else {
-                editing = null
-            }
         }
 
         viewing?.let { server ->
