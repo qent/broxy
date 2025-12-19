@@ -5,5 +5,5 @@ package io.qent.broxy.ui.theme
  */
 enum class ThemeStyle {
     Light,
-    Dark
+    Dark,
 }

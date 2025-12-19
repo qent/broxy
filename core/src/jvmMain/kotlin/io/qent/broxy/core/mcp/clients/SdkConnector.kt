@@ -7,4 +7,3 @@ package io.qent.broxy.core.mcp.clients
 fun interface SdkConnector {
     suspend fun connect(): SdkClientFacade
 }
-

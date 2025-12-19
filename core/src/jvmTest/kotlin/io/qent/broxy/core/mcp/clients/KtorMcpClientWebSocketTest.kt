@@ -30,16 +30,17 @@ class KtorMcpClientWebSocketTest {
                     content = emptyList(),
                     structuredContent = buildJsonObject { put("ok", true) },
                     isError = false,
-                    meta = JsonObject(emptyMap())
-                )
+                    meta = JsonObject(emptyMap()),
+                ),
             )
 
-            val client = KtorMcpClient(
-                mode = KtorMcpClient.Mode.WebSocket,
-                url = "ws://localhost",
-                headersMap = emptyMap(),
-                connector = SdkConnector { facade }
-            )
+            val client =
+                KtorMcpClient(
+                    mode = KtorMcpClient.Mode.WebSocket,
+                    url = "ws://localhost",
+                    headersMap = emptyMap(),
+                    connector = SdkConnector { facade },
+                )
 
             val conn = client.connect()
             assertTrue(conn.isSuccess)

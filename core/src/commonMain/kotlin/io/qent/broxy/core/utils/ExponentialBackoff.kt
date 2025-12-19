@@ -5,7 +5,7 @@ import kotlin.math.min
 class ExponentialBackoff(
     private val initialDelayMs: Long = 500,
     private val maxDelayMs: Long = 8000,
-    private val factor: Double = 2.0
+    private val factor: Double = 2.0,
 ) {
     fun delayForAttempt(attempt: Int): Long {
         if (attempt <= 0) return initialDelayMs
@@ -19,4 +19,3 @@ class ExponentialBackoff(
         return r
     }
 }
-

@@ -19,29 +19,31 @@ class JsonConfigurationRepositoryTest {
     fun load_mcp_json_with_env_placeholders() {
         val tmp = Files.createTempDirectory("cfgtest")
         try {
-            val mcpJson = """
-            {
-              "requestTimeoutSeconds": 90,
-              "capabilitiesTimeoutSeconds": 25,
-              "capabilitiesRefreshIntervalSeconds": 180,
-              "mcpServers": {
-                "github": {
-                  "transport": "stdio",
-                  "command": "npx",
-                  "args": ["@modelcontextprotocol/server-github"],
-                  "env": { "GITHUB_TOKEN": "${'$'}{GITHUB_TOKEN}" }
+            val mcpJson =
+                """
+                {
+                  "requestTimeoutSeconds": 90,
+                  "capabilitiesTimeoutSeconds": 25,
+                  "capabilitiesRefreshIntervalSeconds": 180,
+                  "mcpServers": {
+                    "github": {
+                      "transport": "stdio",
+                      "command": "npx",
+                      "args": ["@modelcontextprotocol/server-github"],
+                      "env": { "GITHUB_TOKEN": "${'$'}{GITHUB_TOKEN}" }
+                    }
+                  }
                 }
-              }
-            }
-            """.trimIndent()
+                """.trimIndent()
             tmp.resolve("mcp.json").writeText(mcpJson)
 
-            val repo = JsonConfigurationRepository(
-                baseDir = tmp,
-                json = Json { ignoreUnknownKeys = true },
-                logger = ConsoleLogger,
-                envResolver = EnvironmentVariableResolver(envProvider = { mapOf("GITHUB_TOKEN" to "t") })
-            )
+            val repo =
+                JsonConfigurationRepository(
+                    baseDir = tmp,
+                    json = Json { ignoreUnknownKeys = true },
+                    logger = ConsoleLogger,
+                    envResolver = EnvironmentVariableResolver(envProvider = { mapOf("GITHUB_TOKEN" to "t") }),
+                )
             val cfg = repo.loadMcpConfig()
             assertEquals(1, cfg.servers.size)
             val s = cfg.servers.first()
@@ -62,9 +64,12 @@ class JsonConfigurationRepositoryTest {
         val tmp = Files.createTempDirectory("cfgtest2")
         try {
             val repo = JsonConfigurationRepository(baseDir = tmp)
-            val preset = io.qent.broxy.core.models.Preset(
-                id = "developer", name = "Developer Assistant", tools = emptyList()
-            )
+            val preset =
+                io.qent.broxy.core.models.Preset(
+                    id = "developer",
+                    name = "Developer Assistant",
+                    tools = emptyList(),
+                )
             repo.savePreset(preset)
             val list = repo.listPresets()
             assertEquals(1, list.size)
@@ -80,14 +85,16 @@ class JsonConfigurationRepositoryTest {
     fun invalid_config_missing_env_var() {
         val tmp = Files.createTempDirectory("cfgtest3")
         try {
-            val mcpJson = """
-            {"mcpServers":{"s":{"transport":"http","url":"http://","env":{"X":"${'$'}{MISSING}"}}}}
-            """.trimIndent()
+            val mcpJson =
+                """
+                {"mcpServers":{"s":{"transport":"http","url":"http://","env":{"X":"${'$'}{MISSING}"}}}}
+                """.trimIndent()
             tmp.resolve("mcp.json").writeText(mcpJson)
-            val repo = JsonConfigurationRepository(
-                baseDir = tmp,
-                envResolver = EnvironmentVariableResolver(envProvider = { emptyMap() })
-            )
+            val repo =
+                JsonConfigurationRepository(
+                    baseDir = tmp,
+                    envResolver = EnvironmentVariableResolver(envProvider = { emptyMap() }),
+                )
             assertFailsWith<ConfigurationException> { repo.loadMcpConfig() }
         } finally {
             tmp.toFile().deleteRecursively()
@@ -99,12 +106,13 @@ class JsonConfigurationRepositoryTest {
         val tmp = Files.createTempDirectory("cfgtest4")
         try {
             val repo = JsonConfigurationRepository(baseDir = tmp)
-            val cfg = McpServersConfig(
-                requestTimeoutSeconds = 1_200,
-                capabilitiesTimeoutSeconds = 45,
-                showTrayIcon = false,
-                capabilitiesRefreshIntervalSeconds = 180
-            )
+            val cfg =
+                McpServersConfig(
+                    requestTimeoutSeconds = 1_200,
+                    capabilitiesTimeoutSeconds = 45,
+                    showTrayIcon = false,
+                    capabilitiesRefreshIntervalSeconds = 180,
+                )
             repo.saveMcpConfig(cfg)
             val raw = tmp.resolve("mcp.json").readText()
             assertTrue(raw.contains("\"requestTimeoutSeconds\": 1200"))

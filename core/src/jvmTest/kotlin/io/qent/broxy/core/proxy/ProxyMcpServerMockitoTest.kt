@@ -30,26 +30,36 @@ class ProxyMcpServerMockitoTest {
                 Result.success(
                     ServerCapabilities(
                         prompts = listOf(io.qent.broxy.core.mcp.PromptDescriptor("p1")),
-                        resources = listOf(io.qent.broxy.core.mcp.ResourceDescriptor("r1", uri = "u1"))
-                    )
-                )
+                        resources = listOf(io.qent.broxy.core.mcp.ResourceDescriptor("r1", uri = "u1")),
+                    ),
+                ),
             )
         }
         runBlocking {
-            whenever(s1.getPrompt("p1", null)).thenReturn(Result.success(buildJsonObject {
-                put(
-                    "description",
-                    "d"
-                ); put("messages", "[]")
-            }))
+            whenever(s1.getPrompt("p1", null)).thenReturn(
+                Result.success(
+                    buildJsonObject {
+                        put(
+                            "description",
+                            "d",
+                        )
+                        put("messages", "[]")
+                    },
+                ),
+            )
         }
         runBlocking {
-            whenever(s1.readResource("u1")).thenReturn(Result.success(buildJsonObject {
-                put(
-                    "contents",
-                    "[]"
-                ); put("_meta", "{}")
-            }))
+            whenever(s1.readResource("u1")).thenReturn(
+                Result.success(
+                    buildJsonObject {
+                        put(
+                            "contents",
+                            "[]",
+                        )
+                        put("_meta", "{}")
+                    },
+                ),
+            )
         }
 
         val proxy = ProxyMcpServer(listOf(s1))
@@ -76,9 +86,9 @@ class ProxyMcpServerMockitoTest {
                 Result.success(
                     ServerCapabilities(
                         prompts = listOf(io.qent.broxy.core.mcp.PromptDescriptor("p1")),
-                        resources = listOf(io.qent.broxy.core.mcp.ResourceDescriptor("r1", uri = "u1"))
-                    )
-                )
+                        resources = listOf(io.qent.broxy.core.mcp.ResourceDescriptor("r1", uri = "u1")),
+                    ),
+                ),
             )
         }
 

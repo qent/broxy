@@ -15,7 +15,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.runBlocking
 
 private class JvmProxyController(
-    private val logger: CollectingLogger
+    private val logger: CollectingLogger,
 ) : ProxyController {
     private var downstreams: List<McpServerConnection> = emptyList()
     private var proxy: ProxyMcpServer? = null
@@ -34,77 +34,83 @@ private class JvmProxyController(
         preset: Preset,
         inbound: TransportConfig,
         callTimeoutSeconds: Int,
-        capabilitiesTimeoutSeconds: Int
-    ): Result<Unit> = runCatching {
-        runCatching { stop() }
-        callTimeoutMillis = callTimeoutSeconds.toLong() * 1_000L
-        capabilitiesTimeoutMillis = capabilitiesTimeoutSeconds.toLong() * 1_000L
+        capabilitiesTimeoutSeconds: Int,
+    ): Result<Unit> =
+        runCatching {
+            runCatching { stop() }
+            callTimeoutMillis = callTimeoutSeconds.toLong() * 1_000L
+            capabilitiesTimeoutMillis = capabilitiesTimeoutSeconds.toLong() * 1_000L
 
-        downstreams = servers.filter { it.enabled }.map { cfg ->
-            DefaultMcpServerConnection(
-                config = cfg,
-                logger = logger,
-                initialCallTimeoutMillis = callTimeoutMillis,
-                initialCapabilitiesTimeoutMillis = capabilitiesTimeoutMillis
-            )
+            downstreams =
+                servers.filter { it.enabled }.map { cfg ->
+                    DefaultMcpServerConnection(
+                        config = cfg,
+                        logger = logger,
+                        initialCallTimeoutMillis = callTimeoutMillis,
+                        initialCapabilitiesTimeoutMillis = capabilitiesTimeoutMillis,
+                    )
+                }
+            val proxy = ProxyMcpServer(downstreams, logger = logger)
+            proxy.start(preset, inbound)
+            val inboundServer = InboundServerFactory.create(inbound, proxy, logger)
+            val status = inboundServer.start()
+            if (status is ServerStatus.Error) {
+                throw IllegalStateException(status.message ?: "Failed to start inbound server")
+            }
+            this.proxy = proxy
+            this.inboundServer = inboundServer
         }
-        val proxy = ProxyMcpServer(downstreams, logger = logger)
-        proxy.start(preset, inbound)
-        val inboundServer = InboundServerFactory.create(inbound, proxy, logger)
-        val status = inboundServer.start()
-        if (status is ServerStatus.Error) {
-            throw IllegalStateException(status.message ?: "Failed to start inbound server")
+
+    override fun stop(): Result<Unit> =
+        runCatching {
+            inboundServer?.stop()
+            inboundServer = null
+            val ds = downstreams
+            downstreams = emptyList()
+            proxy = null
+            runBlocking { ds.forEach { runCatching { it.disconnect() } } }
         }
-        this.proxy = proxy
-        this.inboundServer = inboundServer
-    }
 
-    override fun stop(): Result<Unit> = runCatching {
-        inboundServer?.stop()
-        inboundServer = null
-        val ds = downstreams
-        downstreams = emptyList()
-        proxy = null
-        runBlocking { ds.forEach { runCatching { it.disconnect() } } }
-    }
-
-    override fun applyPreset(preset: Preset): Result<Unit> = runCatching {
-        val proxy = this.proxy ?: error("Proxy is not running")
-        proxy.applyPreset(preset)
-        inboundServer?.refreshCapabilities()?.getOrThrow()
-    }
+    override fun applyPreset(preset: Preset): Result<Unit> =
+        runCatching {
+            val proxy = this.proxy ?: error("Proxy is not running")
+            proxy.applyPreset(preset)
+            inboundServer?.refreshCapabilities()?.getOrThrow()
+        }
 
     override fun updateServers(
         servers: List<McpServerConfig>,
         callTimeoutSeconds: Int,
-        capabilitiesTimeoutSeconds: Int
-    ): Result<Unit> = runCatching {
-        val proxy = this.proxy ?: error("Proxy is not running")
+        capabilitiesTimeoutSeconds: Int,
+    ): Result<Unit> =
+        runCatching {
+            val proxy = this.proxy ?: error("Proxy is not running")
 
-        callTimeoutMillis = callTimeoutSeconds.toLong() * 1_000L
-        capabilitiesTimeoutMillis = capabilitiesTimeoutSeconds.toLong() * 1_000L
+            callTimeoutMillis = callTimeoutSeconds.toLong() * 1_000L
+            capabilitiesTimeoutMillis = capabilitiesTimeoutSeconds.toLong() * 1_000L
 
-        val previous = downstreams
-        downstreams = servers.filter { it.enabled }.map { cfg ->
-            DefaultMcpServerConnection(
-                config = cfg,
-                logger = logger,
-                initialCallTimeoutMillis = callTimeoutMillis,
-                initialCapabilitiesTimeoutMillis = capabilitiesTimeoutMillis
-            )
+            val previous = downstreams
+            downstreams =
+                servers.filter { it.enabled }.map { cfg ->
+                    DefaultMcpServerConnection(
+                        config = cfg,
+                        logger = logger,
+                        initialCallTimeoutMillis = callTimeoutMillis,
+                        initialCapabilitiesTimeoutMillis = capabilitiesTimeoutMillis,
+                    )
+                }
+
+            proxy.updateDownstreams(downstreams)
+            runBlocking { proxy.refreshFilteredCapabilities() }
+            inboundServer?.refreshCapabilities()?.getOrThrow()
+
+            val currentIds = downstreams.map { it.serverId }.toSet()
+            runBlocking {
+                previous
+                    .filterNot { it.serverId in currentIds }
+                    .forEach { runCatching { it.disconnect() } }
+            }
         }
-
-        proxy.updateDownstreams(downstreams)
-        runBlocking { proxy.refreshFilteredCapabilities() }
-        inboundServer?.refreshCapabilities()?.getOrThrow()
-
-        val currentIds = downstreams.map { it.serverId }.toSet()
-        runBlocking {
-            previous
-                .filterNot { it.serverId in currentIds }
-                .forEach { runCatching { it.disconnect() } }
-        }
-    }
 
     override fun updateCallTimeout(seconds: Int) {
         callTimeoutMillis = seconds.toLong() * 1_000L
@@ -125,5 +131,4 @@ private class JvmProxyController(
 
 actual fun createProxyController(logger: CollectingLogger): ProxyController = JvmProxyController(logger)
 
-actual fun createStdioProxyController(logger: CollectingLogger): ProxyController =
-    JvmProxyController(logger = logger)
+actual fun createStdioProxyController(logger: CollectingLogger): ProxyController = JvmProxyController(logger = logger)

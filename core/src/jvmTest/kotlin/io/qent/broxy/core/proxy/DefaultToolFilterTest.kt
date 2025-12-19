@@ -15,27 +15,32 @@ import kotlin.test.assertTrue
 class DefaultToolFilterTest {
     @Test
     fun filters_and_prefixes_with_mappings() {
-        val all = mapOf(
-            "s1" to ServerCapabilities(
-                tools = listOf(ToolDescriptor("t1", "d1"), ToolDescriptor("t2")),
-                resources = listOf(ResourceDescriptor("r1", uri = "uri1"), ResourceDescriptor("r2", uri = "uri2")),
-                prompts = listOf(PromptDescriptor("p1"))
-            ),
-            "s2" to ServerCapabilities(
-                tools = listOf(ToolDescriptor("t3")),
-                resources = listOf(ResourceDescriptor("r3", uri = "uri3")),
-                prompts = listOf(PromptDescriptor("p2"))
+        val all =
+            mapOf(
+                "s1" to
+                    ServerCapabilities(
+                        tools = listOf(ToolDescriptor("t1", "d1"), ToolDescriptor("t2")),
+                        resources = listOf(ResourceDescriptor("r1", uri = "uri1"), ResourceDescriptor("r2", uri = "uri2")),
+                        prompts = listOf(PromptDescriptor("p1")),
+                    ),
+                "s2" to
+                    ServerCapabilities(
+                        tools = listOf(ToolDescriptor("t3")),
+                        resources = listOf(ResourceDescriptor("r3", uri = "uri3")),
+                        prompts = listOf(PromptDescriptor("p2")),
+                    ),
             )
-        )
-        val preset = Preset(
-            id = "id",
-            name = "name",
-            tools = listOf(
-                ToolReference("s1", "t1", enabled = true),
-                ToolReference("s2", "t3", enabled = true),
-                ToolReference("s1", "missing", enabled = true),
+        val preset =
+            Preset(
+                id = "id",
+                name = "name",
+                tools =
+                    listOf(
+                        ToolReference("s1", "t1", enabled = true),
+                        ToolReference("s2", "t3", enabled = true),
+                        ToolReference("s1", "missing", enabled = true),
+                    ),
             )
-        )
 
         val res = DefaultToolFilter().filter(all, preset)
         val names = res.capabilities.tools.map { it.name }.toSet()
@@ -60,38 +65,47 @@ class DefaultToolFilterTest {
 
     @Test
     fun allows_explicit_prompt_and_resource_selection() {
-        val all = mapOf(
-            "s1" to ServerCapabilities(
-                tools = listOf(ToolDescriptor("t1")),
-                resources = listOf(
-                    ResourceDescriptor("r1", uri = "uri1"),
-                    ResourceDescriptor("r2", uri = "uri2")
-                ),
-                prompts = listOf(
-                    PromptDescriptor("p1"),
-                    PromptDescriptor("p2")
-                )
-            ),
-            "s2" to ServerCapabilities(
-                tools = listOf(ToolDescriptor("t3")),
-                resources = listOf(ResourceDescriptor("r9", uri = "uri9")),
-                prompts = listOf(PromptDescriptor("p3"))
+        val all =
+            mapOf(
+                "s1" to
+                    ServerCapabilities(
+                        tools = listOf(ToolDescriptor("t1")),
+                        resources =
+                            listOf(
+                                ResourceDescriptor("r1", uri = "uri1"),
+                                ResourceDescriptor("r2", uri = "uri2"),
+                            ),
+                        prompts =
+                            listOf(
+                                PromptDescriptor("p1"),
+                                PromptDescriptor("p2"),
+                            ),
+                    ),
+                "s2" to
+                    ServerCapabilities(
+                        tools = listOf(ToolDescriptor("t3")),
+                        resources = listOf(ResourceDescriptor("r9", uri = "uri9")),
+                        prompts = listOf(PromptDescriptor("p3")),
+                    ),
             )
-        )
-        val preset = Preset(
-            id = "id",
-            name = "name",
-            tools = listOf(
-                ToolReference("s1", "t1", enabled = true)
-            ),
-            prompts = listOf(
-                PromptReference(serverId = "s1", promptName = "p1"),
-                PromptReference(serverId = "s2", promptName = "p3")
-            ),
-            resources = listOf(
-                ResourceReference(serverId = "s1", resourceKey = "uri2")
+        val preset =
+            Preset(
+                id = "id",
+                name = "name",
+                tools =
+                    listOf(
+                        ToolReference("s1", "t1", enabled = true),
+                    ),
+                prompts =
+                    listOf(
+                        PromptReference(serverId = "s1", promptName = "p1"),
+                        PromptReference(serverId = "s2", promptName = "p3"),
+                    ),
+                resources =
+                    listOf(
+                        ResourceReference(serverId = "s1", resourceKey = "uri2"),
+                    ),
             )
-        )
 
         val res = DefaultToolFilter().filter(all, preset)
         val promptNames = res.capabilities.prompts.map { it.name }.toSet()

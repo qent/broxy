@@ -5,7 +5,10 @@ import io.qent.broxy.core.models.Preset
 import io.qent.broxy.core.models.TransportConfig
 
 interface ProxyServer {
-    fun start(preset: Preset, transport: TransportConfig)
+    fun start(
+        preset: Preset,
+        transport: TransportConfig,
+    )
 
     fun stop()
 

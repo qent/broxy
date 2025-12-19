@@ -32,72 +32,82 @@ import java.nio.file.Paths
  * @param presetIdOverride Optional preset ID override
  * @param configDir Optional configuration directory (defaults to ~/.config/broxy)
  */
-fun runStdioProxy(presetIdOverride: String? = null, configDir: String? = null): Result<Unit> = runCatching {
-    val baseDir = if (configDir.isNullOrBlank()) {
-        Paths.get(System.getProperty("user.home"), ".config", "broxy")
-    } else {
-        Paths.get(configDir)
-    }
-    val sink = CompositeLogger(
-        StdErrLogger,
-        DailyFileLogger(baseDir)
-    )
-    val repo = JsonConfigurationRepository(baseDir = baseDir, logger = sink)
-    val cfg = repo.loadMcpConfig()
-    val effectivePresetId = presetIdOverride?.takeIf { it.isNotBlank() }
-        ?: cfg.defaultPresetId?.takeIf { it.isNotBlank() }
-        ?: repo.listPresets().singleOrNull()?.id
-    val preset = if (effectivePresetId == null) {
-        Preset.empty()
-    } else {
-        runCatching { repo.loadPreset(effectivePresetId) }.getOrElse { Preset.empty() }
-    }
-
-    val logger = CollectingLogger(delegate = sink)
-    val inbound = TransportConfig.StdioTransport(command = "", args = emptyList())
-
-    val callTimeoutMillis = cfg.requestTimeoutSeconds.toLong() * 1_000L
-    val capabilitiesTimeoutMillis = cfg.capabilitiesTimeoutSeconds.toLong() * 1_000L
-
-    val downstreams: List<McpServerConnection> = cfg.servers
-        .filter { it.enabled }
-        .map { serverCfg ->
-            DefaultMcpServerConnection(
-                config = serverCfg,
-                logger = logger,
-                initialCallTimeoutMillis = callTimeoutMillis,
-                initialCapabilitiesTimeoutMillis = capabilitiesTimeoutMillis
+fun runStdioProxy(
+    presetIdOverride: String? = null,
+    configDir: String? = null,
+): Result<Unit> =
+    runCatching {
+        val baseDir =
+            if (configDir.isNullOrBlank()) {
+                Paths.get(System.getProperty("user.home"), ".config", "broxy")
+            } else {
+                Paths.get(configDir)
+            }
+        val sink =
+            CompositeLogger(
+                StdErrLogger,
+                DailyFileLogger(baseDir),
             )
+        val repo = JsonConfigurationRepository(baseDir = baseDir, logger = sink)
+        val cfg = repo.loadMcpConfig()
+        val effectivePresetId =
+            presetIdOverride?.takeIf { it.isNotBlank() }
+                ?: cfg.defaultPresetId?.takeIf { it.isNotBlank() }
+                ?: repo.listPresets().singleOrNull()?.id
+        val preset =
+            if (effectivePresetId == null) {
+                Preset.empty()
+            } else {
+                runCatching { repo.loadPreset(effectivePresetId) }.getOrElse { Preset.empty() }
+            }
+
+        val logger = CollectingLogger(delegate = sink)
+        val inbound = TransportConfig.StdioTransport(command = "", args = emptyList())
+
+        val callTimeoutMillis = cfg.requestTimeoutSeconds.toLong() * 1_000L
+        val capabilitiesTimeoutMillis = cfg.capabilitiesTimeoutSeconds.toLong() * 1_000L
+
+        val downstreams: List<McpServerConnection> =
+            cfg.servers
+                .filter { it.enabled }
+                .map { serverCfg ->
+                    DefaultMcpServerConnection(
+                        config = serverCfg,
+                        logger = logger,
+                        initialCallTimeoutMillis = callTimeoutMillis,
+                        initialCapabilitiesTimeoutMillis = capabilitiesTimeoutMillis,
+                    )
+                }
+
+        val proxy = ProxyMcpServer(downstreams = downstreams, logger = logger)
+        proxy.start(preset, inbound)
+
+        val server = buildSdkServer(proxy, logger)
+        val transport =
+            StdioServerTransport(
+                System.`in`.asSource().buffered(),
+                System.out.asSink().buffered(),
+            )
+
+        val shutdownSignal = CompletableDeferred<Unit>()
+        transport.onClose { shutdownSignal.complete(Unit) }
+
+        sink.info(
+            "Starting broxy STDIO proxy (presetId='${effectivePresetId ?: "none"}', configDir='${configDir ?: "~/.config/broxy"}')",
+        )
+
+        try {
+            runBlocking {
+                server.createSession(transport)
+                shutdownSignal.await()
+            }
+        } finally {
+            runBlocking { runCatching { transport.close() } }
+            runCatching { proxy.stop() }
+            runBlocking { downstreams.forEach { runCatching { it.disconnect() } } }
+            sink.info("broxy STDIO proxy stopped")
         }
-
-    val proxy = ProxyMcpServer(downstreams = downstreams, logger = logger)
-    proxy.start(preset, inbound)
-
-    val server = buildSdkServer(proxy, logger)
-    val transport = StdioServerTransport(
-        System.`in`.asSource().buffered(),
-        System.out.asSink().buffered()
-    )
-
-    val shutdownSignal = CompletableDeferred<Unit>()
-    transport.onClose { shutdownSignal.complete(Unit) }
-
-    sink.info(
-        "Starting broxy STDIO proxy (presetId='${effectivePresetId ?: "none"}', configDir='${configDir ?: "~/.config/broxy"}')"
-    )
-
-    try {
-        runBlocking {
-            server.createSession(transport)
-            shutdownSignal.await()
-        }
-    } finally {
-        runBlocking { runCatching { transport.close() } }
-        runCatching { proxy.stop() }
-        runBlocking { downstreams.forEach { runCatching { it.disconnect() } } }
-        sink.info("broxy STDIO proxy stopped")
     }
-}
 
 fun logStdioInfo(message: String) {
     StdErrLogger.info(message)

@@ -8,7 +8,7 @@ data class UiRemoteConnectionState(
     val email: String?,
     val hasCredentials: Boolean,
     val status: UiRemoteStatus,
-    val message: String? = null
+    val message: String? = null,
 )
 
 enum class UiRemoteStatus {
@@ -19,5 +19,5 @@ enum class UiRemoteStatus {
     WsConnecting,
     WsOnline,
     WsOffline,
-    Error
+    Error,
 }

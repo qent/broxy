@@ -10,12 +10,13 @@ class ModelsSerializationTest {
 
     @Test
     fun transportConfig_roundtrip_for_http() {
-        val cfg = McpServerConfig(
-            id = "s1",
-            name = "Server 1",
-            transport = TransportConfig.HttpTransport(url = "http://localhost:1234/mcp", headers = mapOf("X" to "y")),
-            enabled = true
-        )
+        val cfg =
+            McpServerConfig(
+                id = "s1",
+                name = "Server 1",
+                transport = TransportConfig.HttpTransport(url = "http://localhost:1234/mcp", headers = mapOf("X" to "y")),
+                enabled = true,
+            )
         val encoded = json.encodeToString(McpServerConfig.serializer(), cfg)
         val decoded = json.decodeFromString(McpServerConfig.serializer(), encoded)
         assertEquals(cfg, decoded)
@@ -25,15 +26,17 @@ class ModelsSerializationTest {
 
     @Test
     fun transportConfig_roundtrip_for_streamable_http() {
-        val cfg = McpServerConfig(
-            id = "s1s",
-            name = "Server 1S",
-            transport = TransportConfig.StreamableHttpTransport(
-                url = "http://localhost:1234/mcp",
-                headers = mapOf("X" to "y")
-            ),
-            enabled = true
-        )
+        val cfg =
+            McpServerConfig(
+                id = "s1s",
+                name = "Server 1S",
+                transport =
+                    TransportConfig.StreamableHttpTransport(
+                        url = "http://localhost:1234/mcp",
+                        headers = mapOf("X" to "y"),
+                    ),
+                enabled = true,
+            )
         val encoded = json.encodeToString(McpServerConfig.serializer(), cfg)
         val decoded = json.decodeFromString(McpServerConfig.serializer(), encoded)
         assertEquals(cfg, decoded)
@@ -42,12 +45,13 @@ class ModelsSerializationTest {
 
     @Test
     fun transportConfig_roundtrip_for_stdio() {
-        val cfg = McpServerConfig(
-            id = "s2",
-            name = "Server 2",
-            transport = TransportConfig.StdioTransport(command = "node", args = listOf("server.js")),
-            enabled = false
-        )
+        val cfg =
+            McpServerConfig(
+                id = "s2",
+                name = "Server 2",
+                transport = TransportConfig.StdioTransport(command = "node", args = listOf("server.js")),
+                enabled = false,
+            )
         val encoded = json.encodeToString(McpServerConfig.serializer(), cfg)
         val decoded = json.decodeFromString(McpServerConfig.serializer(), encoded)
         assertEquals(cfg, decoded)
@@ -56,14 +60,16 @@ class ModelsSerializationTest {
 
     @Test
     fun preset_and_toolReference_roundtrip() {
-        val preset = Preset(
-            id = "dev",
-            name = "Developer",
-            tools = listOf(
-                ToolReference(serverId = "s1", toolName = "t1", enabled = true),
-                ToolReference(serverId = "s2", toolName = "t2", enabled = false)
+        val preset =
+            Preset(
+                id = "dev",
+                name = "Developer",
+                tools =
+                    listOf(
+                        ToolReference(serverId = "s1", toolName = "t1", enabled = true),
+                        ToolReference(serverId = "s2", toolName = "t2", enabled = false),
+                    ),
             )
-        )
         val encoded = json.encodeToString(Preset.serializer(), preset)
         val decoded = json.decodeFromString(Preset.serializer(), encoded)
         assertEquals(preset, decoded)

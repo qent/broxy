@@ -29,7 +29,12 @@ import io.qent.broxy.ui.viewmodels.ServerEditorState
 import kotlinx.coroutines.delay
 
 @Composable
-fun ServersScreen(ui: UIState, state: AppState, store: AppStore, notify: (String) -> Unit = {}) {
+fun ServersScreen(
+    ui: UIState,
+    state: AppState,
+    store: AppStore,
+    notify: (String) -> Unit = {},
+) {
     var query by rememberSaveable { mutableStateOf("") }
     var viewing: UiServer? by remember { mutableStateOf<UiServer?>(null) }
     var pendingDeletion: UiServer? by remember { mutableStateOf<UiServer?>(null) }
@@ -44,7 +49,7 @@ fun ServersScreen(ui: UIState, state: AppState, store: AppStore, notify: (String
                     store = store,
                     editor = editor,
                     onClose = { state.serverEditor.value = null },
-                    notify = notify
+                    notify = notify,
                 )
                 Spacer(Modifier.height(AppTheme.spacing.md))
             }
@@ -57,7 +62,7 @@ fun ServersScreen(ui: UIState, state: AppState, store: AppStore, notify: (String
                 ServerCapabilitiesScreen(
                     store = store,
                     serverId = viewing!!.id,
-                    onClose = { viewing = null }
+                    onClose = { viewing = null },
                 )
                 Spacer(Modifier.height(AppTheme.spacing.md))
             }
@@ -66,7 +71,7 @@ fun ServersScreen(ui: UIState, state: AppState, store: AppStore, notify: (String
 
         Column(
             modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)
+            verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
         ) {
             Spacer(Modifier.height(1.dp))
 
@@ -75,7 +80,7 @@ fun ServersScreen(ui: UIState, state: AppState, store: AppStore, notify: (String
                 onValueChange = { query = it },
                 label = { Text("Search servers") },
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true
+                singleLine = true,
             )
 
             when (ui) {
@@ -86,18 +91,19 @@ fun ServersScreen(ui: UIState, state: AppState, store: AppStore, notify: (String
                     if (servers.isEmpty()) {
                         EmptyState(
                             title = "No servers yet",
-                            subtitle = "Use the + button to add your first MCP server"
+                            subtitle = "Use the + button to add your first MCP server",
                         )
                     } else {
-                        val filtered = servers.filter { cfg ->
-                            cfg.name.contains(query, ignoreCase = true) ||
+                        val filtered =
+                            servers.filter { cfg ->
+                                cfg.name.contains(query, ignoreCase = true) ||
                                     cfg.id.contains(query, ignoreCase = true) ||
                                     cfg.transportLabel.contains(query, ignoreCase = true)
-                        }
+                            }
                         LazyColumn(
                             modifier = Modifier.weight(1f, fill = true),
                             verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
-                            contentPadding = PaddingValues(bottom = ServerListBottomPadding)
+                            contentPadding = PaddingValues(bottom = ServerListBottomPadding),
                         ) {
                             items(filtered, key = { it.id }) { cfg ->
                                 ServerCard(
@@ -110,7 +116,7 @@ fun ServersScreen(ui: UIState, state: AppState, store: AppStore, notify: (String
                                         pendingDeletion = null
                                         state.serverEditor.value = ServerEditorState.Edit(cfg.id)
                                     },
-                                    onDelete = { pendingDeletion = cfg }
+                                    onDelete = { pendingDeletion = cfg },
                                 )
                             }
                         }
@@ -121,7 +127,6 @@ fun ServersScreen(ui: UIState, state: AppState, store: AppStore, notify: (String
             Spacer(Modifier.height(AppTheme.spacing.md))
         }
 
-
         val readyUi = ui as? UIState.Ready
         val toDelete = pendingDeletion
         if (readyUi != null && toDelete != null) {
@@ -131,7 +136,7 @@ fun ServersScreen(ui: UIState, state: AppState, store: AppStore, notify: (String
                     readyUi.intents.removeServer(toDelete.id)
                     pendingDeletion = null
                 },
-                onDismiss = { pendingDeletion = null }
+                onDismiss = { pendingDeletion = null },
             )
         }
     }
@@ -143,14 +148,15 @@ private fun ServerCard(
     onViewDetails: () -> Unit,
     onToggle: (String, Boolean) -> Unit,
     onDelete: () -> Unit,
-    onEdit: () -> Unit
+    onEdit: () -> Unit,
 ) {
-    val statusColor = when (cfg.status) {
-        UiServerConnStatus.Available -> AppTheme.extendedColors.success
-        UiServerConnStatus.Error -> MaterialTheme.colorScheme.error
-        UiServerConnStatus.Disabled -> MaterialTheme.colorScheme.outline
-        UiServerConnStatus.Connecting -> MaterialTheme.colorScheme.secondary
-    }
+    val statusColor =
+        when (cfg.status) {
+            UiServerConnStatus.Available -> AppTheme.extendedColors.success
+            UiServerConnStatus.Error -> MaterialTheme.colorScheme.error
+            UiServerConnStatus.Disabled -> MaterialTheme.colorScheme.outline
+            UiServerConnStatus.Connecting -> MaterialTheme.colorScheme.secondary
+        }
 
     val isDisabled = !cfg.enabled
     val isConnecting = cfg.enabled && cfg.status == UiServerConnStatus.Connecting
@@ -164,16 +170,17 @@ private fun ServerCard(
     val showErrorStatus = cfg.enabled && cfg.status == UiServerConnStatus.Error
     val showCapabilitiesSummary =
         cfg.enabled &&
-                cfg.status == UiServerConnStatus.Available &&
-                cfg.toolsCount != null &&
-                cfg.promptsCount != null &&
-                cfg.resourcesCount != null
+            cfg.status == UiServerConnStatus.Available &&
+            cfg.toolsCount != null &&
+            cfg.promptsCount != null &&
+            cfg.resourcesCount != null
     val showStatusText = isConnecting || showErrorStatus
-    val statusText = when {
-        isConnecting -> "Connecting: ${connectingSeconds} s"
-        showErrorStatus -> UiServerConnStatus.Error.name
-        else -> null
-    }
+    val statusText =
+        when {
+            isConnecting -> "Connecting: $connectingSeconds s"
+            showErrorStatus -> UiServerConnStatus.Error.name
+            else -> null
+        }
 
     SettingsLikeItem(
         title = cfg.name,
@@ -181,7 +188,7 @@ private fun ServerCard(
         descriptionContent = {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
             ) {
                 Text(
                     text = cfg.transportLabel,
@@ -189,7 +196,7 @@ private fun ServerCard(
                     color = transportColor,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false)
+                    modifier = Modifier.weight(1f, fill = false),
                 )
 
                 if (showCapabilitiesSummary) {
@@ -199,7 +206,7 @@ private fun ServerCard(
                         promptsCount = cfg.promptsCount ?: 0,
                         resourcesCount = cfg.resourcesCount ?: 0,
                         tint = separatorColor,
-                        textStyle = MaterialTheme.typography.bodySmall
+                        textStyle = MaterialTheme.typography.bodySmall,
                     )
                 } else if (showStatusText && statusText != null) {
                     Text(" • ", style = MaterialTheme.typography.bodySmall, color = separatorColor)
@@ -209,24 +216,25 @@ private fun ServerCard(
                         color = statusTextColor,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        textAlign = TextAlign.End
+                        textAlign = TextAlign.End,
                     )
                 }
             }
         },
-        onClick = onViewDetails
+        onClick = onViewDetails,
     ) {
         Switch(
             checked = cfg.enabled,
             onCheckedChange = { enabled -> onToggle(cfg.id, enabled) },
             modifier = Modifier.scale(0.7f),
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
-                checkedTrackColor = MaterialTheme.colorScheme.primary,
-                uncheckedThumbColor = MaterialTheme.colorScheme.outline,
-                uncheckedTrackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                uncheckedBorderColor = MaterialTheme.colorScheme.outline
-            )
+            colors =
+                SwitchDefaults.colors(
+                    checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                    checkedTrackColor = MaterialTheme.colorScheme.primary,
+                    uncheckedThumbColor = MaterialTheme.colorScheme.outline,
+                    uncheckedTrackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    uncheckedBorderColor = MaterialTheme.colorScheme.outline,
+                ),
         )
         IconButton(onClick = onEdit) {
             Icon(Icons.Outlined.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.secondary)
@@ -240,52 +248,58 @@ private fun ServerCard(
 @Composable
 private fun rememberConnectingSeconds(
     isConnecting: Boolean,
-    connectingSinceEpochMillis: Long?
-): State<Long> = produceState(initialValue = 0L, key1 = isConnecting, key2 = connectingSinceEpochMillis) {
-    if (!isConnecting) {
-        value = 0L
-        return@produceState
+    connectingSinceEpochMillis: Long?,
+): State<Long> =
+    produceState(initialValue = 0L, key1 = isConnecting, key2 = connectingSinceEpochMillis) {
+        if (!isConnecting) {
+            value = 0L
+            return@produceState
+        }
+        val startMillis = connectingSinceEpochMillis ?: System.currentTimeMillis()
+        while (true) {
+            val elapsedSeconds = ((System.currentTimeMillis() - startMillis) / 1_000L).coerceAtLeast(0)
+            value = elapsedSeconds
+            delay(1_000L)
+        }
     }
-    val startMillis = connectingSinceEpochMillis ?: System.currentTimeMillis()
-    while (true) {
-        val elapsedSeconds = ((System.currentTimeMillis() - startMillis) / 1_000L).coerceAtLeast(0)
-        value = elapsedSeconds
-        delay(1_000L)
-    }
-}
 
 @Composable
 private fun DeleteServerDialog(
     server: UiServer,
     onConfirm: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     AppDialog(
         title = "Delete server",
         onDismissRequest = onDismiss,
         dismissButton = { AppSecondaryButton(onClick = onDismiss) { Text("Cancel") } },
-        confirmButton = { AppPrimaryButton(onClick = onConfirm) { Text("Delete") } }
+        confirmButton = { AppPrimaryButton(onClick = onConfirm) { Text("Delete") } },
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)) {
             Text(
                 text = "Remove \"${server.name}\"?",
-                style = MaterialTheme.typography.bodyMedium
+                style = MaterialTheme.typography.bodyMedium,
             )
             Text(
-                text = "This removes the server configuration and presets that referenced it will lose access to its capabilities. This action cannot be undone.",
+                text =
+                    "This removes the server configuration and presets that referenced it " +
+                        "will lose access to its capabilities. This action cannot be undone.",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
 }
 
 @Composable
-private fun EmptyState(title: String, subtitle: String) {
+private fun EmptyState(
+    title: String,
+    subtitle: String,
+) {
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Center,
-        horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
+        horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
     ) {
         Text(title, style = MaterialTheme.typography.titleLarge)
         Spacer(Modifier.height(AppTheme.spacing.sm))

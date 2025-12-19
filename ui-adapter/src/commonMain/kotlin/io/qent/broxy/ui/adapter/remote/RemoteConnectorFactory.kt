@@ -7,5 +7,5 @@ import kotlinx.coroutines.CoroutineScope
 expect fun createRemoteConnector(
     logger: CollectingLogger,
     proxyLifecycle: ProxyLifecycle,
-    scope: CoroutineScope
+    scope: CoroutineScope,
 ): RemoteConnector

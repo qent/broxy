@@ -12,20 +12,21 @@ import io.qent.broxy.ui.theme.AppTheme
 @Composable
 fun CapabilityArgumentList(
     arguments: List<UiCapabilityArgument>,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     if (arguments.isEmpty()) return
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.xs)) {
         arguments.forEach { argument ->
-            val displayName = buildString {
-                append(argument.name)
-                if (argument.required) append("*")
-            }
+            val displayName =
+                buildString {
+                    append(argument.name)
+                    if (argument.required) append("*")
+                }
             val typeLabel = argument.type.ifBlank { "unspecified" }
             Text(
                 text = "• $displayName ($typeLabel)",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }

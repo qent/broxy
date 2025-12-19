@@ -10,7 +10,7 @@ import io.qent.broxy.ui.theme.ThemeStyle
  */
 class AppState(
     initialScreen: Screen = Screen.Servers,
-    initialTheme: ThemeStyle = ThemeStyle.Dark
+    initialTheme: ThemeStyle = ThemeStyle.Dark,
 ) {
     val currentScreen: MutableState<Screen> = mutableStateOf(initialScreen)
     val themeStyle: MutableState<ThemeStyle> = mutableStateOf(initialTheme)

@@ -6,5 +6,5 @@ import kotlinx.serialization.Serializable
 data class ResourceReference(
     val serverId: String,
     val resourceKey: String,
-    val enabled: Boolean = true
+    val enabled: Boolean = true,
 )

@@ -26,12 +26,12 @@ fun CapabilitiesInlineSummary(
     modifier: Modifier = Modifier,
     tint: Color = MaterialTheme.colorScheme.onSurfaceVariant,
     iconSize: Dp = 14.dp,
-    textStyle: TextStyle = MaterialTheme.typography.bodySmall
+    textStyle: TextStyle = MaterialTheme.typography.bodySmall,
 ) {
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         CapabilitiesInlineItem(
             icon = Icons.Outlined.Construction,
@@ -39,7 +39,7 @@ fun CapabilitiesInlineSummary(
             count = toolsCount,
             tint = tint,
             iconSize = iconSize,
-            textStyle = textStyle
+            textStyle = textStyle,
         )
         CapabilitiesInlineItem(
             icon = Icons.Outlined.ChatBubbleOutline,
@@ -47,7 +47,7 @@ fun CapabilitiesInlineSummary(
             count = promptsCount,
             tint = tint,
             iconSize = iconSize,
-            textStyle = textStyle
+            textStyle = textStyle,
         )
         CapabilitiesInlineItem(
             icon = Icons.Outlined.Description,
@@ -55,7 +55,7 @@ fun CapabilitiesInlineSummary(
             count = resourcesCount,
             tint = tint,
             iconSize = iconSize,
-            textStyle = textStyle
+            textStyle = textStyle,
         )
     }
 }
@@ -67,17 +67,17 @@ private fun CapabilitiesInlineItem(
     count: Int,
     tint: Color,
     iconSize: Dp,
-    textStyle: TextStyle
+    textStyle: TextStyle,
 ) {
     Row(
         modifier = Modifier.widthIn(min = 29.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
             imageVector = icon,
             contentDescription = contentDescription,
             tint = tint,
-            modifier = Modifier.size(iconSize)
+            modifier = Modifier.size(iconSize),
         )
         Spacer(Modifier.width(2.dp))
         Text(
@@ -85,7 +85,7 @@ private fun CapabilitiesInlineItem(
             style = textStyle,
             color = tint,
             modifier = Modifier.widthIn(min = 15.dp),
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
         )
     }
 }

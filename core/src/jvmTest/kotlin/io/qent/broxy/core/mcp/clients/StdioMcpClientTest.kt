@@ -30,16 +30,17 @@ class StdioMcpClientTest {
                     content = emptyList(),
                     structuredContent = buildJsonObject { put("ok", true) },
                     isError = false,
-                    meta = JsonObject(emptyMap())
-                )
+                    meta = JsonObject(emptyMap()),
+                ),
             )
 
-            val client = StdioMcpClient(
-                command = "noop",
-                args = emptyList(),
-                env = emptyMap(),
-                connector = SdkConnector { facade }
-            )
+            val client =
+                StdioMcpClient(
+                    command = "noop",
+                    args = emptyList(),
+                    env = emptyMap(),
+                    connector = SdkConnector { facade },
+                )
 
             val conn = client.connect()
             assertTrue(conn.isSuccess)

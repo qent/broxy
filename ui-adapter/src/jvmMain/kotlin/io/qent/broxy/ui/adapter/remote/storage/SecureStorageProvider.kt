@@ -7,7 +7,7 @@ import java.nio.file.Path
  * currently relies on a filesystem-backed store with 600 permissions as a fallback.
  */
 class SecureStorageProvider(
-    private val fallbackDir: Path
+    private val fallbackDir: Path,
 ) {
     fun provide(): SecureStore = FileSecureStore(fallbackDir)
 }

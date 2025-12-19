@@ -10,7 +10,7 @@ import kotlinx.serialization.Serializable
 data class ServerCapabilities(
     val tools: List<ToolDescriptor> = emptyList(),
     val resources: List<ResourceDescriptor> = emptyList(),
-    val prompts: List<PromptDescriptor> = emptyList()
+    val prompts: List<PromptDescriptor> = emptyList(),
 )
 
 @Serializable
@@ -20,7 +20,7 @@ data class ToolDescriptor(
     val title: String? = null,
     val inputSchema: ToolSchema? = null,
     val outputSchema: ToolSchema? = null,
-    val annotations: ToolAnnotations? = null
+    val annotations: ToolAnnotations? = null,
 )
 
 @Serializable
@@ -31,12 +31,12 @@ data class ResourceDescriptor(
     val mimeType: String? = null,
     val title: String? = null,
     val size: Long? = null,
-    val annotations: Annotations? = null
+    val annotations: Annotations? = null,
 )
 
 @Serializable
 data class PromptDescriptor(
     val name: String,
     val description: String? = null,
-    val arguments: List<PromptArgument>? = null
+    val arguments: List<PromptArgument>? = null,
 )

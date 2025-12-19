@@ -54,10 +54,13 @@ compose.desktop {
             val rawVersion = project.version.toString()
             val parts = rawVersion.split('.')
             val major = parts.getOrNull(0)?.toIntOrNull() ?: 1
-            val sanitizedVersion = if (major <= 0) {
-                val tail = parts.drop(1).takeIf { it.isNotEmpty() }?.joinToString(".")
-                if (tail.isNullOrBlank()) "1" else "1.$tail"
-            } else rawVersion
+            val sanitizedVersion =
+                if (major <= 0) {
+                    val tail = parts.drop(1).takeIf { it.isNotEmpty() }?.joinToString(".")
+                    if (tail.isNullOrBlank()) "1" else "1.$tail"
+                } else {
+                    rawVersion
+                }
 
             packageVersion = sanitizedVersion
             // Common icon files (optional, only set when present)

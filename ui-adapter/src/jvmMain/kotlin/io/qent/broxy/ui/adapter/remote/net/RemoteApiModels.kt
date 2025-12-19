@@ -7,7 +7,7 @@ import kotlinx.serialization.Serializable
 data class LoginResponse(
     @SerialName("authorization_url")
     val authorizationUrl: String,
-    val state: String
+    val state: String,
 )
 
 @Serializable
@@ -16,7 +16,7 @@ data class CallbackRequest(
     val state: String,
     val audience: String = "mcp",
     @SerialName("redirect_uri")
-    val redirectUri: String
+    val redirectUri: String,
 )
 
 @Serializable
@@ -27,7 +27,7 @@ data class TokenResponse(
     val tokenType: String,
     @SerialName("expires_at")
     val expiresAt: String,
-    val scope: String
+    val scope: String,
 )
 
 @Serializable
@@ -35,13 +35,13 @@ data class RegisterRequest(
     @SerialName("server_identifier")
     val serverIdentifier: String,
     val name: String,
-    val capabilities: Capabilities
+    val capabilities: Capabilities,
 ) {
     @Serializable
     data class Capabilities(
         val prompts: Boolean,
         val tools: Boolean,
-        val resources: Boolean
+        val resources: Boolean,
     )
 }
 
@@ -51,5 +51,5 @@ data class RegisterResponse(
     val serverIdentifier: String,
     val status: String,
     @SerialName("jwt_token")
-    val jwtToken: String
+    val jwtToken: String,
 )

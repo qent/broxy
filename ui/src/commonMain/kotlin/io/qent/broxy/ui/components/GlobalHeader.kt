@@ -31,7 +31,7 @@ fun GlobalHeader(
     ui: UIState,
     notify: (String) -> Unit = {},
     colors: TopAppBarColors = TopAppBarDefaults.centerAlignedTopAppBarColors(),
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     CenterAlignedTopAppBar(
         modifier = modifier,
@@ -40,7 +40,7 @@ fun GlobalHeader(
         title = {
             PresetDropdown(ui = ui, notify = notify, width = PRESET_SELECTOR_WIDTH)
         },
-        actions = {}
+        actions = {},
     )
 }
 
@@ -49,7 +49,7 @@ private fun PresetDropdown(
     ui: UIState,
     notify: (String) -> Unit,
     width: Dp,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
     val arrowRotation by animateFloatAsState(targetValue = if (expanded) 180f else 0f, label = "arrowRotation")
@@ -62,8 +62,8 @@ private fun PresetDropdown(
         if (expanded) defaultShape.copy(topStart = CornerSize(0.dp), topEnd = CornerSize(0.dp)) else defaultShape
 
     // We still might need a tiny negative offset if the borders are doubled, but ExposedDropdownMenu usually aligns perfectly.
-    // To be safe and ensure the "unified" single-border look, we can check. 
-    // Usually ExposedDropdownMenu places the menu directly below. 
+    // To be safe and ensure the "unified" single-border look, we can check.
+    // Usually ExposedDropdownMenu places the menu directly below.
     // If we want to overlap the 1dp border, we might arguably need -1dp offset.
     // Let's try standard first, but with the specific shapes it should look connected.
 
@@ -74,13 +74,14 @@ private fun PresetDropdown(
 
         is UIState.Ready -> {
             val selectedPresetId = ui.selectedPresetId
-            val currentName = ui.presets.firstOrNull { it.id == selectedPresetId }?.name
-                ?: if (selectedPresetId == null) "No preset" else selectedPresetId
+            val currentName =
+                ui.presets.firstOrNull { it.id == selectedPresetId }?.name
+                    ?: if (selectedPresetId == null) "No preset" else selectedPresetId
 
             ExposedDropdownMenuBox(
                 expanded = expanded,
                 onExpandedChange = { expanded = !expanded },
-                modifier = modifier.width(width)
+                modifier = modifier.width(width),
             ) {
                 HeaderField(
                     text = currentName,
@@ -90,38 +91,41 @@ private fun PresetDropdown(
                         Icon(
                             imageVector = Icons.Outlined.ExpandMore,
                             contentDescription = "Open preset menu",
-                            modifier = Modifier
-                                .size(18.dp)
-                                .rotate(arrowRotation)
+                            modifier =
+                                Modifier
+                                    .size(18.dp)
+                                    .rotate(arrowRotation),
                         )
-                    }
+                    },
                 )
                 ExposedDropdownMenu(
                     expanded = expanded,
                     onDismissRequest = { expanded = false },
-                    modifier = Modifier
-                        .background(color = AppTheme.colors.surface, shape = dropdownShape)
-                        .border(AppTheme.strokeWidths.thin, AppTheme.colors.outline, dropdownShape),
+                    modifier =
+                        Modifier
+                            .background(color = AppTheme.colors.surface, shape = dropdownShape)
+                            .border(AppTheme.strokeWidths.thin, AppTheme.colors.outline, dropdownShape),
                 ) {
                     DropdownMenuItem(
                         text = {
                             Text(
                                 "No preset",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = AppTheme.colors.onSurface
+                                color = AppTheme.colors.onSurface,
                             )
                         },
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                            horizontal = AppTheme.spacing.md,
-                            vertical = AppTheme.spacing.xxs
-                        ),
+                        contentPadding =
+                            androidx.compose.foundation.layout.PaddingValues(
+                                horizontal = AppTheme.spacing.md,
+                                vertical = AppTheme.spacing.xxs,
+                            ),
                         onClick = {
                             expanded = false
                             if (ui.selectedPresetId != null) {
                                 ui.intents.selectProxyPreset(null)
                                 notify("Preset cleared")
                             }
-                        }
+                        },
                     )
 
                     ui.presets.forEach { p ->
@@ -131,20 +135,21 @@ private fun PresetDropdown(
                                 Text(
                                     p.name,
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = AppTheme.colors.onSurface
+                                    color = AppTheme.colors.onSurface,
                                 )
                             },
-                            contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                                horizontal = AppTheme.spacing.md,
-                                vertical = AppTheme.spacing.xxs
-                            ),
+                            contentPadding =
+                                androidx.compose.foundation.layout.PaddingValues(
+                                    horizontal = AppTheme.spacing.md,
+                                    vertical = AppTheme.spacing.xxs,
+                                ),
                             onClick = {
                                 expanded = false
                                 if (!isSelected) {
                                     ui.intents.selectProxyPreset(p.id)
                                     notify("Preset selected: ${p.name}")
                                 }
-                            }
+                            },
                         )
                     }
                 }
@@ -159,38 +164,41 @@ private fun HeaderField(
     modifier: Modifier = Modifier,
     shape: Shape = AppTheme.shapes.input,
     onClick: (() -> Unit)? = null,
-    trailing: (@Composable () -> Unit)? = null
+    trailing: (@Composable () -> Unit)? = null,
 ) {
     val colors = MaterialTheme.colorScheme
-    val clickModifier = if (onClick == null) {
-        Modifier
-    } else {
-        Modifier.clickable(onClick = onClick)
-    }
+    val clickModifier =
+        if (onClick == null) {
+            Modifier
+        } else {
+            Modifier.clickable(onClick = onClick)
+        }
     Surface(
-        modifier = modifier
-            .height(32.dp)
-            .then(clickModifier),
+        modifier =
+            modifier
+                .height(32.dp)
+                .then(clickModifier),
         shape = shape,
         color = colors.surface,
         contentColor = colors.onSurface,
         tonalElevation = 0.dp,
         shadowElevation = 0.dp,
-        border = BorderStroke(AppTheme.strokeWidths.thin, colors.outline)
+        border = BorderStroke(AppTheme.strokeWidths.thin, colors.outline),
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = AppTheme.spacing.md, vertical = AppTheme.spacing.xs),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = AppTheme.spacing.md, vertical = AppTheme.spacing.xs),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)
+            horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm),
         ) {
             Text(
                 text = text,
                 modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.bodySmall,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
             if (trailing != null) trailing()
         }

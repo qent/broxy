@@ -5,10 +5,11 @@ import io.qent.broxy.ui.adapter.models.UiRemoteStatus
 
 expect fun defaultRemoteServerIdentifier(): String
 
-fun defaultRemoteState(): UiRemoteConnectionState = UiRemoteConnectionState(
-    serverIdentifier = defaultRemoteServerIdentifier(),
-    email = null,
-    hasCredentials = false,
-    status = UiRemoteStatus.NotAuthorized,
-    message = null
-)
+fun defaultRemoteState(): UiRemoteConnectionState =
+    UiRemoteConnectionState(
+        serverIdentifier = defaultRemoteServerIdentifier(),
+        email = null,
+        hasCredentials = false,
+        status = UiRemoteStatus.NotAuthorized,
+        message = null,
+    )

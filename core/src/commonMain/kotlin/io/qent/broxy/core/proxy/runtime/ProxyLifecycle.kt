@@ -12,7 +12,7 @@ import io.qent.broxy.core.utils.Logger
  */
 class ProxyLifecycle(
     private val controller: ProxyController,
-    private val logger: Logger
+    private val logger: Logger,
 ) {
     private var currentConfig: McpServersConfig? = null
     private var currentPreset: Preset? = null
@@ -21,15 +21,16 @@ class ProxyLifecycle(
     fun start(
         config: McpServersConfig,
         preset: Preset,
-        inbound: TransportConfig
+        inbound: TransportConfig,
     ): Result<Unit> {
-        val result = controller.start(
-            servers = config.servers,
-            preset = preset,
-            inbound = inbound,
-            callTimeoutSeconds = config.requestTimeoutSeconds,
-            capabilitiesTimeoutSeconds = config.capabilitiesTimeoutSeconds
-        )
+        val result =
+            controller.start(
+                servers = config.servers,
+                preset = preset,
+                inbound = inbound,
+                callTimeoutSeconds = config.requestTimeoutSeconds,
+                capabilitiesTimeoutSeconds = config.capabilitiesTimeoutSeconds,
+            )
         if (result.isSuccess) {
             currentConfig = config
             currentPreset = preset
@@ -55,13 +56,12 @@ class ProxyLifecycle(
     fun restartWithConfig(config: McpServersConfig): Result<Unit> =
         restart(config = config, preset = currentPreset, inbound = currentInbound)
 
-    fun restartWithPreset(preset: Preset): Result<Unit> =
-        restart(config = currentConfig, preset = preset, inbound = currentInbound)
+    fun restartWithPreset(preset: Preset): Result<Unit> = restart(config = currentConfig, preset = preset, inbound = currentInbound)
 
     private fun restart(
         config: McpServersConfig?,
         preset: Preset?,
-        inbound: TransportConfig?
+        inbound: TransportConfig?,
     ): Result<Unit> {
         if (config == null || preset == null || inbound == null) {
             return Result.failure(IllegalStateException("Proxy is not running"))
@@ -80,11 +80,12 @@ class ProxyLifecycle(
     }
 
     fun updateServers(config: McpServersConfig): Result<Unit> {
-        val result = controller.updateServers(
-            servers = config.servers,
-            callTimeoutSeconds = config.requestTimeoutSeconds,
-            capabilitiesTimeoutSeconds = config.capabilitiesTimeoutSeconds
-        )
+        val result =
+            controller.updateServers(
+                servers = config.servers,
+                callTimeoutSeconds = config.requestTimeoutSeconds,
+                capabilitiesTimeoutSeconds = config.capabilitiesTimeoutSeconds,
+            )
         if (result.isSuccess) {
             currentConfig = config
         } else {

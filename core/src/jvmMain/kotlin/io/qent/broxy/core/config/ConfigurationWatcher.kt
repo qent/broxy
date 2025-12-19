@@ -3,9 +3,21 @@ package io.qent.broxy.core.config
 import io.qent.broxy.core.models.Preset
 import io.qent.broxy.core.repository.ConfigurationRepository
 import io.qent.broxy.core.utils.Logger
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.IOException
-import java.nio.file.*
+import java.nio.file.ClosedWatchServiceException
+import java.nio.file.FileSystems
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.Paths
+import java.nio.file.StandardWatchEventKinds
+import java.nio.file.WatchEvent
+import java.nio.file.WatchService
 import kotlin.io.path.exists
 
 class ConfigurationWatcher(
@@ -14,9 +26,8 @@ class ConfigurationWatcher(
     private val logger: Logger? = null,
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.IO),
     private val debounceMillis: Long = 300,
-    private val emitInitialState: Boolean = true
+    private val emitInitialState: Boolean = true,
 ) : AutoCloseable {
-
     private var watchService: WatchService? = null
     private val observers = mutableSetOf<ConfigurationObserver>()
     private var watchJob: Job? = null
@@ -38,7 +49,7 @@ class ConfigurationWatcher(
     }
 
     fun triggerPresetReload(id: String) {
-        markPresetDirtyAndSchedule(Paths.get("preset_${id}.json"))
+        markPresetDirtyAndSchedule(Paths.get("preset_$id.json"))
     }
 
     fun start() {
@@ -54,7 +65,7 @@ class ConfigurationWatcher(
                 ws,
                 StandardWatchEventKinds.ENTRY_CREATE,
                 StandardWatchEventKinds.ENTRY_MODIFY,
-                StandardWatchEventKinds.ENTRY_DELETE
+                StandardWatchEventKinds.ENTRY_DELETE,
             )
         } catch (e: IOException) {
             logger?.warn("Failed to register watcher: ${e.message}", e)
@@ -67,32 +78,34 @@ class ConfigurationWatcher(
             markConfigDirtyAndSchedule()
         }
 
-        watchJob = scope.launch {
-            // Watcher loop
-            withContext(Dispatchers.IO) {
-                while (true) {
-                    val key = try {
-                        ws.take()
-                    } catch (_: ClosedWatchServiceException) {
-                        break
-                    }
-                    for (event in key.pollEvents()) {
-                        val kind = event.kind()
-                        if (kind == StandardWatchEventKinds.OVERFLOW) continue
-                        val ev = event as WatchEvent<Path>
-                        val fileName = ev.context()
-                        val nameStr = fileName.fileName.toString()
-                        if (nameStr == "mcp.json") {
-                            markConfigDirtyAndSchedule()
-                        } else if (nameStr.startsWith("preset_") && nameStr.endsWith(".json")) {
-                            markPresetDirtyAndSchedule(fileName)
+        watchJob =
+            scope.launch {
+                // Watcher loop
+                withContext(Dispatchers.IO) {
+                    while (true) {
+                        val key =
+                            try {
+                                ws.take()
+                            } catch (_: ClosedWatchServiceException) {
+                                break
+                            }
+                        for (event in key.pollEvents()) {
+                            val kind = event.kind()
+                            if (kind == StandardWatchEventKinds.OVERFLOW) continue
+                            val ev = event as WatchEvent<Path>
+                            val fileName = ev.context()
+                            val nameStr = fileName.fileName.toString()
+                            if (nameStr == "mcp.json") {
+                                markConfigDirtyAndSchedule()
+                            } else if (nameStr.startsWith("preset_") && nameStr.endsWith(".json")) {
+                                markPresetDirtyAndSchedule(fileName)
+                            }
                         }
+                        val valid = key.reset()
+                        if (!valid) break
                     }
-                    val valid = key.reset()
-                    if (!valid) break
                 }
             }
-        }
     }
 
     fun stop() {
@@ -121,30 +134,31 @@ class ConfigurationWatcher(
 
     private fun scheduleNotify() {
         notifyJob?.cancel()
-        notifyJob = scope.launch {
-            delay(debounceMillis)
-            val notifyConfig = dirtyConfig
-            val presetFiles = dirtyPresets.toList()
-            dirtyConfig = false
-            dirtyPresets.clear()
+        notifyJob =
+            scope.launch {
+                delay(debounceMillis)
+                val notifyConfig = dirtyConfig
+                val presetFiles = dirtyPresets.toList()
+                dirtyConfig = false
+                dirtyPresets.clear()
 
-            if (notifyConfig) {
-                runCatching { repo.loadMcpConfig() }
-                    .onSuccess { cfg -> observers.forEach { it.onConfigurationChanged(cfg) } }
-                    .onFailure { ex -> logger?.warn("Failed to reload mcp.json: ${ex.message}", ex) }
-            }
+                if (notifyConfig) {
+                    runCatching { repo.loadMcpConfig() }
+                        .onSuccess { cfg -> observers.forEach { it.onConfigurationChanged(cfg) } }
+                        .onFailure { ex -> logger?.warn("Failed to reload mcp.json: ${ex.message}", ex) }
+                }
 
-            presetFiles.forEach { file ->
-                val name = file.fileName.toString()
-                if (Files.exists(baseDir.resolve(name))) {
-                    val id = name.removePrefix("preset_").removeSuffix(".json")
-                    runCatching { repo.loadPreset(id) }
-                        .onSuccess { p: Preset -> observers.forEach { it.onPresetChanged(p) } }
-                        .onFailure { ex -> logger?.warn("Failed to reload preset '$name': ${ex.message}", ex) }
-                } else {
-                    logger?.info("Preset file deleted: $name")
+                presetFiles.forEach { file ->
+                    val name = file.fileName.toString()
+                    if (Files.exists(baseDir.resolve(name))) {
+                        val id = name.removePrefix("preset_").removeSuffix(".json")
+                        runCatching { repo.loadPreset(id) }
+                            .onSuccess { p: Preset -> observers.forEach { it.onPresetChanged(p) } }
+                            .onFailure { ex -> logger?.warn("Failed to reload preset '$name': ${ex.message}", ex) }
+                    } else {
+                        logger?.info("Preset file deleted: $name")
+                    }
                 }
             }
-        }
     }
 }

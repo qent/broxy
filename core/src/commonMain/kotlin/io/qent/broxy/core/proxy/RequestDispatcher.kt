@@ -3,7 +3,11 @@ package io.qent.broxy.core.proxy
 import io.qent.broxy.core.mcp.McpServerConnection
 import io.qent.broxy.core.mcp.MultiServerClient
 import io.qent.broxy.core.mcp.ServerCapabilities
-import io.qent.broxy.core.utils.*
+import io.qent.broxy.core.utils.ConsoleLogger
+import io.qent.broxy.core.utils.Logger
+import io.qent.broxy.core.utils.errorJson
+import io.qent.broxy.core.utils.infoJson
+import io.qent.broxy.core.utils.warnJson
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -23,8 +27,14 @@ data class ToolCallRequest(val name: String, val arguments: JsonObject = JsonObj
  */
 interface RequestDispatcher {
     suspend fun dispatchToolCall(request: ToolCallRequest): Result<JsonElement>
+
     suspend fun dispatchBatch(requests: List<ToolCallRequest>): List<Result<JsonElement>>
-    suspend fun dispatchPrompt(name: String, arguments: Map<String, String>? = null): Result<JsonObject>
+
+    suspend fun dispatchPrompt(
+        name: String,
+        arguments: Map<String, String>? = null,
+    ): Result<JsonObject>
+
     suspend fun dispatchResource(uri: String): Result<JsonObject>
 }
 
@@ -35,7 +45,7 @@ class DefaultRequestDispatcher(
     private val promptServerResolver: (suspend (String) -> String?)? = null,
     private val resourceServerResolver: (suspend (String) -> String?)? = null,
     private val namespace: NamespaceManager = DefaultNamespaceManager(),
-    private val logger: Logger = ConsoleLogger
+    private val logger: Logger = ConsoleLogger,
 ) : RequestDispatcher {
     private val multi = MultiServerClient(servers)
 
@@ -53,8 +63,9 @@ class DefaultRequestDispatcher(
         }
         return try {
             val (serverId, tool) = namespace.parsePrefixedToolName(name)
-            val server = servers.firstOrNull { it.serverId == serverId }
-                ?: return Result.failure(IllegalArgumentException("Unknown server: $serverId"))
+            val server =
+                servers.firstOrNull { it.serverId == serverId }
+                    ?: return Result.failure(IllegalArgumentException("Unknown server: $serverId"))
             logger.infoJson("facade_to_downstream.request") {
                 put("toolName", JsonPrimitive(request.name))
                 put("resolvedServerId", JsonPrimitive(serverId))
@@ -84,13 +95,18 @@ class DefaultRequestDispatcher(
         }
     }
 
-    override suspend fun dispatchBatch(requests: List<ToolCallRequest>): List<Result<JsonElement>> = coroutineScope {
-        requests.map { req -> async { dispatchToolCall(req) } }.awaitAll()
-    }
+    override suspend fun dispatchBatch(requests: List<ToolCallRequest>): List<Result<JsonElement>> =
+        coroutineScope {
+            requests.map { req -> async { dispatchToolCall(req) } }.awaitAll()
+        }
 
-    override suspend fun dispatchPrompt(name: String, arguments: Map<String, String>?): Result<JsonObject> {
-        val server = resolveServerForPrompt(name)
-            ?: return Result.failure(IllegalArgumentException("Unknown prompt: $name"))
+    override suspend fun dispatchPrompt(
+        name: String,
+        arguments: Map<String, String>?,
+    ): Result<JsonObject> {
+        val server =
+            resolveServerForPrompt(name)
+                ?: return Result.failure(IllegalArgumentException("Unknown prompt: $name"))
         logger.info("Routing prompt '$name' to server '${server.serverId}'")
         val result = server.getPrompt(name, arguments)
         if (result.isSuccess) {
@@ -102,8 +118,9 @@ class DefaultRequestDispatcher(
     }
 
     override suspend fun dispatchResource(uri: String): Result<JsonObject> {
-        val server = resolveServerForResource(uri)
-            ?: return Result.failure(IllegalArgumentException("Unknown resource: $uri"))
+        val server =
+            resolveServerForResource(uri)
+                ?: return Result.failure(IllegalArgumentException("Unknown resource: $uri"))
         logger.info("Routing resource '$uri' to server '${server.serverId}'")
         val result = server.readResource(uri)
         if (result.isSuccess) {

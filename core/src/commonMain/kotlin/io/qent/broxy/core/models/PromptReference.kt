@@ -6,5 +6,5 @@ import kotlinx.serialization.Serializable
 data class PromptReference(
     val serverId: String,
     val promptName: String,
-    val enabled: Boolean = true
+    val enabled: Boolean = true,
 )

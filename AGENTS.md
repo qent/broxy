@@ -7,6 +7,8 @@ Required rules for any agent:
 1. Before starting work, read relevant documents under `docs/` (minimum: `docs/readme.md`, then related sections).
 2. After finishing a task that changes behavior, contracts, or data flows, update the corresponding `docs/*.md`
    files and the link list if needed.
+3. Before finishing any task, run all required checks and fix every finding. Generated code must meet the
+   highest quality standards for this project (formatting, static analysis, tests, and coverage).
 
 Key documents:
 

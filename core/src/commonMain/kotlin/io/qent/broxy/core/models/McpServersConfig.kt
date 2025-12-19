@@ -10,5 +10,5 @@ data class McpServersConfig(
     val requestTimeoutSeconds: Int = 60,
     val capabilitiesTimeoutSeconds: Int = 30,
     val showTrayIcon: Boolean = true,
-    val capabilitiesRefreshIntervalSeconds: Int = 300
+    val capabilitiesRefreshIntervalSeconds: Int = 300,
 )

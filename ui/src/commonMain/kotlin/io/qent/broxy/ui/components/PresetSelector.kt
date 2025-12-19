@@ -29,10 +29,10 @@ fun PresetSelector(
     onSelectionChanged: (
         tools: List<UiToolRef>,
         prompts: List<UiPromptRef>,
-        resources: List<UiResourceRef>
+        resources: List<UiResourceRef>,
     ) -> Unit = { _, _, _ -> },
     onPromptsConfiguredChange: (Boolean) -> Unit = {},
-    onResourcesConfiguredChange: (Boolean) -> Unit = {}
+    onResourcesConfiguredChange: (Boolean) -> Unit = {},
 ) {
     var loading by remember { mutableStateOf(true) }
     val snaps = remember { mutableStateOf<List<UiServerCapsSnapshot>>(emptyList()) }
@@ -57,15 +57,18 @@ fun PresetSelector(
     }
 
     fun emitSelection() {
-        val tools = selectedTools.flatMap { (sid, names) ->
-            names.map { name -> UiToolRef(serverId = sid, toolName = name, enabled = true) }
-        }
-        val prompts = selectedPrompts.flatMap { (sid, names) ->
-            names.map { name -> UiPromptRef(serverId = sid, promptName = name, enabled = true) }
-        }
-        val resources = selectedResources.flatMap { (sid, keys) ->
-            keys.map { key -> UiResourceRef(serverId = sid, resourceKey = key, enabled = true) }
-        }
+        val tools =
+            selectedTools.flatMap { (sid, names) ->
+                names.map { name -> UiToolRef(serverId = sid, toolName = name, enabled = true) }
+            }
+        val prompts =
+            selectedPrompts.flatMap { (sid, names) ->
+                names.map { name -> UiPromptRef(serverId = sid, promptName = name, enabled = true) }
+            }
+        val resources =
+            selectedResources.flatMap { (sid, keys) ->
+                keys.map { key -> UiResourceRef(serverId = sid, resourceKey = key, enabled = true) }
+            }
         onSelectionChanged(tools, prompts, resources)
     }
 
@@ -91,11 +94,12 @@ fun PresetSelector(
             val prev = selectedResources[ref.serverId] ?: emptySet()
             selectedResources[ref.serverId] = prev + ref.resourceKey
         }
-        val preselectedServers = mutableSetOf<String>().apply {
-            addAll(selectedTools.keys)
-            addAll(selectedPrompts.keys)
-            addAll(selectedResources.keys)
-        }
+        val preselectedServers =
+            mutableSetOf<String>().apply {
+                addAll(selectedTools.keys)
+                addAll(selectedPrompts.keys)
+                addAll(selectedResources.keys)
+            }
         if (!promptsConfigured) {
             data.forEach { snap ->
                 val serverId = snap.serverId
@@ -125,7 +129,7 @@ fun PresetSelector(
 
     Column(
         Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)
+        verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm),
     ) {
         if (loading) {
             Text("Loading server capabilities...", style = MaterialTheme.typography.bodyMedium)
@@ -140,48 +144,53 @@ fun PresetSelector(
             val serverId = snap.serverId
             val isExpanded = expandedServerId == serverId
             val serverSelected = selectedServers[serverId] == true
-            val cardColor = if (serverSelected) {
-                MaterialTheme.colorScheme.secondaryContainer
-            } else {
-                MaterialTheme.colorScheme.surfaceVariant
-            }
-            val contentColor = if (serverSelected) {
-                MaterialTheme.colorScheme.onSecondaryContainer
-            } else {
-                MaterialTheme.colorScheme.onSurface
-            }
-            val borderColor = if (serverSelected) {
-                MaterialTheme.colorScheme.primary
-            } else {
-                MaterialTheme.colorScheme.outlineVariant
-            }
-            val metaLabelColor = if (serverSelected) {
-                MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
-            } else {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            }
+            val cardColor =
+                if (serverSelected) {
+                    MaterialTheme.colorScheme.secondaryContainer
+                } else {
+                    MaterialTheme.colorScheme.surfaceVariant
+                }
+            val contentColor =
+                if (serverSelected) {
+                    MaterialTheme.colorScheme.onSecondaryContainer
+                } else {
+                    MaterialTheme.colorScheme.onSurface
+                }
+            val borderColor =
+                if (serverSelected) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.outlineVariant
+                }
+            val metaLabelColor =
+                if (serverSelected) {
+                    MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                }
             val selectedToolsCount = selectedTools[serverId]?.size ?: 0
             val selectedPromptsCount = selectedPrompts[serverId]?.size ?: 0
             val selectedResourcesCount = selectedResources[serverId]?.size ?: 0
             val arrowRotation by animateFloatAsState(
                 targetValue = if (isExpanded) 180f else 0f,
-                label = "serverCapabilitiesArrow"
+                label = "serverCapabilitiesArrow",
             )
             androidx.compose.material3.Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = AppTheme.shapes.item,
                 colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = cardColor),
-                border = androidx.compose.foundation.BorderStroke(1.dp, borderColor)
+                border = androidx.compose.foundation.BorderStroke(1.dp, borderColor),
             ) {
                 Column(Modifier.fillMaxWidth()) {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(
-                                horizontal = AppTheme.spacing.md,
-                                vertical = AppTheme.spacing.sm
-                            ),
-                        verticalAlignment = Alignment.CenterVertically
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(
+                                    horizontal = AppTheme.spacing.md,
+                                    vertical = AppTheme.spacing.sm,
+                                ),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Checkbox(
                             checked = serverSelected,
@@ -198,16 +207,17 @@ fun PresetSelector(
                                     selectedServers[serverId] = false
                                 }
                                 emitSelection()
-                            }
+                            },
                         )
                         Column(
-                            modifier = Modifier
-                                .weight(1f)
-                                .padding(start = AppTheme.spacing.sm)
+                            modifier =
+                                Modifier
+                                    .weight(1f)
+                                    .padding(start = AppTheme.spacing.sm),
                         ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
+                                verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Text(
                                     serverNames[serverId] ?: serverId,
@@ -215,7 +225,7 @@ fun PresetSelector(
                                     color = contentColor,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.weight(1f)
+                                    modifier = Modifier.weight(1f),
                                 )
                                 CapabilitiesInlineSummary(
                                     toolsCount = selectedToolsCount,
@@ -223,18 +233,18 @@ fun PresetSelector(
                                     resourcesCount = selectedResourcesCount,
                                     tint = metaLabelColor,
                                     iconSize = 12.dp,
-                                    textStyle = MaterialTheme.typography.bodySmall
+                                    textStyle = MaterialTheme.typography.bodySmall,
                                 )
                             }
                         }
                         IconButton(
-                            onClick = { expandedServerId = if (isExpanded) null else serverId }
+                            onClick = { expandedServerId = if (isExpanded) null else serverId },
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.ExpandMore,
                                 contentDescription = if (isExpanded) "Hide details" else "Show details",
                                 tint = contentColor,
-                                modifier = Modifier.rotate(arrowRotation)
+                                modifier = Modifier.rotate(arrowRotation),
                             )
                         }
                     }
@@ -242,12 +252,13 @@ fun PresetSelector(
                         CapabilitySection(
                             label = "Tools",
                             isEmpty = snap.tools.isEmpty(),
-                            emptyMessage = "No tools available"
+                            emptyMessage = "No tools available",
                         ) {
                             snap.tools.forEachIndexed { index, tool ->
                                 val checked = selectedTools[serverId]?.contains(tool.name) == true
-                                val description = tool.description?.takeIf { it.isNotBlank() }
-                                    ?: "No description provided"
+                                val description =
+                                    tool.description?.takeIf { it.isNotBlank() }
+                                        ?: "No description provided"
                                 CapabilitySelectionRow(
                                     title = tool.name,
                                     description = description,
@@ -258,11 +269,11 @@ fun PresetSelector(
                                         selectedTools[serverId] = next
                                         updateServerSelection(serverId)
                                         emitSelection()
-                                    }
+                                    },
                                 ) {
                                     CapabilityArgumentList(
                                         arguments = tool.arguments,
-                                        modifier = Modifier.padding(top = AppTheme.spacing.xs)
+                                        modifier = Modifier.padding(top = AppTheme.spacing.xs),
                                     )
                                 }
                                 if (index < snap.tools.lastIndex) {
@@ -273,12 +284,13 @@ fun PresetSelector(
                         CapabilitySection(
                             label = "Prompts",
                             isEmpty = snap.prompts.isEmpty(),
-                            emptyMessage = "No prompts available"
+                            emptyMessage = "No prompts available",
                         ) {
                             snap.prompts.forEachIndexed { index, prompt ->
                                 val checked = selectedPrompts[serverId]?.contains(prompt.name) == true
-                                val description = prompt.description?.takeIf { it.isNotBlank() }
-                                    ?: "No description provided"
+                                val description =
+                                    prompt.description?.takeIf { it.isNotBlank() }
+                                        ?: "No description provided"
                                 CapabilitySelectionRow(
                                     title = prompt.name,
                                     description = description,
@@ -290,11 +302,11 @@ fun PresetSelector(
                                         updateServerSelection(serverId)
                                         onPromptsConfiguredChange(true)
                                         emitSelection()
-                                    }
+                                    },
                                 ) {
                                     CapabilityArgumentList(
                                         arguments = prompt.arguments,
-                                        modifier = Modifier.padding(top = AppTheme.spacing.xs)
+                                        modifier = Modifier.padding(top = AppTheme.spacing.xs),
                                     )
                                 }
                                 if (index < snap.prompts.lastIndex) {
@@ -305,12 +317,13 @@ fun PresetSelector(
                         CapabilitySection(
                             label = "Resources",
                             isEmpty = snap.resources.isEmpty(),
-                            emptyMessage = "No resources available"
+                            emptyMessage = "No resources available",
                         ) {
                             snap.resources.forEachIndexed { index, resource ->
                                 val checked = selectedResources[serverId]?.contains(resource.key) == true
-                                val description = resource.description?.takeIf { it.isNotBlank() }
-                                    ?: resource.key
+                                val description =
+                                    resource.description?.takeIf { it.isNotBlank() }
+                                        ?: resource.key
                                 CapabilitySelectionRow(
                                     title = resource.name,
                                     description = description,
@@ -322,11 +335,11 @@ fun PresetSelector(
                                         updateServerSelection(serverId)
                                         onResourcesConfiguredChange(true)
                                         emitSelection()
-                                    }
+                                    },
                                 ) {
                                     CapabilityArgumentList(
                                         arguments = resource.arguments,
-                                        modifier = Modifier.padding(top = AppTheme.spacing.xs)
+                                        modifier = Modifier.padding(top = AppTheme.spacing.xs),
                                     )
                                 }
                                 if (index < snap.resources.lastIndex) {
@@ -346,30 +359,32 @@ private fun CapabilitySection(
     label: String,
     isEmpty: Boolean,
     emptyMessage: String,
-    content: @Composable ColumnScope.() -> Unit
+    content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         CapabilityDivider()
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = AppTheme.spacing.md, vertical = AppTheme.spacing.sm),
-            verticalAlignment = Alignment.CenterVertically
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = AppTheme.spacing.md, vertical = AppTheme.spacing.sm),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 label,
                 style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
             )
         }
         if (isEmpty) {
             Text(
                 emptyMessage,
-                modifier = Modifier
-                    .padding(horizontal = AppTheme.spacing.md)
-                    .padding(bottom = AppTheme.spacing.sm),
+                modifier =
+                    Modifier
+                        .padding(horizontal = AppTheme.spacing.md)
+                        .padding(bottom = AppTheme.spacing.sm),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         } else {
             Column(modifier = Modifier.fillMaxWidth()) {
@@ -385,30 +400,32 @@ private fun CapabilitySelectionRow(
     description: String,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
-    metaContent: @Composable (() -> Unit)? = null
+    metaContent: @Composable (() -> Unit)? = null,
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = AppTheme.spacing.md, vertical = AppTheme.spacing.xs),
-        verticalAlignment = Alignment.Top
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = AppTheme.spacing.md, vertical = AppTheme.spacing.xs),
+        verticalAlignment = Alignment.Top,
     ) {
         Checkbox(
             checked = checked,
-            onCheckedChange = onCheckedChange
+            onCheckedChange = onCheckedChange,
         )
         Column(
-            modifier = Modifier
-                .padding(start = AppTheme.spacing.sm)
-                .weight(1f),
-            verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.xs)
+            modifier =
+                Modifier
+                    .padding(start = AppTheme.spacing.sm)
+                    .weight(1f),
+            verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.xs),
         ) {
             Text(title, style = MaterialTheme.typography.bodyMedium)
             metaContent?.invoke()
             Text(
                 description,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -419,6 +436,6 @@ private fun CapabilityDivider() {
     HorizontalDivider(
         modifier = Modifier.padding(horizontal = AppTheme.spacing.md),
         thickness = AppTheme.strokeWidths.hairline,
-        color = MaterialTheme.colorScheme.outlineVariant
+        color = MaterialTheme.colorScheme.outlineVariant,
     )
 }

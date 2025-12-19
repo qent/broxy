@@ -18,24 +18,29 @@ internal object BroxyCliIntegrationFiles {
         return dir
     }
 
-    fun buildCliCommand(configDir: Path, inboundArgs: List<String>): List<String> = buildList {
-        add(javaExecutable())
-        add("-jar")
-        add(jarPath().pathString)
-        add("proxy")
-        add("--config-dir")
-        add(configDir.pathString)
-        add("--preset-id")
-        add(BroxyCliIntegrationConfig.PRESET_ID)
-        add("--log-level")
-        add(BroxyCliIntegrationConfig.CLI_LOG_LEVEL)
-        addAll(inboundArgs)
-    }
+    fun buildCliCommand(
+        configDir: Path,
+        inboundArgs: List<String>,
+    ): List<String> =
+        buildList {
+            add(javaExecutable())
+            add("-jar")
+            add(jarPath().pathString)
+            add("proxy")
+            add("--config-dir")
+            add(configDir.pathString)
+            add("--preset-id")
+            add(BroxyCliIntegrationConfig.PRESET_ID)
+            add("--log-level")
+            add(BroxyCliIntegrationConfig.CLI_LOG_LEVEL)
+            addAll(inboundArgs)
+        }
 
     fun resolveTestServerCommand(): String {
         val property = BroxyCliIntegrationConfig.TEST_SERVER_HOME_PROPERTY
-        val home = System.getProperty(property)?.takeIf { it.isNotBlank() }
-            ?: fail("System property '$property' must point to the test MCP server install dir")
+        val home =
+            System.getProperty(property)?.takeIf { it.isNotBlank() }
+                ?: fail("System property '$property' must point to the test MCP server install dir")
         val binDir = Paths.get(home, "bin")
         val scriptName = if (isWindows()) "test-mcp-server.bat" else "test-mcp-server"
         val path = binDir.resolve(scriptName)
@@ -46,26 +51,35 @@ internal object BroxyCliIntegrationFiles {
         return path.toAbsolutePath().pathString
     }
 
-    private fun writeTestServerConfig(destination: Path, httpServerUrl: String) {
+    private fun writeTestServerConfig(
+        destination: Path,
+        httpServerUrl: String,
+    ) {
         val template = readResource("/integration/mcp.json")
         val command = jsonEscape(resolveTestServerCommand())
-        val resolved = template
-            .replace(BroxyCliIntegrationConfig.TEST_SERVER_COMMAND_PLACEHOLDER, command)
-            .replace(BroxyCliIntegrationConfig.TEST_SERVER_HTTP_URL_PLACEHOLDER, jsonEscape(httpServerUrl))
+        val resolved =
+            template
+                .replace(BroxyCliIntegrationConfig.TEST_SERVER_COMMAND_PLACEHOLDER, command)
+                .replace(BroxyCliIntegrationConfig.TEST_SERVER_HTTP_URL_PLACEHOLDER, jsonEscape(httpServerUrl))
         Files.writeString(destination, resolved)
     }
 
     private fun readResource(resource: String): String {
-        val stream: InputStream = requireNotNull(javaClass.getResourceAsStream(resource)) {
-            "Missing classpath resource $resource"
-        }
+        val stream: InputStream =
+            requireNotNull(javaClass.getResourceAsStream(resource)) {
+                "Missing classpath resource $resource"
+            }
         return stream.use { it.bufferedReader().readText() }
     }
 
-    private fun copyResource(resource: String, destination: Path) {
-        val stream: InputStream = requireNotNull(javaClass.getResourceAsStream(resource)) {
-            "Missing classpath resource $resource"
-        }
+    private fun copyResource(
+        resource: String,
+        destination: Path,
+    ) {
+        val stream: InputStream =
+            requireNotNull(javaClass.getResourceAsStream(resource)) {
+                "Missing classpath resource $resource"
+            }
         stream.use {
             Files.copy(it, destination, StandardCopyOption.REPLACE_EXISTING)
         }
@@ -80,23 +94,25 @@ internal object BroxyCliIntegrationFiles {
         return if (candidate.exists()) candidate.pathString else "java"
     }
 
-    fun jarPath(): Path = Paths.get(
-        System.getProperty("broxy.cliJar")
-            ?: fail("System property 'broxy.cliJar' must point to the assembled CLI jar")
-    ).toAbsolutePath()
+    fun jarPath(): Path =
+        Paths.get(
+            System.getProperty("broxy.cliJar")
+                ?: fail("System property 'broxy.cliJar' must point to the assembled CLI jar"),
+        ).toAbsolutePath()
 
-    private fun jsonEscape(value: String): String = buildString {
-        value.forEach { ch ->
-            when (ch) {
-                '\\' -> append("\\\\")
-                '"' -> append("\\\"")
-                '\b' -> append("\\b")
-                '\u000C' -> append("\\f")
-                '\n' -> append("\\n")
-                '\r' -> append("\\r")
-                '\t' -> append("\\t")
-                else -> append(ch)
+    private fun jsonEscape(value: String): String =
+        buildString {
+            value.forEach { ch ->
+                when (ch) {
+                    '\\' -> append("\\\\")
+                    '"' -> append("\\\"")
+                    '\b' -> append("\\b")
+                    '\u000C' -> append("\\f")
+                    '\n' -> append("\\n")
+                    '\r' -> append("\\r")
+                    '\t' -> append("\\t")
+                    else -> append(ch)
+                }
             }
         }
-    }
 }

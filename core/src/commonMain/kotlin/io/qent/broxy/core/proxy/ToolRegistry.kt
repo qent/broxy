@@ -21,13 +21,15 @@ class ToolRegistry(
     private val servers: List<McpServerConnection>,
     private val namespace: NamespaceManager = DefaultNamespaceManager(),
     private val logger: Logger = ConsoleLogger,
-    private val ttlMillis: Long = DEFAULT_TTL_MS
+    private val ttlMillis: Long = DEFAULT_TTL_MS,
 ) {
     data class Entry(
         val serverId: String,
-        val name: String,             // original tool name without prefix
-        val prefixedName: String,     // serverId:name
-        val description: String?
+        // Original tool name without prefix.
+        val name: String,
+        // serverId:name
+        val prefixedName: String,
+        val description: String?,
     )
 
     private val multi = MultiServerClient(servers)
@@ -36,19 +38,21 @@ class ToolRegistry(
     private var timestamp: TimeSource.Monotonic.ValueTimeMark? = null
     private val ttl: Duration = ttlMillis.milliseconds
 
-    suspend fun refresh(force: Boolean = false) = mutex.withLock {
-        val ts = timestamp
-        if (!force && cached != null && ts != null && ts.elapsedNow() <= ttl) return
-        val all: Map<String, ServerCapabilities> = multi.fetchAllCapabilities()
-        cached = buildIndex(all)
-        timestamp = TimeSource.Monotonic.markNow()
-        logger.debug("ToolRegistry indexed ${cached?.size ?: 0} tools from ${all.size} servers")
-    }
+    suspend fun refresh(force: Boolean = false) =
+        mutex.withLock {
+            val ts = timestamp
+            if (!force && cached != null && ts != null && ts.elapsedNow() <= ttl) return
+            val all: Map<String, ServerCapabilities> = multi.fetchAllCapabilities()
+            cached = buildIndex(all)
+            timestamp = TimeSource.Monotonic.markNow()
+            logger.debug("ToolRegistry indexed ${cached?.size ?: 0} tools from ${all.size} servers")
+        }
 
-    suspend fun invalidate() = mutex.withLock {
-        cached = null
-        timestamp = null
-    }
+    suspend fun invalidate() =
+        mutex.withLock {
+            cached = null
+            timestamp = null
+        }
 
     suspend fun getTools(): List<Entry> {
         refresh(force = false)
@@ -62,8 +66,8 @@ class ToolRegistry(
         if (q.isEmpty()) return getTools()
         return getTools().filter { e ->
             e.prefixedName.lowercase().contains(q) ||
-                    e.name.lowercase().contains(q) ||
-                    (e.description?.lowercase()?.contains(q) == true)
+                e.name.lowercase().contains(q) ||
+                (e.description?.lowercase()?.contains(q) == true)
         }
     }
 
@@ -74,7 +78,7 @@ class ToolRegistry(
                     serverId = serverId,
                     name = t.name,
                     prefixedName = namespace.prefixToolName(serverId, t.name),
-                    description = t.description
+                    description = t.description,
                 )
             }
         }
@@ -84,4 +88,3 @@ class ToolRegistry(
         private const val DEFAULT_TTL_MS: Long = 60_000 // 1 minute
     }
 }
-

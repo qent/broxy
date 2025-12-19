@@ -7,9 +7,10 @@ import kotlinx.coroutines.CoroutineScope
 actual fun createRemoteConnector(
     logger: CollectingLogger,
     proxyLifecycle: ProxyLifecycle,
-    scope: CoroutineScope
-): RemoteConnector = RemoteConnectorImpl(
-    logger = logger,
-    proxyLifecycle = proxyLifecycle,
-    scope = scope
-)
+    scope: CoroutineScope,
+): RemoteConnector =
+    RemoteConnectorImpl(
+        logger = logger,
+        proxyLifecycle = proxyLifecycle,
+        scope = scope,
+    )

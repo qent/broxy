@@ -34,10 +34,11 @@ internal object BroxyCliIntegrationConfig {
     const val HTTP_INBOUND_PATH = "/mcp"
     const val HTTP_INBOUND_ATTEMPTS = 3
 
-    val EXPECTED_TOOLS = setOf(
-        "$STDIO_SERVER_ID:$ADD_TOOL_NAME",
-        "$HTTP_SERVER_ID:$SUBTRACT_TOOL_NAME"
-    )
+    val EXPECTED_TOOLS =
+        setOf(
+            "$STDIO_SERVER_ID:$ADD_TOOL_NAME",
+            "$HTTP_SERVER_ID:$SUBTRACT_TOOL_NAME",
+        )
     val EXPECTED_PROMPTS = setOf(HELLO_PROMPT, BYE_PROMPT)
     val EXPECTED_RESOURCES = setOf(RESOURCE_ALPHA, RESOURCE_BETA)
     val TEST_LOGGER = FilteredLogger(LogLevel.WARN)

@@ -1,20 +1,30 @@
 package io.qent.broxy.ui.adapter.remote
 
-import io.ktor.client.*
-import io.ktor.client.call.*
-import io.ktor.client.plugins.*
-import io.ktor.client.plugins.contentnegotiation.*
-import io.ktor.client.plugins.websocket.*
-import io.ktor.client.request.*
-import io.ktor.http.*
-import io.ktor.serialization.kotlinx.json.*
+import io.ktor.client.HttpClient
+import io.ktor.client.call.body
+import io.ktor.client.plugins.ClientRequestException
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.plugins.websocket.WebSockets
+import io.ktor.client.request.get
+import io.ktor.client.request.header
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
+import io.ktor.client.request.url
+import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
+import io.ktor.http.parseQueryString
+import io.ktor.serialization.kotlinx.json.json
 import io.qent.broxy.core.proxy.runtime.ProxyLifecycle
 import io.qent.broxy.core.utils.CollectingLogger
 import io.qent.broxy.ui.adapter.models.UiRemoteConnectionState
 import io.qent.broxy.ui.adapter.models.UiRemoteStatus
 import io.qent.broxy.ui.adapter.remote.auth.LoopbackCallbackServer
 import io.qent.broxy.ui.adapter.remote.auth.OAuthCallback
-import io.qent.broxy.ui.adapter.remote.net.*
+import io.qent.broxy.ui.adapter.remote.net.CallbackRequest
+import io.qent.broxy.ui.adapter.remote.net.LoginResponse
+import io.qent.broxy.ui.adapter.remote.net.RegisterRequest
+import io.qent.broxy.ui.adapter.remote.net.RegisterResponse
+import io.qent.broxy.ui.adapter.remote.net.TokenResponse
 import io.qent.broxy.ui.adapter.remote.storage.LoadedRemoteConfig
 import io.qent.broxy.ui.adapter.remote.storage.RemoteConfigStore
 import io.qent.broxy.ui.adapter.remote.storage.SecureStorageProvider
@@ -35,7 +45,8 @@ import java.net.URI
 import java.nio.file.Paths
 import java.time.Instant
 import java.time.format.DateTimeParseException
-import java.util.*
+import java.util.Base64
+import java.util.Locale
 import kotlin.coroutines.CoroutineContext
 
 private const val BASE_URL = "https://broxy.run"
@@ -49,18 +60,19 @@ class RemoteConnectorImpl(
     private val scope: CoroutineScope,
     private val ioContext: CoroutineContext = Dispatchers.IO,
     private val httpClient: HttpClient = defaultHttpClient(),
-    private val secureStore: SecureStore = SecureStorageProvider(
-        fallbackDir = Paths.get(System.getProperty("user.home"), ".config", "broxy", "secrets")
-    ).provide(),
-    private val configStore: RemoteConfigStore = RemoteConfigStore(
-        file = Paths.get(System.getProperty("user.home"), ".config", "broxy", "remote.json"),
-        secureStore = secureStore
-    ),
+    private val secureStore: SecureStore =
+        SecureStorageProvider(
+            fallbackDir = Paths.get(System.getProperty("user.home"), ".config", "broxy", "secrets"),
+        ).provide(),
+    private val configStore: RemoteConfigStore =
+        RemoteConfigStore(
+            file = Paths.get(System.getProperty("user.home"), ".config", "broxy", "remote.json"),
+            secureStore = secureStore,
+        ),
     private val now: () -> Instant = { Instant.now() },
     private val callbackServer: LoopbackCallbackServer = LoopbackCallbackServer(logger = logger),
-    private val wsFactory: RemoteWsClientFactory = RemoteWsClientFactory()
+    private val wsFactory: RemoteWsClientFactory = RemoteWsClientFactory(),
 ) : RemoteConnector {
-
     private val jsonParser = Json { ignoreUnknownKeys = true }
     private val _state = MutableStateFlow(defaultRemoteState())
     override val state: StateFlow<UiRemoteConnectionState> = _state
@@ -77,7 +89,11 @@ class RemoteConnectorImpl(
             cachedConfig = configStore.load()
             val loaded = cachedConfig
             if (loaded != null) {
-                logger.info("[RemoteAuth] Loaded cached remote config: server=${loaded.serverIdentifier}, email=${loaded.email}, accessExp=${loaded.accessTokenExpiresAt}, wsExp=${loaded.wsTokenExpiresAt}")
+                logger.info(
+                    "[RemoteAuth] Loaded cached remote config: " +
+                        "server=${loaded.serverIdentifier}, email=${loaded.email}, " +
+                        "accessExp=${loaded.accessTokenExpiresAt}, wsExp=${loaded.wsTokenExpiresAt}",
+                )
                 logTokenSnapshot("Loaded cached tokens", loaded.accessToken, loaded.wsToken)
                 if (!hasValidAccessToken(loaded) && !hasValidWsToken(loaded)) {
                     logger.warn("[RemoteAuth] Cached credentials are expired; clearing and waiting for authorization")
@@ -86,10 +102,11 @@ class RemoteConnectorImpl(
                     _state.value = defaultRemoteState().copy(serverIdentifier = loaded.serverIdentifier)
                     return@launch
                 }
-                _state.value = loaded.toUi().copy(
-                    status = if (hasCredentials(loaded)) UiRemoteStatus.Registered else UiRemoteStatus.NotAuthorized,
-                    message = null
-                )
+                _state.value =
+                    loaded.toUi().copy(
+                        status = if (hasCredentials(loaded)) UiRemoteStatus.Registered else UiRemoteStatus.NotAuthorized,
+                        message = null,
+                    )
                 if (hasCredentials(loaded) && proxyRunning) {
                     logger.info("[RemoteAuth] Cached credentials found; attempting auto-connect")
                     connectWithCachedTokens(auto = true)
@@ -105,13 +122,14 @@ class RemoteConnectorImpl(
     override fun updateServerIdentifier(value: String) {
         val normalized = normalizeIdentifier(value)
         logger.info("[RemoteAuth] Updating server identifier to '$normalized'")
-        _state.value = _state.value.copy(
-            serverIdentifier = normalized,
-            status = UiRemoteStatus.NotAuthorized,
-            hasCredentials = false,
-            message = null,
-            email = null
-        )
+        _state.value =
+            _state.value.copy(
+                serverIdentifier = normalized,
+                status = UiRemoteStatus.NotAuthorized,
+                hasCredentials = false,
+                message = null,
+                email = null,
+            )
         scope.launch(ioContext) {
             disconnectInternal(clearCredentials = false, reason = null)
             cachedConfig = null
@@ -123,7 +141,7 @@ class RemoteConnectorImpl(
                 accessToken = null,
                 accessTokenExpiresAt = null,
                 wsToken = null,
-                wsTokenExpiresAt = null
+                wsTokenExpiresAt = null,
             )
         }
     }
@@ -133,25 +151,27 @@ class RemoteConnectorImpl(
         scope.launch(ioContext) {
             logger.info("[RemoteAuth] Starting Google OAuth flow for server='${_state.value.serverIdentifier}'")
             _state.value = _state.value.copy(status = UiRemoteStatus.Authorizing, message = "Opening browser...")
-            val login = runCatching {
-                logger.info("[RemoteAuth] oauth_authorization_requested audience=mcp redirect_uri=$REDIRECT_URI")
-                httpClient.get("$BASE_URL/auth/mcp/login") {
-                    url {
-                        parameters.append("redirect_uri", REDIRECT_URI)
-                    }
-                }.body<LoginResponse>()
-            }
-                .onFailure { logger.error("[RemoteAuth] login failed: ${it.message}") }
-                .getOrElse {
-                    _state.value =
-                        _state.value.copy(status = UiRemoteStatus.Error, message = "Login failed: ${it.message}")
-                    return@launch
+            val login =
+                runCatching {
+                    logger.info("[RemoteAuth] oauth_authorization_requested audience=mcp redirect_uri=$REDIRECT_URI")
+                    httpClient.get("$BASE_URL/auth/mcp/login") {
+                        url {
+                            parameters.append("redirect_uri", REDIRECT_URI)
+                        }
+                    }.body<LoginResponse>()
                 }
+                    .onFailure { logger.error("[RemoteAuth] login failed: ${it.message}") }
+                    .getOrElse {
+                        _state.value =
+                            _state.value.copy(status = UiRemoteStatus.Error, message = "Login failed: ${it.message}")
+                        return@launch
+                    }
             logger.debug("[RemoteAuth] Login response received: state=${login.state}, redirect=${login.authorizationUrl}")
-            val redirectInAuthUrl = runCatching {
-                val uri = URI(login.authorizationUrl)
-                parseQueryString(uri.rawQuery ?: "").getAll("redirect_uri")?.firstOrNull()
-            }.getOrNull()
+            val redirectInAuthUrl =
+                runCatching {
+                    val uri = URI(login.authorizationUrl)
+                    parseQueryString(uri.rawQuery ?: "").getAll("redirect_uri")?.firstOrNull()
+                }.getOrNull()
             if (redirectInAuthUrl == null) {
                 val msg =
                     "Authorization URL missing redirect_uri; backend may be outdated or redirect_uri not forwarded"
@@ -169,36 +189,39 @@ class RemoteConnectorImpl(
             openBrowser(login.authorizationUrl)
             logger.debug("[RemoteAuth] Awaiting OAuth callback for state=${login.state}")
             val callbackResult = runCatching { callbackServer.awaitCallback(login.state) }
-            val callback: OAuthCallback = callbackResult.getOrNull()
-                ?: run {
-                    val msg = callbackResult.exceptionOrNull()?.let { "Callback server failed: ${it.message}" }
-                        ?: "Authorization timed out"
-                    logger.error(
-                        "[RemoteAuth] Authorization failed before callback: $msg",
-                        callbackResult.exceptionOrNull()
-                    )
-                    _state.value = _state.value.copy(status = UiRemoteStatus.Error, message = msg)
-                    return@launch
-                }
-            logger.info("[RemoteAuth] OAuth callback received; state=${callback.state}, codeLen=${callback.code.length}")
-            val tokenResp = runCatching {
-                httpClient.post("$BASE_URL/auth/mcp/callback") {
-                    contentType(ContentType.Application.Json)
-                    setBody(
-                        CallbackRequest(
-                            code = callback.code,
-                            state = callback.state,
-                            audience = "mcp",
-                            redirectUri = REDIRECT_URI
+            val callback: OAuthCallback =
+                callbackResult.getOrNull()
+                    ?: run {
+                        val msg =
+                            callbackResult.exceptionOrNull()?.let { "Callback server failed: ${it.message}" }
+                                ?: "Authorization timed out"
+                        logger.error(
+                            "[RemoteAuth] Authorization failed before callback: $msg",
+                            callbackResult.exceptionOrNull(),
                         )
-                    )
-                }.body<TokenResponse>()
-            }.onFailure { logger.error("[RemoteAuth] callback exchange failed: ${it.message}") }
-                .getOrElse {
-                    _state.value =
-                        _state.value.copy(status = UiRemoteStatus.Error, message = "Exchange failed: ${it.message}")
-                    return@launch
-                }
+                        _state.value = _state.value.copy(status = UiRemoteStatus.Error, message = msg)
+                        return@launch
+                    }
+            logger.info("[RemoteAuth] OAuth callback received; state=${callback.state}, codeLen=${callback.code.length}")
+            val tokenResp =
+                runCatching {
+                    httpClient.post("$BASE_URL/auth/mcp/callback") {
+                        header(HttpHeaders.ContentType, ContentType.Application.Json)
+                        setBody(
+                            CallbackRequest(
+                                code = callback.code,
+                                state = callback.state,
+                                audience = "mcp",
+                                redirectUri = REDIRECT_URI,
+                            ),
+                        )
+                    }.body<TokenResponse>()
+                }.onFailure { logger.error("[RemoteAuth] callback exchange failed: ${it.message}") }
+                    .getOrElse {
+                        _state.value =
+                            _state.value.copy(status = UiRemoteStatus.Error, message = "Exchange failed: ${it.message}")
+                        return@launch
+                    }
             if (!tokenResp.tokenType.equals("bearer", ignoreCase = true)) {
                 logger.error("[RemoteAuth] Invalid token_type '${tokenResp.tokenType}' received; expected bearer")
                 _state.value = _state.value.copy(status = UiRemoteStatus.Error, message = "Invalid token type")
@@ -221,11 +244,12 @@ class RemoteConnectorImpl(
             logTokenSnapshot("Access token received", tokenResp.accessToken, null)
             val register = registerServer(tokenResp.accessToken)
             if (register == null) {
-                _state.value = _state.value.copy(
-                    status = UiRemoteStatus.Error,
-                    message = "Register failed",
-                    hasCredentials = false
-                )
+                _state.value =
+                    _state.value.copy(
+                        status = UiRemoteStatus.Error,
+                        message = "Register failed",
+                        hasCredentials = false,
+                    )
                 return@launch
             }
             val wsExpiry = accessExpiry?.plusSeconds(24 * 3600) // backend default, best effort
@@ -235,16 +259,17 @@ class RemoteConnectorImpl(
                 accessToken = tokenResp.accessToken,
                 accessTokenExpiresAt = accessExpiry,
                 wsToken = register.jwtToken,
-                wsTokenExpiresAt = wsExpiry
+                wsTokenExpiresAt = wsExpiry,
             )
             logger.info("[RemoteAuth] Remote config saved; accessExp=$accessExpiry, wsExp=$wsExpiry, email=$email")
             logTokenSnapshot("Persisted tokens", tokenResp.accessToken, register.jwtToken)
-            _state.value = _state.value.copy(
-                status = UiRemoteStatus.Registered,
-                message = null,
-                email = email,
-                hasCredentials = true
-            )
+            _state.value =
+                _state.value.copy(
+                    status = UiRemoteStatus.Registered,
+                    message = null,
+                    email = email,
+                    hasCredentials = true,
+                )
             proxyRunning = proxyLifecycle.isRunning()
             if (proxyRunning) {
                 connectWebSocket(register.jwtToken)
@@ -297,21 +322,23 @@ class RemoteConnectorImpl(
         proxyRunning = proxyLifecycle.isRunning()
         if (!proxyRunning) {
             if (!auto) {
-                _state.value = _state.value.copy(
-                    status = UiRemoteStatus.Registered,
-                    message = "Start MCP proxy to connect",
-                    hasCredentials = true
-                )
+                _state.value =
+                    _state.value.copy(
+                        status = UiRemoteStatus.Registered,
+                        message = "Start MCP proxy to connect",
+                        hasCredentials = true,
+                    )
             }
             return
         }
         val wsToken = config.wsToken?.takeIf { hasValidWsToken(config) }
         if (wsToken != null) {
-            _state.value = _state.value.copy(
-                status = UiRemoteStatus.WsConnecting,
-                message = null,
-                hasCredentials = true
-            )
+            _state.value =
+                _state.value.copy(
+                    status = UiRemoteStatus.WsConnecting,
+                    message = null,
+                    hasCredentials = true,
+                )
             connectWebSocket(wsToken)
             return
         }
@@ -331,116 +358,131 @@ class RemoteConnectorImpl(
             accessToken = config.accessToken,
             accessTokenExpiresAt = config.accessTokenExpiresAt,
             wsToken = register.jwtToken,
-            wsTokenExpiresAt = wsExpiry
+            wsTokenExpiresAt = wsExpiry,
         )
-        _state.value = _state.value.copy(
-            status = UiRemoteStatus.Registered,
-            hasCredentials = true,
-            email = config.email,
-            message = null
-        )
+        _state.value =
+            _state.value.copy(
+                status = UiRemoteStatus.Registered,
+                hasCredentials = true,
+                email = config.email,
+                message = null,
+            )
         connectWebSocket(register.jwtToken)
     }
 
-    private suspend fun disconnectInternal(clearCredentials: Boolean, reason: String?) {
+    private suspend fun disconnectInternal(
+        clearCredentials: Boolean,
+        reason: String?,
+    ) {
         runCatching { wsClient?.close() }
         wsClient = null
         val hasCreds = _state.value.hasCredentials
         if (clearCredentials || !hasCreds) {
             cachedConfig = null
             configStore.clear()
-            _state.value = defaultRemoteState().copy(
-                serverIdentifier = _state.value.serverIdentifier,
-                message = reason
-            )
+            _state.value =
+                defaultRemoteState().copy(
+                    serverIdentifier = _state.value.serverIdentifier,
+                    message = reason,
+                )
             return
         }
-        _state.value = _state.value.copy(
-            status = UiRemoteStatus.WsOffline,
-            message = reason,
-            hasCredentials = true
-        )
+        _state.value =
+            _state.value.copy(
+                status = UiRemoteStatus.WsOffline,
+                message = reason,
+                hasCredentials = true,
+            )
     }
 
     private suspend fun connectWebSocket(jwt: String) {
         if (!proxyLifecycle.isRunning()) {
             logger.warn("[RemoteAuth] Skipping WebSocket connect: MCP proxy is not running")
-            _state.value = _state.value.copy(
-                status = UiRemoteStatus.Registered,
-                message = "Start MCP proxy to connect",
-                hasCredentials = true
-            )
+            _state.value =
+                _state.value.copy(
+                    status = UiRemoteStatus.Registered,
+                    message = "Start MCP proxy to connect",
+                    hasCredentials = true,
+                )
             return
         }
         val proxyProvider = { proxyLifecycle.currentProxy() }
         val wsUrl = "$WS_BASE_URL$WS_PATH/${_state.value.serverIdentifier}"
         logger.info("[RemoteAuth] Initiating WebSocket connection to $wsUrl")
         wsClient?.close()
-        val client = wsFactory.create(
-            httpClient = httpClient,
-            url = wsUrl,
-            authToken = jwt,
-            serverIdentifier = _state.value.serverIdentifier,
-            proxyProvider = proxyProvider,
-            logger = logger,
-            scope = scope,
-            onStatus = { status, message ->
-                _state.value = _state.value.copy(status = status, message = message, hasCredentials = true)
-            },
-            onAuthFailure = { reason ->
-                logger.error("[RemoteAuth] WebSocket authentication failed: $reason")
-                _state.value = _state.value.copy(status = UiRemoteStatus.Error, message = reason, hasCredentials = true)
-            }
-        )
+        val client =
+            wsFactory.create(
+                httpClient = httpClient,
+                url = wsUrl,
+                authToken = jwt,
+                serverIdentifier = _state.value.serverIdentifier,
+                proxyProvider = proxyProvider,
+                logger = logger,
+                scope = scope,
+                onStatus = { status, message ->
+                    _state.value = _state.value.copy(status = status, message = message, hasCredentials = true)
+                },
+                onAuthFailure = { reason ->
+                    logger.error("[RemoteAuth] WebSocket authentication failed: $reason")
+                    _state.value = _state.value.copy(status = UiRemoteStatus.Error, message = reason, hasCredentials = true)
+                },
+            )
         wsClient = client
         val result = client.connect()
         if (result.isFailure) {
             logger.warn("[RemoteAuth] WebSocket connection failed: ${result.exceptionOrNull()?.message}")
-            _state.value = _state.value.copy(
-                status = UiRemoteStatus.WsOffline,
-                message = result.exceptionOrNull()?.message,
-                hasCredentials = true
-            )
+            _state.value =
+                _state.value.copy(
+                    status = UiRemoteStatus.WsOffline,
+                    message = result.exceptionOrNull()?.message,
+                    hasCredentials = true,
+                )
         } else {
             logger.info("[RemoteAuth] WebSocket connection established")
             logger.info("[RemoteAuth] websocket_online server_identifier=${_state.value.serverIdentifier}")
         }
     }
 
-    private suspend fun registerServer(accessToken: String): RegisterResponse? = runCatching {
-        _state.value = _state.value.copy(
-            status = UiRemoteStatus.Registering,
-            message = "Registering server",
-            hasCredentials = true
-        )
-        logger.info("[RemoteAuth] Registering server '${_state.value.serverIdentifier}' with remote backend")
-        httpClient.post("$BASE_URL/auth/mcp/register") {
-            header(HttpHeaders.Authorization, "Bearer $accessToken")
-            contentType(ContentType.Application.Json)
-            setBody(
-                RegisterRequest(
-                    serverIdentifier = _state.value.serverIdentifier,
-                    name = _state.value.serverIdentifier,
-                    capabilities = RegisterRequest.Capabilities(prompts = true, tools = true, resources = true)
+    private suspend fun registerServer(accessToken: String): RegisterResponse? =
+        runCatching {
+            _state.value =
+                _state.value.copy(
+                    status = UiRemoteStatus.Registering,
+                    message = "Registering server",
+                    hasCredentials = true,
                 )
-            )
-        }.body<RegisterResponse>()
-    }.onSuccess { response ->
-        logger.info("[RemoteAuth] Register response: status=${response.status}, server=${response.serverIdentifier}")
-        logger.info("[RemoteAuth] server_registered server_identifier=${response.serverIdentifier}")
-        logTokenSnapshot("Received WebSocket JWT", null, response.jwtToken)
-    }.onFailure {
-        val msg = when (it) {
-            is ClientRequestException -> {
-                if (it.response.status.value == 403) "Server identifier is already in use"
-                else "Register failed (${it.response.status.value})"
-            }
+            logger.info("[RemoteAuth] Registering server '${_state.value.serverIdentifier}' with remote backend")
+            httpClient.post("$BASE_URL/auth/mcp/register") {
+                header(HttpHeaders.Authorization, "Bearer $accessToken")
+                header(HttpHeaders.ContentType, ContentType.Application.Json)
+                setBody(
+                    RegisterRequest(
+                        serverIdentifier = _state.value.serverIdentifier,
+                        name = _state.value.serverIdentifier,
+                        capabilities = RegisterRequest.Capabilities(prompts = true, tools = true, resources = true),
+                    ),
+                )
+            }.body<RegisterResponse>()
+        }.onSuccess { response ->
+            logger.info("[RemoteAuth] Register response: status=${response.status}, server=${response.serverIdentifier}")
+            logger.info("[RemoteAuth] server_registered server_identifier=${response.serverIdentifier}")
+            logTokenSnapshot("Received WebSocket JWT", null, response.jwtToken)
+        }.onFailure {
+            val msg =
+                when (it) {
+                    is ClientRequestException -> {
+                        if (it.response.status.value == 403) {
+                            "Server identifier is already in use"
+                        } else {
+                            "Register failed (${it.response.status.value})"
+                        }
+                    }
 
-            else -> it.message ?: "Register failed"
-        }
-        _state.value = _state.value.copy(status = UiRemoteStatus.Error, message = msg, hasCredentials = true)
-        logger.error("[RemoteAuth] register failed: $msg")
-    }.getOrNull()
+                    else -> it.message ?: "Register failed"
+                }
+            _state.value = _state.value.copy(status = UiRemoteStatus.Error, message = msg, hasCredentials = true)
+            logger.error("[RemoteAuth] register failed: $msg")
+        }.getOrNull()
 
     private fun loadCachedConfig(): LoadedRemoteConfig? {
         cachedConfig = cachedConfig ?: configStore.load()
@@ -462,57 +504,60 @@ class RemoteConnectorImpl(
         accessToken: String?,
         accessTokenExpiresAt: Instant?,
         wsToken: String?,
-        wsTokenExpiresAt: Instant?
+        wsTokenExpiresAt: Instant?,
     ) {
-        cachedConfig = LoadedRemoteConfig(
-            serverIdentifier = serverIdentifier,
-            email = email,
-            accessToken = accessToken,
-            accessTokenExpiresAt = accessTokenExpiresAt,
-            wsToken = wsToken,
-            wsTokenExpiresAt = wsTokenExpiresAt
-        )
+        cachedConfig =
+            LoadedRemoteConfig(
+                serverIdentifier = serverIdentifier,
+                email = email,
+                accessToken = accessToken,
+                accessTokenExpiresAt = accessTokenExpiresAt,
+                wsToken = wsToken,
+                wsTokenExpiresAt = wsTokenExpiresAt,
+            )
         configStore.save(
             serverIdentifier = serverIdentifier,
             email = email,
             accessToken = accessToken,
             accessTokenExpiresAt = accessTokenExpiresAt,
             wsToken = wsToken,
-            wsTokenExpiresAt = wsTokenExpiresAt
+            wsTokenExpiresAt = wsTokenExpiresAt,
         )
     }
 
-    private fun isExpired(expiry: Instant?): Boolean =
-        expiry != null && now().isAfter(expiry.minusSeconds(60))
+    private fun isExpired(expiry: Instant?): Boolean = expiry != null && now().isAfter(expiry.minusSeconds(60))
 
-    private fun parseInstant(value: String?): Instant? = try {
-        value?.let { Instant.parse(it) }
-    } catch (_: DateTimeParseException) {
-        null
-    }
+    private fun parseInstant(value: String?): Instant? =
+        try {
+            value?.let { Instant.parse(it) }
+        } catch (_: DateTimeParseException) {
+            null
+        }
 
     private fun normalizeIdentifier(value: String): String {
-        val normalized = value.lowercase(Locale.getDefault())
-            .map { ch ->
-                when {
-                    ch.isLetterOrDigit() -> ch
-                    ch == '-' || ch == '_' || ch == '.' -> '-'
-                    else -> '-'
+        val normalized =
+            value.lowercase(Locale.getDefault())
+                .map { ch ->
+                    when {
+                        ch.isLetterOrDigit() -> ch
+                        ch == '-' || ch == '_' || ch == '.' -> '-'
+                        else -> '-'
+                    }
                 }
-            }
-            .joinToString("")
-            .replace(Regex("-+"), "-")
-            .trim('-')
+                .joinToString("")
+                .replace(Regex("-+"), "-")
+                .trim('-')
         return normalized.ifBlank { defaultRemoteServerIdentifier() }.take(64)
     }
 
-    private fun extractEmail(token: String): String? = runCatching {
-        val parts = token.split(".")
-        if (parts.size < 2) return@runCatching null
-        val payload = String(Base64.getUrlDecoder().decode(parts[1]))
-        val json = jsonParser.parseToJsonElement(payload).jsonObject
-        json["email"]?.jsonPrimitive?.contentOrNull
-    }.getOrNull()
+    private fun extractEmail(token: String): String? =
+        runCatching {
+            val parts = token.split(".")
+            if (parts.size < 2) return@runCatching null
+            val payload = String(Base64.getUrlDecoder().decode(parts[1]))
+            val json = jsonParser.parseToJsonElement(payload).jsonObject
+            json["email"]?.jsonPrimitive?.contentOrNull
+        }.getOrNull()
 
     private fun openBrowser(url: String) {
         runCatching {
@@ -522,7 +567,11 @@ class RemoteConnectorImpl(
         }.onFailure { logger.warn("[RemoteAuth] failed to open browser: ${it.message}") }
     }
 
-    private fun logTokenSnapshot(context: String, accessToken: String?, wsToken: String?) {
+    private fun logTokenSnapshot(
+        context: String,
+        accessToken: String?,
+        wsToken: String?,
+    ) {
         val access = redactToken(accessToken)
         val ws = redactToken(wsToken)
         logger.debug("[RemoteAuth] $context | access=$access, ws=$ws")
@@ -534,11 +583,12 @@ class RemoteConnectorImpl(
         } ?: "null"
 }
 
-private fun defaultHttpClient(): HttpClient = HttpClient {
-    install(WebSockets) {
-        pingIntervalMillis = 10000
+private fun defaultHttpClient(): HttpClient =
+    HttpClient {
+        install(WebSockets) {
+            pingIntervalMillis = 10000
+        }
+        install(ContentNegotiation) {
+            json(Json { ignoreUnknownKeys = true })
+        }
     }
-    install(ContentNegotiation) {
-        json(Json { ignoreUnknownKeys = true })
-    }
-}

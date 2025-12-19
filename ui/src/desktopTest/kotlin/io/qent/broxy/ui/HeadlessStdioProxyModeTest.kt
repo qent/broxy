@@ -29,4 +29,3 @@ class HeadlessStdioProxyModeTest {
         assertFalse(shouldRunHeadlessStdioProxy(args) { true })
     }
 }
-

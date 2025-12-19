@@ -11,20 +11,24 @@ import io.qent.broxy.ui.theme.AppTheme
  */
 object AppButtonDefaults {
     @Composable
-    fun primaryColors(): ButtonColors = ButtonDefaults.buttonColors(
-        containerColor = MaterialTheme.colorScheme.primary,
-        contentColor = MaterialTheme.colorScheme.onPrimary,
-        disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
-        disabledContentColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.5f)
-    )
+    fun primaryColors(): ButtonColors =
+        ButtonDefaults.buttonColors(
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+            disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+            disabledContentColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.5f),
+        )
 
     @Composable
-    fun secondaryColors(): ButtonColors = ButtonDefaults.outlinedButtonColors(
-        containerColor = MaterialTheme.colorScheme.surface, // Transparent/Surface
-        contentColor = MaterialTheme.colorScheme.primary, // Accent color text
-        disabledContainerColor = MaterialTheme.colorScheme.surface,
-        disabledContentColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
-    )
+    fun secondaryColors(): ButtonColors =
+        ButtonDefaults.outlinedButtonColors(
+            // Transparent/Surface
+            containerColor = MaterialTheme.colorScheme.surface,
+            // Accent color text
+            contentColor = MaterialTheme.colorScheme.primary,
+            disabledContainerColor = MaterialTheme.colorScheme.surface,
+            disabledContentColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+        )
 }
 
 @Composable
@@ -32,7 +36,7 @@ fun AppPrimaryButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    content: @Composable RowScope.() -> Unit
+    content: @Composable RowScope.() -> Unit,
 ) {
     Button(
         onClick = onClick,
@@ -40,7 +44,7 @@ fun AppPrimaryButton(
         enabled = enabled,
         shape = AppTheme.shapes.button,
         colors = AppButtonDefaults.primaryColors(),
-        content = content
+        content = content,
     )
 }
 
@@ -49,7 +53,7 @@ fun AppSecondaryButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    content: @Composable RowScope.() -> Unit
+    content: @Composable RowScope.() -> Unit,
 ) {
     OutlinedButton(
         onClick = onClick,
@@ -57,10 +61,11 @@ fun AppSecondaryButton(
         enabled = enabled,
         shape = AppTheme.shapes.button,
         colors = AppButtonDefaults.secondaryColors(),
-        border = BorderStroke(
-            1.dp,
-            if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
-        ),
-        content = content
+        border =
+            BorderStroke(
+                1.dp,
+                if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+            ),
+        content = content,
     )
 }

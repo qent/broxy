@@ -1,19 +1,44 @@
 package io.qent.broxy.testserver
 
-import io.ktor.http.*
-import io.ktor.server.application.*
-import io.ktor.server.engine.*
-import io.ktor.server.netty.*
-import io.ktor.server.plugins.calllogging.*
-import io.ktor.server.request.*
-import io.ktor.server.response.*
-import io.ktor.server.routing.*
+import io.ktor.http.ContentType
+import io.ktor.http.HttpStatusCode
+import io.ktor.server.application.call
+import io.ktor.server.application.install
+import io.ktor.server.engine.embeddedServer
+import io.ktor.server.netty.Netty
+import io.ktor.server.plugins.calllogging.CallLogging
+import io.ktor.server.request.contentType
+import io.ktor.server.request.receiveText
+import io.ktor.server.response.respond
+import io.ktor.server.response.respondText
+import io.ktor.server.routing.Route
+import io.ktor.server.routing.delete
+import io.ktor.server.routing.get
+import io.ktor.server.routing.post
+import io.ktor.server.routing.route
+import io.ktor.server.routing.routing
 import io.modelcontextprotocol.kotlin.sdk.server.Server
 import io.modelcontextprotocol.kotlin.sdk.server.ServerOptions
 import io.modelcontextprotocol.kotlin.sdk.server.StdioServerTransport
 import io.modelcontextprotocol.kotlin.sdk.shared.AbstractTransport
 import io.modelcontextprotocol.kotlin.sdk.shared.TransportSendOptions
-import io.modelcontextprotocol.kotlin.sdk.types.*
+import io.modelcontextprotocol.kotlin.sdk.types.CallToolResult
+import io.modelcontextprotocol.kotlin.sdk.types.GetPromptResult
+import io.modelcontextprotocol.kotlin.sdk.types.Implementation
+import io.modelcontextprotocol.kotlin.sdk.types.JSONRPCMessage
+import io.modelcontextprotocol.kotlin.sdk.types.JSONRPCRequest
+import io.modelcontextprotocol.kotlin.sdk.types.JSONRPCResponse
+import io.modelcontextprotocol.kotlin.sdk.types.McpJson
+import io.modelcontextprotocol.kotlin.sdk.types.Prompt
+import io.modelcontextprotocol.kotlin.sdk.types.PromptArgument
+import io.modelcontextprotocol.kotlin.sdk.types.PromptMessage
+import io.modelcontextprotocol.kotlin.sdk.types.ReadResourceResult
+import io.modelcontextprotocol.kotlin.sdk.types.RequestId
+import io.modelcontextprotocol.kotlin.sdk.types.Role
+import io.modelcontextprotocol.kotlin.sdk.types.ServerCapabilities
+import io.modelcontextprotocol.kotlin.sdk.types.TextContent
+import io.modelcontextprotocol.kotlin.sdk.types.TextResourceContents
+import io.modelcontextprotocol.kotlin.sdk.types.ToolSchema
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.runBlocking
@@ -32,7 +57,7 @@ fun main(args: Array<String>) {
 }
 
 class SimpleTestMcpServer(
-    private val options: ServerCliOptions = ServerCliOptions()
+    private val options: ServerCliOptions = ServerCliOptions(),
 ) {
     fun start() {
         when (options.mode) {
@@ -43,10 +68,11 @@ class SimpleTestMcpServer(
 
     private suspend fun startStdio() {
         val server = buildServer()
-        val transport = StdioServerTransport(
-            System.`in`.asSource().buffered(),
-            System.out.asSink().buffered()
-        )
+        val transport =
+            StdioServerTransport(
+                System.`in`.asSource().buffered(),
+                System.out.asSink().buffered(),
+            )
         val shutdownSignal = CompletableDeferred<Unit>()
         transport.onClose {
             if (!shutdownSignal.isCompleted) {
@@ -54,12 +80,15 @@ class SimpleTestMcpServer(
             }
         }
         System.err.println("SimpleTestMcpServer: waiting for STDIO client")
+        val result =
+            runCatching {
+                server.createSession(transport)
+                shutdownSignal.await()
+            }.onFailure { error ->
+                System.err.println("SimpleTestMcpServer: STDIO connection failed - ${error.message}")
+            }
         try {
-            server.createSession(transport)
-            shutdownSignal.await()
-        } catch (t: Throwable) {
-            System.err.println("SimpleTestMcpServer: STDIO connection failed - ${t.message}")
-            throw t
+            result.getOrThrow()
         } finally {
             runCatching { transport.close() }
             System.err.println("SimpleTestMcpServer: STDIO connection closed")
@@ -68,13 +97,14 @@ class SimpleTestMcpServer(
 
     private fun startHttpStreamable() {
         val normalizedPath = normalizePath(options.path)
-        println("Starting HTTP Streamable test server on http://${options.host}:${options.port}${normalizedPath.display}")
+        val displayUrl = "http://${options.host}:${options.port}${normalizedPath.display}"
+        println("Starting HTTP Streamable test server on $displayUrl")
         val server = buildServer()
         val sessions = StreamableHttpSessionRegistry(server)
         embeddedServer(
             Netty,
             host = options.host,
-            port = options.port
+            port = options.port,
         ) {
             install(CallLogging)
             routing {
@@ -89,9 +119,7 @@ class SimpleTestMcpServer(
         }.start(wait = true)
     }
 
-    private fun Route.mountStreamableHttpRoute(
-        sessions: StreamableHttpSessionRegistry
-    ) {
+    private fun Route.mountStreamableHttpRoute(sessions: StreamableHttpSessionRegistry) {
         get {
             call.respond(HttpStatusCode.MethodNotAllowed, "SSE stream is not supported; use Streamable HTTP POST")
         }
@@ -117,28 +145,34 @@ class SimpleTestMcpServer(
             call.response.headers.append(MCP_SESSION_ID_HEADER, session.transport.sessionId)
 
             val body = call.receiveText()
-            val message = runCatching { McpJson.decodeFromString<JSONRPCMessage>(body) }
-                .getOrElse { error ->
-                    call.respond(
-                        HttpStatusCode.BadRequest,
-                        "Invalid MCP message: ${error.message ?: error::class.simpleName}"
-                    )
-                    return@post
-                }
+            val message =
+                runCatching { McpJson.decodeFromString<JSONRPCMessage>(body) }
+                    .getOrElse { error ->
+                        call.respond(
+                            HttpStatusCode.BadRequest,
+                            "Invalid MCP message: ${error.message ?: error::class.simpleName}",
+                        )
+                        return@post
+                    }
 
             when (message) {
                 is JSONRPCRequest -> {
-                    val response = runCatching { session.transport.awaitResponse(message) }
-                        .getOrElse { error ->
-                            val status =
-                                if (error is TimeoutCancellationException) HttpStatusCode.RequestTimeout else HttpStatusCode.InternalServerError
-                            call.respond(status, error.message ?: "Failed to handle MCP request")
-                            return@post
-                        }
+                    val response =
+                        runCatching { session.transport.awaitResponse(message) }
+                            .getOrElse { error ->
+                                val status =
+                                    if (error is TimeoutCancellationException) {
+                                        HttpStatusCode.RequestTimeout
+                                    } else {
+                                        HttpStatusCode.InternalServerError
+                                    }
+                                call.respond(status, error.message ?: "Failed to handle MCP request")
+                                return@post
+                            }
                     call.respondText(
                         text = McpJson.encodeToString(JSONRPCMessage.serializer(), response),
                         contentType = ContentType.Application.Json,
-                        status = HttpStatusCode.OK
+                        status = HttpStatusCode.OK,
                     )
                 }
 
@@ -151,17 +185,20 @@ class SimpleTestMcpServer(
     }
 
     private fun buildServer(): Server {
-        val server = Server(
-            serverInfo = Implementation(name = SERVER_NAME, version = SERVER_VERSION),
-            options = ServerOptions(
-                capabilities = ServerCapabilities(
-                    // Provide explicit initialize capabilities per MCP spec
-                    prompts = ServerCapabilities.Prompts(listChanged = false),
-                    resources = ServerCapabilities.Resources(subscribe = false, listChanged = false),
-                    tools = ServerCapabilities.Tools(listChanged = false)
-                )
+        val server =
+            Server(
+                serverInfo = Implementation(name = SERVER_NAME, version = SERVER_VERSION),
+                options =
+                    ServerOptions(
+                        capabilities =
+                            ServerCapabilities(
+                                // Provide explicit initialize capabilities per MCP spec
+                                prompts = ServerCapabilities.Prompts(listChanged = false),
+                                resources = ServerCapabilities.Resources(subscribe = false, listChanged = false),
+                                tools = ServerCapabilities.Tools(listChanged = false),
+                            ),
+                    ),
             )
-        )
         registerTools(server)
         registerResources(server)
         registerPrompts(server)
@@ -175,23 +212,25 @@ class SimpleTestMcpServer(
             description = "Adds two numbers together",
             inputSchema = ToolSchema(),
             outputSchema = null,
-            toolAnnotations = null
+            toolAnnotations = null,
         ) { req ->
             val args = req.arguments ?: JsonObject(emptyMap())
             val a = args.value("a")
             val b = args.value("b")
             CallToolResult(
-                content = listOf(
-                    TextContent("$a + $b = ${a + b}")
-                ),
-                structuredContent = JsonObject(
-                    mapOf(
-                        "operation" to JsonPrimitive("addition"),
-                        "result" to JsonPrimitive(a + b)
-                    )
-                ),
+                content =
+                    listOf(
+                        TextContent("$a + $b = ${a + b}"),
+                    ),
+                structuredContent =
+                    JsonObject(
+                        mapOf(
+                            "operation" to JsonPrimitive("addition"),
+                            "result" to JsonPrimitive(a + b),
+                        ),
+                    ),
                 isError = false,
-                meta = JsonObject(emptyMap())
+                meta = JsonObject(emptyMap()),
             )
         }
 
@@ -201,23 +240,25 @@ class SimpleTestMcpServer(
             description = "Subtracts the second number from the first",
             inputSchema = ToolSchema(),
             outputSchema = null,
-            toolAnnotations = null
+            toolAnnotations = null,
         ) { req ->
             val args = req.arguments ?: JsonObject(emptyMap())
             val a = args.value("a")
             val b = args.value("b")
             CallToolResult(
-                content = listOf(
-                    TextContent("$a - $b = ${a - b}")
-                ),
-                structuredContent = JsonObject(
-                    mapOf(
-                        "operation" to JsonPrimitive("subtraction"),
-                        "result" to JsonPrimitive(a - b)
-                    )
-                ),
+                content =
+                    listOf(
+                        TextContent("$a - $b = ${a - b}"),
+                    ),
+                structuredContent =
+                    JsonObject(
+                        mapOf(
+                            "operation" to JsonPrimitive("subtraction"),
+                            "result" to JsonPrimitive(a - b),
+                        ),
+                    ),
                 isError = false,
-                meta = JsonObject(emptyMap())
+                meta = JsonObject(emptyMap()),
             )
         }
     }
@@ -227,17 +268,18 @@ class SimpleTestMcpServer(
             uri = RESOURCE_ALPHA_URI,
             name = "alpha",
             description = "Alpha sample text",
-            mimeType = "text/plain"
+            mimeType = "text/plain",
         ) {
             ReadResourceResult(
-                contents = listOf(
-                    TextResourceContents(
-                        text = "Alpha resource content",
-                        uri = RESOURCE_ALPHA_URI,
-                        mimeType = "text/plain"
-                    )
-                ),
-                meta = JsonObject(emptyMap())
+                contents =
+                    listOf(
+                        TextResourceContents(
+                            text = "Alpha resource content",
+                            uri = RESOURCE_ALPHA_URI,
+                            mimeType = "text/plain",
+                        ),
+                    ),
+                meta = JsonObject(emptyMap()),
             )
         }
 
@@ -245,44 +287,47 @@ class SimpleTestMcpServer(
             uri = RESOURCE_BETA_URI,
             name = "beta",
             description = "Beta sample text",
-            mimeType = "text/plain"
+            mimeType = "text/plain",
         ) {
             ReadResourceResult(
-                contents = listOf(
-                    TextResourceContents(
-                        text = "Beta resource content",
-                        uri = RESOURCE_BETA_URI,
-                        mimeType = "text/plain"
-                    )
-                ),
-                meta = JsonObject(emptyMap())
+                contents =
+                    listOf(
+                        TextResourceContents(
+                            text = "Beta resource content",
+                            uri = RESOURCE_BETA_URI,
+                            mimeType = "text/plain",
+                        ),
+                    ),
+                meta = JsonObject(emptyMap()),
             )
         }
     }
 
     private fun registerPrompts(server: Server) {
-        val argument = PromptArgument(
-            name = "name",
-            description = "Name to include in the response",
-            required = true
-        )
+        val argument =
+            PromptArgument(
+                name = "name",
+                description = "Name to include in the response",
+                required = true,
+            )
 
         server.addPrompt(
             Prompt(
                 name = HELLO_PROMPT,
                 description = "Says hello",
-                arguments = listOf(argument)
-            )
+                arguments = listOf(argument),
+            ),
         ) { req ->
             GetPromptResult(
                 description = "Friendly hello",
-                messages = listOf(
-                    PromptMessage(
-                        role = Role.Assistant,
-                        content = TextContent("Hello ${req.arguments?.get("name") ?: "friend"}!")
-                    )
-                ),
-                meta = JsonObject(emptyMap())
+                messages =
+                    listOf(
+                        PromptMessage(
+                            role = Role.Assistant,
+                            content = TextContent("Hello ${req.arguments?.get("name") ?: "friend"}!"),
+                        ),
+                    ),
+                meta = JsonObject(emptyMap()),
             )
         }
 
@@ -290,18 +335,19 @@ class SimpleTestMcpServer(
             Prompt(
                 name = BYE_PROMPT,
                 description = "Says goodbye",
-                arguments = listOf(argument)
-            )
+                arguments = listOf(argument),
+            ),
         ) { req ->
             GetPromptResult(
                 description = "Friendly goodbye",
-                messages = listOf(
-                    PromptMessage(
-                        role = Role.Assistant,
-                        content = TextContent("Bye ${req.arguments?.get("name") ?: "friend"}!")
-                    )
-                ),
-                meta = JsonObject(emptyMap())
+                messages =
+                    listOf(
+                        PromptMessage(
+                            role = Role.Assistant,
+                            content = TextContent("Bye ${req.arguments?.get("name") ?: "friend"}!"),
+                        ),
+                    ),
+                meta = JsonObject(emptyMap()),
             )
         }
     }
@@ -334,13 +380,13 @@ class SimpleTestMcpServer(
 
 private data class NormalizedPath(
     val display: String,
-    val routeSegments: String
+    val routeSegments: String,
 )
 
 private const val REQUEST_TIMEOUT_MILLIS = 60_000L
 
 private class StreamableHttpSessionRegistry(
-    private val server: Server
+    private val server: Server,
 ) {
     private val sessions = ConcurrentHashMap<String, StreamableHttpSession>()
 
@@ -365,7 +411,7 @@ private class StreamableHttpSessionRegistry(
 
 private data class StreamableHttpSession(
     val transport: StreamableHttpServerTransport,
-    val session: io.modelcontextprotocol.kotlin.sdk.server.ServerSession
+    val session: io.modelcontextprotocol.kotlin.sdk.server.ServerSession,
 )
 
 private class StreamableHttpServerTransport : AbstractTransport() {
@@ -397,7 +443,10 @@ private class StreamableHttpServerTransport : AbstractTransport() {
         }
     }
 
-    override suspend fun send(message: JSONRPCMessage, options: TransportSendOptions?) {
+    override suspend fun send(
+        message: JSONRPCMessage,
+        options: TransportSendOptions?,
+    ) {
         check(started) { "Not connected" }
         when (message) {
             is JSONRPCResponse -> responseWaiters[message.id]?.complete(message)
@@ -413,17 +462,17 @@ private class StreamableHttpServerTransport : AbstractTransport() {
 
 private fun isApplicationJson(contentType: ContentType): Boolean =
     contentType.contentType == ContentType.Application.Json.contentType &&
-            contentType.contentSubtype == ContentType.Application.Json.contentSubtype
+        contentType.contentSubtype == ContentType.Application.Json.contentSubtype
 
 data class ServerCliOptions(
     val mode: Mode = Mode.STDIO,
     val host: String = DEFAULT_HOST,
     val port: Int = DEFAULT_PORT,
-    val path: String = DEFAULT_PATH
+    val path: String = DEFAULT_PATH,
 ) {
     enum class Mode {
         STDIO,
-        HTTP_STREAMABLE
+        HTTP_STREAMABLE,
     }
 
     companion object {
@@ -441,23 +490,26 @@ data class ServerCliOptions(
             while (index < args.size) {
                 when (val arg = args[index]) {
                     "--mode" -> {
-                        val value = args.getOrNull(++index) ?: error("Missing value for --mode")
-                        mode = when (value.lowercase()) {
-                            "stdio" -> Mode.STDIO
-                            "http", "http-streamable", "streamable-http" -> Mode.HTTP_STREAMABLE
-                            // Backward compatibility for older scripts
-                            "http-sse" -> Mode.HTTP_STREAMABLE
-                            else -> error("Unsupported mode '$value'. Use 'stdio' or 'streamable-http'.")
-                        }
+                        val value = requireNextArg(args, index, "--mode")
+                        mode = parseMode(value)
+                        index++
                     }
 
-                    "--host" -> host = args.getOrNull(++index) ?: error("Missing value for --host")
+                    "--host" -> {
+                        host = requireNextArg(args, index, "--host")
+                        index++
+                    }
+
                     "--port" -> {
-                        val value = args.getOrNull(++index) ?: error("Missing value for --port")
+                        val value = requireNextArg(args, index, "--port")
                         port = value.toIntOrNull() ?: error("Invalid port '$value'")
+                        index++
                     }
 
-                    "--path" -> path = args.getOrNull(++index) ?: error("Missing value for --path")
+                    "--path" -> {
+                        path = requireNextArg(args, index, "--path")
+                        index++
+                    }
                     else -> error("Unknown argument '$arg'")
                 }
                 index++
@@ -467,8 +519,26 @@ data class ServerCliOptions(
                 mode = mode,
                 host = host,
                 port = port,
-                path = path.ifBlank { DEFAULT_PATH }
+                path = path.ifBlank { DEFAULT_PATH },
             )
         }
+
+        private fun requireNextArg(
+            args: Array<String>,
+            index: Int,
+            flag: String,
+        ): String {
+            val nextIndex = index + 1
+            return args.getOrNull(nextIndex) ?: error("Missing value for $flag")
+        }
+
+        private fun parseMode(value: String): Mode =
+            when (value.lowercase()) {
+                "stdio" -> Mode.STDIO
+                "http", "http-streamable", "streamable-http" -> Mode.HTTP_STREAMABLE
+                // Backward compatibility for older scripts
+                "http-sse" -> Mode.HTTP_STREAMABLE
+                else -> error("Unsupported mode '$value'. Use 'stdio' or 'streamable-http'.")
+            }
     }
 }

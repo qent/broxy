@@ -24,7 +24,8 @@ fun SettingsLikeItem(
     modifier: Modifier = Modifier,
     supportingContent: (@Composable ColumnScope.() -> Unit)? = null,
     onClick: (() -> Unit)? = null,
-    control: @Composable RowScope.() -> Unit
+    border: BorderStroke? = null,
+    control: @Composable RowScope.() -> Unit,
 ) {
     SettingsLikeItemImpl(
         title = title,
@@ -33,13 +34,14 @@ fun SettingsLikeItem(
             androidx.compose.material3.Text(
                 description,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         },
         modifier = modifier,
         supportingContent = supportingContent,
         onClick = onClick,
-        control = control
+        border = border,
+        control = control,
     )
 }
 
@@ -51,7 +53,8 @@ fun SettingsLikeItem(
     supportingContent: (@Composable ColumnScope.() -> Unit)? = null,
     onClick: (() -> Unit)? = null,
     titleColor: Color = MaterialTheme.colorScheme.onSurface,
-    control: @Composable RowScope.() -> Unit
+    border: BorderStroke? = null,
+    control: @Composable RowScope.() -> Unit,
 ) {
     SettingsLikeItemImpl(
         title = title,
@@ -60,7 +63,8 @@ fun SettingsLikeItem(
         modifier = modifier,
         supportingContent = supportingContent,
         onClick = onClick,
-        control = control
+        border = border,
+        control = control,
     )
 }
 
@@ -72,32 +76,35 @@ private fun SettingsLikeItemImpl(
     modifier: Modifier,
     supportingContent: (@Composable ColumnScope.() -> Unit)?,
     onClick: (() -> Unit)?,
-    control: @Composable RowScope.() -> Unit
+    border: BorderStroke? = null,
+    control: @Composable RowScope.() -> Unit,
 ) {
     val clickModifier = if (onClick == null) Modifier else Modifier.clickable(onClick = onClick)
 
     Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .then(clickModifier),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .then(clickModifier),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-        shape = AppTheme.shapes.card
+        border = border ?: BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        shape = AppTheme.shapes.card,
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = AppTheme.spacing.lg, vertical = AppTheme.spacing.md),
-            verticalAlignment = Alignment.CenterVertically
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = AppTheme.spacing.lg, vertical = AppTheme.spacing.md),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+                verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 androidx.compose.material3.Text(
                     text = title,
                     style = MaterialTheme.typography.titleSmall,
-                    color = titleColor
+                    color = titleColor,
                 )
                 Spacer(Modifier.height(2.dp))
                 descriptionContent()
@@ -106,7 +113,7 @@ private fun SettingsLikeItemImpl(
             Row(
                 horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm, Alignment.End),
                 verticalAlignment = Alignment.CenterVertically,
-                content = control
+                content = control,
             )
         }
     }
@@ -117,7 +124,7 @@ fun CompactTextField(
     value: String,
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
-    placeholder: String? = null
+    placeholder: String? = null,
 ) {
     BasicTextField(
         value = value,
@@ -128,17 +135,18 @@ fun CompactTextField(
         decorationBox = { innerTextField ->
             CompactInputSurface {
                 Row(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = AppTheme.spacing.md),
-                    verticalAlignment = Alignment.CenterVertically
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = AppTheme.spacing.md),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Box(modifier = Modifier.weight(1f)) {
                         if (value.isEmpty() && placeholder != null) {
                             androidx.compose.material3.Text(
                                 text = placeholder,
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                         innerTextField()
@@ -146,14 +154,14 @@ fun CompactTextField(
                 }
             }
         },
-        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary)
+        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
     )
 }
 
 @Composable
 private fun CompactInputSurface(
     modifier: Modifier = Modifier,
-    content: @Composable () -> Unit
+    content: @Composable () -> Unit,
 ) {
     Surface(
         modifier = modifier.height(32.dp),
@@ -161,7 +169,7 @@ private fun CompactInputSurface(
         color = MaterialTheme.colorScheme.surface,
         contentColor = MaterialTheme.colorScheme.onSurface,
         border = BorderStroke(AppTheme.strokeWidths.thin, MaterialTheme.colorScheme.outline),
-        content = content
+        content = content,
     )
 }
 

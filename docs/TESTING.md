@@ -34,6 +34,12 @@ Running tests:
 - `./gradlew :cli:integrationTest` runs CLI integration tests (STDIO + Streamable HTTP).
 - `./gradlew :test-mcp-server:selfCheck` runs the test MCP server self-check.
 
+Static analysis and coverage:
+
+- `./gradlew ktlintCheck` enforces Kotlin formatting.
+- `./gradlew detekt` runs static analysis (SARIF/HTML/XML reports).
+- `./gradlew koverXmlReport` generates coverage XML (plus HTML via `koverHtmlReport`).
+
 Helpful test utilities:
 
 - `FakeSdkClientFacade` for client adapters.

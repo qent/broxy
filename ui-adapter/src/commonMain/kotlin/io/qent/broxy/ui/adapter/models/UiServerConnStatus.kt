@@ -6,12 +6,13 @@ enum class UiServerConnStatus {
     Disabled,
     Connecting,
     Available,
-    Error
+    Error,
 }
 
-internal fun ServerConnectionStatus.toUiStatus(): UiServerConnStatus = when (this) {
-    ServerConnectionStatus.Disabled -> UiServerConnStatus.Disabled
-    ServerConnectionStatus.Connecting -> UiServerConnStatus.Connecting
-    ServerConnectionStatus.Available -> UiServerConnStatus.Available
-    ServerConnectionStatus.Error -> UiServerConnStatus.Error
-}
+internal fun ServerConnectionStatus.toUiStatus(): UiServerConnStatus =
+    when (this) {
+        ServerConnectionStatus.Disabled -> UiServerConnStatus.Disabled
+        ServerConnectionStatus.Connecting -> UiServerConnStatus.Connecting
+        ServerConnectionStatus.Available -> UiServerConnStatus.Available
+        ServerConnectionStatus.Error -> UiServerConnStatus.Error
+    }

@@ -13,7 +13,7 @@ data class PersistedRemoteConfig(
     val serverIdentifier: String,
     val email: String? = null,
     val accessTokenExpiresAt: String? = null,
-    val wsTokenExpiresAt: String? = null
+    val wsTokenExpiresAt: String? = null,
 )
 
 data class LoadedRemoteConfig(
@@ -22,22 +22,28 @@ data class LoadedRemoteConfig(
     val accessToken: String?,
     val accessTokenExpiresAt: Instant?,
     val wsToken: String?,
-    val wsTokenExpiresAt: Instant?
+    val wsTokenExpiresAt: Instant?,
 ) {
     private fun hasCredentials(): Boolean = !accessToken.isNullOrBlank() || !wsToken.isNullOrBlank()
-    fun toUi(): UiRemoteConnectionState = UiRemoteConnectionState(
-        serverIdentifier = serverIdentifier,
-        email = email,
-        hasCredentials = hasCredentials(),
-        status = if (hasCredentials()) UiRemoteStatus.Registered else UiRemoteStatus.NotAuthorized,
-        message = null
-    )
+
+    fun toUi(): UiRemoteConnectionState =
+        UiRemoteConnectionState(
+            serverIdentifier = serverIdentifier,
+            email = email,
+            hasCredentials = hasCredentials(),
+            status = if (hasCredentials()) UiRemoteStatus.Registered else UiRemoteStatus.NotAuthorized,
+            message = null,
+        )
 }
 
 class RemoteConfigStore(
     private val file: Path,
     private val secureStore: SecureStore,
-    private val json: Json = Json { ignoreUnknownKeys = true; prettyPrint = true }
+    private val json: Json =
+        Json {
+            ignoreUnknownKeys = true
+            prettyPrint = true
+        },
 ) {
     companion object {
         private const val ACCESS_TOKEN_KEY = "remote.access_token"
@@ -46,8 +52,9 @@ class RemoteConfigStore(
 
     fun load(): LoadedRemoteConfig? {
         if (!Files.exists(file)) return null
-        val data = runCatching { json.decodeFromString<PersistedRemoteConfig>(Files.readString(file)) }.getOrNull()
-            ?: return null
+        val data =
+            runCatching { json.decodeFromString<PersistedRemoteConfig>(Files.readString(file)) }.getOrNull()
+                ?: return null
         val accessToken = secureStore.read(ACCESS_TOKEN_KEY)
         val wsToken = secureStore.read(WS_TOKEN_KEY)
         return LoadedRemoteConfig(
@@ -56,7 +63,7 @@ class RemoteConfigStore(
             accessToken = accessToken,
             accessTokenExpiresAt = data.accessTokenExpiresAt?.let { runCatching { Instant.parse(it) }.getOrNull() },
             wsToken = wsToken,
-            wsTokenExpiresAt = data.wsTokenExpiresAt?.let { runCatching { Instant.parse(it) }.getOrNull() }
+            wsTokenExpiresAt = data.wsTokenExpiresAt?.let { runCatching { Instant.parse(it) }.getOrNull() },
         )
     }
 
@@ -66,15 +73,16 @@ class RemoteConfigStore(
         accessToken: String?,
         accessTokenExpiresAt: Instant?,
         wsToken: String?,
-        wsTokenExpiresAt: Instant?
+        wsTokenExpiresAt: Instant?,
     ) {
         runCatching { Files.createDirectories(file.parent) }
-        val payload = PersistedRemoteConfig(
-            serverIdentifier = serverIdentifier,
-            email = email,
-            accessTokenExpiresAt = accessTokenExpiresAt?.toString(),
-            wsTokenExpiresAt = wsTokenExpiresAt?.toString()
-        )
+        val payload =
+            PersistedRemoteConfig(
+                serverIdentifier = serverIdentifier,
+                email = email,
+                accessTokenExpiresAt = accessTokenExpiresAt?.toString(),
+                wsTokenExpiresAt = wsTokenExpiresAt?.toString(),
+            )
         runCatching { Files.writeString(file, json.encodeToString(payload)) }
         if (!accessToken.isNullOrBlank()) {
             secureStore.write(ACCESS_TOKEN_KEY, accessToken)

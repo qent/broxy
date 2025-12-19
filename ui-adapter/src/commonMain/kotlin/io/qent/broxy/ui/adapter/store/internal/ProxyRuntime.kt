@@ -15,9 +15,12 @@ internal class ProxyRuntime(
     private val logger: CollectingLogger,
     private val state: StoreStateAccess,
     private val publishReady: () -> Unit,
-    private val remoteConnector: RemoteConnector
+    private val remoteConnector: RemoteConnector,
 ) {
-    suspend fun ensureInboundRunning(forceRestart: Boolean = false, forceReloadPreset: Boolean = false) {
+    suspend fun ensureInboundRunning(
+        forceRestart: Boolean = false,
+        forceReloadPreset: Boolean = false,
+    ) {
         val port = state.snapshot.inboundSsePort.coerceIn(1, 65535)
         val inbound = UiStreamableHttpTransport(url = inboundEndpointUrl(port))
         val presetId = state.snapshot.selectedPresetId
@@ -50,7 +53,7 @@ internal class ProxyRuntime(
                     copy(
                         proxyStatus = UiProxyStatus.Running,
                         activeProxyPresetId = presetId,
-                        activeInbound = inbound
+                        activeInbound = inbound,
                     )
                 }
                 remoteConnector.onProxyRunningChanged(true)
@@ -61,7 +64,7 @@ internal class ProxyRuntime(
                     copy(
                         proxyStatus = UiProxyStatus.Error(msg),
                         activeProxyPresetId = null,
-                        activeInbound = null
+                        activeInbound = null,
                     )
                 }
                 remoteConnector.onProxyRunningChanged(false)
@@ -101,7 +104,7 @@ internal class ProxyRuntime(
                 copy(
                     proxyStatus = UiProxyStatus.Stopped,
                     activeProxyPresetId = null,
-                    activeInbound = null
+                    activeInbound = null,
                 )
             }
             remoteConnector.onProxyRunningChanged(false)

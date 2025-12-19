@@ -7,13 +7,18 @@ import io.modelcontextprotocol.kotlin.sdk.shared.TransportSendOptions
 import io.qent.broxy.core.utils.CollectingLogger
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.*
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonPrimitive
 
 @Serializable
 data class McpProxyRequestPayload(
     @SerialName("session_identifier")
     val sessionIdentifier: String,
-    val message: JsonElement
+    val message: JsonElement,
 )
 
 @Serializable
@@ -22,7 +27,7 @@ data class McpProxyResponsePayload(
     val sessionIdentifier: String,
     @SerialName("target_server_identifier")
     val targetServerIdentifier: String,
-    val message: JsonElement
+    val message: JsonElement,
 )
 
 /**
@@ -31,9 +36,8 @@ data class McpProxyResponsePayload(
 class ProxyWebSocketTransport(
     private val serverIdentifier: String,
     private val logger: CollectingLogger,
-    private val sender: suspend (McpProxyResponsePayload) -> Unit
+    private val sender: suspend (McpProxyResponsePayload) -> Unit,
 ) : AbstractTransport() {
-
     @Volatile
     private var sessionIdentifier: String? = null
 
@@ -41,28 +45,36 @@ class ProxyWebSocketTransport(
         // No-op: managed by the WebSocket manager.
     }
 
-    suspend fun handleIncoming(message: JSONRPCMessage, sessionId: String) {
+    suspend fun handleIncoming(
+        message: JSONRPCMessage,
+        sessionId: String,
+    ) {
         if (sessionIdentifier == null || sessionIdentifier != sessionId) {
             sessionIdentifier = sessionId
         }
         _onMessage.invoke(message)
     }
 
-    override suspend fun send(message: JSONRPCMessage, options: TransportSendOptions?) {
-        val sessionId = sessionIdentifier
-            ?: error("session identifier is not available; cannot send response")
+    override suspend fun send(
+        message: JSONRPCMessage,
+        options: TransportSendOptions?,
+    ) {
+        val sessionId =
+            sessionIdentifier
+                ?: error("session identifier is not available; cannot send response")
         val messageElement = McpJson.encodeToJsonElement(JSONRPCMessage.serializer(), message)
-        val payload = McpProxyResponsePayload(
-            sessionIdentifier = sessionId,
-            targetServerIdentifier = serverIdentifier,
-            message = messageElement
-        )
+        val payload =
+            McpProxyResponsePayload(
+                sessionIdentifier = sessionId,
+                targetServerIdentifier = serverIdentifier,
+                message = messageElement,
+            )
         logger.info(
             "[RemoteWsClient] Outbound message session=$sessionId target=$serverIdentifier ${
                 describeJsonRpcPayload(
-                    messageElement
+                    messageElement,
                 )
-            }"
+            }",
         )
         sender(payload)
     }
@@ -77,21 +89,24 @@ internal fun describeJsonRpcPayload(element: JsonElement): String {
     val id = obj["id"]?.jsonPrimitive?.contentOrNull ?: obj["id"]?.toString()
     val method = obj["method"]?.jsonPrimitive?.contentOrNull
     val hasResult = obj.containsKey("result")
-    val errorMessage = (obj["error"] as? JsonObject)
-        ?.get("message")
-        ?.jsonPrimitive
-        ?.contentOrNull
-    val paramsKeys = (obj["params"] as? JsonObject)
-        ?.keys
-        ?.takeIf { it.isNotEmpty() }
-        ?.joinToString(",")
-    val type = when {
-        method != null && id != null -> "request"
-        method != null -> "notification"
-        hasResult -> "response"
-        errorMessage != null -> "error"
-        else -> "message"
-    }
+    val errorMessage =
+        (obj["error"] as? JsonObject)
+            ?.get("message")
+            ?.jsonPrimitive
+            ?.contentOrNull
+    val paramsKeys =
+        (obj["params"] as? JsonObject)
+            ?.keys
+            ?.takeIf { it.isNotEmpty() }
+            ?.joinToString(",")
+    val type =
+        when {
+            method != null && id != null -> "request"
+            method != null -> "notification"
+            hasResult -> "response"
+            errorMessage != null -> "error"
+            else -> "message"
+        }
     return listOfNotNull(
         "type=$type",
         id?.let { "id=$it" },
@@ -100,21 +115,23 @@ internal fun describeJsonRpcPayload(element: JsonElement): String {
         describeParams(obj["params"] as? JsonObject),
         describeResult(obj["result"]),
         hasResult.takeIf { it }?.let { "has_result=true" },
-        errorMessage?.let { "error=$it" }
+        errorMessage?.let { "error=$it" },
     ).joinToString(" ")
 }
 
 private fun describeParams(params: JsonObject?): String? {
     if (params == null) return null
     val target = params.field("name", "uri")?.jsonPrimitive?.contentOrNull
-    val argumentKeys = (params["arguments"] as? JsonObject)
-        ?.keys
-        ?.takeIf { it.isNotEmpty() }
-        ?.toList()
-    val metaKeys = (params["meta"] as? JsonObject)
-        ?.keys
-        ?.takeIf { it.isNotEmpty() }
-        ?.toList()
+    val argumentKeys =
+        (params["arguments"] as? JsonObject)
+            ?.keys
+            ?.takeIf { it.isNotEmpty() }
+            ?.toList()
+    val metaKeys =
+        (params["meta"] as? JsonObject)
+            ?.keys
+            ?.takeIf { it.isNotEmpty() }
+            ?.toList()
     val parts = mutableListOf<String>()
     target?.let { parts += "target=$it" }
     argumentKeys?.let { parts += "args=${preview(it)}" }
@@ -138,12 +155,14 @@ private fun describeCapabilities(obj: JsonObject): String? {
         parts += "tools=${it.size}"
         val names = it.mapNotNull { entry -> (entry as? JsonObject)?.get("name")?.jsonPrimitive?.contentOrNull }
         if (names.isNotEmpty()) parts += "tool_names=${preview(names)}"
-        val inputFields = it.firstNotNullOfOrNull { entry ->
-            (entry as? JsonObject)?.schemaFields("input_schema", "inputSchema")
-        }
-        val outputFields = it.firstNotNullOfOrNull { entry ->
-            (entry as? JsonObject)?.schemaFields("output_schema", "outputSchema")
-        }
+        val inputFields =
+            it.firstNotNullOfOrNull { entry ->
+                (entry as? JsonObject)?.schemaFields("input_schema", "inputSchema")
+            }
+        val outputFields =
+            it.firstNotNullOfOrNull { entry ->
+                (entry as? JsonObject)?.schemaFields("output_schema", "outputSchema")
+            }
         inputFields?.let { fields -> parts += "input_schema_fields=$fields" }
         outputFields?.let { fields -> parts += "output_schema_fields=$fields" }
     }
@@ -154,10 +173,11 @@ private fun describeCapabilities(obj: JsonObject): String? {
     }
     resources?.let {
         parts += "resources=${it.size}"
-        val names = it.mapNotNull { entry ->
-            val objEntry = entry as? JsonObject
-            objEntry?.get("uri")?.jsonPrimitive?.contentOrNull ?: objEntry?.get("name")?.jsonPrimitive?.contentOrNull
-        }
+        val names =
+            it.mapNotNull { entry ->
+                val objEntry = entry as? JsonObject
+                objEntry?.get("uri")?.jsonPrimitive?.contentOrNull ?: objEntry?.get("name")?.jsonPrimitive?.contentOrNull
+            }
         if (names.isNotEmpty()) parts += "resource_keys=${preview(names)}"
     }
     return parts.takeIf { it.isNotEmpty() }?.joinToString(prefix = "result{", postfix = "}")
@@ -187,8 +207,7 @@ private fun describeCallResult(obj: JsonObject): String? {
     return parts.takeIf { it.isNotEmpty() }?.joinToString(prefix = "result{", postfix = "}")
 }
 
-private fun JsonObject.field(vararg keys: String): JsonElement? =
-    keys.firstNotNullOfOrNull { get(it) }
+private fun JsonObject.field(vararg keys: String): JsonElement? = keys.firstNotNullOfOrNull { get(it) }
 
 private fun JsonObject.schemaFields(vararg keys: String): String? {
     val schema = field(*keys) as? JsonObject ?: return null
@@ -197,22 +216,27 @@ private fun JsonObject.schemaFields(vararg keys: String): String? {
     return preview(propNames.toList())
 }
 
-private fun preview(values: List<String>, max: Int = 5): String =
+private fun preview(
+    values: List<String>,
+    max: Int = 5,
+): String =
     when {
         values.isEmpty() -> ""
         values.size <= max -> values.joinToString(",")
         else -> values.take(max).joinToString(",") + ",..."
     }
 
-private fun JsonElement.contentTypeLabel(): String? = when (this) {
-    is JsonObject -> this["type"]?.jsonPrimitive?.contentOrNull
-        ?: when {
-            "text" in this -> "text"
-            "image" in this -> "image"
-            "resource" in this -> "embedded_resource"
-            "data" in this && this["mimeType"] != null -> this["mimeType"]?.jsonPrimitive?.contentOrNull
-            else -> null
-        }
+private fun JsonElement.contentTypeLabel(): String? =
+    when (this) {
+        is JsonObject ->
+            this["type"]?.jsonPrimitive?.contentOrNull
+                ?: when {
+                    "text" in this -> "text"
+                    "image" in this -> "image"
+                    "resource" in this -> "embedded_resource"
+                    "data" in this && this["mimeType"] != null -> this["mimeType"]?.jsonPrimitive?.contentOrNull
+                    else -> null
+                }
 
-    else -> null
-}
+        else -> null
+    }

@@ -19,7 +19,7 @@ data class CapabilityDisplayItem(
     val serverName: String,
     val capabilityName: String,
     val description: String,
-    val arguments: List<UiCapabilityArgument>
+    val arguments: List<UiCapabilityArgument>,
 )
 
 @Composable
@@ -27,7 +27,7 @@ fun CapabilitiesCard(
     title: String,
     items: List<CapabilityDisplayItem>,
     icon: ImageVector,
-    showServerName: Boolean = true
+    showServerName: Boolean = true,
 ) {
     if (items.isEmpty()) return
     FormCard(title = title) {
@@ -37,7 +37,7 @@ fun CapabilitiesCard(
                 if (index < items.lastIndex) {
                     HorizontalDivider(
                         thickness = AppTheme.strokeWidths.hairline,
-                        color = MaterialTheme.colorScheme.outlineVariant
+                        color = MaterialTheme.colorScheme.outlineVariant,
                     )
                 }
             }
@@ -49,45 +49,46 @@ fun CapabilitiesCard(
 fun CapabilityRow(
     item: CapabilityDisplayItem,
     icon: ImageVector,
-    showServerName: Boolean = true
+    showServerName: Boolean = true,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.xs)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.xs)
+            horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.xs),
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(16.dp)
+                modifier = Modifier.size(16.dp),
             )
             Text(
-                text = if (showServerName) {
-                    buildAnnotatedString {
-                        append(item.capabilityName)
-                        append(" · ")
-                        withStyle(SpanStyle(color = MaterialTheme.colorScheme.primary)) {
-                            append(item.serverName)
+                text =
+                    if (showServerName) {
+                        buildAnnotatedString {
+                            append(item.capabilityName)
+                            append(" · ")
+                            withStyle(SpanStyle(color = MaterialTheme.colorScheme.primary)) {
+                                append(item.serverName)
+                            }
                         }
-                    }
-                } else {
-                    buildAnnotatedString { append(item.capabilityName) }
-                },
+                    } else {
+                        buildAnnotatedString { append(item.capabilityName) }
+                    },
                 style = MaterialTheme.typography.bodyMedium,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
         }
         CapabilityArgumentList(
             arguments = item.arguments,
-            modifier = Modifier.padding(top = AppTheme.spacing.xs)
+            modifier = Modifier.padding(top = AppTheme.spacing.xs),
         )
         Text(
             item.description,
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
@@ -95,19 +96,20 @@ fun CapabilityRow(
 @Composable
 fun FormCard(
     title: String,
-    content: @Composable ColumnScope.() -> Unit
+    content: @Composable ColumnScope.() -> Unit,
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-        shape = AppTheme.shapes.card
+        shape = AppTheme.shapes.card,
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = AppTheme.spacing.lg, vertical = AppTheme.spacing.md),
-            verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = AppTheme.spacing.lg, vertical = AppTheme.spacing.md),
+            verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm),
         ) {
             Text(title, style = MaterialTheme.typography.titleSmall)
             content(this)

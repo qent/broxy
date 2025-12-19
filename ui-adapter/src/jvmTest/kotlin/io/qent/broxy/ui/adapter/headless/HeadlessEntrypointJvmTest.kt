@@ -18,11 +18,11 @@ class HeadlessEntrypointJvmTest {
         val tempDir = Files.createTempDirectory("broxy-stdio-proxy-test")
         Files.writeString(
             tempDir.resolve("mcp.json"),
-            """{"defaultPresetId":"test","mcpServers":{}}"""
+            """{"defaultPresetId":"test","mcpServers":{}}""",
         )
         Files.writeString(
             tempDir.resolve("preset_test.json"),
-            """{"id":"test","name":"Test","tools":[]}"""
+            """{"id":"test","name":"Test","tools":[]}""",
         )
 
         val originalIn = System.`in`
@@ -62,11 +62,11 @@ class HeadlessEntrypointJvmTest {
         val tempDir = Files.createTempDirectory("broxy-stdio-proxy-test")
         Files.writeString(
             tempDir.resolve("mcp.json"),
-            """{"defaultPresetId":"test","mcpServers":{}}"""
+            """{"defaultPresetId":"test","mcpServers":{}}""",
         )
         Files.writeString(
             tempDir.resolve("preset_test.json"),
-            """{"id":"test","name":"Test","tools":[]}"""
+            """{"id":"test","name":"Test","tools":[]}""",
         )
 
         val originalIn = System.`in`

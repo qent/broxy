@@ -21,165 +21,197 @@ import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ProxyMcpServerTest {
-    private val noopLogger = object : Logger {
-        override fun debug(message: String) {}
-        override fun info(message: String) {}
-        override fun warn(message: String, throwable: Throwable?) {}
-        override fun error(message: String, throwable: Throwable?) {}
-    }
+    private val noopLogger =
+        object : Logger {
+            override fun debug(message: String) {}
+
+            override fun info(message: String) {}
+
+            override fun warn(
+                message: String,
+                throwable: Throwable?,
+            ) {}
+
+            override fun error(
+                message: String,
+                throwable: Throwable?,
+            ) {}
+        }
 
     @org.junit.Test
-    fun startFiltersCapabilitiesUsingPreset() = runTest {
-        val serverA = FakeServerConnection(
-            serverId = "alpha",
-            capabilities = ServerCapabilities(
-                tools = listOf(ToolDescriptor(name = "search")),
-                prompts = listOf(io.qent.broxy.core.mcp.PromptDescriptor(name = "p1")),
-                resources = listOf(io.qent.broxy.core.mcp.ResourceDescriptor(name = "doc", uri = "uri://doc"))
-            )
-        ).apply {
-            callResults["search"] = Result.success(JsonPrimitive("ok"))
-            promptResults["p1"] = Result.success(JsonObject(emptyMap()))
+    fun startFiltersCapabilitiesUsingPreset() =
+        runTest {
+            val serverA =
+                FakeServerConnection(
+                    serverId = "alpha",
+                    capabilities =
+                        ServerCapabilities(
+                            tools = listOf(ToolDescriptor(name = "search")),
+                            prompts = listOf(io.qent.broxy.core.mcp.PromptDescriptor(name = "p1")),
+                            resources = listOf(io.qent.broxy.core.mcp.ResourceDescriptor(name = "doc", uri = "uri://doc")),
+                        ),
+                ).apply {
+                    callResults["search"] = Result.success(JsonPrimitive("ok"))
+                    promptResults["p1"] = Result.success(JsonObject(emptyMap()))
+                }
+            val serverB =
+                FakeServerConnection(
+                    serverId = "beta",
+                    capabilities =
+                        ServerCapabilities(
+                            tools = listOf(ToolDescriptor(name = "translate")),
+                        ),
+                ).apply {
+                    callResults["translate"] = Result.success(JsonPrimitive("done"))
+                }
+            val proxy = ProxyMcpServer(listOf(serverA, serverB), logger = noopLogger)
+            val preset =
+                Preset(
+                    id = "preset",
+                    name = "Preset",
+                    tools =
+                        listOf(
+                            ToolReference(serverId = "alpha", toolName = "search", enabled = true),
+                            ToolReference(serverId = "beta", toolName = "translate", enabled = false),
+                        ),
+                )
+
+            proxy.start(preset, TransportConfig.StdioTransport(command = "noop"))
+
+            val caps = proxy.getCapabilities()
+            assertEquals(listOf("alpha:search"), caps.tools.map { it.name })
+            assertEquals(listOf("p1"), caps.prompts.map { it.name })
+            assertEquals(listOf("doc"), caps.resources.map { it.name })
+
+            val callResult = proxy.callTool("alpha:search")
+            assertTrue(callResult.isSuccess)
+            assertEquals(JsonPrimitive("ok"), callResult.getOrThrow())
+            assertEquals(listOf("search"), serverA.toolCalls)
+
+            val denied = proxy.callTool("alpha:translate")
+            assertTrue(denied.isFailure)
+            assertIs<IllegalArgumentException>(denied.exceptionOrNull())
+
+            val prompt = proxy.getPrompt("p1")
+            assertTrue(prompt.isSuccess)
+            assertEquals(listOf("p1"), serverA.promptRequests)
         }
-        val serverB = FakeServerConnection(
-            serverId = "beta",
-            capabilities = ServerCapabilities(
-                tools = listOf(ToolDescriptor(name = "translate"))
-            )
-        ).apply {
-            callResults["translate"] = Result.success(JsonPrimitive("done"))
-        }
-        val proxy = ProxyMcpServer(listOf(serverA, serverB), logger = noopLogger)
-        val preset = Preset(
-            id = "preset",
-            name = "Preset",
-            tools = listOf(
-                ToolReference(serverId = "alpha", toolName = "search", enabled = true),
-                ToolReference(serverId = "beta", toolName = "translate", enabled = false)
-            )
-        )
-
-        proxy.start(preset, TransportConfig.StdioTransport(command = "noop"))
-
-        val caps = proxy.getCapabilities()
-        assertEquals(listOf("alpha:search"), caps.tools.map { it.name })
-        assertEquals(listOf("p1"), caps.prompts.map { it.name })
-        assertEquals(listOf("doc"), caps.resources.map { it.name })
-
-        val callResult = proxy.callTool("alpha:search")
-        assertTrue(callResult.isSuccess)
-        assertEquals(JsonPrimitive("ok"), callResult.getOrThrow())
-        assertEquals(listOf("search"), serverA.toolCalls)
-
-        val denied = proxy.callTool("alpha:translate")
-        assertTrue(denied.isFailure)
-        assertIs<IllegalArgumentException>(denied.exceptionOrNull())
-
-        val prompt = proxy.getPrompt("p1")
-        assertTrue(prompt.isSuccess)
-        assertEquals(listOf("p1"), serverA.promptRequests)
-    }
 
     @org.junit.Test
-    fun applyPresetRebuildsAllowedToolsAndRoutesToNewServer() = runTest {
-        val serverA = FakeServerConnection(
-            serverId = "alpha",
-            capabilities = ServerCapabilities(
-                tools = listOf(ToolDescriptor(name = "search"))
-            )
-        )
-        val serverB = FakeServerConnection(
-            serverId = "beta",
-            capabilities = ServerCapabilities(
-                tools = listOf(ToolDescriptor(name = "translate")),
-                prompts = listOf(io.qent.broxy.core.mcp.PromptDescriptor(name = "p2"))
-            )
-        ).apply {
-            callResults["translate"] = Result.success(JsonPrimitive("beta-ok"))
-            promptResults["p2"] = Result.success(JsonObject(emptyMap()))
+    fun applyPresetRebuildsAllowedToolsAndRoutesToNewServer() =
+        runTest {
+            val serverA =
+                FakeServerConnection(
+                    serverId = "alpha",
+                    capabilities =
+                        ServerCapabilities(
+                            tools = listOf(ToolDescriptor(name = "search")),
+                        ),
+                )
+            val serverB =
+                FakeServerConnection(
+                    serverId = "beta",
+                    capabilities =
+                        ServerCapabilities(
+                            tools = listOf(ToolDescriptor(name = "translate")),
+                            prompts = listOf(io.qent.broxy.core.mcp.PromptDescriptor(name = "p2")),
+                        ),
+                ).apply {
+                    callResults["translate"] = Result.success(JsonPrimitive("beta-ok"))
+                    promptResults["p2"] = Result.success(JsonObject(emptyMap()))
+                }
+            val proxy = ProxyMcpServer(listOf(serverA, serverB), logger = noopLogger)
+            val initialPreset =
+                Preset(
+                    id = "initial",
+                    name = "Initial",
+                    tools = listOf(ToolReference(serverId = "alpha", toolName = "search", enabled = true)),
+                )
+            proxy.start(initialPreset, TransportConfig.StdioTransport(command = "noop"))
+
+            val newPreset =
+                Preset(
+                    id = "new",
+                    name = "New",
+                    tools = listOf(ToolReference(serverId = "beta", toolName = "translate", enabled = true)),
+                )
+            proxy.applyPreset(newPreset)
+
+            val caps = proxy.getCapabilities()
+            assertEquals(listOf("beta:translate"), caps.tools.map { it.name })
+
+            val result = proxy.callTool("beta:translate")
+            assertTrue(result.isSuccess)
+            assertEquals(JsonPrimitive("beta-ok"), result.getOrThrow())
+            assertEquals(listOf("translate"), serverB.toolCalls)
+
+            val prompt = proxy.getPrompt("p2")
+            assertTrue(prompt.isSuccess)
+            assertEquals(listOf("p2"), serverB.promptRequests)
         }
-        val proxy = ProxyMcpServer(listOf(serverA, serverB), logger = noopLogger)
-        val initialPreset = Preset(
-            id = "initial",
-            name = "Initial",
-            tools = listOf(ToolReference(serverId = "alpha", toolName = "search", enabled = true))
-        )
-        proxy.start(initialPreset, TransportConfig.StdioTransport(command = "noop"))
-
-        val newPreset = Preset(
-            id = "new",
-            name = "New",
-            tools = listOf(ToolReference(serverId = "beta", toolName = "translate", enabled = true))
-        )
-        proxy.applyPreset(newPreset)
-
-        val caps = proxy.getCapabilities()
-        assertEquals(listOf("beta:translate"), caps.tools.map { it.name })
-
-        val result = proxy.callTool("beta:translate")
-        assertTrue(result.isSuccess)
-        assertEquals(JsonPrimitive("beta-ok"), result.getOrThrow())
-        assertEquals(listOf("translate"), serverB.toolCalls)
-
-        val prompt = proxy.getPrompt("p2")
-        assertTrue(prompt.isSuccess)
-        assertEquals(listOf("p2"), serverB.promptRequests)
-    }
 
     @org.junit.Test
-    fun updateDownstreamsRecomputesCapabilitiesWithoutRestart() = runTest {
-        val serverA = FakeServerConnection(
-            serverId = "alpha",
-            capabilities = ServerCapabilities(
-                tools = listOf(ToolDescriptor(name = "search"))
-            )
-        ).apply {
-            callResults["search"] = Result.success(JsonPrimitive("alpha-ok"))
+    fun updateDownstreamsRecomputesCapabilitiesWithoutRestart() =
+        runTest {
+            val serverA =
+                FakeServerConnection(
+                    serverId = "alpha",
+                    capabilities =
+                        ServerCapabilities(
+                            tools = listOf(ToolDescriptor(name = "search")),
+                        ),
+                ).apply {
+                    callResults["search"] = Result.success(JsonPrimitive("alpha-ok"))
+                }
+            val serverB =
+                FakeServerConnection(
+                    serverId = "beta",
+                    capabilities =
+                        ServerCapabilities(
+                            tools = listOf(ToolDescriptor(name = "translate")),
+                        ),
+                ).apply {
+                    callResults["translate"] = Result.success(JsonPrimitive("beta-ok"))
+                }
+
+            val proxy = ProxyMcpServer(listOf(serverA), logger = noopLogger)
+            val preset =
+                Preset(
+                    id = "preset",
+                    name = "Preset",
+                    tools =
+                        listOf(
+                            ToolReference(serverId = "alpha", toolName = "search", enabled = true),
+                            ToolReference(serverId = "beta", toolName = "translate", enabled = true),
+                        ),
+                )
+            proxy.start(preset, TransportConfig.StdioTransport(command = "noop"))
+
+            assertEquals(listOf("alpha:search"), proxy.getCapabilities().tools.map { it.name })
+
+            proxy.updateDownstreams(listOf(serverA, serverB))
+            proxy.refreshFilteredCapabilities()
+
+            assertEquals(listOf("alpha:search", "beta:translate"), proxy.getCapabilities().tools.map { it.name })
+            assertEquals(JsonPrimitive("beta-ok"), proxy.callTool("beta:translate").getOrThrow())
+
+            proxy.updateDownstreams(listOf(serverA))
+            proxy.refreshFilteredCapabilities()
+
+            assertEquals(listOf("alpha:search"), proxy.getCapabilities().tools.map { it.name })
+            assertTrue(proxy.callTool("beta:translate").isFailure)
         }
-        val serverB = FakeServerConnection(
-            serverId = "beta",
-            capabilities = ServerCapabilities(
-                tools = listOf(ToolDescriptor(name = "translate"))
-            )
-        ).apply {
-            callResults["translate"] = Result.success(JsonPrimitive("beta-ok"))
-        }
-
-        val proxy = ProxyMcpServer(listOf(serverA), logger = noopLogger)
-        val preset = Preset(
-            id = "preset",
-            name = "Preset",
-            tools = listOf(
-                ToolReference(serverId = "alpha", toolName = "search", enabled = true),
-                ToolReference(serverId = "beta", toolName = "translate", enabled = true)
-            )
-        )
-        proxy.start(preset, TransportConfig.StdioTransport(command = "noop"))
-
-        assertEquals(listOf("alpha:search"), proxy.getCapabilities().tools.map { it.name })
-
-        proxy.updateDownstreams(listOf(serverA, serverB))
-        proxy.refreshFilteredCapabilities()
-
-        assertEquals(listOf("alpha:search", "beta:translate"), proxy.getCapabilities().tools.map { it.name })
-        assertEquals(JsonPrimitive("beta-ok"), proxy.callTool("beta:translate").getOrThrow())
-
-        proxy.updateDownstreams(listOf(serverA))
-        proxy.refreshFilteredCapabilities()
-
-        assertEquals(listOf("alpha:search"), proxy.getCapabilities().tools.map { it.name })
-        assertTrue(proxy.callTool("beta:translate").isFailure)
-    }
 
     private class FakeServerConnection(
         override val serverId: String,
-        private var capabilities: ServerCapabilities
+        private var capabilities: ServerCapabilities,
     ) : McpServerConnection {
-        override val config: McpServerConfig = McpServerConfig(
-            id = serverId,
-            name = "Server $serverId",
-            transport = TransportConfig.StdioTransport(command = "noop")
-        )
+        override val config: McpServerConfig =
+            McpServerConfig(
+                id = serverId,
+                name = "Server $serverId",
+                transport = TransportConfig.StdioTransport(command = "noop"),
+            )
 
         private var currentStatus: ServerStatus = ServerStatus.Stopped
         val toolCalls = mutableListOf<String>()
@@ -202,15 +234,20 @@ class ProxyMcpServerTest {
             currentStatus = ServerStatus.Stopped
         }
 
-        override suspend fun getCapabilities(forceRefresh: Boolean): Result<ServerCapabilities> =
-            Result.success(capabilities)
+        override suspend fun getCapabilities(forceRefresh: Boolean): Result<ServerCapabilities> = Result.success(capabilities)
 
-        override suspend fun callTool(toolName: String, arguments: JsonObject): Result<JsonElement> {
+        override suspend fun callTool(
+            toolName: String,
+            arguments: JsonObject,
+        ): Result<JsonElement> {
             toolCalls += toolName
             return callResults[toolName] ?: Result.success(JsonNull)
         }
 
-        override suspend fun getPrompt(name: String, arguments: Map<String, String>?): Result<JsonObject> {
+        override suspend fun getPrompt(
+            name: String,
+            arguments: Map<String, String>?,
+        ): Result<JsonObject> {
             promptRequests += name
             return promptResults[name] ?: Result.failure(IllegalArgumentException("prompt $name missing"))
         }

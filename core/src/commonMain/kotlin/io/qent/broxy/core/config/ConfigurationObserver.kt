@@ -5,6 +5,6 @@ import io.qent.broxy.core.models.Preset
 
 interface ConfigurationObserver {
     fun onConfigurationChanged(config: McpServersConfig)
+
     fun onPresetChanged(preset: Preset)
 }
-

@@ -46,11 +46,14 @@ class CapabilityCacheTest {
         assertEquals("Renamed", cache.snapshot("s1")?.name)
     }
 
-    private fun snapshotFor(id: String, name: String) = ServerCapsSnapshot(
+    private fun snapshotFor(
+        id: String,
+        name: String,
+    ) = ServerCapsSnapshot(
         serverId = id,
         name = name,
         tools = emptyList(),
         prompts = emptyList(),
-        resources = emptyList()
+        resources = emptyList(),
     )
 }

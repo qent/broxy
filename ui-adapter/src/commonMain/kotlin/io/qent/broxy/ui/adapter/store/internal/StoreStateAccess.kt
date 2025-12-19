@@ -6,7 +6,7 @@ internal class StoreStateAccess(
     private val snapshotProvider: () -> StoreSnapshot,
     private val snapshotUpdater: (StoreSnapshot.() -> StoreSnapshot) -> Unit,
     private val snapshotConfigProvider: () -> UiMcpServersConfig,
-    private val errorHandler: (String) -> Unit
+    private val errorHandler: (String) -> Unit,
 ) {
     val snapshot: StoreSnapshot
         get() = snapshotProvider()

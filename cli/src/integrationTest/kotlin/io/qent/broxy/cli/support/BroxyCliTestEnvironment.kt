@@ -29,18 +29,22 @@ internal object BroxyCliTestEnvironment {
         }
     }
 
-    private suspend fun createStdioHandle(configDir: Path, server: TestServerInstance): ScenarioHandle {
+    private suspend fun createStdioHandle(
+        configDir: Path,
+        server: TestServerInstance,
+    ): ScenarioHandle {
         val command =
             BroxyCliIntegrationFiles.buildCliCommand(configDir, listOf("--inbound", "stdio"))
         BroxyCliIntegrationConfig.log(
-            "Launching broxy CLI (STDIO) with config ${configDir.pathString}"
+            "Launching broxy CLI (STDIO) with config ${configDir.pathString}",
         )
-        val client = StdioMcpClient(
-            command = command.first(),
-            args = command.drop(1),
-            env = emptyMap(),
-            logger = BroxyCliIntegrationConfig.TEST_LOGGER
-        )
+        val client =
+            StdioMcpClient(
+                command = command.first(),
+                args = command.drop(1),
+                env = emptyMap(),
+                logger = BroxyCliIntegrationConfig.TEST_LOGGER,
+            )
         configureTimeouts(client)
         return try {
             connectWithRetries(client)
@@ -49,7 +53,7 @@ internal object BroxyCliTestEnvironment {
                 client = client,
                 configDir = configDir,
                 cliProcess = null,
-                testServerProcess = server.process
+                testServerProcess = server.process,
             )
         } catch (error: Throwable) {
             client.disconnect()
@@ -57,24 +61,29 @@ internal object BroxyCliTestEnvironment {
         }
     }
 
-    private suspend fun createHttpStreamableHandle(configDir: Path, server: TestServerInstance): ScenarioHandle {
+    private suspend fun createHttpStreamableHandle(
+        configDir: Path,
+        server: TestServerInstance,
+    ): ScenarioHandle {
         var lastError: Throwable? = null
         repeat(BroxyCliIntegrationConfig.HTTP_INBOUND_ATTEMPTS) loop@{ attempt ->
             val port = nextFreePort()
             val url = "http://127.0.0.1:$port${BroxyCliIntegrationConfig.HTTP_INBOUND_PATH}"
-            val command = BroxyCliIntegrationFiles.buildCliCommand(
-                configDir,
-                listOf("--inbound", "http", "--url", url)
-            )
+            val command =
+                BroxyCliIntegrationFiles.buildCliCommand(
+                    configDir,
+                    listOf("--inbound", "http", "--url", url),
+                )
             BroxyCliIntegrationConfig.log(
-                "Launching broxy CLI (HTTP Streamable) listening at $url (attempt ${attempt + 1})"
+                "Launching broxy CLI (HTTP Streamable) listening at $url (attempt ${attempt + 1})",
             )
             val cliProcess = BroxyCliProcesses.startCliProcess(command)
-            val client = KtorMcpClient(
-                mode = KtorMcpClient.Mode.StreamableHttp,
-                url = url,
-                logger = BroxyCliIntegrationConfig.TEST_LOGGER
-            )
+            val client =
+                KtorMcpClient(
+                    mode = KtorMcpClient.Mode.StreamableHttp,
+                    url = url,
+                    logger = BroxyCliIntegrationConfig.TEST_LOGGER,
+                )
             configureTimeouts(client)
             try {
                 connectWithRetries(client, serverLogs = { cliProcess.logs() }, serverProcess = cliProcess)
@@ -83,7 +92,7 @@ internal object BroxyCliTestEnvironment {
                     client = client,
                     configDir = configDir,
                     cliProcess = cliProcess,
-                    testServerProcess = server.process
+                    testServerProcess = server.process,
                 )
             } catch (error: Throwable) {
                 lastError = error
@@ -92,7 +101,7 @@ internal object BroxyCliTestEnvironment {
                 cliProcess.close()
                 val isPortInUse =
                     error.message?.contains("Address already in use") == true ||
-                            cliLogs.contains("Address already in use")
+                        cliLogs.contains("Address already in use")
                 val hasAttemptsRemaining = attempt + 1 < BroxyCliIntegrationConfig.HTTP_INBOUND_ATTEMPTS
                 if (isPortInUse && hasAttemptsRemaining) {
                     BroxyCliIntegrationConfig.log("Inbound port $port unavailable, retrying with a new port")
@@ -109,17 +118,18 @@ internal object BroxyCliTestEnvironment {
         val port = nextFreePort()
         val url =
             "http://${BroxyCliIntegrationConfig.TEST_SERVER_HTTP_HOST}:$port${BroxyCliIntegrationConfig.TEST_SERVER_HTTP_PATH}"
-        val command = buildList {
-            add(BroxyCliIntegrationFiles.resolveTestServerCommand())
-            add("--mode")
-            add("streamable-http")
-            add("--host")
-            add(BroxyCliIntegrationConfig.TEST_SERVER_HTTP_HOST)
-            add("--port")
-            add(port.toString())
-            add("--path")
-            add(BroxyCliIntegrationConfig.TEST_SERVER_HTTP_PATH)
-        }
+        val command =
+            buildList {
+                add(BroxyCliIntegrationFiles.resolveTestServerCommand())
+                add("--mode")
+                add("streamable-http")
+                add("--host")
+                add(BroxyCliIntegrationConfig.TEST_SERVER_HTTP_HOST)
+                add("--port")
+                add(port.toString())
+                add("--path")
+                add(BroxyCliIntegrationConfig.TEST_SERVER_HTTP_PATH)
+            }
         BroxyCliIntegrationConfig.log("Launching test MCP server (HTTP Streamable) at $url")
         val process = BroxyCliProcesses.startTestServerProcess(command)
         return try {
@@ -135,12 +145,12 @@ internal object BroxyCliTestEnvironment {
     private suspend fun connectWithRetries(
         client: McpClient,
         serverLogs: (() -> String)? = null,
-        serverProcess: RunningProcess? = null
+        serverProcess: RunningProcess? = null,
     ) {
         var lastError: Throwable? = null
         repeat(BroxyCliIntegrationConfig.CONNECT_ATTEMPTS) { attempt ->
             BroxyCliIntegrationConfig.log(
-                "Connecting attempt ${attempt + 1} of ${BroxyCliIntegrationConfig.CONNECT_ATTEMPTS}"
+                "Connecting attempt ${attempt + 1} of ${BroxyCliIntegrationConfig.CONNECT_ATTEMPTS}",
             )
             val result = client.connect()
             if (result.isSuccess) {
@@ -149,31 +159,33 @@ internal object BroxyCliTestEnvironment {
             }
             lastError = result.exceptionOrNull()
             if (serverProcess?.isAlive() == false) {
-                val message = buildString {
-                    append(
-                        "Inbound process exited before connection succeeded: " +
-                                (lastError?.message ?: "unknown error")
-                    )
-                    if (serverLogs != null) {
-                        append("\nServer output:\n")
-                        append(serverLogs())
+                val message =
+                    buildString {
+                        append(
+                            "Inbound process exited before connection succeeded: " +
+                                (lastError?.message ?: "unknown error"),
+                        )
+                        if (serverLogs != null) {
+                            append("\nServer output:\n")
+                            append(serverLogs())
+                        }
                     }
-                }
                 BroxyCliIntegrationConfig.log(message)
                 fail(message)
             }
             delay(BroxyCliIntegrationConfig.CONNECT_DELAY_MILLIS)
         }
-        val message = buildString {
-            append(
-                "Failed to connect after ${BroxyCliIntegrationConfig.CONNECT_ATTEMPTS} attempts: " +
-                        (lastError?.message ?: "unknown error")
-            )
-            if (serverLogs != null) {
-                append("\nServer output:\n")
-                append(serverLogs())
+        val message =
+            buildString {
+                append(
+                    "Failed to connect after ${BroxyCliIntegrationConfig.CONNECT_ATTEMPTS} attempts: " +
+                        (lastError?.message ?: "unknown error"),
+                )
+                if (serverLogs != null) {
+                    append("\nServer output:\n")
+                    append(serverLogs())
+                }
             }
-        }
         BroxyCliIntegrationConfig.log(message)
         fail(message)
     }
@@ -181,11 +193,14 @@ internal object BroxyCliTestEnvironment {
     private fun configureTimeouts(client: McpClient) {
         (client as? TimeoutConfigurableMcpClient)?.updateTimeouts(
             60_000L,
-            60_000L
+            60_000L,
         )
     }
 
-    private suspend fun waitForHttpServer(host: String, port: Int) {
+    private suspend fun waitForHttpServer(
+        host: String,
+        port: Int,
+    ) {
         repeat(BroxyCliIntegrationConfig.HTTP_SERVER_ATTEMPTS) {
             if (isPortOpen(host, port)) {
                 return
@@ -195,7 +210,10 @@ internal object BroxyCliTestEnvironment {
         fail("Test MCP HTTP server did not start on $host:$port")
     }
 
-    private fun isPortOpen(host: String, port: Int): Boolean =
+    private fun isPortOpen(
+        host: String,
+        port: Int,
+    ): Boolean =
         runCatching {
             Socket().use { socket ->
                 socket.connect(InetSocketAddress(host, port), 100)
@@ -210,9 +228,12 @@ internal class ScenarioHandle(
     private val client: McpClient,
     private val configDir: Path,
     private val cliProcess: RunningProcess?,
-    private val testServerProcess: RunningProcess
+    private val testServerProcess: RunningProcess,
 ) : AutoCloseable {
-    suspend fun run(description: String, block: suspend (McpClient) -> Unit) {
+    suspend fun run(
+        description: String,
+        block: suspend (McpClient) -> Unit,
+    ) {
         BroxyCliIntegrationConfig.log("Running ${inboundScenario.description} scenario: $description")
         block(client)
     }
@@ -228,7 +249,7 @@ internal class ScenarioHandle(
 
 private data class TestServerInstance(
     val url: String,
-    val process: RunningProcess
+    val process: RunningProcess,
 ) : AutoCloseable {
     override fun close() {
         process.close()

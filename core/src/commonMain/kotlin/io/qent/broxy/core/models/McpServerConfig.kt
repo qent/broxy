@@ -8,5 +8,5 @@ data class McpServerConfig(
     val name: String,
     val transport: TransportConfig,
     val env: Map<String, String> = emptyMap(),
-    val enabled: Boolean = true
+    val enabled: Boolean = true,
 )

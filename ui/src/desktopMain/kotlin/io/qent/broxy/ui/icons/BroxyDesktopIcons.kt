@@ -34,19 +34,26 @@ fun createApplicationIconImage(size: Int): BufferedImage = resizeBufferedImage(b
 fun createTrayIconImage(size: Int): BufferedImage = resizeBufferedImage(baseTrayIconImage, size)
 
 private fun loadIconBytes(resourcePath: String): ByteArray {
-    val stream = IconResourceMarker::class.java.getResourceAsStream(resourcePath)
-        ?: error("Icon resource not found: $resourcePath")
+    val stream =
+        IconResourceMarker::class.java.getResourceAsStream(resourcePath)
+            ?: error("Icon resource not found: $resourcePath")
     return stream.use { it.readBytes() }
 }
 
-private fun readBufferedImage(bytes: ByteArray, resourcePath: String): BufferedImage {
+private fun readBufferedImage(
+    bytes: ByteArray,
+    resourcePath: String,
+): BufferedImage {
     ByteArrayInputStream(bytes).use { input ->
         return ImageIO.read(input)
             ?: error("Unable to decode icon resource: $resourcePath")
     }
 }
 
-private fun resizeBufferedImage(source: BufferedImage, size: Int): BufferedImage {
+private fun resizeBufferedImage(
+    source: BufferedImage,
+    size: Int,
+): BufferedImage {
     val targetSize = size.coerceAtLeast(1)
     if (targetSize == source.width && source.width == source.height) {
         return copyBufferedImage(source)
@@ -65,7 +72,10 @@ private fun copyBufferedImage(source: BufferedImage): BufferedImage {
     return copy
 }
 
-private fun scaleBufferedImage(source: BufferedImage, size: Int): BufferedImage {
+private fun scaleBufferedImage(
+    source: BufferedImage,
+    size: Int,
+): BufferedImage {
     val scaled = BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB)
     val graphics = scaled.createGraphics()
     graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC)

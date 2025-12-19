@@ -2,6 +2,7 @@ package io.qent.broxy.ui.screens
 
 import AppPrimaryButton
 import AppSecondaryButton
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -25,7 +26,11 @@ import io.qent.broxy.ui.viewmodels.AppState
 import io.qent.broxy.ui.viewmodels.PresetEditorState
 
 @Composable
-fun PresetsScreen(ui: UIState, state: AppState, store: AppStore) {
+fun PresetsScreen(
+    ui: UIState,
+    state: AppState,
+    store: AppStore,
+) {
     var query by rememberSaveable { mutableStateOf("") }
     var pendingDeletion: UiPreset? by remember { mutableStateOf<UiPreset?>(null) }
     val editor = state.presetEditor.value
@@ -38,7 +43,7 @@ fun PresetsScreen(ui: UIState, state: AppState, store: AppStore) {
                     ui = ui,
                     store = store,
                     editor = editor,
-                    onClose = { state.presetEditor.value = null }
+                    onClose = { state.presetEditor.value = null },
                 )
                 Spacer(Modifier.height(AppTheme.spacing.md))
             }
@@ -47,7 +52,7 @@ fun PresetsScreen(ui: UIState, state: AppState, store: AppStore) {
 
         Column(
             modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)
+            verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
         ) {
             Spacer(Modifier.height(1.dp))
 
@@ -56,7 +61,7 @@ fun PresetsScreen(ui: UIState, state: AppState, store: AppStore) {
                 onValueChange = { query = it },
                 label = { Text("Search presets") },
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true
+                singleLine = true,
             )
 
             when (ui) {
@@ -67,26 +72,28 @@ fun PresetsScreen(ui: UIState, state: AppState, store: AppStore) {
                     if (presets.isEmpty()) {
                         EmptyState(
                             title = "No presets yet",
-                            subtitle = "Use the + button to add your first preset"
+                            subtitle = "Use the + button to add your first preset",
                         )
                     } else {
-                        val filtered = presets.filter { p ->
-                            p.name.contains(query, ignoreCase = true) ||
+                        val filtered =
+                            presets.filter { p ->
+                                p.name.contains(query, ignoreCase = true) ||
                                     p.id.contains(query, ignoreCase = true)
-                        }
+                            }
                         LazyColumn(
                             modifier = Modifier.weight(1f, fill = true),
                             verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
-                            contentPadding = PaddingValues(bottom = PresetListBottomPadding)
+                            contentPadding = PaddingValues(bottom = PresetListBottomPadding),
                         ) {
                             items(filtered, key = { it.id }) { preset ->
                                 PresetCard(
                                     preset = preset,
+                                    isActive = preset.id == ui.selectedPresetId,
                                     onEdit = {
                                         pendingDeletion = null
                                         state.presetEditor.value = PresetEditorState.Edit(preset.id)
                                     },
-                                    onDelete = { pendingDeletion = preset }
+                                    onDelete = { pendingDeletion = preset },
                                 )
                             }
                         }
@@ -106,7 +113,7 @@ fun PresetsScreen(ui: UIState, state: AppState, store: AppStore) {
                     readyUi.intents.removePreset(toDelete.id)
                     pendingDeletion = null
                 },
-                onDismiss = { pendingDeletion = null }
+                onDismiss = { pendingDeletion = null },
             )
         }
     }
@@ -115,9 +122,17 @@ fun PresetsScreen(ui: UIState, state: AppState, store: AppStore) {
 @Composable
 private fun PresetCard(
     preset: UiPreset,
+    isActive: Boolean,
     onEdit: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
 ) {
+    val border =
+        if (isActive) {
+            BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
+        } else {
+            null
+        }
+
     SettingsLikeItem(
         title = preset.name,
         descriptionContent = {
@@ -125,10 +140,11 @@ private fun PresetCard(
                 toolsCount = preset.toolsCount,
                 promptsCount = preset.promptsCount,
                 resourcesCount = preset.resourcesCount,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         },
-        onClick = onEdit
+        onClick = onEdit,
+        border = border,
     ) {
         IconButton(onClick = onEdit) {
             Icon(Icons.Outlined.Edit, contentDescription = "Edit preset", tint = MaterialTheme.colorScheme.secondary)
@@ -137,7 +153,7 @@ private fun PresetCard(
             Icon(
                 Icons.Outlined.Delete,
                 contentDescription = "Delete preset",
-                tint = MaterialTheme.colorScheme.secondary
+                tint = MaterialTheme.colorScheme.secondary,
             )
         }
     }
@@ -147,34 +163,37 @@ private fun PresetCard(
 private fun DeletePresetDialog(
     preset: UiPreset,
     onConfirm: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
 ) {
     AppDialog(
         title = "Delete preset",
         onDismissRequest = onDismiss,
         dismissButton = { AppSecondaryButton(onClick = onDismiss) { Text("Cancel") } },
-        confirmButton = { AppPrimaryButton(onClick = onConfirm) { Text("Delete") } }
+        confirmButton = { AppPrimaryButton(onClick = onConfirm) { Text("Delete") } },
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)) {
             Text(
                 text = "Remove \"${preset.name}\"?",
-                style = MaterialTheme.typography.bodyMedium
+                style = MaterialTheme.typography.bodyMedium,
             )
             Text(
                 text = "This preset will disappear from broxy, including the CLI shortcuts that rely on it. This action cannot be undone.",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
 }
 
 @Composable
-private fun EmptyState(title: String, subtitle: String) {
+private fun EmptyState(
+    title: String,
+    subtitle: String,
+) {
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(title, style = MaterialTheme.typography.titleLarge)
         Spacer(Modifier.height(AppTheme.spacing.sm))

@@ -21,7 +21,7 @@ import io.qent.broxy.core.utils.Logger
 interface ToolFilter {
     fun filter(
         all: Map<String, ServerCapabilities>,
-        preset: Preset
+        preset: Preset,
     ): FilterResult
 }
 
@@ -34,32 +34,39 @@ data class FilterResult(
     /** Map prompt name -> serverId for routing */
     val promptServerByName: Map<String, String>,
     /** Map resource uriOrName -> serverId for routing */
-    val resourceServerByUri: Map<String, String>
+    val resourceServerByUri: Map<String, String>,
 )
 
 class DefaultToolFilter(
-    private val logger: Logger = ConsoleLogger
+    private val logger: Logger = ConsoleLogger,
 ) : ToolFilter {
-    override fun filter(all: Map<String, ServerCapabilities>, preset: Preset): FilterResult {
+    override fun filter(
+        all: Map<String, ServerCapabilities>,
+        preset: Preset,
+    ): FilterResult {
         // Group desired tools by server for quick lookup
-        val desiredByServer: Map<String, List<ToolReference>> = preset.tools
-            .filter { it.enabled }
-            .groupBy { it.serverId }
-        val desiredPromptsByServer: Map<String, List<PromptReference>> = preset.prompts
-            ?.filter { it.enabled }
-            ?.groupBy { it.serverId }
-            .orEmpty()
-        val desiredResourcesByServer: Map<String, List<ResourceReference>> = preset.resources
-            ?.filter { it.enabled }
-            ?.groupBy { it.serverId }
-            .orEmpty()
+        val desiredByServer: Map<String, List<ToolReference>> =
+            preset.tools
+                .filter { it.enabled }
+                .groupBy { it.serverId }
+        val desiredPromptsByServer: Map<String, List<PromptReference>> =
+            preset.prompts
+                ?.filter { it.enabled }
+                ?.groupBy { it.serverId }
+                .orEmpty()
+        val desiredResourcesByServer: Map<String, List<ResourceReference>> =
+            preset.resources
+                ?.filter { it.enabled }
+                ?.groupBy { it.serverId }
+                .orEmpty()
 
         // Determine which servers are in scope (referenced by tools/prompts/resources)
-        val inScopeServers: Set<String> = buildSet {
-            addAll(desiredByServer.keys)
-            addAll(desiredPromptsByServer.keys)
-            addAll(desiredResourcesByServer.keys)
-        }
+        val inScopeServers: Set<String> =
+            buildSet {
+                addAll(desiredByServer.keys)
+                addAll(desiredPromptsByServer.keys)
+                addAll(desiredResourcesByServer.keys)
+            }
 
         val allowedPrefixed = mutableSetOf<String>()
         val missing = mutableListOf<ToolReference>()
@@ -71,9 +78,10 @@ class DefaultToolFilter(
         val resourceServer = mutableMapOf<String, String>()
 
         // Build a lookup index of tools per server for existence validation
-        val toolIndex: Map<String, Set<String>> = all.mapValues { (_, caps) ->
-            caps.tools.map { it.name }.toSet()
-        }
+        val toolIndex: Map<String, Set<String>> =
+            all.mapValues { (_, caps) ->
+                caps.tools.map { it.name }.toSet()
+            }
 
         // Tools: allow only those requested by preset and present downstream; prefix names
         desiredByServer.forEach { (serverId, refs) ->
@@ -104,18 +112,26 @@ class DefaultToolFilter(
             val promptAllowList = desiredPromptsByServer[serverId]?.map { it.promptName }?.toSet().orEmpty()
             val resourceAllowList = desiredResourcesByServer[serverId]?.map { it.resourceKey }?.toSet().orEmpty()
 
-            val promptsToInclude = if (restrictPrompts) {
-                if (promptAllowList.isEmpty()) emptyList()
-                else caps.prompts.filter { it.name in promptAllowList }
-            } else {
-                caps.prompts
-            }
-            val resourcesToInclude = if (restrictResources) {
-                if (resourceAllowList.isEmpty()) emptyList()
-                else caps.resources.filter { (it.uri ?: it.name) in resourceAllowList }
-            } else {
-                caps.resources
-            }
+            val promptsToInclude =
+                if (restrictPrompts) {
+                    if (promptAllowList.isEmpty()) {
+                        emptyList()
+                    } else {
+                        caps.prompts.filter { it.name in promptAllowList }
+                    }
+                } else {
+                    caps.prompts
+                }
+            val resourcesToInclude =
+                if (restrictResources) {
+                    if (resourceAllowList.isEmpty()) {
+                        emptyList()
+                    } else {
+                        caps.resources.filter { (it.uri ?: it.name) in resourceAllowList }
+                    }
+                } else {
+                    caps.resources
+                }
 
             filteredPrompts += promptsToInclude
             filteredResources += resourcesToInclude
@@ -128,15 +144,16 @@ class DefaultToolFilter(
         }
 
         return FilterResult(
-            capabilities = ServerCapabilities(
-                tools = filteredTools,
-                resources = filteredResources,
-                prompts = filteredPrompts
-            ),
+            capabilities =
+                ServerCapabilities(
+                    tools = filteredTools,
+                    resources = filteredResources,
+                    prompts = filteredPrompts,
+                ),
             allowedPrefixedTools = allowedPrefixed,
             missingTools = missing,
             promptServerByName = promptServer.toMap(),
-            resourceServerByUri = resourceServer.toMap()
+            resourceServerByUri = resourceServer.toMap(),
         )
     }
 }

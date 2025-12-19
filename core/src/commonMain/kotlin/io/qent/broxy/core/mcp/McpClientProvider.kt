@@ -7,5 +7,9 @@ import io.qent.broxy.core.utils.Logger
  * Abstraction for providing platform-specific McpClient instances.
  */
 fun interface McpClientProvider {
-    fun create(config: TransportConfig, env: Map<String, String>, logger: Logger): McpClient
+    fun create(
+        config: TransportConfig,
+        env: Map<String, String>,
+        logger: Logger,
+    ): McpClient
 }

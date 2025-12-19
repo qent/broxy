@@ -9,5 +9,5 @@ data class UiServer(
     val connectingSinceEpochMillis: Long? = null,
     val toolsCount: Int? = null,
     val promptsCount: Int? = null,
-    val resourcesCount: Int? = null
+    val resourcesCount: Int? = null,
 )

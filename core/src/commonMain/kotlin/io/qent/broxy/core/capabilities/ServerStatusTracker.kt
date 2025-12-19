@@ -4,7 +4,7 @@ package io.qent.broxy.core.capabilities
  * Tracks transient server connection statuses. Backed by a synchronized map.
  */
 class ServerStatusTracker(
-    private val now: () -> Long = { System.currentTimeMillis() }
+    private val now: () -> Long = { System.currentTimeMillis() },
 ) {
     private val statuses = mutableMapOf<String, ServerConnectionStatus>()
     private val connectingSince = mutableMapOf<String, Long>()
@@ -14,7 +14,10 @@ class ServerStatusTracker(
 
     fun connectingSince(serverId: String): Long? = synchronized(lock) { connectingSince[serverId] }
 
-    fun set(serverId: String, status: ServerConnectionStatus) {
+    fun set(
+        serverId: String,
+        status: ServerConnectionStatus,
+    ) {
         synchronized(lock) {
             statuses[serverId] = status
             if (status == ServerConnectionStatus.Connecting) {
@@ -25,7 +28,10 @@ class ServerStatusTracker(
         }
     }
 
-    fun setAll(serverIds: Collection<String>, status: ServerConnectionStatus) {
+    fun setAll(
+        serverIds: Collection<String>,
+        status: ServerConnectionStatus,
+    ) {
         if (serverIds.isEmpty()) return
         val timestamp = if (status == ServerConnectionStatus.Connecting) now() else null
         synchronized(lock) {

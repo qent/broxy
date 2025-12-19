@@ -25,7 +25,7 @@ import io.qent.broxy.ui.theme.AppTheme
 fun ServerCapabilitiesScreen(
     store: AppStore,
     serverId: String,
-    onClose: () -> Unit
+    onClose: () -> Unit,
 ) {
     val ui = store.state.collectAsState().value
     val serverName = (ui as? UIState.Ready)?.servers?.find { it.id == serverId }?.name ?: "Server"
@@ -62,55 +62,59 @@ fun ServerCapabilitiesScreen(
 private fun CapabilitiesContent(
     caps: UiServerCapsSnapshot,
     serverName: String,
-    onClose: () -> Unit
+    onClose: () -> Unit,
 ) {
     val scrollState = rememberScrollState()
 
-    val toolsItems = remember(caps.tools) {
-        caps.tools.map { tool ->
-            CapabilityDisplayItem(
-                serverName = serverName,
-                capabilityName = tool.name,
-                description = tool.description,
-                arguments = tool.arguments
-            )
+    val toolsItems =
+        remember(caps.tools) {
+            caps.tools.map { tool ->
+                CapabilityDisplayItem(
+                    serverName = serverName,
+                    capabilityName = tool.name,
+                    description = tool.description,
+                    arguments = tool.arguments,
+                )
+            }
         }
-    }
 
-    val promptsItems = remember(caps.prompts) {
-        caps.prompts.map { prompt ->
-            CapabilityDisplayItem(
-                serverName = serverName,
-                capabilityName = prompt.name,
-                description = prompt.description,
-                arguments = prompt.arguments
-            )
+    val promptsItems =
+        remember(caps.prompts) {
+            caps.prompts.map { prompt ->
+                CapabilityDisplayItem(
+                    serverName = serverName,
+                    capabilityName = prompt.name,
+                    description = prompt.description,
+                    arguments = prompt.arguments,
+                )
+            }
         }
-    }
 
-    val resourcesItems = remember(caps.resources) {
-        caps.resources.map { res ->
-            CapabilityDisplayItem(
-                serverName = serverName,
-                capabilityName = res.name.ifBlank { res.key },
-                description = res.description.ifBlank { res.key },
-                arguments = listOf()
-            )
+    val resourcesItems =
+        remember(caps.resources) {
+            caps.resources.map { res ->
+                CapabilityDisplayItem(
+                    serverName = serverName,
+                    capabilityName = res.name.ifBlank { res.key },
+                    description = res.description.ifBlank { res.key },
+                    arguments = listOf(),
+                )
+            }
         }
-    }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(scrollState),
-        verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState),
+        verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
     ) {
         Spacer(Modifier.height(AppTheme.spacing.xs))
 
         HeaderRow(
             title = serverName,
             onBack = onClose,
-            caps = caps
+            caps = caps,
         )
 
         if (toolsItems.isEmpty() && promptsItems.isEmpty() && resourcesItems.isEmpty()) {
@@ -118,26 +122,26 @@ private fun CapabilitiesContent(
                 "No capabilities exposed.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = AppTheme.spacing.sm, start = AppTheme.spacing.md)
+                modifier = Modifier.padding(top = AppTheme.spacing.sm, start = AppTheme.spacing.md),
             )
         } else {
             CapabilitiesCard(
                 title = "Tools",
                 items = toolsItems,
                 icon = Icons.Outlined.Construction,
-                showServerName = false
+                showServerName = false,
             )
             CapabilitiesCard(
                 title = "Prompts",
                 items = promptsItems,
                 icon = Icons.Outlined.ChatBubbleOutline,
-                showServerName = false
+                showServerName = false,
             )
             CapabilitiesCard(
                 title = "Resources",
                 items = resourcesItems,
                 icon = Icons.Outlined.Description,
-                showServerName = false
+                showServerName = false,
             )
         }
         Spacer(Modifier.height(AppTheme.spacing.xl))
@@ -148,12 +152,12 @@ private fun CapabilitiesContent(
 private fun HeaderRow(
     title: String,
     onBack: () -> Unit,
-    caps: UiServerCapsSnapshot? = null
+    caps: UiServerCapsSnapshot? = null,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)
+        horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm),
     ) {
         IconButton(onClick = onBack) {
             Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back")
@@ -163,14 +167,14 @@ private fun HeaderRow(
             style = MaterialTheme.typography.titleLarge,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f),
         )
 
         if (caps != null) {
             CapabilitiesInlineSummary(
                 toolsCount = caps.tools.size,
                 promptsCount = caps.prompts.size,
-                resourcesCount = caps.resources.size
+                resourcesCount = caps.resources.size,
             )
         }
     }

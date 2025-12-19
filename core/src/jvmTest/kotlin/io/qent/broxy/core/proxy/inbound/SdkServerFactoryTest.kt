@@ -10,7 +10,11 @@ import io.qent.broxy.core.mcp.ToolDescriptor
 import io.qent.broxy.core.utils.ConsoleLogger
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
-import kotlin.test.*
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertIs
+import kotlin.test.assertTrue
 import io.modelcontextprotocol.kotlin.sdk.types.ServerCapabilities as SdkServerCapabilities
 import io.qent.broxy.core.mcp.ServerCapabilities as ProxyServerCapabilities
 
@@ -19,16 +23,17 @@ class SdkServerFactoryTest {
 
     @Test
     fun `decodes content without explicit type by inferring text`() {
-        val element = json.parseToJsonElement(
-            """
-            {
-              "content": [
-                { "text": "hello world" }
-              ],
-              "structuredContent": { "foo": "bar" }
-            }
-            """.trimIndent()
-        )
+        val element =
+            json.parseToJsonElement(
+                """
+                {
+                  "content": [
+                    { "text": "hello world" }
+                  ],
+                  "structuredContent": { "foo": "bar" }
+                }
+                """.trimIndent(),
+            )
 
         val result = decodeWithFallback(element)
 
@@ -39,16 +44,17 @@ class SdkServerFactoryTest {
 
     @Test
     fun `fallback preserves payload when decoding content fails`() {
-        val element = json.parseToJsonElement(
-            """
-            {
-              "content": [
-                { "text": { "timezone": "UTC", "date_time": "2024-06-01T12:00:00Z" } }
-              ],
-              "structuredContent": { "foo": "bar" }
-            }
-            """.trimIndent()
-        )
+        val element =
+            json.parseToJsonElement(
+                """
+                {
+                  "content": [
+                    { "text": { "timezone": "UTC", "date_time": "2024-06-01T12:00:00Z" } }
+                  ],
+                  "structuredContent": { "foo": "bar" }
+                }
+                """.trimIndent(),
+            )
 
         val callResult = decodeWithFallback(element)
 
@@ -60,33 +66,38 @@ class SdkServerFactoryTest {
 
     @Test
     fun `syncSdkServer replaces registered capabilities snapshot`() {
-        val server = Server(
-            serverInfo = Implementation(name = "test", version = "0"),
-            options = ServerOptions(
-                capabilities = SdkServerCapabilities(
-                    prompts = SdkServerCapabilities.Prompts(listChanged = false),
-                    resources = SdkServerCapabilities.Resources(listChanged = false, subscribe = false),
-                    tools = SdkServerCapabilities.Tools(listChanged = false),
-                    logging = SdkServerCapabilities.Logging
-                )
+        val server =
+            Server(
+                serverInfo = Implementation(name = "test", version = "0"),
+                options =
+                    ServerOptions(
+                        capabilities =
+                            SdkServerCapabilities(
+                                prompts = SdkServerCapabilities.Prompts(listChanged = false),
+                                resources = SdkServerCapabilities.Resources(listChanged = false, subscribe = false),
+                                tools = SdkServerCapabilities.Tools(listChanged = false),
+                                logging = SdkServerCapabilities.Logging,
+                            ),
+                    ),
             )
-        )
 
-        val backend = ProxyBackend(
-            callTool = { _, _ -> Result.success(JsonObject(emptyMap())) },
-            getPrompt = { _, _ -> Result.success(JsonObject(emptyMap())) },
-            readResource = { _ -> Result.success(JsonObject(emptyMap())) }
-        )
+        val backend =
+            ProxyBackend(
+                callTool = { _, _ -> Result.success(JsonObject(emptyMap())) },
+                getPrompt = { _, _ -> Result.success(JsonObject(emptyMap())) },
+                readResource = { _ -> Result.success(JsonObject(emptyMap())) },
+            )
 
         syncSdkServer(
             server = server,
-            capabilities = ProxyServerCapabilities(
-                tools = listOf(ToolDescriptor(name = "s1:t1")),
-                prompts = listOf(PromptDescriptor(name = "p1")),
-                resources = listOf(ResourceDescriptor(name = "r1", uri = "file:///r1"))
-            ),
+            capabilities =
+                ProxyServerCapabilities(
+                    tools = listOf(ToolDescriptor(name = "s1:t1")),
+                    prompts = listOf(PromptDescriptor(name = "p1")),
+                    resources = listOf(ResourceDescriptor(name = "r1", uri = "file:///r1")),
+                ),
             backend = backend,
-            logger = ConsoleLogger
+            logger = ConsoleLogger,
         )
 
         assertTrue(server.tools.containsKey("s1:t1"))
@@ -95,13 +106,14 @@ class SdkServerFactoryTest {
 
         syncSdkServer(
             server = server,
-            capabilities = ProxyServerCapabilities(
-                tools = listOf(ToolDescriptor(name = "s2:t2")),
-                prompts = emptyList(),
-                resources = listOf(ResourceDescriptor(name = "r2", uri = null))
-            ),
+            capabilities =
+                ProxyServerCapabilities(
+                    tools = listOf(ToolDescriptor(name = "s2:t2")),
+                    prompts = emptyList(),
+                    resources = listOf(ResourceDescriptor(name = "r2", uri = null)),
+                ),
             backend = backend,
-            logger = ConsoleLogger
+            logger = ConsoleLogger,
         )
 
         assertFalse(server.tools.containsKey("s1:t1"))

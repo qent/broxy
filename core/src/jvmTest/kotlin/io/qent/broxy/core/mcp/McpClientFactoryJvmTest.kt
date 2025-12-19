@@ -11,26 +11,29 @@ class McpClientFactoryJvmTest {
     fun creates_stdio_http_ws_clients_for_transport_configs() {
         val factory = McpClientFactory(defaultMcpClientProvider())
 
-        val stdio = factory.create(
-            TransportConfig.StdioTransport(command = "cmd", args = listOf("--x")),
-            env = mapOf("K" to "V")
-        )
+        val stdio =
+            factory.create(
+                TransportConfig.StdioTransport(command = "cmd", args = listOf("--x")),
+                env = mapOf("K" to "V"),
+            )
         assertTrue(stdio is StdioMcpClient)
 
-        val http = factory.create(
-            TransportConfig.HttpTransport(
-                url = "http://localhost:1234/mcp",
-                headers = mapOf("h" to "v")
+        val http =
+            factory.create(
+                TransportConfig.HttpTransport(
+                    url = "http://localhost:1234/mcp",
+                    headers = mapOf("h" to "v"),
+                ),
             )
-        )
         assertTrue(http is KtorMcpClient)
 
-        val stream = factory.create(
-            TransportConfig.StreamableHttpTransport(
-                url = "http://localhost:1234/mcp",
-                headers = mapOf("h" to "v")
+        val stream =
+            factory.create(
+                TransportConfig.StreamableHttpTransport(
+                    url = "http://localhost:1234/mcp",
+                    headers = mapOf("h" to "v"),
+                ),
             )
-        )
         assertTrue(stream is KtorMcpClient)
 
         val ws = factory.create(TransportConfig.WebSocketTransport(url = "ws://localhost:1235/mcp"))

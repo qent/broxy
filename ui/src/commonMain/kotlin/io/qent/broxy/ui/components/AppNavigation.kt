@@ -24,38 +24,41 @@ import io.qent.broxy.ui.viewmodels.Screen
 data class NavItem(
     val screen: Screen,
     val label: String,
-    val icon: ImageVector
+    val icon: ImageVector,
 )
 
-private val navItems = listOf(
-    NavItem(Screen.Servers, "MCP", Icons.Outlined.Storage),
-    NavItem(Screen.Presets, "Presets", Icons.Outlined.Tune),
-    NavItem(Screen.Settings, "Settings", Icons.Outlined.Settings),
-)
+private val navItems =
+    listOf(
+        NavItem(Screen.Servers, "MCP", Icons.Outlined.Storage),
+        NavItem(Screen.Presets, "Presets", Icons.Outlined.Tune),
+        NavItem(Screen.Settings, "Settings", Icons.Outlined.Settings),
+    )
 
 @Composable
 fun AppNavigationRail(
     selected: Screen,
     onSelect: (Screen) -> Unit,
     proxyStatus: UiProxyStatus?,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val colors = MaterialTheme.colorScheme
 
     Column(
-        modifier = modifier
-            .width(AppTheme.layout.navigationRailWidth)
-            .background(AppTheme.extendedColors.sidebarBackground)
-            .padding(vertical = AppTheme.spacing.md),
+        modifier =
+            modifier
+                .width(AppTheme.layout.navigationRailWidth)
+                .background(AppTheme.extendedColors.sidebarBackground)
+                .padding(vertical = AppTheme.spacing.md),
         horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Top
+        verticalArrangement = Arrangement.Top,
     ) {
         Column(
             horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(6.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = AppTheme.spacing.sm)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = AppTheme.spacing.sm),
         ) {
             // Navigation Items
             navItems.forEach { item ->
@@ -66,20 +69,21 @@ fun AppNavigationRail(
                 Column(
                     horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
                     verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(AppTheme.shapes.button)
-                        .background(backgroundColor)
-                        .clickable { onSelect(item.screen) }
-                        .padding(vertical = 7.dp, horizontal = 3.dp)
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(AppTheme.shapes.button)
+                            .background(backgroundColor)
+                            .clickable { onSelect(item.screen) }
+                            .padding(vertical = 7.dp, horizontal = 3.dp),
                 ) {
                     androidx.compose.runtime.CompositionLocalProvider(
-                        androidx.compose.material3.LocalContentColor provides contentColor
+                        androidx.compose.material3.LocalContentColor provides contentColor,
                     ) {
                         Icon(
                             imageVector = item.icon,
                             contentDescription = item.label,
-                            modifier = Modifier.size(22.dp)
+                            modifier = Modifier.size(22.dp),
                         )
                     }
 
@@ -87,13 +91,14 @@ fun AppNavigationRail(
 
                     Text(
                         text = item.label,
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            fontSize = 10.sp,
-                            fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
-                        ),
+                        style =
+                            MaterialTheme.typography.labelMedium.copy(
+                                fontSize = 10.sp,
+                                fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
+                            ),
                         color = contentColor,
                         maxLines = 1,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                     )
                 }
             }
@@ -102,10 +107,11 @@ fun AppNavigationRail(
         Spacer(modifier = Modifier.weight(1f))
 
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = AppTheme.spacing.sm),
-            contentAlignment = Alignment.Center
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = AppTheme.spacing.sm),
+            contentAlignment = Alignment.Center,
         ) {
             ProxyStatusIndicator(status = proxyStatus)
         }

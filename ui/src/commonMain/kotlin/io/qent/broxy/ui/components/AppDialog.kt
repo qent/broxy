@@ -38,7 +38,7 @@ fun AppDialog(
     modifier: Modifier = Modifier,
     dismissButton: (@Composable () -> Unit)? = null,
     confirmButton: @Composable () -> Unit,
-    content: @Composable ColumnScope.() -> Unit
+    content: @Composable ColumnScope.() -> Unit,
 ) {
     val scrollState = rememberScrollState()
     val scrollbarAdapter = rememberScrollbarAdapter(scrollState)
@@ -48,62 +48,69 @@ fun AppDialog(
 
     Dialog(
         onDismissRequest = onDismissRequest,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
+        properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
         Surface(
-            modifier = modifier
-                .padding(horizontal = AppTheme.spacing.xl, vertical = AppTheme.spacing.lg)
-                .widthIn(
-                    min = AppTheme.layout.dialogMinWidth,
-                    max = 640.dp
-                ),
+            modifier =
+                modifier
+                    .padding(horizontal = AppTheme.spacing.xl, vertical = AppTheme.spacing.lg)
+                    .widthIn(
+                        min = AppTheme.layout.dialogMinWidth,
+                        max = 640.dp,
+                    ),
             shape = AppTheme.shapes.dialog,
             tonalElevation = AppTheme.elevation.level3,
             color = MaterialTheme.colorScheme.surface,
-            border = BorderStroke(
-                width = AppTheme.strokeWidths.thin,
-                color = MaterialTheme.colorScheme.outlineVariant
-            )
+            border =
+                BorderStroke(
+                    width = AppTheme.strokeWidths.thin,
+                    color = MaterialTheme.colorScheme.outlineVariant,
+                ),
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(
-                            start = AppTheme.spacing.lg,
-                            end = AppTheme.spacing.lg - if (showScrollbar) {
-                                AppTheme.layout.scrollbarThickness
-                            } else {
-                                0.dp
-                            },
-                            top = AppTheme.spacing.md
-                        ),
-                    verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(
+                                start = AppTheme.spacing.lg,
+                                end =
+                                    AppTheme.spacing.lg -
+                                        if (showScrollbar) {
+                                            AppTheme.layout.scrollbarThickness
+                                        } else {
+                                            0.dp
+                                        },
+                                top = AppTheme.spacing.md,
+                            ),
+                    verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
                 ) {
                     Text(title, style = MaterialTheme.typography.headlineSmall)
                     Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = AppTheme.layout.dialogMaxHeight)
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = AppTheme.layout.dialogMaxHeight),
                     ) {
                         Row(
                             modifier = Modifier.fillMaxSize(),
-                            verticalAlignment = Alignment.Top
+                            verticalAlignment = Alignment.Top,
                         ) {
                             Column(
-                                modifier = Modifier
-                                    .weight(1f, fill = true)
-                                    .fillMaxHeight()
-                                    .verticalScroll(scrollState),
+                                modifier =
+                                    Modifier
+                                        .weight(1f, fill = true)
+                                        .fillMaxHeight()
+                                        .verticalScroll(scrollState),
                                 verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
-                                content = content
+                                content = content,
                             )
                             if (showScrollbar) {
                                 AppVerticalScrollbar(
                                     adapter = scrollbarAdapter,
                                     modifier = Modifier.fillMaxHeight(),
                                     canScroll = showScrollbar,
-                                    isScrollInProgress = scrollState.isScrollInProgress
+                                    isScrollInProgress = scrollState.isScrollInProgress,
                                 )
                             }
                         }
@@ -111,18 +118,19 @@ fun AppDialog(
                 }
                 HorizontalDivider()
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(
-                            horizontal = AppTheme.spacing.lg,
-                            vertical = AppTheme.spacing.sm
-                        ),
-                    horizontalArrangement = Arrangement.End
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(
+                                horizontal = AppTheme.spacing.lg,
+                                vertical = AppTheme.spacing.sm,
+                            ),
+                    horizontalArrangement = Arrangement.End,
                 ) {
                     dismissButton?.invoke()
                     if (dismissButton != null) {
                         androidx.compose.foundation.layout.Spacer(
-                            modifier = Modifier.width(AppTheme.spacing.sm)
+                            modifier = Modifier.width(AppTheme.spacing.sm),
                         )
                     }
                     confirmButton()

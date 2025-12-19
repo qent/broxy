@@ -11,7 +11,10 @@ import io.qent.broxy.core.mcp.ToolDescriptor
  */
 interface NamespaceManager {
     /** Adds a `serverId:` prefix to the tool name. */
-    fun prefixToolName(serverId: String, toolName: String): String
+    fun prefixToolName(
+        serverId: String,
+        toolName: String,
+    ): String
 
     /** Parses a prefixed tool name in form `serverId:tool` into pair. */
     fun parsePrefixedToolName(name: String): Pair<String, String>
@@ -24,7 +27,10 @@ interface NamespaceManager {
 }
 
 class DefaultNamespaceManager : NamespaceManager {
-    override fun prefixToolName(serverId: String, toolName: String): String = "$serverId:$toolName"
+    override fun prefixToolName(
+        serverId: String,
+        toolName: String,
+    ): String = "$serverId:$toolName"
 
     override fun parsePrefixedToolName(name: String): Pair<String, String> {
         val idx = name.indexOf(':')

@@ -8,90 +8,122 @@ import io.qent.broxy.core.utils.Logger
 
 class ConfigurationManager(
     private val repository: ConfigurationRepository,
-    private val logger: Logger
+    private val logger: Logger,
 ) {
     data class ServerRenameResult(
         val config: McpServersConfig,
-        val presetMigrationError: Throwable? = null
+        val presetMigrationError: Throwable? = null,
     )
 
-    fun upsertServer(config: McpServersConfig, server: McpServerConfig): Result<McpServersConfig> =
-        saveConfig(mutateServers(config) { servers ->
-            val idx = servers.indexOfFirst { it.id == server.id }
-            if (idx >= 0) servers[idx] = server else servers += server
-        })
+    fun upsertServer(
+        config: McpServersConfig,
+        server: McpServerConfig,
+    ): Result<McpServersConfig> =
+        saveConfig(
+            mutateServers(config) { servers ->
+                val idx = servers.indexOfFirst { it.id == server.id }
+                if (idx >= 0) servers[idx] = server else servers += server
+            },
+        )
 
     fun renameServer(
         config: McpServersConfig,
         oldId: String,
-        server: McpServerConfig
+        server: McpServerConfig,
     ): Result<ServerRenameResult> {
-        val updated = mutateServers(config) { servers ->
-            if (oldId.isNotBlank() && oldId != server.id) {
-                servers.removeAll { it.id == oldId }
+        val updated =
+            mutateServers(config) { servers ->
+                if (oldId.isNotBlank() && oldId != server.id) {
+                    servers.removeAll { it.id == oldId }
+                }
+                val idx = servers.indexOfFirst { it.id == server.id }
+                if (idx >= 0) servers[idx] = server else servers += server
             }
-            val idx = servers.indexOfFirst { it.id == server.id }
-            if (idx >= 0) servers[idx] = server else servers += server
-        }
         val saveResult = saveConfig(updated)
         if (saveResult.isFailure) {
             return saveResult.map { ServerRenameResult(it) }
         }
-        val migrationError = if (oldId.isNotBlank() && oldId != server.id) {
-            runCatching { migratePresetsServerId(oldId, server.id) }.exceptionOrNull()
-        } else {
-            null
-        }
+        val migrationError =
+            if (oldId.isNotBlank() && oldId != server.id) {
+                runCatching { migratePresetsServerId(oldId, server.id) }.exceptionOrNull()
+            } else {
+                null
+            }
         if (migrationError != null) {
             logger.warn(
                 "Failed to update presets after renaming server '$oldId' -> '${server.id}': ${migrationError.message}",
-                migrationError
+                migrationError,
             )
         }
         return Result.success(ServerRenameResult(updated, migrationError))
     }
 
-    fun removeServer(config: McpServersConfig, serverId: String): Result<McpServersConfig> =
-        saveConfig(mutateServers(config) { servers ->
-            servers.removeAll { it.id == serverId }
-        })
+    fun removeServer(
+        config: McpServersConfig,
+        serverId: String,
+    ): Result<McpServersConfig> =
+        saveConfig(
+            mutateServers(config) { servers ->
+                servers.removeAll { it.id == serverId }
+            },
+        )
 
-    fun toggleServer(config: McpServersConfig, serverId: String, enabled: Boolean): Result<McpServersConfig> =
-        saveConfig(mutateServers(config) { servers ->
-            val idx = servers.indexOfFirst { it.id == serverId }
-            if (idx >= 0) servers[idx] = servers[idx].copy(enabled = enabled)
-        })
+    fun toggleServer(
+        config: McpServersConfig,
+        serverId: String,
+        enabled: Boolean,
+    ): Result<McpServersConfig> =
+        saveConfig(
+            mutateServers(config) { servers ->
+                val idx = servers.indexOfFirst { it.id == serverId }
+                if (idx >= 0) servers[idx] = servers[idx].copy(enabled = enabled)
+            },
+        )
 
-    fun updateRequestTimeout(config: McpServersConfig, seconds: Int): Result<McpServersConfig> =
-        saveConfig(config.copy(requestTimeoutSeconds = seconds))
+    fun updateRequestTimeout(
+        config: McpServersConfig,
+        seconds: Int,
+    ): Result<McpServersConfig> = saveConfig(config.copy(requestTimeoutSeconds = seconds))
 
-    fun updateCapabilitiesTimeout(config: McpServersConfig, seconds: Int): Result<McpServersConfig> =
-        saveConfig(config.copy(capabilitiesTimeoutSeconds = seconds))
+    fun updateCapabilitiesTimeout(
+        config: McpServersConfig,
+        seconds: Int,
+    ): Result<McpServersConfig> = saveConfig(config.copy(capabilitiesTimeoutSeconds = seconds))
 
-    fun updateInboundSsePort(config: McpServersConfig, port: Int): Result<McpServersConfig> =
-        saveConfig(config.copy(inboundSsePort = port.coerceIn(1, 65535)))
+    fun updateInboundSsePort(
+        config: McpServersConfig,
+        port: Int,
+    ): Result<McpServersConfig> = saveConfig(config.copy(inboundSsePort = port.coerceIn(1, 65535)))
 
-    fun updateRefreshInterval(config: McpServersConfig, seconds: Int): Result<McpServersConfig> =
-        saveConfig(config.copy(capabilitiesRefreshIntervalSeconds = seconds))
+    fun updateRefreshInterval(
+        config: McpServersConfig,
+        seconds: Int,
+    ): Result<McpServersConfig> = saveConfig(config.copy(capabilitiesRefreshIntervalSeconds = seconds))
 
-    fun updateTrayIconVisibility(config: McpServersConfig, visible: Boolean): Result<McpServersConfig> =
-        saveConfig(config.copy(showTrayIcon = visible))
+    fun updateTrayIconVisibility(
+        config: McpServersConfig,
+        visible: Boolean,
+    ): Result<McpServersConfig> = saveConfig(config.copy(showTrayIcon = visible))
 
-    fun updateDefaultPresetId(config: McpServersConfig, presetId: String?): Result<McpServersConfig> =
-        saveConfig(config.copy(defaultPresetId = presetId?.takeIf { it.isNotBlank() }))
+    fun updateDefaultPresetId(
+        config: McpServersConfig,
+        presetId: String?,
+    ): Result<McpServersConfig> = saveConfig(config.copy(defaultPresetId = presetId?.takeIf { it.isNotBlank() }))
 
-    fun savePreset(preset: Preset): Result<Preset> = runCatching {
-        repository.savePreset(preset)
-        preset
-    }.onFailure { logger.warn("Failed to save preset '${preset.id}': ${it.message}", it) }
+    fun savePreset(preset: Preset): Result<Preset> =
+        runCatching {
+            repository.savePreset(preset)
+            preset
+        }.onFailure { logger.warn("Failed to save preset '${preset.id}': ${it.message}", it) }
 
-    fun deletePreset(id: String): Result<Unit> = runCatching {
-        repository.deletePreset(id)
-    }.onFailure { logger.warn("Failed to delete preset '$id': ${it.message}", it) }
+    fun deletePreset(id: String): Result<Unit> =
+        runCatching {
+            repository.deletePreset(id)
+        }.onFailure { logger.warn("Failed to delete preset '$id': ${it.message}", it) }
 
     private fun mutateServers(
         config: McpServersConfig,
-        block: (MutableList<McpServerConfig>) -> Unit
+        block: (MutableList<McpServerConfig>) -> Unit,
     ): McpServersConfig {
         val servers = config.servers.toMutableList()
         block(servers)
@@ -106,21 +138,28 @@ class ConfigurationManager(
             logger.warn("Failed to save configuration: ${it.message}", it)
         }
 
-    private fun migratePresetsServerId(oldId: String, newId: String) {
+    private fun migratePresetsServerId(
+        oldId: String,
+        newId: String,
+    ) {
         if (oldId == newId) return
         val presets = repository.listPresets()
         presets.forEach { preset ->
-            val updated = preset.copy(
-                tools = preset.tools.map { ref ->
-                    if (ref.serverId == oldId) ref.copy(serverId = newId) else ref
-                },
-                prompts = preset.prompts?.map { ref ->
-                    if (ref.serverId == oldId) ref.copy(serverId = newId) else ref
-                },
-                resources = preset.resources?.map { ref ->
-                    if (ref.serverId == oldId) ref.copy(serverId = newId) else ref
-                }
-            )
+            val updated =
+                preset.copy(
+                    tools =
+                        preset.tools.map { ref ->
+                            if (ref.serverId == oldId) ref.copy(serverId = newId) else ref
+                        },
+                    prompts =
+                        preset.prompts?.map { ref ->
+                            if (ref.serverId == oldId) ref.copy(serverId = newId) else ref
+                        },
+                    resources =
+                        preset.resources?.map { ref ->
+                            if (ref.serverId == oldId) ref.copy(serverId = newId) else ref
+                        },
+                )
             if (updated != preset) {
                 repository.savePreset(updated)
             }

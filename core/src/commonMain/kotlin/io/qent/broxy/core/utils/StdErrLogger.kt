@@ -17,12 +17,17 @@ object StdErrLogger : Logger {
         errln("[INFO] $message")
     }
 
-    override fun warn(message: String, throwable: Throwable?) {
+    override fun warn(
+        message: String,
+        throwable: Throwable?,
+    ) {
         errln("[WARN] $message" + (throwable?.let { ": ${it.message}" } ?: ""))
     }
 
-    override fun error(message: String, throwable: Throwable?) {
+    override fun error(
+        message: String,
+        throwable: Throwable?,
+    ) {
         errln("[ERROR] $message" + (throwable?.let { ": ${it.message}" } ?: ""))
     }
 }
-

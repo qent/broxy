@@ -20,7 +20,7 @@ import kotlinx.serialization.json.JsonObject
 class ProxyMcpServer(
     downstreams: List<McpServerConnection>,
     private val logger: Logger = ConsoleLogger,
-    private val toolFilter: ToolFilter = DefaultToolFilter()
+    private val toolFilter: ToolFilter = DefaultToolFilter(),
 ) : ProxyServer {
     @Volatile
     private var status: ServerStatus = ServerStatus.Stopped
@@ -40,7 +40,10 @@ class ProxyMcpServer(
     @Volatile
     private var dispatcher: RequestDispatcher = buildDispatcher(downstreams)
 
-    override fun start(preset: Preset, transport: TransportConfig) {
+    override fun start(
+        preset: Preset,
+        transport: TransportConfig,
+    ) {
         // Store preset and bootstrap filtered view; inbound server wiring will be platform-specific.
         currentPreset = preset
         status = ServerStatus.Starting
@@ -114,7 +117,10 @@ class ProxyMcpServer(
      * Handles a tool call against the proxy. The [toolName] must be prefixed
      * in the form `serverId:toolName`.
      */
-    suspend fun callTool(toolName: String, arguments: JsonObject = JsonObject(emptyMap())): Result<JsonElement> =
+    suspend fun callTool(
+        toolName: String,
+        arguments: JsonObject = JsonObject(emptyMap()),
+    ): Result<JsonElement> =
         dispatcher.dispatchToolCall(ToolCallRequest(toolName, arguments)).also { result ->
             if (result.isSuccess) {
                 logger.info("Forwarded tool '$toolName' response back to LLM")
@@ -124,7 +130,10 @@ class ProxyMcpServer(
         }
 
     /** Fetches a prompt from the appropriate downstream based on mapping computed during filtering. */
-    suspend fun getPrompt(name: String, arguments: Map<String, String>? = null): Result<JsonObject> {
+    suspend fun getPrompt(
+        name: String,
+        arguments: Map<String, String>? = null,
+    ): Result<JsonObject> {
         if (filteredCaps.prompts.none { it.name == name }) {
             return Result.failure(IllegalArgumentException("Unknown prompt: $name"))
         }
@@ -151,16 +160,17 @@ class ProxyMcpServer(
         return result
     }
 
-    private suspend fun fetchAllDownstreamCapabilities(): Map<String, ServerCapabilities> = coroutineScope {
-        // Ensure downstream servers are connected, then fetch caps
-        val servers = downstreams
-        servers.map { s ->
-            async {
-                val caps = s.getCapabilities()
-                if (caps.isSuccess) s.serverId to caps.getOrThrow() else null
-            }
-        }.awaitAll().filterNotNull().toMap()
-    }
+    private suspend fun fetchAllDownstreamCapabilities(): Map<String, ServerCapabilities> =
+        coroutineScope {
+            // Ensure downstream servers are connected, then fetch caps
+            val servers = downstreams
+            servers.map { s ->
+                async {
+                    val caps = s.getCapabilities()
+                    if (caps.isSuccess) s.serverId to caps.getOrThrow() else null
+                }
+            }.awaitAll().filterNotNull().toMap()
+        }
 
     private fun buildDispatcher(servers: List<McpServerConnection>): RequestDispatcher =
         DefaultRequestDispatcher(
@@ -170,6 +180,6 @@ class ProxyMcpServer(
             promptServerResolver = { name -> promptServerByName[name] },
             resourceServerResolver = { uri -> resourceServerByUri[uri] },
             namespace = namespace,
-            logger = logger
+            logger = logger,
         )
 }

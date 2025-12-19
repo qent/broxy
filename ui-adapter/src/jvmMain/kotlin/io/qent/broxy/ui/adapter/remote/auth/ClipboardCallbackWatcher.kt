@@ -9,20 +9,22 @@ import java.net.URI
 
 class ClipboardCallbackWatcher(
     private val expectedState: String,
-    private val timeoutMillis: Long = 120_000
+    private val timeoutMillis: Long = 120_000,
 ) {
-    suspend fun await(): OAuthCallback? = withContext<OAuthCallback?>(Dispatchers.IO) {
-        val clipboard = runCatching { Toolkit.getDefaultToolkit().systemClipboard }.getOrNull()
-            ?: return@withContext null
-        val deadline = System.currentTimeMillis() + timeoutMillis
-        while (System.currentTimeMillis() < deadline) {
-            val text = runCatching { clipboard.getData(DataFlavor.stringFlavor) as? String }.getOrNull()
-            val callback = text?.let { parse(it.trim()) }
-            if (callback != null) return@withContext callback
-            delay(1_000)
+    suspend fun await(): OAuthCallback? =
+        withContext<OAuthCallback?>(Dispatchers.IO) {
+            val clipboard =
+                runCatching { Toolkit.getDefaultToolkit().systemClipboard }.getOrNull()
+                    ?: return@withContext null
+            val deadline = System.currentTimeMillis() + timeoutMillis
+            while (System.currentTimeMillis() < deadline) {
+                val text = runCatching { clipboard.getData(DataFlavor.stringFlavor) as? String }.getOrNull()
+                val callback = text?.let { parse(it.trim()) }
+                if (callback != null) return@withContext callback
+                delay(1_000)
+            }
+            null
         }
-        null
-    }
 
     private fun parse(raw: String): OAuthCallback? {
         val uri = runCatching { URI(raw) }.getOrNull() ?: return null
@@ -43,7 +45,8 @@ class ClipboardCallbackWatcher(
             key to value
         }.toMap()
 
-    private fun urlDecode(raw: String): String = runCatching {
-        java.net.URLDecoder.decode(raw, Charsets.UTF_8)
-    }.getOrDefault(raw)
+    private fun urlDecode(raw: String): String =
+        runCatching {
+            java.net.URLDecoder.decode(raw, Charsets.UTF_8)
+        }.getOrDefault(raw)
 }

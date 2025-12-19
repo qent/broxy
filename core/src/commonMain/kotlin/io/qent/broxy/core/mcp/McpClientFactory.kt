@@ -12,7 +12,7 @@ class McpClientFactory(private val provider: McpClientProvider) {
     fun create(
         config: TransportConfig,
         env: Map<String, String> = emptyMap(),
-        logger: Logger = ConsoleLogger
+        logger: Logger = ConsoleLogger,
     ): McpClient = provider.create(config, env, logger)
 }
 

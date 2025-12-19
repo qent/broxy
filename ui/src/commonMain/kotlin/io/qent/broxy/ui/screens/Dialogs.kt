@@ -23,30 +23,31 @@ import kotlinx.coroutines.CancellationException
 fun ServerDetailsDialog(
     server: UiServer,
     store: AppStore,
-    onClose: () -> Unit
+    onClose: () -> Unit,
 ) {
     val loadState by produceState<ServerDetailsState>(
         initialValue = ServerDetailsState.Loading,
-        key1 = server.id
+        key1 = server.id,
     ) {
-        value = try {
-            val snapshot = store.getServerCaps(server.id)
-            if (snapshot != null) {
-                ServerDetailsState.Ready(snapshot)
-            } else {
-                ServerDetailsState.Error("Capabilities unavailable")
+        value =
+            try {
+                val snapshot = store.getServerCaps(server.id)
+                if (snapshot != null) {
+                    ServerDetailsState.Ready(snapshot)
+                } else {
+                    ServerDetailsState.Error("Capabilities unavailable")
+                }
+            } catch (t: Throwable) {
+                if (t is CancellationException) throw t
+                ServerDetailsState.Error(t.message ?: "Failed to load capabilities")
             }
-        } catch (t: Throwable) {
-            if (t is CancellationException) throw t
-            ServerDetailsState.Error(t.message ?: "Failed to load capabilities")
-        }
     }
 
     AppDialog(
         title = "Server details",
         onDismissRequest = onClose,
         dismissButton = null,
-        confirmButton = { AppSecondaryButton(onClick = onClose) { Text("Close") } }
+        confirmButton = { AppSecondaryButton(onClick = onClose) { Text("Close") } },
     ) {
         when (val state = loadState) {
             ServerDetailsState.Loading -> Text("Loading capabilities…")
@@ -57,12 +58,10 @@ fun ServerDetailsDialog(
 }
 
 @Composable
-private fun ServerDetailsContent(
-    snapshot: UiServerCapsSnapshot
-) {
+private fun ServerDetailsContent(snapshot: UiServerCapsSnapshot) {
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)
+        verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.xs)) {
             Text(snapshot.name, style = MaterialTheme.typography.titleMedium)
@@ -76,7 +75,7 @@ private fun ServerDetailsContent(
                         title = tool.name,
                         description = tool.description?.takeIf { it.isNotBlank() } ?: "No description provided",
                         arguments = tool.arguments,
-                        showDivider = index < snapshot.tools.lastIndex
+                        showDivider = index < snapshot.tools.lastIndex,
                     )
                 }
             }
@@ -90,7 +89,7 @@ private fun ServerDetailsContent(
                         title = resource.name,
                         description = resource.description?.takeIf { it.isNotBlank() } ?: resource.key,
                         arguments = resource.arguments,
-                        showDivider = index < snapshot.resources.lastIndex
+                        showDivider = index < snapshot.resources.lastIndex,
                     )
                 }
             }
@@ -104,7 +103,7 @@ private fun ServerDetailsContent(
                         title = prompt.name,
                         description = prompt.description?.takeIf { it.isNotBlank() } ?: "No description provided",
                         arguments = prompt.arguments,
-                        showDivider = index < snapshot.prompts.lastIndex
+                        showDivider = index < snapshot.prompts.lastIndex,
                     )
                 }
             }
@@ -115,27 +114,28 @@ private fun ServerDetailsContent(
 @Composable
 private fun SectionBlock(
     title: String,
-    content: @Composable ColumnScope.() -> Unit
+    content: @Composable ColumnScope.() -> Unit,
 ) {
     androidx.compose.material3.Card(
         modifier = Modifier.fillMaxWidth(),
         colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-        shape = AppTheme.shapes.item
+        shape = AppTheme.shapes.item,
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Text(
                 text = title,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = AppTheme.spacing.md, vertical = AppTheme.spacing.sm),
-                style = MaterialTheme.typography.labelLarge
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = AppTheme.spacing.md, vertical = AppTheme.spacing.sm),
+                style = MaterialTheme.typography.labelLarge,
             )
             SectionDivider()
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.none),
-                content = content
+                content = content,
             )
         }
     }
@@ -145,11 +145,12 @@ private fun SectionBlock(
 private fun SectionEmptyMessage(message: String) {
     Text(
         message,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = AppTheme.spacing.md, vertical = AppTheme.spacing.sm),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = AppTheme.spacing.md, vertical = AppTheme.spacing.sm),
         style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
 }
 
@@ -158,25 +159,26 @@ private fun CapabilityEntry(
     title: String,
     description: String,
     arguments: List<UiCapabilityArgument> = emptyList(),
-    showDivider: Boolean
+    showDivider: Boolean,
 ) {
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = AppTheme.spacing.md, vertical = AppTheme.spacing.sm),
-        verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.xs)
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = AppTheme.spacing.md, vertical = AppTheme.spacing.sm),
+        verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.xs),
     ) {
         Text(title, style = MaterialTheme.typography.bodyMedium)
         if (arguments.isNotEmpty()) {
             CapabilityArgumentList(
                 arguments = arguments,
-                modifier = Modifier.padding(top = AppTheme.spacing.xs)
+                modifier = Modifier.padding(top = AppTheme.spacing.xs),
             )
         }
         Text(
             description,
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
     if (showDivider) {
@@ -189,12 +191,14 @@ private fun SectionDivider() {
     HorizontalDivider(
         modifier = Modifier.padding(horizontal = AppTheme.spacing.md),
         thickness = AppTheme.strokeWidths.hairline,
-        color = MaterialTheme.colorScheme.outlineVariant
+        color = MaterialTheme.colorScheme.outlineVariant,
     )
 }
 
 private sealed interface ServerDetailsState {
     object Loading : ServerDetailsState
+
     data class Ready(val snapshot: UiServerCapsSnapshot) : ServerDetailsState
+
     data class Error(val message: String) : ServerDetailsState
 }

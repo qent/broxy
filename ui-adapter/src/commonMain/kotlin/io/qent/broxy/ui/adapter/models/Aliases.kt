@@ -12,6 +12,7 @@ typealias UiStreamableHttpTransport = io.qent.broxy.core.models.TransportConfig.
 typealias UiWebSocketTransport = io.qent.broxy.core.models.TransportConfig.WebSocketTransport
 typealias UiPresetCore = io.qent.broxy.core.models.Preset
 typealias UiToolReference = io.qent.broxy.core.models.ToolReference
+
 // MCP client runtime and capabilities
 typealias UiServerStatus = io.qent.broxy.core.mcp.ServerStatus
 typealias UiStarting = io.qent.broxy.core.mcp.ServerStatus.Starting

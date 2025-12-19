@@ -8,13 +8,17 @@ import io.qent.broxy.core.models.Preset
  * and routing metadata.
  */
 interface PresetEngine {
-    fun apply(all: Map<String, ServerCapabilities>, preset: Preset): FilterResult
+    fun apply(
+        all: Map<String, ServerCapabilities>,
+        preset: Preset,
+    ): FilterResult
 }
 
 class DefaultPresetEngine(
-    private val filter: ToolFilter = DefaultToolFilter()
+    private val filter: ToolFilter = DefaultToolFilter(),
 ) : PresetEngine {
-    override fun apply(all: Map<String, ServerCapabilities>, preset: Preset): FilterResult =
-        filter.filter(all, preset)
+    override fun apply(
+        all: Map<String, ServerCapabilities>,
+        preset: Preset,
+    ): FilterResult = filter.filter(all, preset)
 }
-

@@ -37,11 +37,12 @@ fun AppVerticalScrollbar(
     modifier: Modifier = Modifier,
     canScroll: Boolean = true,
     isScrollInProgress: Boolean = false,
-    trackShape: CornerBasedShape = RoundedCornerShape(
-        topStart = AppTheme.radii.sm,
-        bottomStart = AppTheme.radii.sm
-    ),
-    trackColor: Color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+    trackShape: CornerBasedShape =
+        RoundedCornerShape(
+            topStart = AppTheme.radii.sm,
+            bottomStart = AppTheme.radii.sm,
+        ),
+    trackColor: Color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
 ) {
     val style = rememberScrollbarStyle()
     val interactionSource = remember { MutableInteractionSource() }
@@ -63,27 +64,29 @@ fun AppVerticalScrollbar(
     val alpha by animateFloatAsState(
         targetValue = targetAlpha,
         animationSpec = tween(durationMillis = 120),
-        label = "ScrollbarAlpha"
+        label = "ScrollbarAlpha",
     )
 
     Box(
-        modifier = modifier
-            .hoverable(interactionSource = interactionSource, enabled = canScroll)
-            .width(AppTheme.layout.scrollbarThickness)
-            .fillMaxHeight()
-            .graphicsLayer { this.alpha = alpha },
-        contentAlignment = Alignment.Center
+        modifier =
+            modifier
+                .hoverable(interactionSource = interactionSource, enabled = canScroll)
+                .width(AppTheme.layout.scrollbarThickness)
+                .fillMaxHeight()
+                .graphicsLayer { this.alpha = alpha },
+        contentAlignment = Alignment.Center,
     ) {
         Box(
-            modifier = Modifier
-                .matchParentSize()
-                .clip(trackShape)
-                .background(trackColor)
+            modifier =
+                Modifier
+                    .matchParentSize()
+                    .clip(trackShape)
+                    .background(trackColor),
         )
         VerticalScrollbar(
             adapter = adapter,
             style = style,
-            modifier = Modifier.matchParentSize()
+            modifier = Modifier.matchParentSize(),
         )
     }
 }
@@ -100,7 +103,7 @@ fun AppVerticalScrollbar(
 @Composable
 fun rememberStableScrollbarAdapter(
     state: LazyListState,
-    refreshThreshold: Double = 0.45
+    refreshThreshold: Double = 0.45,
 ): ScrollbarAdapter {
     val threshold = refreshThreshold.coerceAtLeast(0.0)
     val adapter = remember(state, threshold) { StableLazyListScrollbarAdapter(state, threshold) }
@@ -121,7 +124,6 @@ fun rememberStableScrollbarAdapter(
 }
 
 private abstract class StableLazyLineContentAdapter : ScrollbarAdapter {
-
     protected class VisibleLine(val index: Int, val offset: Int)
 
     private var lockedAverage: Double = 1.0
@@ -138,7 +140,10 @@ private abstract class StableLazyLineContentAdapter : ScrollbarAdapter {
         }
     }
 
-    protected open fun shouldRefreshAverage(current: Double, new: Double): Boolean = false
+    protected open fun shouldRefreshAverage(
+        current: Double,
+        new: Double,
+    ): Boolean = false
 
     private val averageVisibleLineSize: Double
         get() = if (averageLocked) lockedAverage else latestAverage
@@ -156,8 +161,8 @@ private abstract class StableLazyLineContentAdapter : ScrollbarAdapter {
         get() {
             val total = totalLineCount()
             return averageVisibleLineSize * total +
-                    lineSpacing * (total - 1).coerceAtLeast(0) +
-                    contentPadding()
+                lineSpacing * (total - 1).coerceAtLeast(0) +
+                contentPadding()
         }
 
     override suspend fun scrollTo(scrollOffset: Double) {
@@ -173,39 +178,50 @@ private abstract class StableLazyLineContentAdapter : ScrollbarAdapter {
         val clamped = scrollOffset.coerceIn(0.0, maxScrollOffset)
         val averageWithSpacing = averageVisibleLineSizeWithSpacing
         val total = totalLineCount()
-        val index = (clamped / averageWithSpacing)
-            .toInt()
-            .coerceAtLeast(0)
-            .coerceAtMost((total - 1).coerceAtLeast(0))
-        val offset = (clamped - index * averageWithSpacing)
-            .toInt()
-            .coerceAtLeast(0)
+        val index =
+            (clamped / averageWithSpacing)
+                .toInt()
+                .coerceAtLeast(0)
+                .coerceAtMost((total - 1).coerceAtLeast(0))
+        val offset =
+            (clamped - index * averageWithSpacing)
+                .toInt()
+                .coerceAtLeast(0)
         snapToLine(index, offset)
     }
 
     protected abstract fun firstVisibleLine(): VisibleLine?
+
     protected abstract fun totalLineCount(): Int
+
     protected abstract fun contentPadding(): Int
-    protected abstract suspend fun snapToLine(lineIndex: Int, scrollOffset: Int)
+
+    protected abstract suspend fun snapToLine(
+        lineIndex: Int,
+        scrollOffset: Int,
+    )
+
     protected abstract suspend fun scrollBy(value: Float)
+
     protected abstract fun computeAverageVisibleLineSize(): Double
+
     protected abstract val lineSpacing: Int
     abstract override val viewportSize: Double
 }
 
 private class StableLazyListScrollbarAdapter(
     private val scrollState: LazyListState,
-    private val refreshThreshold: Double
+    private val refreshThreshold: Double,
 ) : StableLazyLineContentAdapter() {
-
     override val viewportSize: Double
-        get() = with(scrollState.layoutInfo) {
-            if (orientation == Orientation.Vertical) {
-                viewportSize.height
-            } else {
-                viewportSize.width
-            }
-        }.toDouble()
+        get() =
+            with(scrollState.layoutInfo) {
+                if (orientation == Orientation.Vertical) {
+                    viewportSize.height
+                } else {
+                    viewportSize.width
+                }
+            }.toDouble()
 
     override fun computeAverageVisibleLineSize(): Double {
         val layoutInfo = scrollState.layoutInfo
@@ -221,7 +237,10 @@ private class StableLazyListScrollbarAdapter(
         return occupied.toDouble() / count
     }
 
-    override fun shouldRefreshAverage(current: Double, new: Double): Boolean {
+    override fun shouldRefreshAverage(
+        current: Double,
+        new: Double,
+    ): Boolean {
         if (current <= 0.0) return true
         val delta = abs(new - current) / current
         return delta > refreshThreshold
@@ -237,11 +256,15 @@ private class StableLazyListScrollbarAdapter(
 
     override fun totalLineCount(): Int = scrollState.layoutInfo.totalItemsCount
 
-    override fun contentPadding(): Int = with(scrollState.layoutInfo) {
-        beforeContentPadding + afterContentPadding
-    }
+    override fun contentPadding(): Int =
+        with(scrollState.layoutInfo) {
+            beforeContentPadding + afterContentPadding
+        }
 
-    override suspend fun snapToLine(lineIndex: Int, scrollOffset: Int) {
+    override suspend fun snapToLine(
+        lineIndex: Int,
+        scrollOffset: Int,
+    ) {
         scrollState.scrollToItem(lineIndex, scrollOffset)
     }
 
@@ -254,33 +277,36 @@ private class StableLazyListScrollbarAdapter(
 
     private fun firstFloatingVisibleItemIndex(
         items: List<LazyListItemInfo>,
-        spacing: Int
-    ): Int? = when (items.size) {
-        0 -> null
-        1 -> 0
-        else -> {
-            val first = items[0]
-            val second = items[1]
-            if ((first.index < second.index - 1) ||
-                (first.offset + first.size + spacing > second.offset)
-            ) {
-                1
-            } else {
-                0
+        spacing: Int,
+    ): Int? =
+        when (items.size) {
+            0 -> null
+            1 -> 0
+            else -> {
+                val first = items[0]
+                val second = items[1]
+                if ((first.index < second.index - 1) ||
+                    (first.offset + first.size + spacing > second.offset)
+                ) {
+                    1
+                } else {
+                    0
+                }
             }
         }
-    }
 }
 
 @Composable
 private fun rememberScrollbarStyle(): ScrollbarStyle {
     val colors = MaterialTheme.colorScheme
-    val baseThumb = remember(colors) {
-        lerp(colors.surfaceVariant, Color.White, 0.65f).copy(alpha = 0.9f)
-    }
-    val hoverThumb = remember(baseThumb) {
-        lerp(baseThumb, Color.White, 0.35f).copy(alpha = 0.95f)
-    }
+    val baseThumb =
+        remember(colors) {
+            lerp(colors.surfaceVariant, Color.White, 0.65f).copy(alpha = 0.9f)
+        }
+    val hoverThumb =
+        remember(baseThumb) {
+            lerp(baseThumb, Color.White, 0.35f).copy(alpha = 0.95f)
+        }
     val thickness = AppTheme.layout.scrollbarThickness
     val radius = AppTheme.radii.sm
     val minimalHeight = 24.dp
@@ -292,7 +318,7 @@ private fun rememberScrollbarStyle(): ScrollbarStyle {
             shape = RoundedCornerShape(radius),
             hoverDurationMillis = 150,
             hoverColor = hoverThumb,
-            unhoverColor = baseThumb
+            unhoverColor = baseThumb,
         )
     }
 }

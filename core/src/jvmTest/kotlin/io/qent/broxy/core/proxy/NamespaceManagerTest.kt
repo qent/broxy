@@ -29,14 +29,16 @@ class NamespaceManagerTest {
 
     @Test
     fun prefix_all_capabilities_prefixes_tools_and_keeps_others() {
-        val all = mapOf(
-            "s1" to ServerCapabilities(
-                tools = listOf(ToolDescriptor("t1", "d1")),
-                resources = listOf(ResourceDescriptor("r1", uri = "u1")),
-                prompts = listOf(PromptDescriptor("p1"))
-            ),
-            "s2" to ServerCapabilities(tools = listOf(ToolDescriptor("t2")))
-        )
+        val all =
+            mapOf(
+                "s1" to
+                    ServerCapabilities(
+                        tools = listOf(ToolDescriptor("t1", "d1")),
+                        resources = listOf(ResourceDescriptor("r1", uri = "u1")),
+                        prompts = listOf(PromptDescriptor("p1")),
+                    ),
+                "s2" to ServerCapabilities(tools = listOf(ToolDescriptor("t2"))),
+            )
 
         val prefixed = ns.prefixAllCapabilities(all)
         val toolNames = prefixed.tools.map { it.name }.toSet()
@@ -49,4 +51,3 @@ class NamespaceManagerTest {
         assertEquals(setOf("r1"), prefixed.resources.map { it.name }.toSet())
     }
 }
-

@@ -30,35 +30,37 @@ fun ServerEditorScreen(
     store: AppStore,
     editor: ServerEditorState,
     onClose: () -> Unit,
-    notify: (String) -> Unit = {}
+    notify: (String) -> Unit = {},
 ) {
-    val initialDraft = remember(editor) {
-        when (editor) {
-            ServerEditorState.Create -> UiServerDraft(
-                id = "",
-                name = "",
-                enabled = true,
-                transport = UiStdioDraft(command = "", args = emptyList()),
-                env = emptyMap(),
-                originalId = null
-            )
+    val initialDraft =
+        remember(editor) {
+            when (editor) {
+                ServerEditorState.Create ->
+                    UiServerDraft(
+                        id = "",
+                        name = "",
+                        enabled = true,
+                        transport = UiStdioDraft(command = "", args = emptyList()),
+                        env = emptyMap(),
+                        originalId = null,
+                    )
 
-            is ServerEditorState.Edit -> store.getServerDraft(editor.serverId)
+                is ServerEditorState.Edit -> store.getServerDraft(editor.serverId)
+            }
         }
-    }
 
     if (initialDraft == null) {
         Column(
             modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)
+            verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
         ) {
             HeaderRow(
                 title = "Edit server",
-                onBack = onClose
+                onBack = onClose,
             )
             Text(
                 text = "Server not found.",
-                style = MaterialTheme.typography.bodyMedium
+                style = MaterialTheme.typography.bodyMedium,
             )
         }
         return
@@ -76,13 +78,15 @@ fun ServerEditorScreen(
     val occupiedIds = if (isCreate) existingServerIds else existingServerIds - initialDraft.id
     val resolvedId = generateUniqueServerId(baseGeneratedId, occupiedIds)
 
-    val hasValidTransportFields = when (form.transportType) {
-        "STDIO" -> form.command.trim().isNotBlank()
-        "HTTP", "STREAMABLE_HTTP", "WS" -> form.url.trim().isNotBlank()
-        else -> true
-    }
+    val hasValidTransportFields =
+        when (form.transportType) {
+            "STDIO" -> form.command.trim().isNotBlank()
+            "HTTP", "STREAMABLE_HTTP", "WS" -> form.url.trim().isNotBlank()
+            else -> true
+        }
 
-    val canSubmit = ui is UIState.Ready &&
+    val canSubmit =
+        ui is UIState.Ready &&
             resolvedName.isNotBlank() &&
             resolvedId.isNotBlank() &&
             hasValidTransportFields
@@ -95,17 +99,18 @@ fun ServerEditorScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(scrollState)
-                .padding(bottom = contentBottomPadding),
-            verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(scrollState)
+                    .padding(bottom = contentBottomPadding),
+            verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
         ) {
             Spacer(Modifier.height(AppTheme.spacing.xs))
 
             HeaderRow(
                 title = title,
-                onBack = onClose
+                onBack = onClose,
             )
 
             OutlinedTextField(
@@ -113,24 +118,25 @@ fun ServerEditorScreen(
                 onValueChange = { form = form.copy(name = it) },
                 label = { Text("Name") },
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true
+                singleLine = true,
             )
 
             ServerForm(
                 state = form,
-                onStateChange = { form = it }
+                onStateChange = { form = it },
             )
         }
 
         Row(
-            modifier = Modifier
-                .align(Alignment.BottomEnd),
+            modifier =
+                Modifier
+                    .align(Alignment.BottomEnd),
             horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             AppSecondaryButton(
                 onClick = onClose,
-                modifier = Modifier.height(actionRowHeight)
+                modifier = Modifier.height(actionRowHeight),
             ) {
                 Text("Cancel", style = MaterialTheme.typography.labelSmall)
             }
@@ -139,11 +145,12 @@ fun ServerEditorScreen(
                     val readyUi = ui as? UIState.Ready ?: return@AppPrimaryButton
                     scope.launch {
                         val originalId = if (isCreate) null else (initialDraft.originalId ?: initialDraft.id)
-                        val draft = form.toDraft(
-                            id = resolvedId,
-                            name = resolvedName,
-                            originalId = originalId
-                        )
+                        val draft =
+                            form.toDraft(
+                                id = resolvedId,
+                                name = resolvedName,
+                                originalId = originalId,
+                            )
 
                         var toSave = draft
                         if (draft.enabled) {
@@ -168,7 +175,7 @@ fun ServerEditorScreen(
                     }
                 },
                 enabled = canSubmit,
-                modifier = Modifier.height(actionRowHeight)
+                modifier = Modifier.height(actionRowHeight),
             ) {
                 Text(primaryActionLabel, style = MaterialTheme.typography.labelSmall)
             }
@@ -179,19 +186,19 @@ fun ServerEditorScreen(
 @Composable
 private fun HeaderRow(
     title: String,
-    onBack: () -> Unit
+    onBack: () -> Unit,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)
+        horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm),
     ) {
         IconButton(onClick = onBack) {
             Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back")
         }
         Text(
             text = title,
-            style = MaterialTheme.typography.titleLarge
+            style = MaterialTheme.typography.titleLarge,
         )
     }
 }
@@ -216,7 +223,10 @@ private fun generateServerId(name: String): String {
     return sb.toString().trim('-')
 }
 
-private fun generateUniqueServerId(baseId: String, occupiedIds: Set<String>): String {
+private fun generateUniqueServerId(
+    baseId: String,
+    occupiedIds: Set<String>,
+): String {
     if (baseId.isBlank()) return ""
     if (baseId !in occupiedIds) return baseId
 

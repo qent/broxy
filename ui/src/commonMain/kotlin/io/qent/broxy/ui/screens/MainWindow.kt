@@ -30,7 +30,7 @@ fun MainWindow(
     state: AppState,
     ui: UIState,
     store: AppStore,
-    useTransparentTitleBar: Boolean = false
+    useTransparentTitleBar: Boolean = false,
 ) {
     AppTheme(themeStyle = state.themeStyle.value) {
         val screen = state.currentScreen.value
@@ -47,36 +47,39 @@ fun MainWindow(
 
         Scaffold(
             topBar = {
-                val chromeContainerColor = if (useTransparentTitleBar) {
-                    if (MaterialTheme.colorScheme.background.luminance() < 0.5f) {
-                        Color(0xFF314674)
+                val chromeContainerColor =
+                    if (useTransparentTitleBar) {
+                        if (MaterialTheme.colorScheme.background.luminance() < 0.5f) {
+                            Color(0xFF314674)
+                        } else {
+                            Color(0xFFF9FAFB)
+                        }
                     } else {
-                        Color(0xFFF9FAFB)
+                        MaterialTheme.colorScheme.surface
                     }
-                } else {
-                    MaterialTheme.colorScheme.surface
-                }
-                val chromeContentColor = if (chromeContainerColor.luminance() < 0.5f) {
-                    Color(0xFFDFDFDF)
-                } else {
-                    MaterialTheme.colorScheme.onSurface
-                }
+                val chromeContentColor =
+                    if (chromeContainerColor.luminance() < 0.5f) {
+                        Color(0xFFDFDFDF)
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    }
 
                 GlobalHeader(
                     ui = ui,
                     notify = notify,
-                    colors = if (useTransparentTitleBar) {
-                        TopAppBarDefaults.centerAlignedTopAppBarColors(
-                            containerColor = chromeContainerColor,
-                            scrolledContainerColor = chromeContainerColor,
-                            titleContentColor = chromeContentColor,
-                            navigationIconContentColor = chromeContentColor,
-                            actionIconContentColor = chromeContentColor
-                        )
-                    } else {
-                        TopAppBarDefaults.centerAlignedTopAppBarColors()
-                    },
-                    modifier = Modifier.fillMaxWidth()
+                    colors =
+                        if (useTransparentTitleBar) {
+                            TopAppBarDefaults.centerAlignedTopAppBarColors(
+                                containerColor = chromeContainerColor,
+                                scrolledContainerColor = chromeContainerColor,
+                                titleContentColor = chromeContentColor,
+                                navigationIconContentColor = chromeContentColor,
+                                actionIconContentColor = chromeContentColor,
+                            )
+                        } else {
+                            TopAppBarDefaults.centerAlignedTopAppBarColors()
+                        },
+                    modifier = Modifier.fillMaxWidth(),
                 )
             },
             snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -100,12 +103,12 @@ fun MainWindow(
 
                     else -> {}
                 }
-            }
+            },
         ) { padding ->
             Row(
                 Modifier
                     .fillMaxSize()
-                    .padding(padding)
+                    .padding(padding),
             ) {
                 AppNavigationRail(
                     selected = screen,
@@ -119,7 +122,7 @@ fun MainWindow(
                         state.currentScreen.value = it
                     },
                     proxyStatus = (ui as? UIState.Ready)?.proxyStatus,
-                    modifier = Modifier.fillMaxHeight()
+                    modifier = Modifier.fillMaxHeight(),
                 )
                 Box(Modifier.fillMaxSize().padding(horizontal = AppTheme.spacing.xs)) {
                     AnimatedContent(
@@ -127,17 +130,18 @@ fun MainWindow(
                         transitionSpec = {
                             fadeIn(animationSpec = tween(150)) togetherWith fadeOut(animationSpec = tween(150))
                         },
-                        label = "screen"
+                        label = "screen",
                     ) { s ->
                         when (s) {
                             Screen.Servers -> ServersScreen(ui, state, store, notify)
                             Screen.Presets -> PresetsScreen(ui, state, store)
-                            Screen.Settings -> SettingsScreen(
-                                ui = ui,
-                                themeStyle = state.themeStyle.value,
-                                onThemeStyleChange = { state.themeStyle.value = it },
-                                notify = notify
-                            )
+                            Screen.Settings ->
+                                SettingsScreen(
+                                    ui = ui,
+                                    themeStyle = state.themeStyle.value,
+                                    onThemeStyleChange = { state.themeStyle.value = it },
+                                    notify = notify,
+                                )
                         }
                     }
                 }

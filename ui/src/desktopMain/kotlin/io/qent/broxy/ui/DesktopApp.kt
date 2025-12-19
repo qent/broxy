@@ -76,7 +76,7 @@ fun main(args: Array<String>) {
                 }
             },
             title = "broxy",
-            icon = windowIconPainter
+            icon = windowIconPainter,
         ) {
             val window = this.window
             // Set minimum window height (in pixels). Width left unconstrained.
@@ -104,11 +104,12 @@ fun main(args: Array<String>) {
                     window.rootPane.putClientProperty("apple.awt.fullWindowContent", true)
                     window.rootPane.putClientProperty("apple.awt.transparentTitleBar", true)
                     window.rootPane.putClientProperty("apple.awt.windowTitleVisible", false)
-                    val chromeColor = if (isDarkTheme) {
-                        AwtColor(0x31, 0x46, 0x74)
-                    } else {
-                        AwtColor(0xF9, 0xFA, 0xFB)
-                    }
+                    val chromeColor =
+                        if (isDarkTheme) {
+                            AwtColor(0x31, 0x46, 0x74)
+                        } else {
+                            AwtColor(0xF9, 0xFA, 0xFB)
+                        }
                     window.background = chromeColor
                     window.rootPane.background = chromeColor
                     window.contentPane.background = chromeColor
@@ -121,22 +122,23 @@ fun main(args: Array<String>) {
                 state = appState,
                 ui = uiState,
                 store = store,
-                useTransparentTitleBar = isMacOs
+                useTransparentTitleBar = isMacOs,
             )
         }
 
         if (trayActive && traySupported) {
             val trayIconImage = remember { createTrayIconImage(size = 256) }
-            val trayModel = createTrayModel(
-                uiState = uiState,
-                trayIconImage = trayIconImage,
-                onShowWindow = { isWindowVisible = true },
-                onExit = {
-                    isWindowVisible = false
-                    runCatching { store.stop() }
-                    exitApplication()
-                }
-            )
+            val trayModel =
+                createTrayModel(
+                    uiState = uiState,
+                    trayIconImage = trayIconImage,
+                    onShowWindow = { isWindowVisible = true },
+                    onExit = {
+                        isWindowVisible = false
+                        runCatching { store.stop() }
+                        exitApplication()
+                    },
+                )
             SideEffect {
                 trayController.update(trayModel)
             }
@@ -148,7 +150,10 @@ fun main(args: Array<String>) {
     }
 }
 
-internal fun shouldRunHeadlessStdioProxy(args: Array<String>, stdinHasData: () -> Boolean): Boolean {
+internal fun shouldRunHeadlessStdioProxy(
+    args: Array<String>,
+    stdinHasData: () -> Boolean,
+): Boolean {
     val forceStdio = args.contains("--stdio-proxy")
     val autoStdio = !forceStdio && args.isEmpty() && stdinHasData()
     return forceStdio || autoStdio
@@ -189,33 +194,35 @@ private fun createTrayModel(
     uiState: UIState,
     trayIconImage: Image,
     onShowWindow: () -> Unit,
-    onExit: () -> Unit
+    onExit: () -> Unit,
 ): TrayModel {
-    val content: TrayMenuContent = when (uiState) {
-        UIState.Loading -> TrayMenuContent.Loading
-        is UIState.Error -> TrayMenuContent.Error(uiState.message.ifBlank { "Failed to load presets" })
-        is UIState.Ready -> {
-            val presets = uiState.presets.map { preset ->
-                TrayPresetItem(
-                    id = preset.id,
-                    name = preset.name,
-                    isActive = preset.id == uiState.selectedPresetId
+    val content: TrayMenuContent =
+        when (uiState) {
+            UIState.Loading -> TrayMenuContent.Loading
+            is UIState.Error -> TrayMenuContent.Error(uiState.message.ifBlank { "Failed to load presets" })
+            is UIState.Ready -> {
+                val presets =
+                    uiState.presets.map { preset ->
+                        TrayPresetItem(
+                            id = preset.id,
+                            name = preset.name,
+                            isActive = preset.id == uiState.selectedPresetId,
+                        )
+                    }
+                TrayMenuContent.Ready(
+                    presets = presets,
+                    proxyStatus = uiState.proxyStatus,
+                    onPresetSelected = { presetId -> uiState.intents.selectProxyPreset(presetId) },
                 )
             }
-            TrayMenuContent.Ready(
-                presets = presets,
-                proxyStatus = uiState.proxyStatus,
-                onPresetSelected = { presetId -> uiState.intents.selectProxyPreset(presetId) }
-            )
         }
-    }
 
     return TrayModel(
         tooltip = "broxy",
         icon = trayIconImage,
         content = content,
         onShow = onShowWindow,
-        onExit = onExit
+        onExit = onExit,
     )
 }
 
@@ -224,23 +231,25 @@ private data class TrayModel(
     val icon: Image,
     val content: TrayMenuContent,
     val onShow: () -> Unit,
-    val onExit: () -> Unit
+    val onExit: () -> Unit,
 )
 
 private sealed interface TrayMenuContent {
     data object Loading : TrayMenuContent
+
     data class Error(val message: String) : TrayMenuContent
+
     data class Ready(
         val presets: List<TrayPresetItem>,
         val proxyStatus: UiProxyStatus,
-        val onPresetSelected: (String?) -> Unit
+        val onPresetSelected: (String?) -> Unit,
     ) : TrayMenuContent
 }
 
 private data class TrayPresetItem(
     val id: String,
     val name: String,
-    val isActive: Boolean
+    val isActive: Boolean,
 )
 
 private class TrayActionListener(var callback: () -> Unit) : ActionListener {
@@ -278,15 +287,19 @@ private class DesktopTrayController {
         }
     }
 
-    private fun getOrCreateIcon(systemTray: SystemTray, model: TrayModel): TrayIcon {
+    private fun getOrCreateIcon(
+        systemTray: SystemTray,
+        model: TrayModel,
+    ): TrayIcon {
         val existing = trayIcon
         if (existing != null) {
             return existing
         }
-        val icon = TrayIcon(model.icon, model.tooltip).apply {
-            isImageAutoSize = true
-            popupMenu = PopupMenu()
-        }
+        val icon =
+            TrayIcon(model.icon, model.tooltip).apply {
+                isImageAutoSize = true
+                popupMenu = PopupMenu()
+            }
         try {
             systemTray.add(icon)
         } catch (awt: AWTException) {
@@ -297,15 +310,22 @@ private class DesktopTrayController {
         return icon
     }
 
-    private fun attachActivationListener(icon: TrayIcon, onShow: () -> Unit) {
-        val listener = activationListener ?: TrayActionListener(onShow).also {
-            icon.addActionListener(it)
-            activationListener = it
-        }
+    private fun attachActivationListener(
+        icon: TrayIcon,
+        onShow: () -> Unit,
+    ) {
+        val listener =
+            activationListener ?: TrayActionListener(onShow).also {
+                icon.addActionListener(it)
+                activationListener = it
+            }
         listener.callback = onShow
     }
 
-    private fun rebuildMenu(icon: TrayIcon, model: TrayModel) {
+    private fun rebuildMenu(
+        icon: TrayIcon,
+        model: TrayModel,
+    ) {
         val menu = icon.popupMenu ?: PopupMenu().also { icon.popupMenu = it }
         menu.removeAll()
         when (val content = model.content) {
@@ -326,9 +346,11 @@ private class DesktopTrayController {
                     menu.add(disabledItem("No presets available"))
                 } else {
                     content.presets.forEach { preset ->
-                        menu.add(menuItem(labelForPreset(preset)) {
-                            content.onPresetSelected(preset.id)
-                        })
+                        menu.add(
+                            menuItem(labelForPreset(preset)) {
+                                content.onPresetSelected(preset.id)
+                            },
+                        )
                     }
                 }
                 menu.addSeparator()
@@ -341,19 +363,24 @@ private class DesktopTrayController {
         menu.add(menuItem("Exit") { model.onExit() })
     }
 
-    private fun statusText(status: UiProxyStatus): String = when (status) {
-        UiProxyStatus.Starting -> "starting"
-        UiProxyStatus.Running -> "on"
-        UiProxyStatus.Stopping -> "stopping"
-        UiProxyStatus.Stopped -> "off"
-        is UiProxyStatus.Error -> "error"
-    }
+    private fun statusText(status: UiProxyStatus): String =
+        when (status) {
+            UiProxyStatus.Starting -> "starting"
+            UiProxyStatus.Running -> "on"
+            UiProxyStatus.Stopping -> "stopping"
+            UiProxyStatus.Stopped -> "off"
+            is UiProxyStatus.Error -> "error"
+        }
 
     private fun labelForPreset(preset: TrayPresetItem): String {
         return if (preset.isActive) "${preset.name} \u2713" else preset.name
     }
 
-    private fun menuItem(label: String, enabled: Boolean = true, action: (() -> Unit)? = null): MenuItem {
+    private fun menuItem(
+        label: String,
+        enabled: Boolean = true,
+        action: (() -> Unit)? = null,
+    ): MenuItem {
         return MenuItem(label).apply {
             isEnabled = enabled
             if (action != null) {

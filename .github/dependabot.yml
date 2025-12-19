@@ -1,0 +1,34 @@
+version: 2
+updates:
+  - package-ecosystem: "gradle"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+    groups:
+      kotlin:
+        patterns:
+          - "org.jetbrains.kotlin*"
+          - "org.jetbrains.kotlinx*"
+      ktor:
+        patterns:
+          - "io.ktor*"
+      mcp:
+        patterns:
+          - "io.modelcontextprotocol*"
+      tooling:
+        patterns:
+          - "com.github.johnrengelman.shadow"
+          - "com.github.ajalt.clikt"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"

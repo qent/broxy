@@ -14,22 +14,23 @@ actual fun provideConfigurationRepository(): ConfigurationRepository = JsonConfi
 
 actual fun provideDefaultLogger(): CollectingLogger {
     val baseDir = defaultConfigDir()
-    val sink = CompositeLogger(
-        ConsoleLogger,
-        DailyFileLogger(baseDir)
-    )
+    val sink =
+        CompositeLogger(
+            ConsoleLogger,
+            DailyFileLogger(baseDir),
+        )
     return CollectingLogger(delegate = sink)
 }
 
-actual fun openLogsFolder(): Result<Unit> = runCatching {
-    val folder = defaultConfigDir().resolve("logs").toFile()
-    folder.mkdirs()
-    if (Desktop.isDesktopSupported()) {
-        Desktop.getDesktop().open(folder)
-    } else {
-        error("Desktop API is not supported")
+actual fun openLogsFolder(): Result<Unit> =
+    runCatching {
+        val folder = defaultConfigDir().resolve("logs").toFile()
+        folder.mkdirs()
+        if (Desktop.isDesktopSupported()) {
+            Desktop.getDesktop().open(folder)
+        } else {
+            error("Desktop API is not supported")
+        }
     }
-}
 
-private fun defaultConfigDir(): Path =
-    Paths.get(System.getProperty("user.home"), ".config", "broxy")
+private fun defaultConfigDir(): Path = Paths.get(System.getProperty("user.home"), ".config", "broxy")

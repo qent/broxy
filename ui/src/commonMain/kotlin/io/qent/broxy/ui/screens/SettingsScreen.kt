@@ -28,52 +28,53 @@ fun SettingsScreen(
     ui: UIState,
     themeStyle: ThemeStyle,
     onThemeStyleChange: (ThemeStyle) -> Unit,
-    notify: (String) -> Unit = {}
+    notify: (String) -> Unit = {},
 ) {
     Box(modifier = Modifier.fillMaxSize().padding(horizontal = AppTheme.spacing.md)) {
         when (ui) {
             UIState.Loading -> Text("Loading...", style = MaterialTheme.typography.bodyMedium)
             is UIState.Error -> Text("Error: ${ui.message}", style = MaterialTheme.typography.bodyMedium)
-            is UIState.Ready -> SettingsContent(
-                modifier = Modifier.fillMaxSize(),
-                themeStyle = themeStyle,
-                onThemeStyleChange = onThemeStyleChange,
-                requestTimeoutSeconds = ui.requestTimeoutSeconds,
-                capabilitiesTimeoutSeconds = ui.capabilitiesTimeoutSeconds,
-                capabilitiesRefreshIntervalSeconds = ui.capabilitiesRefreshIntervalSeconds,
-                inboundSsePort = ui.inboundSsePort,
-                showTrayIcon = ui.showTrayIcon,
-                onInboundSsePortSave = { port ->
-                    ui.intents.updateInboundSsePort(port)
-                    notify("HTTP port saved: $port")
-                },
-                onRequestTimeoutSave = { seconds ->
-                    ui.intents.updateRequestTimeout(seconds)
-                    notify("Timeout saved: ${seconds}s")
-                },
-                onCapabilitiesTimeoutSave = { seconds ->
-                    ui.intents.updateCapabilitiesTimeout(seconds)
-                    notify("Capabilities timeout saved: ${seconds}s")
-                },
-                onCapabilitiesRefreshIntervalSave = { seconds ->
-                    ui.intents.updateCapabilitiesRefreshInterval(seconds)
-                    notify("Refresh interval saved: ${seconds}s")
-                },
-                onToggleTrayIcon = { enabled ->
-                    ui.intents.updateTrayIconVisibility(enabled)
-                    notify(if (enabled) "Tray icon enabled" else "Tray icon disabled")
-                },
-                onOpenLogsFolder = {
-                    ui.intents.openLogsFolder()
-                    notify("Opening logs folder…")
-                },
-                remote = ui.remote,
-                onRemoteServerIdChange = { ui.intents.updateRemoteServerIdentifier(it) },
-                onRemoteAuthorize = { ui.intents.startRemoteAuthorization() },
-                onRemoteConnect = { ui.intents.connectRemote() },
-                onRemoteDisconnect = { ui.intents.disconnectRemote() },
-                onRemoteLogout = { ui.intents.logoutRemote() }
-            )
+            is UIState.Ready ->
+                SettingsContent(
+                    modifier = Modifier.fillMaxSize(),
+                    themeStyle = themeStyle,
+                    onThemeStyleChange = onThemeStyleChange,
+                    requestTimeoutSeconds = ui.requestTimeoutSeconds,
+                    capabilitiesTimeoutSeconds = ui.capabilitiesTimeoutSeconds,
+                    capabilitiesRefreshIntervalSeconds = ui.capabilitiesRefreshIntervalSeconds,
+                    inboundSsePort = ui.inboundSsePort,
+                    showTrayIcon = ui.showTrayIcon,
+                    onInboundSsePortSave = { port ->
+                        ui.intents.updateInboundSsePort(port)
+                        notify("HTTP port saved: $port")
+                    },
+                    onRequestTimeoutSave = { seconds ->
+                        ui.intents.updateRequestTimeout(seconds)
+                        notify("Timeout saved: ${seconds}s")
+                    },
+                    onCapabilitiesTimeoutSave = { seconds ->
+                        ui.intents.updateCapabilitiesTimeout(seconds)
+                        notify("Capabilities timeout saved: ${seconds}s")
+                    },
+                    onCapabilitiesRefreshIntervalSave = { seconds ->
+                        ui.intents.updateCapabilitiesRefreshInterval(seconds)
+                        notify("Refresh interval saved: ${seconds}s")
+                    },
+                    onToggleTrayIcon = { enabled ->
+                        ui.intents.updateTrayIconVisibility(enabled)
+                        notify(if (enabled) "Tray icon enabled" else "Tray icon disabled")
+                    },
+                    onOpenLogsFolder = {
+                        ui.intents.openLogsFolder()
+                        notify("Opening logs folder…")
+                    },
+                    remote = ui.remote,
+                    onRemoteServerIdChange = { ui.intents.updateRemoteServerIdentifier(it) },
+                    onRemoteAuthorize = { ui.intents.startRemoteAuthorization() },
+                    onRemoteConnect = { ui.intents.connectRemote() },
+                    onRemoteDisconnect = { ui.intents.disconnectRemote() },
+                    onRemoteLogout = { ui.intents.logoutRemote() },
+                )
         }
     }
 }
@@ -99,17 +100,17 @@ private fun SettingsContent(
     onRemoteAuthorize: () -> Unit,
     onRemoteConnect: () -> Unit,
     onRemoteDisconnect: () -> Unit,
-    onRemoteLogout: () -> Unit
+    onRemoteLogout: () -> Unit,
 ) {
     var requestTimeoutInput by rememberSaveable(requestTimeoutSeconds) { mutableStateOf(requestTimeoutSeconds.toString()) }
     var capabilitiesTimeoutInput by rememberSaveable(capabilitiesTimeoutSeconds) {
         mutableStateOf(
-            capabilitiesTimeoutSeconds.toString()
+            capabilitiesTimeoutSeconds.toString(),
         )
     }
     var capabilitiesRefreshInput by rememberSaveable(capabilitiesRefreshIntervalSeconds) {
         mutableStateOf(
-            capabilitiesRefreshIntervalSeconds.toString()
+            capabilitiesRefreshIntervalSeconds.toString(),
         )
     }
     var inboundSsePortInput by rememberSaveable(inboundSsePort) { mutableStateOf(inboundSsePort.toString()) }
@@ -159,16 +160,17 @@ private fun SettingsContent(
 
     Box(modifier = modifier) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(scrollState)
-                .padding(bottom = contentBottomPadding),
-            verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(scrollState)
+                    .padding(bottom = contentBottomPadding),
+            verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
         ) {
             Spacer(Modifier.height(AppTheme.spacing.sm))
             ThemeSetting(
                 themeStyle = themeStyle,
-                onThemeStyleChange = onThemeStyleChange
+                onThemeStyleChange = onThemeStyleChange,
             )
             TrayIconSetting(checked = showTrayIcon, onToggle = onToggleTrayIcon)
             LogsSetting(onOpenFolder = onOpenLogsFolder)
@@ -184,7 +186,7 @@ private fun SettingsContent(
                 onAuthorize = onRemoteAuthorize,
                 onConnect = onRemoteConnect,
                 onDisconnect = onRemoteDisconnect,
-                onLogout = onRemoteLogout
+                onLogout = onRemoteLogout,
             )
             TimeoutSetting(
                 title = "HTTP port",
@@ -194,7 +196,7 @@ private fun SettingsContent(
                     if (value.isEmpty() || value.all { it.isDigit() }) {
                         inboundSsePortInput = value
                     }
-                }
+                },
             )
             TimeoutSetting(
                 title = "Request timeout",
@@ -204,7 +206,7 @@ private fun SettingsContent(
                     if (value.isEmpty() || value.all { it.isDigit() }) {
                         requestTimeoutInput = value
                     }
-                }
+                },
             )
             TimeoutSetting(
                 title = "Capabilities timeout",
@@ -214,7 +216,7 @@ private fun SettingsContent(
                     if (value.isEmpty() || value.all { it.isDigit() }) {
                         capabilitiesTimeoutInput = value
                     }
-                }
+                },
             )
             TimeoutSetting(
                 title = "Capabilities refresh",
@@ -224,7 +226,7 @@ private fun SettingsContent(
                     if (value.isEmpty() || value.all { it.isDigit() }) {
                         capabilitiesRefreshInput = value
                     }
-                }
+                },
             )
             Spacer(Modifier.height(AppTheme.spacing.md))
         }
@@ -246,7 +248,7 @@ private fun SettingsContent(
                     }
                 },
                 enabled = canSaveAny,
-                modifier = Modifier.height(saveButtonHeight)
+                modifier = Modifier.height(saveButtonHeight),
             ) {
                 Text("Save", style = MaterialTheme.typography.labelSmall)
             }
@@ -257,40 +259,39 @@ private fun SettingsContent(
 @Composable
 private fun TrayIconSetting(
     checked: Boolean,
-    onToggle: (Boolean) -> Unit
+    onToggle: (Boolean) -> Unit,
 ) {
     SettingItem(
         title = "Show tray icon",
-        description = "Display the broxy icon in the system tray."
+        description = "Display the broxy icon in the system tray.",
     ) {
         SettingControlBox {
             Switch(
                 checked = checked,
                 onCheckedChange = onToggle,
                 modifier = Modifier.scale(0.7f),
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
-                    checkedTrackColor = MaterialTheme.colorScheme.primary,
-                    uncheckedThumbColor = MaterialTheme.colorScheme.outline,
-                    uncheckedTrackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                    uncheckedBorderColor = MaterialTheme.colorScheme.outline
-                )
+                colors =
+                    SwitchDefaults.colors(
+                        checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                        checkedTrackColor = MaterialTheme.colorScheme.primary,
+                        uncheckedThumbColor = MaterialTheme.colorScheme.outline,
+                        uncheckedTrackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        uncheckedBorderColor = MaterialTheme.colorScheme.outline,
+                    ),
             )
         }
     }
 }
 
 @Composable
-private fun LogsSetting(
-    onOpenFolder: () -> Unit
-) {
+private fun LogsSetting(onOpenFolder: () -> Unit) {
     SettingItem(
         title = "Logs",
-        description = "Application logs are stored in the logs/ folder next to the configuration files."
+        description = "Application logs are stored in the logs/ folder next to the configuration files.",
     ) {
         AppPrimaryButton(
             onClick = onOpenFolder,
-            modifier = Modifier.height(32.dp)
+            modifier = Modifier.width(SettingControlWidth).height(32.dp),
         ) {
             Text("Open folder", style = MaterialTheme.typography.labelSmall)
         }
@@ -302,17 +303,17 @@ private fun TimeoutSetting(
     title: String,
     description: String,
     value: String,
-    onValueChange: (String) -> Unit
+    onValueChange: (String) -> Unit,
 ) {
     SettingItem(
         title = title,
-        description = description
+        description = description,
     ) {
         SettingControlBox {
             CompactTextField(
                 value = value,
                 onValueChange = onValueChange,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             )
         }
     }
@@ -323,36 +324,37 @@ private fun SettingItem(
     title: String,
     description: String,
     supportingContent: (@Composable ColumnScope.() -> Unit)? = null,
-    control: @Composable RowScope.() -> Unit
+    control: @Composable RowScope.() -> Unit,
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-        shape = AppTheme.shapes.card
+        shape = AppTheme.shapes.card,
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = AppTheme.spacing.lg, vertical = AppTheme.spacing.md),
-            verticalAlignment = Alignment.CenterVertically
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = AppTheme.spacing.lg, vertical = AppTheme.spacing.md),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+                verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 Text(title, style = MaterialTheme.typography.titleSmall)
                 Text(
                     description,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 supportingContent?.invoke(this)
             }
             Row(
                 horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm, Alignment.End),
                 verticalAlignment = Alignment.CenterVertically,
-                content = control
+                content = control,
             )
         }
     }
@@ -361,60 +363,64 @@ private fun SettingItem(
 @Composable
 private fun ThemeSetting(
     themeStyle: ThemeStyle,
-    onThemeStyleChange: (ThemeStyle) -> Unit
+    onThemeStyleChange: (ThemeStyle) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val label = when (themeStyle) {
-        ThemeStyle.Dark -> "Dark"
-        ThemeStyle.Light -> "Light"
-    }
+    val label =
+        when (themeStyle) {
+            ThemeStyle.Dark -> "Dark"
+            ThemeStyle.Light -> "Light"
+        }
 
-    val fieldShape = if (expanded) {
-        AppTheme.shapes.input.copy(bottomStart = CornerSize(0.dp), bottomEnd = CornerSize(0.dp))
-    } else {
-        AppTheme.shapes.input
-    }
-    val dropdownShape = if (expanded) {
-        AppTheme.shapes.input.copy(topStart = CornerSize(0.dp), topEnd = CornerSize(0.dp))
-    } else {
-        AppTheme.shapes.input
-    }
+    val fieldShape =
+        if (expanded) {
+            AppTheme.shapes.input.copy(bottomStart = CornerSize(0.dp), bottomEnd = CornerSize(0.dp))
+        } else {
+            AppTheme.shapes.input
+        }
+    val dropdownShape =
+        if (expanded) {
+            AppTheme.shapes.input.copy(topStart = CornerSize(0.dp), topEnd = CornerSize(0.dp))
+        } else {
+            AppTheme.shapes.input
+        }
 
     SettingItem(
         title = "Theme",
-        description = "Choose light or dark appearance."
+        description = "Choose light or dark appearance.",
     ) {
         ExposedDropdownMenuBox(
             expanded = expanded,
             onExpandedChange = { expanded = !expanded },
-            modifier = Modifier.widthIn(min = SettingControlWidth, max = SettingControlWidth)
+            modifier = Modifier.widthIn(min = SettingControlWidth, max = SettingControlWidth),
         ) {
             ThemeDropdownField(
                 text = label,
                 modifier = Modifier.fillMaxWidth().menuAnchor(),
                 expanded = expanded,
-                shape = fieldShape
+                shape = fieldShape,
             )
             ExposedDropdownMenu(
                 expanded = expanded,
                 onDismissRequest = { expanded = false },
-                modifier = Modifier
-                    .background(color = MaterialTheme.colorScheme.surface, shape = dropdownShape)
-                    .border(BorderStroke(AppTheme.strokeWidths.thin, MaterialTheme.colorScheme.outline), dropdownShape)
+                modifier =
+                    Modifier
+                        .background(color = MaterialTheme.colorScheme.surface, shape = dropdownShape)
+                        .border(BorderStroke(AppTheme.strokeWidths.thin, MaterialTheme.colorScheme.outline), dropdownShape),
             ) {
                 ThemeDropdownItem(
                     text = "Dark",
                     onClick = {
                         expanded = false
                         if (themeStyle != ThemeStyle.Dark) onThemeStyleChange(ThemeStyle.Dark)
-                    }
+                    },
                 )
                 ThemeDropdownItem(
                     text = "Light",
                     onClick = {
                         expanded = false
                         if (themeStyle != ThemeStyle.Light) onThemeStyleChange(ThemeStyle.Light)
-                    }
+                    },
                 )
             }
         }
@@ -426,7 +432,7 @@ private fun ThemeDropdownField(
     text: String,
     modifier: Modifier = Modifier,
     expanded: Boolean,
-    shape: Shape = AppTheme.shapes.input
+    shape: Shape = AppTheme.shapes.input,
 ) {
     Surface(
         modifier = modifier.height(32.dp),
@@ -435,13 +441,14 @@ private fun ThemeDropdownField(
         contentColor = MaterialTheme.colorScheme.onSurface,
         tonalElevation = 0.dp,
         shadowElevation = 0.dp,
-        border = BorderStroke(AppTheme.strokeWidths.thin, MaterialTheme.colorScheme.outline)
+        border = BorderStroke(AppTheme.strokeWidths.thin, MaterialTheme.colorScheme.outline),
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = AppTheme.spacing.md),
-            verticalAlignment = Alignment.CenterVertically
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = AppTheme.spacing.md),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(text = text, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
             ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
@@ -452,12 +459,12 @@ private fun ThemeDropdownField(
 @Composable
 private fun ThemeDropdownItem(
     text: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ) {
     DropdownMenuItem(
         text = { Text(text, style = MaterialTheme.typography.bodySmall) },
         contentPadding = PaddingValues(horizontal = AppTheme.spacing.md, vertical = AppTheme.spacing.xxs),
-        onClick = onClick
+        onClick = onClick,
     )
 }
 
@@ -466,7 +473,7 @@ private fun CompactTextField(
     value: String,
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
-    label: String? = null
+    label: String? = null,
 ) {
     BasicTextField(
         value = value,
@@ -477,17 +484,18 @@ private fun CompactTextField(
         decorationBox = { innerTextField ->
             CompactInputSurface {
                 Row(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = AppTheme.spacing.md),
-                    verticalAlignment = Alignment.CenterVertically
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = AppTheme.spacing.md),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Box(modifier = Modifier.weight(1f)) {
                         if (value.isEmpty() && label != null) {
                             Text(
                                 text = label,
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                         innerTextField()
@@ -495,14 +503,14 @@ private fun CompactTextField(
                 }
             }
         },
-        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary)
+        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
     )
 }
 
 @Composable
 private fun CompactInputSurface(
     modifier: Modifier = Modifier,
-    content: @Composable () -> Unit
+    content: @Composable () -> Unit,
 ) {
     Surface(
         modifier = modifier.height(32.dp),
@@ -510,20 +518,18 @@ private fun CompactInputSurface(
         color = MaterialTheme.colorScheme.surface,
         contentColor = MaterialTheme.colorScheme.onSurface,
         border = BorderStroke(AppTheme.strokeWidths.thin, MaterialTheme.colorScheme.outline),
-        content = content
+        content = content,
     )
 }
 
 private val SettingControlWidth: Dp = 140.dp
 
 @Composable
-private fun SettingControlBox(
-    content: @Composable BoxScope.() -> Unit
-) {
+private fun SettingControlBox(content: @Composable BoxScope.() -> Unit) {
     Box(
         modifier = Modifier.widthIn(min = SettingControlWidth, max = SettingControlWidth).height(32.dp),
         contentAlignment = Alignment.CenterEnd,
-        content = content
+        content = content,
     )
 }
 
@@ -535,18 +541,19 @@ private fun RemoteConnectorSetting(
     onAuthorize: () -> Unit,
     onConnect: () -> Unit,
     onDisconnect: () -> Unit,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
 ) {
-    val statusLabel = when (remote.status) {
-        UiRemoteStatus.NotAuthorized -> "Not authorized"
-        UiRemoteStatus.Authorizing -> "Authorizing..."
-        UiRemoteStatus.Registering -> "Registering..."
-        UiRemoteStatus.Registered -> "Registered"
-        UiRemoteStatus.WsConnecting -> "Connecting..."
-        UiRemoteStatus.WsOnline -> "WS online"
-        UiRemoteStatus.WsOffline -> "WS offline"
-        UiRemoteStatus.Error -> "Error"
-    }
+    val statusLabel =
+        when (remote.status) {
+            UiRemoteStatus.NotAuthorized -> "Not authorized"
+            UiRemoteStatus.Authorizing -> "Authorizing..."
+            UiRemoteStatus.Registering -> "Registering..."
+            UiRemoteStatus.Registered -> "Registered"
+            UiRemoteStatus.WsConnecting -> "Connecting..."
+            UiRemoteStatus.WsOnline -> "WS online"
+            UiRemoteStatus.WsOffline -> "WS offline"
+            UiRemoteStatus.Error -> "Error"
+        }
     val statusDetail = remote.message ?: remote.email ?: ""
     val isAuthorized = remote.hasCredentials
     val isBusy = remote.status in setOf(UiRemoteStatus.Authorizing, UiRemoteStatus.Registering)
@@ -559,32 +566,32 @@ private fun RemoteConnectorSetting(
             Text(
                 if (statusDetail.isNotBlank()) "$statusLabel — $statusDetail" else statusLabel,
                 style = MaterialTheme.typography.bodySmall,
-                color = if (isConnected) AppTheme.extendedColors.success else MaterialTheme.colorScheme.onSurfaceVariant
+                color = if (isConnected) AppTheme.extendedColors.success else MaterialTheme.colorScheme.onSurfaceVariant,
             )
-        }
+        },
     ) {
         if (isAuthorized) {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.xs),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 CompactTextField(
                     value = serverId,
                     onValueChange = onServerIdChange,
-                    modifier = Modifier.widthIn(min = 120.dp, max = 120.dp),
-                    label = "Server ID"
+                    modifier = Modifier.width(SettingControlWidth),
+                    label = "Server ID",
                 )
                 AppPrimaryButton(
                     onClick = if (isConnected) onDisconnect else onConnect,
                     enabled = !isBusy,
-                    modifier = Modifier.height(32.dp)
+                    modifier = Modifier.width(SettingControlWidth).height(32.dp),
                 ) {
                     Text(if (isConnected) "Disconnect" else "Connect", style = MaterialTheme.typography.labelSmall)
                 }
                 AppPrimaryButton(
                     onClick = onLogout,
                     enabled = !isBusy,
-                    modifier = Modifier.height(32.dp)
+                    modifier = Modifier.width(SettingControlWidth).height(32.dp),
                 ) {
                     Text("Logout", style = MaterialTheme.typography.labelSmall)
                 }
@@ -593,7 +600,7 @@ private fun RemoteConnectorSetting(
             AppPrimaryButton(
                 onClick = onAuthorize,
                 enabled = !isBusy,
-                modifier = Modifier.height(32.dp)
+                modifier = Modifier.width(SettingControlWidth).height(32.dp),
             ) {
                 Text("Authorize", style = MaterialTheme.typography.labelSmall)
             }
