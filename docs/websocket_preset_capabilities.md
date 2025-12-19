@@ -11,13 +11,20 @@ capabilities for the active preset are represented.
 
 ```json
 // From backend to proxy
-{ "session_identifier": "uuid", "message": { /* MCP JSON-RPC */ } }
+{
+  "session_identifier": "uuid",
+  "message": {
+    /* MCP JSON-RPC */
+  }
+}
 
 // From proxy to backend
 {
   "session_identifier": "uuid",
   "target_server_identifier": "server-id",
-  "message": { /* MCP JSON-RPC */ }
+  "message": {
+    /* MCP JSON-RPC */
+  }
 }
 ```
 
@@ -43,25 +50,44 @@ Example response:
         "input_schema": {
           "type": "object",
           "properties": {
-            "query": { "type": "string" },
-            "top_k": { "type": "integer" }
+            "query": {
+              "type": "string"
+            },
+            "top_k": {
+              "type": "integer"
+            }
           },
-          "required": ["query"]
+          "required": [
+            "query"
+          ]
         },
         "output_schema": {
           "type": "object",
           "properties": {
-            "results": { "type": "array" }
+            "results": {
+              "type": "array"
+            }
           }
         },
-        "annotations": { /* MCP annotations, if present */ }
+        "annotations": {
+          /* MCP annotations, if present */
+        }
       }
     ],
     "prompts": [
-      { "name": "hello", "description": "Greet user", "arguments": [] }
+      {
+        "name": "hello",
+        "description": "Greet user",
+        "arguments": []
+      }
     ],
     "resources": [
-      { "name": "doc", "uri": "docs/{id}", "description": "Doc page", "mime_type": "text/html" }
+      {
+        "name": "doc",
+        "uri": "docs/{id}",
+        "description": "Doc page",
+        "mime_type": "text/html"
+      }
     ]
   }
 }
@@ -83,8 +109,13 @@ Tool call:
   "method": "tools/call",
   "params": {
     "name": "s1:search",
-    "arguments": { "query": "kotlin", "top_k": 5 },
-    "meta": { /* RequestMeta */ }
+    "arguments": {
+      "query": "kotlin",
+      "top_k": 5
+    },
+    "meta": {
+      /* RequestMeta */
+    }
   }
 }
 ```
@@ -97,10 +128,21 @@ Tool response:
   "id": "42",
   "result": {
     "content": [
-      { "type": "text", "text": "Result preview" }
+      {
+        "type": "text",
+        "text": "Result preview"
+      }
     ],
-    "structured_content": { "results": [{ "title": "..." }] },
-    "meta": { "trace_id": "..." },
+    "structured_content": {
+      "results": [
+        {
+          "title": "..."
+        }
+      ]
+    },
+    "meta": {
+      "trace_id": "..."
+    },
     "is_error": false
   }
 }
@@ -118,7 +160,7 @@ Responses are forwarded without structural changes (except for decode normalizat
 - `ProxyWebSocketTransport.describeJsonRpcPayload` logs a summary for each JSON-RPC message:
   counts, names, schema fields, target tool, argument keys, and response structure.
 - Tests in `ui-adapter/src/jvmTest/kotlin/io/qent/broxy/ui/adapter/remote/ws/ProxyWebSocketTransportTest.kt` verify:
-  - presence of schema fields and entity counts in `tools/list` responses;
-  - reflection of request argument keys and response structure for `tools/call`.
+    - presence of schema fields and entity counts in `tools/list` responses;
+    - reflection of request argument keys and response structure for `tools/call`.
 
 These logs confirm that the backend receives a complete snapshot of the active preset capabilities.

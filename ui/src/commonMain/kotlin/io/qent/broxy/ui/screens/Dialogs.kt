@@ -5,14 +5,17 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.adapter.models.UiCapabilityArgument
 import io.qent.broxy.ui.adapter.models.UiServer
 import io.qent.broxy.ui.adapter.models.UiServerCapsSnapshot
 import io.qent.broxy.ui.adapter.store.AppStore
-import io.qent.broxy.ui.components.*
+import io.qent.broxy.ui.components.AppDialog
+import io.qent.broxy.ui.components.CapabilityArgumentList
 import io.qent.broxy.ui.theme.AppTheme
 import kotlinx.coroutines.CancellationException
 

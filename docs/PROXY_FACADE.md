@@ -6,7 +6,7 @@ The facade is the combined stack of:
 
 1) Inbound transport (STDIO or Streamable HTTP) that accepts MCP JSON-RPC messages and returns responses.
 2) MCP SDK `Server`, built by:
-   - `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/SdkServerFactory.kt` -> `buildSdkServer(proxy)`
+    - `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/SdkServerFactory.kt` -> `buildSdkServer(proxy)`
 3) `ProxyMcpServer`, which filters capabilities by preset and routes calls downstream.
 
 The purpose is to expose `ProxyMcpServer` as a standard MCP server without mixing wire adapters with
@@ -15,13 +15,13 @@ routing and filtering logic.
 ## Key classes
 
 - Inbound:
-  - `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/InboundServers.kt`
-  - `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/SdkServerFactory.kt`
+    - `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/InboundServers.kt`
+    - `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/SdkServerFactory.kt`
 - Proxy:
-  - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/ProxyMcpServer.kt`
-  - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/RequestDispatcher.kt`
-  - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/NamespaceManager.kt`
-  - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/ToolFilter.kt`
+    - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/ProxyMcpServer.kt`
+    - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/RequestDispatcher.kt`
+    - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/NamespaceManager.kt`
+    - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/ToolFilter.kt`
 
 ## Namespace contract: `serverId:toolName`
 
@@ -131,19 +131,19 @@ File: `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/RequestDispatcher.kt`
 Core logic:
 
 1) Allow list enforcement:
-   - `allowedPrefixedTools()` returns a set.
-   - If the set is non-empty and `request.name` is not in it, the call is rejected.
-   - In proxy mode, `ProxyMcpServer` sets `allowAllWhenNoAllowedTools = false`, so an empty
-     allow list denies all tool calls.
+    - `allowedPrefixedTools()` returns a set.
+    - If the set is non-empty and `request.name` is not in it, the call is rejected.
+    - In proxy mode, `ProxyMcpServer` sets `allowAllWhenNoAllowedTools = false`, so an empty
+      allow list denies all tool calls.
 2) Namespace parsing:
-   - `namespace.parsePrefixedToolName(name)` -> `(serverId, tool)`
+    - `namespace.parsePrefixedToolName(name)` -> `(serverId, tool)`
 3) Downstream lookup:
-   - `servers.firstOrNull { it.serverId == serverId }`
+    - `servers.firstOrNull { it.serverId == serverId }`
 4) Tool call without prefix:
-   - `server.callTool(tool, request.arguments)`
+    - `server.callTool(tool, request.arguments)`
 5) Prompts/resources:
-   - First use the maps computed by the preset filter.
-   - If missing, fall back to scanning capabilities via `MultiServerClient.fetchAllCapabilities()`.
+    - First use the maps computed by the preset filter.
+    - If missing, fall back to scanning capabilities via `MultiServerClient.fetchAllCapabilities()`.
 
 ### Batch calls
 

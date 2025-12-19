@@ -12,11 +12,11 @@ File: `core/src/commonMain/kotlin/io/qent/broxy/core/models/Preset.kt`
 
 ```kotlin
 data class Preset(
-  val id: String,
-  val name: String,
-  val tools: List<ToolReference> = emptyList(),
-  val prompts: List<PromptReference>? = null,
-  val resources: List<ResourceReference>? = null
+    val id: String,
+    val name: String,
+    val tools: List<ToolReference> = emptyList(),
+    val prompts: List<PromptReference>? = null,
+    val resources: List<ResourceReference>? = null
 )
 ```
 
@@ -47,11 +47,11 @@ Inputs:
 Outputs:
 
 - `FilterResult`:
-  - `capabilities: ServerCapabilities` - filtered view (tools/prompts/resources).
-  - `allowedPrefixedTools: Set<String>` - allow list for `tools/call` enforcement.
-  - `missingTools` - tools referenced in preset but missing downstream.
-  - `promptServerByName: Map<promptName, serverId>` - routing for `prompts/get`.
-  - `resourceServerByUri: Map<uriOrName, serverId>` - routing for `resources/read`.
+    - `capabilities: ServerCapabilities` - filtered view (tools/prompts/resources).
+    - `allowedPrefixedTools: Set<String>` - allow list for `tools/call` enforcement.
+    - `missingTools` - tools referenced in preset but missing downstream.
+    - `promptServerByName: Map<promptName, serverId>` - routing for `prompts/get`.
+    - `resourceServerByUri: Map<uriOrName, serverId>` - routing for `resources/read`.
 
 ### Step 1: group desired entities
 
@@ -127,14 +127,14 @@ Runtime fields:
 Key methods:
 
 - `refreshFilteredCapabilities()`:
-  1) fetches downstream caps in parallel;
-  2) applies `presetEngine.apply(all, preset)` -> `FilterResult`;
-  3) updates `filteredCaps/allowedTools/...`;
-  4) logs missing tools.
+    1) fetches downstream caps in parallel;
+    2) applies `presetEngine.apply(all, preset)` -> `FilterResult`;
+    3) updates `filteredCaps/allowedTools/...`;
+    4) logs missing tools.
 
 - `applyPreset(preset)`:
-  - updates `currentPreset`;
-  - calls `refreshFilteredCapabilities()` via `runBlocking`.
+    - updates `currentPreset`;
+    - calls `refreshFilteredCapabilities()` via `runBlocking`.
 
 ## Enforcement: denying disallowed tools
 

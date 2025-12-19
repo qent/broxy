@@ -32,9 +32,9 @@ Important distinction:
    used by `ProxyMcpServer` for filtering and routing.
 
 2) `core.capabilities.ServerCapsSnapshot` - UI-friendly summary:
-   - simplified `ToolSummary/PromptSummary/ResourceSummary`;
-   - argument lists derived from JSON Schema (best-effort);
-   - includes `serverId` and `name` for display.
+    - simplified `ToolSummary/PromptSummary/ResourceSummary`;
+    - argument lists derived from JSON Schema (best-effort);
+    - includes `serverId` and `name` for display.
 
 UI snapshots never participate in routing; they are for inspection and display only.
 
@@ -45,8 +45,8 @@ File: `core/src/commonMain/kotlin/io/qent/broxy/core/capabilities/CapabilityRefr
 Dependencies:
 
 - `capabilityFetcher: (McpServerConfig, timeoutSeconds) -> Result<ServerCapabilities>`.
-  - JVM UI implementation uses `DefaultMcpServerConnection(...).getCapabilities(forceRefresh=true)`:
-    `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/services/ToolServiceJvm.kt`.
+    - JVM UI implementation uses `DefaultMcpServerConnection(...).getCapabilities(forceRefresh=true)`:
+      `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/services/ToolServiceJvm.kt`.
 - `capabilityCache: CapabilityCache` - snapshot + timestamp.
 - `statusTracker: ServerStatusTracker` - transient UI statuses.
 - `serversProvider()` - current server list from store snapshot.
@@ -73,8 +73,8 @@ On `AppStore.start()`:
 
 - cancels the previous job;
 - when enabled, runs a loop:
-  - `delay(refreshIntervalMillis())`
-  - `refreshEnabledServers(force=false)`
+    - `delay(refreshIntervalMillis())`
+    - `refreshEnabledServers(force=false)`
 
 ### Status tracking
 
@@ -100,7 +100,7 @@ Algorithm:
 
 - read `ToolDescriptor.inputSchema.properties` and `required`;
 - infer type labels from:
-  - `type`, `items`, `anyOf/oneOf/allOf`, `enum`, `format`;
+    - `type`, `items`, `anyOf/oneOf/allOf`, `enum`, `format`;
 - build `CapabilityArgument(name, type, required)` entries.
 
 This is best-effort; complex schemas may produce empty argument lists.
@@ -115,8 +115,8 @@ If `ResourceDescriptor.uri` contains `{placeholder}`, each placeholder becomes a
 UI snapshots and proxy runtime are separate but share configuration:
 
 - UI updates timeouts via:
-  - `ProxyLifecycle.updateCallTimeout(...)`
-  - `ProxyLifecycle.updateCapabilitiesTimeout(...)`
+    - `ProxyLifecycle.updateCallTimeout(...)`
+    - `ProxyLifecycle.updateCapabilitiesTimeout(...)`
 
 `CapabilityRefresher` uses `capabilitiesTimeoutSeconds` from store snapshots for
 server validation and background refresh.

@@ -371,6 +371,7 @@ private data class StreamableHttpSession(
 private class StreamableHttpServerTransport : AbstractTransport() {
     val sessionId: String = java.util.UUID.randomUUID().toString()
     private val responseWaiters = ConcurrentHashMap<RequestId, CompletableDeferred<JSONRPCResponse>>()
+
     @Volatile
     private var started: Boolean = false
 

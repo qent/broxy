@@ -27,17 +27,17 @@ Loader:
 2) decodes into `FileMcpRoot`;
 3) expands `mcpServers: Map<String, FileMcpServer>` into `McpServerConfig` list;
 4) validates:
-   - transport type and required fields (`command`/`url`);
-   - unique `serverId`;
-   - non-blank `id` and `name`;
-   - presence of env vars used by placeholders;
+    - transport type and required fields (`command`/`url`);
+    - unique `serverId`;
+    - non-blank `id` and `name`;
+    - presence of env vars used by placeholders;
 5) applies defaults:
-   - `requestTimeoutSeconds` (default 60)
-   - `capabilitiesTimeoutSeconds` (default 30)
-   - `capabilitiesRefreshIntervalSeconds` (default 300)
-   - `showTrayIcon` (default true)
-   - `inboundSsePort` (default 3335; historical name, used for local Streamable HTTP)
-   - `defaultPresetId` (optional)
+    - `requestTimeoutSeconds` (default 60)
+    - `capabilitiesTimeoutSeconds` (default 30)
+    - `capabilitiesRefreshIntervalSeconds` (default 300)
+    - `showTrayIcon` (default true)
+    - `inboundSsePort` (default 3335; historical name, used for local Streamable HTTP)
+    - `defaultPresetId` (optional)
 
 ### mcp.json example
 
@@ -54,7 +54,9 @@ Loader:
       "name": "GitHub MCP",
       "transport": "stdio",
       "command": "npx",
-      "args": ["@modelcontextprotocol/server-github"],
+      "args": [
+        "@modelcontextprotocol/server-github"
+      ],
       "env": {
         "GITHUB_TOKEN": "${GITHUB_TOKEN}"
       }
@@ -118,9 +120,9 @@ Behavior:
 Preset loading:
 
 - `JsonConfigurationRepository.loadPreset(id)`:
-  - verifies the file exists;
-  - parses JSON into `Preset`;
-  - validates that `preset.id` matches the file id.
+    - verifies the file exists;
+    - parses JSON into `Preset`;
+    - validates that `preset.id` matches the file id.
 
 Rename semantics:
 

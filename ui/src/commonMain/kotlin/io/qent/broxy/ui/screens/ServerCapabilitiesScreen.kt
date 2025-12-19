@@ -1,7 +1,5 @@
 package io.qent.broxy.ui.screens
 
-import AppPrimaryButton
-import AppSecondaryButton
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -15,17 +13,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
-import io.qent.broxy.ui.adapter.models.UiCapabilityArgument
 import io.qent.broxy.ui.adapter.models.UiServerCapsSnapshot
 import io.qent.broxy.ui.adapter.store.AppStore
 import io.qent.broxy.ui.adapter.store.UIState
 import io.qent.broxy.ui.components.CapabilitiesCard
 import io.qent.broxy.ui.components.CapabilitiesInlineSummary
 import io.qent.broxy.ui.components.CapabilityDisplayItem
-import io.qent.broxy.ui.components.FormCard
 import io.qent.broxy.ui.theme.AppTheme
-import kotlinx.coroutines.launch
 
 @Composable
 fun ServerCapabilitiesScreen(
@@ -35,7 +29,7 @@ fun ServerCapabilitiesScreen(
 ) {
     val ui = store.state.collectAsState().value
     val serverName = (ui as? UIState.Ready)?.servers?.find { it.id == serverId }?.name ?: "Server"
-    
+
     var capabilities by remember { mutableStateOf<UiServerCapsSnapshot?>(null) }
     var isLoading by remember { mutableStateOf(true) }
 
@@ -71,7 +65,7 @@ private fun CapabilitiesContent(
     onClose: () -> Unit
 ) {
     val scrollState = rememberScrollState()
-    
+
     val toolsItems = remember(caps.tools) {
         caps.tools.map { tool ->
             CapabilityDisplayItem(
@@ -100,7 +94,7 @@ private fun CapabilitiesContent(
                 serverName = serverName,
                 capabilityName = res.name.ifBlank { res.key },
                 description = res.description.ifBlank { res.key },
-                arguments = listOf() 
+                arguments = listOf()
             )
         }
     }
@@ -127,7 +121,7 @@ private fun CapabilitiesContent(
                 modifier = Modifier.padding(top = AppTheme.spacing.sm, start = AppTheme.spacing.md)
             )
         } else {
-             CapabilitiesCard(
+            CapabilitiesCard(
                 title = "Tools",
                 items = toolsItems,
                 icon = Icons.Outlined.Construction,
@@ -171,7 +165,7 @@ private fun HeaderRow(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f)
         )
-        
+
         if (caps != null) {
             CapabilitiesInlineSummary(
                 toolsCount = caps.tools.size,

@@ -15,7 +15,8 @@ Client transport:
 
 - `core/src/commonMain/kotlin/io/qent/broxy/core/mcp/McpClient.kt` - client interface.
 - `core/src/commonMain/kotlin/io/qent/broxy/core/mcp/McpClientFactory.kt` - factory using a provider.
-- `core/src/jvmMain/kotlin/io/qent/broxy/core/mcp/McpClientFactoryJvm.kt` - JVM provider for STDIO/SSE/Streamable HTTP/WS.
+- `core/src/jvmMain/kotlin/io/qent/broxy/core/mcp/McpClientFactoryJvm.kt` - JVM provider for STDIO/SSE/Streamable
+  HTTP/WS.
 
 ## TransportConfig mapping to clients
 
@@ -29,12 +30,12 @@ JVM provider:
 
 Mapping table:
 
-| TransportConfig              | Downstream client        | Implementation                         |
-|-----------------------------|--------------------------|----------------------------------------|
-| `StdioTransport`            | process + stdio transport| `StdioMcpClient`                       |
-| `HttpTransport`             | HTTP SSE                 | `KtorMcpClient(Mode.Sse)`              |
-| `StreamableHttpTransport`   | Streamable HTTP          | `KtorMcpClient(Mode.StreamableHttp)`   |
-| `WebSocketTransport`        | WebSocket                | `KtorMcpClient(Mode.WebSocket)`        |
+| TransportConfig           | Downstream client         | Implementation                       |
+|---------------------------|---------------------------|--------------------------------------|
+| `StdioTransport`          | process + stdio transport | `StdioMcpClient`                     |
+| `HttpTransport`           | HTTP SSE                  | `KtorMcpClient(Mode.Sse)`            |
+| `StreamableHttpTransport` | Streamable HTTP           | `KtorMcpClient(Mode.StreamableHttp)` |
+| `WebSocketTransport`      | WebSocket                 | `KtorMcpClient(Mode.WebSocket)`      |
 
 Note: inbound transport is limited to STDIO and Streamable HTTP. Downstream supports more modes,
 including SSE and WebSocket.
@@ -103,9 +104,9 @@ Behavior:
 - Default TTL is 5 minutes (configurable via `cacheTtlMs`).
 - Thread safety via `Mutex`.
 - `getCapabilities(forceRefresh = false)`:
-  - returns cache if fresh and `forceRefresh` is false;
-  - otherwise fetches from downstream and updates the cache;
-  - on failure, returns cached capabilities only if still within TTL.
+    - returns cache if fresh and `forceRefresh` is false;
+    - otherwise fetches from downstream and updates the cache;
+    - on failure, returns cached capabilities only if still within TTL.
 
 This keeps the proxy running even when a downstream server is temporarily unavailable.
 

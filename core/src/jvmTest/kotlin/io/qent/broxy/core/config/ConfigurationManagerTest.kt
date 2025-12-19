@@ -1,19 +1,9 @@
 package io.qent.broxy.core.config
 
-import io.qent.broxy.core.models.McpServerConfig
-import io.qent.broxy.core.models.McpServersConfig
-import io.qent.broxy.core.models.Preset
-import io.qent.broxy.core.models.PromptReference
-import io.qent.broxy.core.models.ResourceReference
-import io.qent.broxy.core.models.ToolReference
-import io.qent.broxy.core.models.TransportConfig
+import io.qent.broxy.core.models.*
 import io.qent.broxy.core.repository.ConfigurationRepository
 import io.qent.broxy.core.utils.Logger
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
-import kotlin.test.assertNull
-import kotlin.test.assertTrue
+import kotlin.test.*
 
 class ConfigurationManagerTest {
     @Test

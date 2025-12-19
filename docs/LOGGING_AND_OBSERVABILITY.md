@@ -10,12 +10,12 @@ Implementations:
 
 - `ConsoleLogger` - stdout (useful for local debug).
 - `StdErrLogger` - stderr (use when STDIO is occupied by MCP protocol).
-  - `core/src/commonMain/kotlin/io/qent/broxy/core/utils/StdErrLogger.kt`
+    - `core/src/commonMain/kotlin/io/qent/broxy/core/utils/StdErrLogger.kt`
 - `DailyFileLogger(baseDir)` - `${baseDir}/logs/YYYY-MM-DD.log` (one file per day).
-  - `core/src/jvmMain/kotlin/io/qent/broxy/core/utils/DailyFileLogger.kt`
+    - `core/src/jvmMain/kotlin/io/qent/broxy/core/utils/DailyFileLogger.kt`
 - `FilteredLogger(minLevel, delegate)` - level filtering (CLI uses this).
 - `CollectingLogger(delegate)` - delegates + publishes events via `SharedFlow<LogEvent>`.
-  - `core/src/commonMain/kotlin/io/qent/broxy/core/utils/CollectingLogger.kt`
+    - `core/src/commonMain/kotlin/io/qent/broxy/core/utils/CollectingLogger.kt`
 - `CompositeLogger(delegates)` - fan-out to multiple loggers.
 
 ### STDIO mode nuance
@@ -34,7 +34,7 @@ Logs are written next to the configuration directory:
 - path: `${configDir}/logs/`
 - file: `YYYY-MM-DD.log` (one file per day)
 - line format: `YYYY-MM-DD HH:mm:ss.SSS LEVEL message`
-  - newlines in messages are escaped as `\n` to keep one log per line.
+    - newlines in messages are escaped as `\n` to keep one log per line.
 
 ## JSON logging (structured events)
 
@@ -48,7 +48,9 @@ Event format:
 {
   "timestamp": "2025-..-..T..:..:..Z",
   "event": "event.name",
-  "payload": { "...": "..." }
+  "payload": {
+    "...": "..."
+  }
 }
 ```
 
@@ -109,12 +111,12 @@ See also: `docs/websocket_preset_capabilities.md`.
 ## Tracing guidance
 
 1) For tool call diagnostics, look for:
-   - `llm_to_facade.request` -> `facade_to_downstream.request` -> `downstream.response` -> `facade_to_llm.response`.
+    - `llm_to_facade.request` -> `facade_to_downstream.request` -> `downstream.response` -> `facade_to_llm.response`.
 
 2) For preset denials:
-   - check `proxy.tool.denied` and the current `allowedPrefixedTools`.
+    - check `proxy.tool.denied` and the current `allowedPrefixedTools`.
 
 3) For empty capabilities:
-   - check `DefaultMcpServerConnection.getCapabilities(...)` logs;
-   - for STDIO, use `STDIO raw ...` lines;
-   - remember that `KtorMcpClient.fetchCapabilities()` returns empty lists on per-operation timeouts.
+    - check `DefaultMcpServerConnection.getCapabilities(...)` logs;
+    - for STDIO, use `STDIO raw ...` lines;
+    - remember that `KtorMcpClient.fetchCapabilities()` returns empty lists on per-operation timeouts.

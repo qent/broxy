@@ -113,28 +113,28 @@ broxy/
 - Unidirectional data flow: UI events -> intents -> ui-adapter -> `StateFlow` updates -> UI renders via
   `collectAsState()`.
 - MVI entities:
-  - State: immutable UI data classes, exposed as `StateFlow`.
-  - Intent: user/system actions; UI calls adapter methods, does not mutate state directly.
-  - Effect: one-off events (toast/snackbar/navigation) via `SharedFlow` or channels.
+    - State: immutable UI data classes, exposed as `StateFlow`.
+    - Intent: user/system actions; UI calls adapter methods, does not mutate state directly.
+    - Effect: one-off events (toast/snackbar/navigation) via `SharedFlow` or channels.
 - UI module:
-  - contains Composables, theme, and simple UI models only.
-  - does not import `core`.
-  - no IO side effects; use `Flow` subscriptions and callbacks.
-  - no `GlobalScope`; side effects only via `LaunchedEffect` / `rememberCoroutineScope`.
+    - contains Composables, theme, and simple UI models only.
+    - does not import `core`.
+    - no IO side effects; use `Flow` subscriptions and callbacks.
+    - no `GlobalScope`; side effects only via `LaunchedEffect` / `rememberCoroutineScope`.
 - ui-adapter:
-  - depends on `core`.
-  - encapsulates presentation logic, IO, orchestration, caches, lifecycle.
-  - exports stores on `StateFlow`, services (ProxyController, ToolService), repository providers.
-  - no Compose dependencies: no `MutableState`, `SnapshotStateList`, etc.
+    - depends on `core`.
+    - encapsulates presentation logic, IO, orchestration, caches, lifecycle.
+    - exports stores on `StateFlow`, services (ProxyController, ToolService), repository providers.
+    - no Compose dependencies: no `MutableState`, `SnapshotStateList`, etc.
 - State collection in UI:
-  - always use `collectAsState()` from `StateFlow`.
-  - no direct state mutation in UI; use intents only.
+    - always use `collectAsState()` from `StateFlow`.
+    - no direct state mutation in UI; use intents only.
 - Error handling:
-  - public adapter methods return `Result<T>` and log failures.
-  - UI displays errors (snackbar/dialog), no domain logic in UI.
+    - public adapter methods return `Result<T>` and log failures.
+    - UI displays errors (snackbar/dialog), no domain logic in UI.
 - Testing:
-  - ViewModel/store tests in `ui-adapter` with mocks.
-  - UI tests render from state only (no real IO).
+    - ViewModel/store tests in `ui-adapter` with mocks.
+    - UI tests render from state only (no real IO).
 
 ## Design patterns
 
@@ -609,25 +609,25 @@ class CompositeFilter(
 ## Unit tests with Mockito
 
 - Constructor injection only:
-  - dependencies to mock are passed via constructors;
-  - no global singletons or test hooks.
+    - dependencies to mock are passed via constructors;
+    - no global singletons or test hooks.
 - Mockito-Kotlin usage:
-  - create mocks: `val dep: Dep = mock()`
-  - stub sync methods: `whenever(dep.method(arg)).thenReturn(value)`
-  - stub suspend methods inside `runBlocking` or Mockito-Kotlin extensions
-  - sequential answers: `whenever(dep.call()).thenReturn(v1, v2, v3)`
-  - verify: `verify(dep).method(arg)`, with `times(n)` for counts
+    - create mocks: `val dep: Dep = mock()`
+    - stub sync methods: `whenever(dep.method(arg)).thenReturn(value)`
+    - stub suspend methods inside `runBlocking` or Mockito-Kotlin extensions
+    - sequential answers: `whenever(dep.call()).thenReturn(v1, v2, v3)`
+    - verify: `verify(dep).method(arg)`, with `times(n)` for counts
 - Test structure (AAA):
-  - Arrange: create inputs and mocks
-  - Act: one clear method call
-  - Assert: minimal verification of outcomes/interactions
+    - Arrange: create inputs and mocks
+    - Act: one clear method call
+    - Assert: minimal verification of outcomes/interactions
 - Coroutines:
-  - use `runBlocking` or `kotlinx-coroutines-test`
-  - avoid `Thread.sleep`
+    - use `runBlocking` or `kotlinx-coroutines-test`
+    - avoid `Thread.sleep`
 - Avoid:
-  - mutating internal fields
-  - mocking simple data classes
-  - testing through global state
+    - mutating internal fields
+    - mocking simple data classes
+    - testing through global state
 
 Example:
 

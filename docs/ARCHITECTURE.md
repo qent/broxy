@@ -16,36 +16,36 @@ broxy is a proxy for Model Context Protocol (MCP) that:
 Platform-independent proxy logic and models:
 
 - Proxy and routing:
-  - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/ProxyMcpServer.kt`
-  - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/RequestDispatcher.kt`
-  - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/ToolFilter.kt`
-  - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/NamespaceManager.kt`
+    - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/ProxyMcpServer.kt`
+    - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/RequestDispatcher.kt`
+    - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/ToolFilter.kt`
+    - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/NamespaceManager.kt`
 - Downstream MCP connections:
-  - `core/src/commonMain/kotlin/io/qent/broxy/core/mcp/DefaultMcpServerConnection.kt`
-  - `core/src/jvmMain/kotlin/io/qent/broxy/core/mcp/clients/StdioMcpClient.kt`
-  - `core/src/jvmMain/kotlin/io/qent/broxy/core/mcp/clients/KtorMcpClient.kt`
+    - `core/src/commonMain/kotlin/io/qent/broxy/core/mcp/DefaultMcpServerConnection.kt`
+    - `core/src/jvmMain/kotlin/io/qent/broxy/core/mcp/clients/StdioMcpClient.kt`
+    - `core/src/jvmMain/kotlin/io/qent/broxy/core/mcp/clients/KtorMcpClient.kt`
 - Configuration and hot reload:
-  - `core/src/jvmMain/kotlin/io/qent/broxy/core/config/JsonConfigurationRepository.kt`
-  - `core/src/jvmMain/kotlin/io/qent/broxy/core/config/ConfigurationWatcher.kt`
-  - `core/src/jvmMain/kotlin/io/qent/broxy/core/config/EnvironmentVariableResolver.kt`
+    - `core/src/jvmMain/kotlin/io/qent/broxy/core/config/JsonConfigurationRepository.kt`
+    - `core/src/jvmMain/kotlin/io/qent/broxy/core/config/ConfigurationWatcher.kt`
+    - `core/src/jvmMain/kotlin/io/qent/broxy/core/config/EnvironmentVariableResolver.kt`
 - Runtime wiring (JVM):
-  - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/runtime/ProxyLifecycle.kt`
-  - `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/runtime/ProxyControllerJvm.kt`
-  - `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/InboundServers.kt`
-  - `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/SdkServerFactory.kt`
+    - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/runtime/ProxyLifecycle.kt`
+    - `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/runtime/ProxyControllerJvm.kt`
+    - `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/InboundServers.kt`
+    - `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/SdkServerFactory.kt`
 
 ### `ui-adapter/` (presentation adapter, UDF/MVI)
 
 Presentation layer without Compose dependencies: state, intents, and background jobs.
 
 - Store and intents:
-  - `ui-adapter/src/commonMain/kotlin/io/qent/broxy/ui/adapter/store/AppStore.kt`
-  - `ui-adapter/src/commonMain/kotlin/io/qent/broxy/ui/adapter/store/internal/AppStoreIntents.kt`
-  - `ui-adapter/src/commonMain/kotlin/io/qent/broxy/ui/adapter/store/internal/ProxyRuntime.kt`
+    - `ui-adapter/src/commonMain/kotlin/io/qent/broxy/ui/adapter/store/AppStore.kt`
+    - `ui-adapter/src/commonMain/kotlin/io/qent/broxy/ui/adapter/store/internal/AppStoreIntents.kt`
+    - `ui-adapter/src/commonMain/kotlin/io/qent/broxy/ui/adapter/store/internal/ProxyRuntime.kt`
 - Remote mode (OAuth + WebSocket):
-  - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/RemoteConnectorImpl.kt`
-  - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/ws/RemoteWsClient.kt`
-  - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/ws/ProxyWebSocketTransport.kt`
+    - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/RemoteConnectorImpl.kt`
+    - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/ws/RemoteWsClient.kt`
+    - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/ws/ProxyWebSocketTransport.kt`
 
 ### `ui/` (Compose Desktop, thin UI)
 
@@ -63,9 +63,9 @@ CLI starts the proxy and the configuration watcher:
 
 1. Load configuration (`mcp.json`) and preset (`preset_<id>.json`).
 2. Build runtime:
-   - downstream connections: `DefaultMcpServerConnection` for each enabled server;
-   - proxy core: `ProxyMcpServer`;
-   - inbound server: STDIO or Streamable HTTP (`InboundServerFactory`).
+    - downstream connections: `DefaultMcpServerConnection` for each enabled server;
+    - proxy core: `ProxyMcpServer`;
+    - inbound server: STDIO or Streamable HTTP (`InboundServerFactory`).
 3. `ProxyMcpServer.start(...)` computes filtered capabilities (best-effort) using
    `refreshFilteredCapabilities()`.
 4. The inbound adapter builds an MCP SDK `Server` via `buildSdkServer(proxy)` and exposes

@@ -20,8 +20,8 @@ import io.qent.broxy.ui.components.GlobalHeader
 import io.qent.broxy.ui.theme.AppTheme
 import io.qent.broxy.ui.viewmodels.AppState
 import io.qent.broxy.ui.viewmodels.PresetEditorState
-import io.qent.broxy.ui.viewmodels.ServerEditorState
 import io.qent.broxy.ui.viewmodels.Screen
+import io.qent.broxy.ui.viewmodels.ServerEditorState
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalAnimationApi::class, ExperimentalMaterial3Api::class)

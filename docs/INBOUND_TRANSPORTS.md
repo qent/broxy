@@ -48,10 +48,10 @@ Headless STDIO mode (packaged app):
 
 - `broxy --stdio-proxy`
 - preset selection order:
-  1) explicit `--stdio-proxy` override (if provided by app entrypoint),
-  2) `defaultPresetId` from `mcp.json`,
-  3) the only preset if exactly one exists,
-  4) otherwise an empty preset.
+    1) explicit `--stdio-proxy` override (if provided by app entrypoint),
+    2) `defaultPresetId` from `mcp.json`,
+    3) the only preset if exactly one exists,
+    4) otherwise an empty preset.
 
 See: `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/headless/HeadlessEntrypointJvm.kt`
 
@@ -74,15 +74,15 @@ File: `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/InboundServers.k
 `mountStreamableHttpRoute(...)` handlers:
 
 1) `POST`:
-   - expects `Content-Type: application/json`;
-   - uses `mcp-session-id` header to select or create a session;
-   - sets `mcp-session-id` on the response;
-   - for `JSONRPCRequest` returns `JSONRPCResponse` as `application/json`;
-   - for notifications returns `200 OK` with no body.
+    - expects `Content-Type: application/json`;
+    - uses `mcp-session-id` header to select or create a session;
+    - sets `mcp-session-id` on the response;
+    - for `JSONRPCRequest` returns `JSONRPCResponse` as `application/json`;
+    - for notifications returns `200 OK` with no body.
 2) `GET`:
-   - returns `405 Method Not Allowed` (SSE is not supported).
+    - returns `405 Method Not Allowed` (SSE is not supported).
 3) `DELETE`:
-   - requires `mcp-session-id` header; closes the session and returns `204 No Content`.
+    - requires `mcp-session-id` header; closes the session and returns `204 No Content`.
 
 Requests use a 60s response timeout (`DEFAULT_REQUEST_TIMEOUT_MILLIS`).
 

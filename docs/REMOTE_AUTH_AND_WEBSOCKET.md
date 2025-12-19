@@ -13,16 +13,16 @@ Key idea:
 ## Remote subsystem components
 
 - Remote controller (state machine + OAuth + tokens + WS):
-  - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/RemoteConnectorImpl.kt`
+    - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/RemoteConnectorImpl.kt`
 - WebSocket client:
-  - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/ws/RemoteWsClient.kt`
+    - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/ws/RemoteWsClient.kt`
 - MCP SDK <-> WS envelope adapter:
-  - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/ws/ProxyWebSocketTransport.kt`
+    - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/ws/ProxyWebSocketTransport.kt`
 - Token storage:
-  - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/storage/RemoteConfigStore.kt`
-  - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/storage/SecureStore.kt`
+    - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/storage/RemoteConfigStore.kt`
+    - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/storage/SecureStore.kt`
 - OAuth callback server:
-  - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/auth/LoopbackCallbackServer.kt`
+    - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/auth/LoopbackCallbackServer.kt`
 
 ## RemoteConnectorImpl: state and interface
 
@@ -33,11 +33,11 @@ Interface:
 UI state:
 
 - `UiRemoteConnectionState` contains:
-  - `serverIdentifier`
-  - `email`
-  - `hasCredentials`
-  - `status` (`UiRemoteStatus`)
-  - `message`
+    - `serverIdentifier`
+    - `email`
+    - `hasCredentials`
+    - `status` (`UiRemoteStatus`)
+    - `message`
 
 ### serverIdentifier
 
@@ -51,11 +51,11 @@ File: `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/RemoteDefau
 User override:
 
 - `RemoteConnectorImpl.updateServerIdentifier(value)`:
-  - normalizes to lowercase; letters/digits are preserved, `-`/`_`/`.` are normalized to `-`, all other
-    characters become `-`;
-  - collapses multiple `-` and trims;
-  - max length 64;
-  - resets UI to `NotAuthorized`, disconnects WS, and clears stored tokens.
+    - normalizes to lowercase; letters/digits are preserved, `-`/`_`/`.` are normalized to `-`, all other
+      characters become `-`;
+    - collapses multiple `-` and trims;
+    - max length 64;
+    - resets UI to `NotAuthorized`, disconnects WS, and clears stored tokens.
 
 Changing the identifier is equivalent to registering a new device.
 
@@ -78,17 +78,17 @@ Sequence:
 3) Validate `authorization_url` contains the same `redirect_uri` (guards against stale backend).
 4) Open browser to `authorization_url`.
 5) Start loopback server on `127.0.0.1:8765` and wait for callback:
-   - `LoopbackCallbackServer.awaitCallback(expectedState)`
-   - parse `code` + `state` and validate `state`.
+    - `LoopbackCallbackServer.awaitCallback(expectedState)`
+    - parse `code` + `state` and validate `state`.
 6) Exchange code for access token:
-   - `POST https://broxy.run/auth/mcp/callback` with JSON body
-     `CallbackRequest(code, state, audience="mcp", redirect_uri=REDIRECT_URI)`
-   - response: `TokenResponse(access_token, token_type, expires_at, scope)`
-   - validate `token_type == bearer` and `scope == mcp`.
+    - `POST https://broxy.run/auth/mcp/callback` with JSON body
+      `CallbackRequest(code, state, audience="mcp", redirect_uri=REDIRECT_URI)`
+    - response: `TokenResponse(access_token, token_type, expires_at, scope)`
+    - validate `token_type == bearer` and `scope == mcp`.
 7) Register server identifier:
-   - `POST https://broxy.run/auth/mcp/register` with `Authorization: Bearer <access_token>`
-   - body: `RegisterRequest(serverIdentifier, name, capabilities={prompts/tools/resources=true})`
-   - response: `RegisterResponse(server_identifier, status, jwt_token)` (JWT for WebSocket).
+    - `POST https://broxy.run/auth/mcp/register` with `Authorization: Bearer <access_token>`
+    - body: `RegisterRequest(serverIdentifier, name, capabilities={prompts/tools/resources=true})`
+    - response: `RegisterResponse(server_identifier, status, jwt_token)` (JWT for WebSocket).
 8) Persist config and connect WebSocket if proxy is already running.
 
 ### Email extraction (best-effort)
@@ -105,14 +105,14 @@ Used only for UI display; failure is not fatal.
 `RemoteConfigStore` splits storage:
 
 1) `remote.json` (non-secret):
-   - `serverIdentifier`
-   - `email`
-   - `accessTokenExpiresAt`
-   - `wsTokenExpiresAt`
+    - `serverIdentifier`
+    - `email`
+    - `accessTokenExpiresAt`
+    - `wsTokenExpiresAt`
 
 2) `SecureStore` (secrets):
-   - `remote.access_token`
-   - `remote.ws_token`
+    - `remote.access_token`
+    - `remote.ws_token`
 
 Default implementation is filesystem-based:
 
@@ -170,7 +170,12 @@ Serialization uses `McpJson` (MCP SDK JSON).
 Inbound (from backend):
 
 ```json
-{ "session_identifier": "uuid", "message": { /* MCP JSON-RPC */ } }
+{
+  "session_identifier": "uuid",
+  "message": {
+    /* MCP JSON-RPC */
+  }
+}
 ```
 
 Outbound (to backend):
@@ -179,7 +184,9 @@ Outbound (to backend):
 {
   "session_identifier": "uuid",
   "target_server_identifier": "server-id",
-  "message": { /* MCP JSON-RPC */ }
+  "message": {
+    /* MCP JSON-RPC */
+  }
 }
 ```
 
@@ -199,10 +206,10 @@ On connect:
 3) MCP SDK `Server` is built via `buildSdkServer(proxy)`.
 4) `server.createSession(transport)` starts a dedicated SDK session.
 5) Reader loop:
-   - reads `Frame.Text`;
-   - decodes `McpProxyRequestPayload`;
-   - decodes `JSONRPCMessage` from `message`;
-   - calls `transport.handleIncoming(message, session_identifier)`.
+    - reads `Frame.Text`;
+    - decodes `McpProxyRequestPayload`;
+    - decodes `JSONRPCMessage` from `message`;
+    - calls `transport.handleIncoming(message, session_identifier)`.
 
 Synchronization details:
 

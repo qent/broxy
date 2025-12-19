@@ -52,7 +52,7 @@ fun ServersScreen(ui: UIState, state: AppState, store: AppStore, notify: (String
         }
 
         if (viewing != null) {
-             Column(modifier = Modifier.fillMaxSize()) {
+            Column(modifier = Modifier.fillMaxSize()) {
                 Spacer(Modifier.height(1.dp))
                 ServerCapabilitiesScreen(
                     store = store,
@@ -120,7 +120,6 @@ fun ServersScreen(ui: UIState, state: AppState, store: AppStore, notify: (String
 
             Spacer(Modifier.height(AppTheme.spacing.md))
         }
-
 
 
         val readyUi = ui as? UIState.Ready

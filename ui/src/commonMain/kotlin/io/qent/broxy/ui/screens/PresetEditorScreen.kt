@@ -2,7 +2,6 @@ package io.qent.broxy.ui.screens
 
 import AppPrimaryButton
 import AppSecondaryButton
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -15,22 +14,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
-import io.qent.broxy.ui.adapter.models.UiCapabilityArgument
-import io.qent.broxy.ui.adapter.models.UiPresetDraft
-import io.qent.broxy.ui.adapter.models.UiPromptRef
-import io.qent.broxy.ui.adapter.models.UiResourceRef
-import io.qent.broxy.ui.adapter.models.UiServerCapsSnapshot
-import io.qent.broxy.ui.adapter.models.UiToolRef
+import io.qent.broxy.ui.adapter.models.*
 import io.qent.broxy.ui.adapter.store.AppStore
 import io.qent.broxy.ui.adapter.store.UIState
-
-import io.qent.broxy.ui.components.CapabilityArgumentList
 import io.qent.broxy.ui.components.CapabilitiesCard
 import io.qent.broxy.ui.components.CapabilityDisplayItem
 import io.qent.broxy.ui.components.FormCard
@@ -262,7 +250,6 @@ private fun HeaderRow(
         }
     }
 }
-
 
 
 private fun buildToolCapabilityItems(
