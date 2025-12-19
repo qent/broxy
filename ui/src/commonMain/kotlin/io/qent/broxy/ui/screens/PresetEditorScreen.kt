@@ -31,6 +31,9 @@ import io.qent.broxy.ui.adapter.store.AppStore
 import io.qent.broxy.ui.adapter.store.UIState
 
 import io.qent.broxy.ui.components.CapabilityArgumentList
+import io.qent.broxy.ui.components.CapabilitiesCard
+import io.qent.broxy.ui.components.CapabilityDisplayItem
+import io.qent.broxy.ui.components.FormCard
 import io.qent.broxy.ui.components.PresetSelector
 import io.qent.broxy.ui.theme.AppTheme
 import io.qent.broxy.ui.viewmodels.PresetEditorState
@@ -191,17 +194,17 @@ fun PresetEditorScreen(
             )
         }
 
-        PresetCapabilitiesCard(
+        CapabilitiesCard(
             title = "Tools",
             items = toolItems,
             icon = Icons.Outlined.Construction
         )
-        PresetCapabilitiesCard(
+        CapabilitiesCard(
             title = "Prompts",
             items = promptItems,
             icon = Icons.Outlined.ChatBubbleOutline
         )
-        PresetCapabilitiesCard(
+        CapabilitiesCard(
             title = "Resources",
             items = resourceItems,
             icon = Icons.Outlined.Description
@@ -260,111 +263,19 @@ private fun HeaderRow(
     }
 }
 
-@Composable
-private fun FormCard(
-    title: String,
-    content: @Composable ColumnScope.() -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-        shape = AppTheme.shapes.card
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = AppTheme.spacing.lg, vertical = AppTheme.spacing.md),
-            verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)
-        ) {
-            Text(title, style = MaterialTheme.typography.titleSmall)
-            content(this)
-        }
-    }
-}
 
-private data class PresetCapabilityItem(
-    val serverName: String,
-    val capabilityName: String,
-    val description: String,
-    val arguments: List<UiCapabilityArgument>
-)
-
-@Composable
-private fun PresetCapabilitiesCard(
-    title: String,
-    items: List<PresetCapabilityItem>,
-    icon: ImageVector
-) {
-    if (items.isEmpty()) return
-    FormCard(title = title) {
-        Column(verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)) {
-            items.forEachIndexed { index, item ->
-                PresetCapabilityRow(item, icon)
-                if (index < items.lastIndex) {
-                    HorizontalDivider(
-                        thickness = AppTheme.strokeWidths.hairline,
-                        color = MaterialTheme.colorScheme.outlineVariant
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun PresetCapabilityRow(
-    item: PresetCapabilityItem,
-    icon: ImageVector
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.xs)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.xs)
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(16.dp)
-            )
-            Text(
-                text = buildAnnotatedString {
-                    append(item.capabilityName)
-                    append(" · ")
-                    withStyle(SpanStyle(color = MaterialTheme.colorScheme.primary)) {
-                        append(item.serverName)
-                    }
-                },
-                style = MaterialTheme.typography.bodyMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-        CapabilityArgumentList(
-            arguments = item.arguments,
-            modifier = Modifier.padding(top = AppTheme.spacing.xs)
-        )
-        Text(
-            item.description,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
-}
 
 private fun buildToolCapabilityItems(
     tools: List<UiToolRef>,
     serverNames: Map<String, String>,
     serverCapsById: Map<String, UiServerCapsSnapshot>
-): List<PresetCapabilityItem> {
+): List<CapabilityDisplayItem> {
     return tools.filter { it.enabled }.map { ref ->
         val summary = serverCapsById[ref.serverId]?.tools?.firstOrNull { it.name == ref.toolName }
         val serverName = serverNames[ref.serverId] ?: ref.serverId
         val capabilityName = summary?.name ?: ref.toolName
         val description = summary?.description?.takeIf { it.isNotBlank() } ?: "No description provided"
-        PresetCapabilityItem(serverName, capabilityName, description, summary?.arguments.orEmpty())
+        CapabilityDisplayItem(serverName, capabilityName, description, summary?.arguments.orEmpty())
     }
 }
 
@@ -372,13 +283,13 @@ private fun buildPromptCapabilityItems(
     prompts: List<UiPromptRef>,
     serverNames: Map<String, String>,
     serverCapsById: Map<String, UiServerCapsSnapshot>
-): List<PresetCapabilityItem> {
+): List<CapabilityDisplayItem> {
     return prompts.filter { it.enabled }.map { ref ->
         val summary = serverCapsById[ref.serverId]?.prompts?.firstOrNull { it.name == ref.promptName }
         val serverName = serverNames[ref.serverId] ?: ref.serverId
         val capabilityName = summary?.name ?: ref.promptName
         val description = summary?.description?.takeIf { it.isNotBlank() } ?: "No description provided"
-        PresetCapabilityItem(serverName, capabilityName, description, summary?.arguments.orEmpty())
+        CapabilityDisplayItem(serverName, capabilityName, description, summary?.arguments.orEmpty())
     }
 }
 
@@ -386,7 +297,7 @@ private fun buildResourceCapabilityItems(
     resources: List<UiResourceRef>,
     serverNames: Map<String, String>,
     serverCapsById: Map<String, UiServerCapsSnapshot>
-): List<PresetCapabilityItem> {
+): List<CapabilityDisplayItem> {
     return resources.filter { it.enabled }.map { ref ->
         val summary = serverCapsById[ref.serverId]?.resources?.firstOrNull { it.key == ref.resourceKey }
         val displayName = summary?.name?.ifBlank { ref.resourceKey } ?: ref.resourceKey
@@ -394,7 +305,7 @@ private fun buildResourceCapabilityItems(
         val description = summary?.description?.takeIf { it.isNotBlank() }
             ?: summary?.key
             ?: ref.resourceKey
-        PresetCapabilityItem(serverName, displayName, description, summary?.arguments.orEmpty())
+        CapabilityDisplayItem(serverName, displayName, description, summary?.arguments.orEmpty())
     }
 }
 

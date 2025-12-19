@@ -1,7 +1,8 @@
-# Test MCP Server Status
+# Test MCP server self-check
 
-This repository contains a lightweight MCP server used by the integration flows. The `selfCheck` task validates that the
-server builds, starts, and responds correctly in both STDIO and HTTP Streamable modes without hanging.
+This repository includes a lightweight MCP server used by integration flows. The `selfCheck` task
+verifies that the server builds, starts, and responds correctly in both STDIO and Streamable HTTP
+modes.
 
 ## How to run the self-check
 
@@ -9,14 +10,14 @@ server builds, starts, and responds correctly in both STDIO and HTTP Streamable 
 ./gradlew :test-mcp-server:selfCheck --console=plain
 ```
 
-The task installs the test server distribution, launches it in STDIO mode, and then starts a separate HTTP Streamable
-instance on a random free port. It uses the Broxy MCP clients to verify that:
+The task installs the test server distribution, launches it in STDIO mode, and then starts a
+separate Streamable HTTP instance on a random free port. It uses the Broxy MCP clients to verify:
 
-- Capabilities include the `add` and `subtract` tools, the `test://resource/alpha` and `test://resource/beta` resources,
-  and the `hello` and `bye` prompts.
-- Tool calls return structured results (addition and subtraction with numeric payloads) without errors.
+- Capabilities include `add` and `subtract` tools, `test://resource/alpha` and
+  `test://resource/beta` resources, and `hello` / `bye` prompts.
+- Tool calls return structured results (addition and subtraction with numeric payloads).
 - Prompt lookups include the expected greeting and farewell text.
 - Resource reads return the expected alpha and beta content.
 
-The task exits non-zero if any of the above checks fail or if the HTTP Streamable server cannot be reached. Successful
-output ends with `All SimpleTestMcpServer checks passed`.
+The task exits non-zero if any checks fail or if the Streamable HTTP server is unreachable.
+Successful output ends with `All SimpleTestMcpServer checks passed`.

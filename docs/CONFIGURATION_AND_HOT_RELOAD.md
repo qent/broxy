@@ -1,136 +1,163 @@
-# Конфигурация, пресеты и hot reload
+# Configuration, presets, and hot reload
 
-## Файлы конфигурации
+## Configuration files
 
-По умолчанию конфигурация хранится в:
+Default config directory:
 
-`~/.config/broxy/`
+- `~/.config/broxy` (all platforms; Windows uses the same `~/.config` pattern based on user home).
 
-Логи приложения сохраняются рядом с конфигурацией:
+Logs are written next to configuration:
 
-- `~/.config/broxy/logs/{YYYY-MM-DD}.log`
+- `~/.config/broxy/logs/YYYY-MM-DD.log`
 
-Ключевые файлы:
+Key files:
 
-- `mcp.json` — список downstream MCP серверов + глобальные параметры таймаутов.
-- `preset_<id>.json` — пресеты (allow-list) для фильтрации.
+- `mcp.json` - downstream server list and global settings.
+- `preset_<id>.json` - presets for filtering.
 
-Загрузка/сохранение:
+Loader:
 
 - `core/src/jvmMain/kotlin/io/qent/broxy/core/config/JsonConfigurationRepository.kt`
 
-## mcp.json: структура и валидация
+## mcp.json structure and validation
 
 `JsonConfigurationRepository.loadMcpConfig()`:
 
-1) читает `mcp.json`;
-2) парсит в `FileMcpRoot`;
-3) разворачивает `mcpServers: Map<String, FileMcpServer>` в список `McpServerConfig`;
-4) валидирует:
-    - корректность транспортов и обязательных полей (`command`/`url`);
-    - уникальность `serverId`;
-    - отсутствие пустых `id/name`;
-    - наличие переменных окружения для плейсхолдеров;
-5) выставляет defaults:
-    - `requestTimeoutSeconds` (default: 60)
-    - `capabilitiesTimeoutSeconds` (default: 30)
-    - `capabilitiesRefreshIntervalSeconds` (default: 300)
-    - `showTrayIcon` (default: true)
-    - `inboundSsePort` (default: 3335, порт локального HTTP Streamable inbound для desktop UI; имя ключа историческое)
-    - `defaultPresetId` (optional: preset по умолчанию для STDIO режима; если не задан — broxy стартует с пустыми
-      capabilities)
+1) reads `mcp.json` (missing file -> empty config);
+2) decodes into `FileMcpRoot`;
+3) expands `mcpServers: Map<String, FileMcpServer>` into `McpServerConfig` list;
+4) validates:
+   - transport type and required fields (`command`/`url`);
+   - unique `serverId`;
+   - non-blank `id` and `name`;
+   - presence of env vars used by placeholders;
+5) applies defaults:
+   - `requestTimeoutSeconds` (default 60)
+   - `capabilitiesTimeoutSeconds` (default 30)
+   - `capabilitiesRefreshIntervalSeconds` (default 300)
+   - `showTrayIcon` (default true)
+   - `inboundSsePort` (default 3335; historical name, used for local Streamable HTTP)
+   - `defaultPresetId` (optional)
 
-Код:
+### mcp.json example
 
-- `core/src/jvmMain/kotlin/io/qent/broxy/core/config/JsonConfigurationRepository.kt`
+```json
+{
+  "defaultPresetId": "developer",
+  "inboundSsePort": 3335,
+  "requestTimeoutSeconds": 60,
+  "capabilitiesTimeoutSeconds": 30,
+  "capabilitiesRefreshIntervalSeconds": 300,
+  "showTrayIcon": true,
+  "mcpServers": {
+    "github": {
+      "name": "GitHub MCP",
+      "transport": "stdio",
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_TOKEN": "${GITHUB_TOKEN}"
+      }
+    },
+    "slack": {
+      "name": "Slack MCP",
+      "transport": "http",
+      "url": "https://slack-mcp.example.com",
+      "headers": {
+        "Authorization": "Bearer token-value"
+      }
+    },
+    "realtime": {
+      "name": "Realtime MCP",
+      "transport": "websocket",
+      "url": "ws://localhost:8080/ws"
+    }
+  }
+}
+```
 
-### Примечание про serverId в Desktop UI
+### serverId in Desktop UI
 
-- В `mcp.json` `serverId` является ключом в `mcpServers` и участвует в namespace инструментов: `serverId:toolName`.
-- Desktop UI генерирует `serverId` автоматически из `name` (slugify).
-- При изменении имени сервера Desktop UI вызывает `ConfigurationManager.renameServer` (`oldId` → `newId`), который
-  обновляет `mcp.json` и переписывает все `preset_*.json`, заменяя ссылки на старый `serverId` в tools/prompts/resources.
+- In `mcp.json`, `serverId` is the key of `mcpServers` and is part of the tool namespace: `serverId:toolName`.
+- Desktop UI auto-generates `serverId` from `name` (slugified).
+- When renaming a server, `ConfigurationManager.renameServer(...)` updates `mcp.json` and rewrites all
+  `preset_*.json` references from the old id to the new id (best-effort; errors are logged).
 
-### Поддерживаемые транспорты downstream
+## Supported downstream transports
 
-Парсинг `transport` (строка) в `TransportConfig`:
+Parsing `transport` (string) into `TransportConfig`:
 
-- `"stdio"` → `TransportConfig.StdioTransport(command, args)`
-- `"http"` → `TransportConfig.HttpTransport(url, headers)`
-- `"streamable-http"` (и алиасы) → `TransportConfig.StreamableHttpTransport(url, headers)`
-- `"ws"`/`"websocket"` → `TransportConfig.WebSocketTransport(url)`
+- `"stdio"` -> `TransportConfig.StdioTransport(command, args)`
+- `"http"` -> `TransportConfig.HttpTransport(url, headers)`
+- `"streamable-http"` (and aliases) -> `TransportConfig.StreamableHttpTransport(url, headers)`
+- `"ws"`/`"websocket"` -> `TransportConfig.WebSocketTransport(url)`
 
-Важно: `headers` поддерживаются только для HTTP/streamable HTTP.
+Notes:
 
-## Переменные окружения и плейсхолдеры
+- `headers` are supported only for HTTP/SSE and Streamable HTTP.
+- `env` is used only for STDIO processes; for HTTP/WS it is stored but not consumed by transports.
 
-Плейсхолдеры в `env` поддерживаются в двух форматах:
+## Environment placeholders
+
+Placeholders are supported in `env` values in two forms:
 
 - `${VAR}`
 - `{VAR}`
 
-Реализация:
+Implementation:
 
 - `core/src/jvmMain/kotlin/io/qent/broxy/core/config/EnvironmentVariableResolver.kt`
 
-Гарантии:
+Behavior:
 
-- при загрузке `mcp.json` `JsonConfigurationRepository` сначала проверяет “отсутствующие переменные” (`missingVars`) и
-  падает с понятной ошибкой;
-- для логов окружение санитизируется по ключам: `TOKEN/SECRET/PASSWORD/KEY` → `"***"`.
+- `JsonConfigurationRepository` checks missing placeholders and fails with a clear error.
+- For logging, env values are sanitized by key: TOKEN/SECRET/PASSWORD/KEY -> `"***"`.
 
 ## preset_<id>.json
 
-Загрузка пресета:
+Preset loading:
 
 - `JsonConfigurationRepository.loadPreset(id)`:
-    - проверяет существование файла;
-    - парсит JSON в `Preset`;
-    - проверяет соответствие `preset.id` и `id` из имени файла.
+  - verifies the file exists;
+  - parses JSON into `Preset`;
+  - validates that `preset.id` matches the file id.
 
-Примечание про переименование:
+Rename semantics:
 
-- `id` пресета является частью имени файла (`preset_<id>.json`), поэтому “переименование пресета” технически означает
-  сохранение под новым `id` + удаление старого файла.
-- Desktop UI генерирует `id` автоматически (из `name`) и при изменении имени выполняет rename: сохранение под новым
-  `id` + удаление старого файла.
+- A preset id is part of the file name. Renaming means save under a new id and delete the old file.
+- Desktop UI generates ids from `name` and performs rename (save new id + delete old file).
 
-Список пресетов:
+Preset listing:
 
-- `JsonConfigurationRepository.listPresets()` — читает все `preset_*.json` и пропускает битые файлы с warn-логом.
+- `JsonConfigurationRepository.listPresets()` reads all `preset_*.json` files and skips invalid ones with a warning.
 
 ## Hot reload: ConfigurationWatcher
 
-Файл: `core/src/jvmMain/kotlin/io/qent/broxy/core/config/ConfigurationWatcher.kt`
+File: `core/src/jvmMain/kotlin/io/qent/broxy/core/config/ConfigurationWatcher.kt`
 
-Назначение: следить за изменениями в `~/.config/broxy` (или другом baseDir) и уведомлять наблюдателей.
+Purpose: watch the config directory and notify observers.
 
-Ключевые идеи:
+Key behaviors:
 
-- Используется `WatchService` с `ENTRY_CREATE/MODIFY/DELETE`.
-- События дебаунсятся (`debounceMillis`, default 300ms).
-- Обработчик различает:
-    - `mcp.json` → `onConfigurationChanged(config)`
-    - `preset_*.json` → `onPresetChanged(preset)` (если файл существует).
+- Uses `WatchService` with `ENTRY_CREATE/MODIFY/DELETE`.
+- Debounce (`debounceMillis`, default 300 ms).
+- When `mcp.json` changes -> `onConfigurationChanged(config)`.
+- When `preset_*.json` changes -> `onPresetChanged(preset)` if the file exists.
+- If the directory does not exist, the watcher logs and remains idle.
 
-### Ручные триггеры
-
-Для headless/тестов/CLI:
+Manual triggers (tests/headless):
 
 - `triggerConfigReload()`
 - `triggerPresetReload(id)`
 
-### emitInitialState
+`emitInitialState`:
 
-Если `emitInitialState=true`, то watcher “эмитит” первоначальную загрузку через debounce (удобно для UI адаптера).
-В CLI watcher запускается с `emitInitialState=false`, потому что конфиг уже загружен до запуска.
+- If `true`, the watcher emits an initial config event after debounce.
+- UI uses `emitInitialState = true`; CLI uses `false` because config is loaded before start.
 
-## Как hot reload используется в CLI
+## CLI usage of hot reload
 
-Файл: `cli/src/main/kotlin/io/qent/broxy/cli/commands/ProxyCommand.kt`
+File: `cli/src/main/kotlin/io/qent/broxy/cli/commands/ProxyCommand.kt`
 
-- При изменении `mcp.json`:
-    - `ProxyLifecycle.restartWithConfig(config)` — перезапуск downstream соединений + inbound.
-- При изменении `preset_*.json`:
-    - `ProxyLifecycle.applyPreset(preset)` — обновление filtered capabilities без рестарта inbound; наружные
-      `tools/list`/`prompts/list`/`resources/list` обновятся в рамках уже запущенного STDIO/SSE.
+- `mcp.json` change -> `ProxyLifecycle.restartWithConfig(config)` (restart inbound + downstream).
+- `preset_*.json` change -> `ProxyLifecycle.applyPreset(preset)` (re-sync SDK server, no inbound restart).

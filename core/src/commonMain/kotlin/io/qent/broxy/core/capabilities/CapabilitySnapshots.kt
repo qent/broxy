@@ -20,20 +20,20 @@ data class ServerCapsSnapshot(
 
 data class ToolSummary(
     val name: String,
-    val description: String? = null,
+    val description: String,
     val arguments: List<CapabilityArgument> = emptyList()
 )
 
 data class PromptSummary(
     val name: String,
-    val description: String? = null,
+    val description: String,
     val arguments: List<CapabilityArgument> = emptyList()
 )
 
 data class ResourceSummary(
     val key: String,
     val name: String,
-    val description: String? = null,
+    val description: String,
     val arguments: List<CapabilityArgument> = emptyList()
 )
 
@@ -63,7 +63,7 @@ private fun ToolDescriptor.toToolSummary(): ToolSummary {
     val arguments = extractToolArguments()
     return ToolSummary(
         name = name,
-        description = descriptionText,
+        description = descriptionText ?: "",
         arguments = arguments
     )
 }
@@ -93,7 +93,7 @@ private fun PromptDescriptor.toPromptSummary(): PromptSummary {
     }
     return PromptSummary(
         name = name,
-        description = description.orNullIfBlank(),
+        description = description ?: "",
         arguments = argumentSummaries
     )
 }
@@ -101,11 +101,12 @@ private fun PromptDescriptor.toPromptSummary(): PromptSummary {
 private fun ResourceDescriptor.toResourceSummary(): ResourceSummary {
     val argumentSummaries = inferResourceArguments(uri)
     return ResourceSummary(
-        key = uri.orNullIfBlank() ?: name,
+        key = uri ?: name,
         name = name,
         description = description.orNullIfBlank()
             ?: title.orNullIfBlank()
-            ?: uri.orNullIfBlank(),
+            ?: uri.orNullIfBlank()
+            ?: "",
         arguments = argumentSummaries
     )
 }

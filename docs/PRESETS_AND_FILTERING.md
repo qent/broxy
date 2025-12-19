@@ -1,14 +1,14 @@
-# Пресеты и фильтрация capabilities (tools/prompts/resources)
+# Presets and capability filtering (tools/prompts/resources)
 
-## Термины
+## Terms
 
-- **Downstream capabilities** — “сырой” список `tools/resources/prompts`, который отдаёт каждый downstream MCP сервер.
-- **Filtered capabilities** — capabilities, опубликованные наружу broxy после применения пресета.
-- **Preset** — декларативный allow-list (и частично “scope”) для tools/prompts/resources.
+- Downstream capabilities: the raw `tools/resources/prompts` exposed by each downstream MCP server.
+- Filtered capabilities: the view published by broxy after preset filtering.
+- Preset: a declarative allow list and scope definition for tools, prompts, and resources.
 
-## Модель Preset
+## Preset model
 
-Файл: `core/src/commonMain/kotlin/io/qent/broxy/core/models/Preset.kt`
+File: `core/src/commonMain/kotlin/io/qent/broxy/core/models/Preset.kt`
 
 ```kotlin
 data class Preset(
@@ -20,98 +20,103 @@ data class Preset(
 )
 ```
 
-Ссылки:
+References:
 
-- `ToolReference(serverId, toolName, enabled)` — `core/src/commonMain/kotlin/io/qent/broxy/core/models/ToolReference.kt`
-- `PromptReference(serverId, promptName, enabled)` —
+- `ToolReference(serverId, toolName, enabled)` - `core/src/commonMain/kotlin/io/qent/broxy/core/models/ToolReference.kt`
+- `PromptReference(serverId, promptName, enabled)` -
   `core/src/commonMain/kotlin/io/qent/broxy/core/models/PromptReference.kt`
-- `ResourceReference(serverId, resourceKey, enabled)` —
+- `ResourceReference(serverId, resourceKey, enabled)` -
   `core/src/commonMain/kotlin/io/qent/broxy/core/models/ResourceReference.kt`
 
-## Как работает фильтрация (DefaultToolFilter)
+Notes:
 
-Файл: `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/ToolFilter.kt`
+- If `prompts` or `resources` are omitted in JSON, they deserialize as `null`, which means
+  "do not restrict" (include all items from in-scope servers).
+- If `prompts` or `resources` are present but empty, the filter restricts them to none.
+- `Preset.empty()` produces empty lists for tools/prompts/resources and therefore exposes no capabilities.
 
-Вход:
+## Filtering behavior (DefaultToolFilter)
 
-- `all: Map<String, ServerCapabilities>` — capabilities всех downstream (key = `serverId`).
+File: `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/ToolFilter.kt`
+
+Inputs:
+
+- `all: Map<String, ServerCapabilities>` - all downstream capabilities keyed by `serverId`.
 - `preset: Preset`.
 
-Выход:
+Outputs:
 
 - `FilterResult`:
-    - `capabilities: ServerCapabilities` — отфильтрованный view (tools/prompts/resources).
-    - `allowedPrefixedTools: Set<String>` — allow-list для enforcement на `tools/call`.
-    - `missingTools` — список ссылок, которые есть в preset, но отсутствуют downstream.
-    - `promptServerByName: Map<promptName, serverId>` — маршрутизация `prompts/get`.
-    - `resourceServerByUri: Map<uriOrName, serverId>` — маршрутизация `resources/read`.
+  - `capabilities: ServerCapabilities` - filtered view (tools/prompts/resources).
+  - `allowedPrefixedTools: Set<String>` - allow list for `tools/call` enforcement.
+  - `missingTools` - tools referenced in preset but missing downstream.
+  - `promptServerByName: Map<promptName, serverId>` - routing for `prompts/get`.
+  - `resourceServerByUri: Map<uriOrName, serverId>` - routing for `resources/read`.
 
-### Шаг 1: группировка желаемых сущностей
+### Step 1: group desired entities
 
-Фильтр строит:
+The filter builds:
 
-- `desiredByServer` из `preset.tools.filter { enabled }` → groupBy serverId.
-- `desiredPromptsByServer` из `preset.prompts?.filter { enabled }` → groupBy serverId.
-- `desiredResourcesByServer` из `preset.resources?.filter { enabled }` → groupBy serverId.
+- `desiredByServer` from `preset.tools.filter { enabled }` -> `groupBy(serverId)`.
+- `desiredPromptsByServer` from `preset.prompts?.filter { enabled }` -> `groupBy(serverId)`.
+- `desiredResourcesByServer` from `preset.resources?.filter { enabled }` -> `groupBy(serverId)`.
 
-### Шаг 2: определение in-scope серверов
+### Step 2: determine in-scope servers
 
-`inScopeServers` — объединение serverId из tools/prompts/resources.
+`inScopeServers` is the union of server ids referenced by tools/prompts/resources.
 
-Важная деталь:
+Important:
 
-- если `preset.tools` пуст и `preset.prompts/resources` пусты (или `null`), то `inScopeServers` будет пуст →
-  отфильтрованные capabilities будут пустыми.
+- If tools are empty and prompts/resources are null or empty, `inScopeServers` is empty and the
+  filtered capabilities view is empty.
 
-### Шаг 3: tools — строгий allow-list + префиксация
+### Step 3: tools - strict allow list + prefixing
 
-Для каждой `ToolReference(serverId, toolName)`:
+For each `ToolReference(serverId, toolName)`:
 
-1) проверяется наличие `toolName` в capabilities соответствующего сервера;
-2) если отсутствует → добавляется в `missingTools`;
-3) если присутствует → берётся `ToolDescriptor` downstream, и его `name` переписывается в `"$serverId:${tool.name}"`.
+1) check `toolName` exists in downstream capabilities;
+2) if missing, add to `missingTools` and log a warning;
+3) if present, copy the descriptor and rewrite `name` to `"$serverId:${tool.name}"`.
 
-Одновременно:
+At the same time:
 
 - `allowedPrefixedTools += "$serverId:${tool.name}"`
 
-Это обеспечивает:
+This ensures:
 
-- отсутствие коллизий по имени;
-- строгий allow-list (downstream tool без ссылки в пресете не попадёт наружу).
+- no name collisions;
+- strict tool allow list (no tool appears unless referenced in the preset).
 
-### Шаг 4: prompts/resources — поведение зависит от `null`
+### Step 4: prompts/resources - null vs allow list
 
-Флаг “ограничивать ли” определяется так:
+Restrict flags:
 
 - `restrictPrompts = preset.prompts != null`
 - `restrictResources = preset.resources != null`
 
-Семантика:
+Semantics:
 
-- Если `preset.prompts == null`, то prompts **не ограничиваются allow-list’ом** и берутся целиком (НО только с in-scope
-  серверов).
-- Если `preset.prompts != null`, то prompts включаются **только** из allow-list (`promptAllowList`).
+- If `preset.prompts == null`, prompts are included in full (but only for in-scope servers).
+- If `preset.prompts != null`, prompts are included only if present in `promptAllowList`.
 
-Аналогично для resources:
+Resources behave the same:
 
-- allow-list задаётся по ключу `(uri ?: name)` и сравнивается с `ResourceReference.resourceKey`.
+- allow list key is `(uri ?: name)` compared to `ResourceReference.resourceKey`.
 
-### Шаг 5: таблицы маршрутизации
+### Step 5: routing maps
 
-После выбора prompts/resources фильтр строит маппинги:
+After selection, the filter populates:
 
-- `promptServerByName[prompt.name] = serverId` (через `putIfAbsent`)
-- `resourceServerByUri[uriOrName] = serverId` (через `putIfAbsent`)
+- `promptServerByName[prompt.name] = serverId` (first win via `putIfAbsent`)
+- `resourceServerByUri[uriOrName] = serverId` (first win via `putIfAbsent`)
 
-Это важно: если одинаковое имя prompt/resource встречается на нескольких серверах, победит “первый” в итерации по
-`inScopeServers`.
+If the same prompt/resource name exists on multiple servers, the first in the iteration order wins.
 
-## Применение пресета в ProxyMcpServer
+## Applying presets in ProxyMcpServer
 
-Файл: `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/ProxyMcpServer.kt`
+File: `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/ProxyMcpServer.kt`
 
-Основные поля runtime:
+Runtime fields:
 
 - `currentPreset`
 - `filteredCaps`
@@ -119,54 +124,49 @@ data class Preset(
 - `promptServerByName`
 - `resourceServerByUri`
 
-Ключевые методы:
+Key methods:
 
 - `refreshFilteredCapabilities()`:
-    1) `fetchAllDownstreamCapabilities()` — параллельный сбор caps;
-    2) `presetEngine.apply(all, preset)` → `FilterResult`;
-    3) сохранение `filteredCaps/allowedTools/...`;
-    4) логирование `missingTools`.
+  1) fetches downstream caps in parallel;
+  2) applies `presetEngine.apply(all, preset)` -> `FilterResult`;
+  3) updates `filteredCaps/allowedTools/...`;
+  4) logs missing tools.
 
 - `applyPreset(preset)`:
-    - обновляет `currentPreset`;
-    - вызывает `refreshFilteredCapabilities()` (через `runBlocking`).
+  - updates `currentPreset`;
+  - calls `refreshFilteredCapabilities()` via `runBlocking`.
 
-## Enforcement: запрет вызовов запрещённых tool
+## Enforcement: denying disallowed tools
 
-Даже если внешний клиент “видит” tool в `tools/list`, реальная защита делается на этапе `tools/call`:
+Even if the client sees a tool in `tools/list`, enforcement happens in `tools/call`:
 
-- `DefaultRequestDispatcher.dispatchToolCall(...)`:
-    - в режиме прокси `ProxyMcpServer` используется strict enforcement: пустой allow-list означает **deny all** (чтобы
-      `tools/call` не работал при отсутствии активного пресета).
+- `DefaultRequestDispatcher.dispatchToolCall(...)` checks `allowedPrefixedTools`.
+- In proxy mode `allowAllWhenNoAllowedTools = false`, so an empty allow list denies all tool calls.
 
-Файл: `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/RequestDispatcher.kt`
+File: `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/RequestDispatcher.kt`
 
-## Runtime переключение пресета: как это устроено и ограничения
+## Runtime preset switching: behavior and limits
 
 ### UI (AppStore)
 
-Сценарий выбора пресета:
+- `AppStoreIntents.selectProxyPreset(presetId)` updates `selectedPresetId`, persists it to `mcp.json`,
+  and applies the preset to the running proxy without restarting inbound.
 
-- `AppStoreIntents.selectProxyPreset(presetId)`:
-    - меняет `selectedPresetId`;
-    - сохраняет `defaultPresetId` в `mcp.json`;
-    - применяет пресет к уже запущенному прокси без рестарта inbound.
-
-Файлы:
+Files:
 
 - `ui-adapter/src/commonMain/kotlin/io/qent/broxy/ui/adapter/store/internal/AppStoreIntents.kt`
 - `ui-adapter/src/commonMain/kotlin/io/qent/broxy/ui/adapter/store/internal/ProxyRuntime.kt`
 
 ### CLI (ConfigurationWatcher)
 
-CLI watcher на изменение preset вызывает:
+Preset file change triggers:
 
-- `ProxyLifecycle.applyPreset(preset)` → `ProxyController.applyPreset(...)` → `ProxyMcpServer.applyPreset(...)`
+- `ProxyLifecycle.applyPreset(preset)` -> `ProxyController.applyPreset(...)` -> `ProxyMcpServer.applyPreset(...)`.
 
-Это не пересоздаёт inbound сервер: running STDIO/SSE продолжает работать, а MCP SDK `Server` пересинхронизируется с
-текущими filtered capabilities, поэтому `tools/list`/`prompts/list`/`resources/list` обновятся без рестарта процесса.
+Inbound is not recreated; the SDK `Server` is re-synced, so `tools/list`, `prompts/list`, and
+`resources/list` update without a process restart.
 
-Файлы:
+Files:
 
 - `cli/src/main/kotlin/io/qent/broxy/cli/commands/ProxyCommand.kt`
 - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/runtime/ProxyLifecycle.kt`

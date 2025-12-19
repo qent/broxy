@@ -1,199 +1,182 @@
-# Фасад прокси и маршрутизация запросов (ProxyMcpServer + MCP SDK)
+# Proxy facade and request routing (ProxyMcpServer + MCP SDK)
 
-## Что такое “фасад” в broxy
+## What the facade is in broxy
 
-Под “фасадом” здесь понимается связка:
+The facade is the combined stack of:
 
-1) **Inbound транспорт** (STDIO или HTTP Streamable), который принимает MCP JSON-RPC сообщения от клиента (
-   LLM/IDE/агента) и отдаёт ответы.
+1) Inbound transport (STDIO or Streamable HTTP) that accepts MCP JSON-RPC messages and returns responses.
+2) MCP SDK `Server`, built by:
+   - `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/SdkServerFactory.kt` -> `buildSdkServer(proxy)`
+3) `ProxyMcpServer`, which filters capabilities by preset and routes calls downstream.
 
-2) **MCP SDK Server**, построенный функцией:
+The purpose is to expose `ProxyMcpServer` as a standard MCP server without mixing wire adapters with
+routing and filtering logic.
 
-- `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/SdkServerFactory.kt` →
-  `buildSdkServer(proxy: ProxyMcpServer, ...)`
-
-3) **ProxyMcpServer**, который фильтрует capabilities по пресету и маршрутизирует вызовы вниз:
-
-- `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/ProxyMcpServer.kt`
-
-Цель фасада: сделать `ProxyMcpServer` “MCP-совместимым сервером” для внешнего мира, не смешивая wire-адаптеры с
-business-логикой фильтрации и роутинга.
-
-## Карта ключевых классов
+## Key classes
 
 - Inbound:
-    - `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/InboundServers.kt`
-    - `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/SdkServerFactory.kt`
+  - `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/InboundServers.kt`
+  - `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/SdkServerFactory.kt`
 - Proxy:
-    - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/ProxyMcpServer.kt`
-    - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/RequestDispatcher.kt`
-    - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/NamespaceManager.kt`
-    - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/ToolFilter.kt`
+  - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/ProxyMcpServer.kt`
+  - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/RequestDispatcher.kt`
+  - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/NamespaceManager.kt`
+  - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/ToolFilter.kt`
 
-## Контракт namespace: `serverId:toolName`
+## Namespace contract: `serverId:toolName`
 
-### Зачем префикс нужен
+### Why the prefix is required
 
-В нескольких downstream серверах могут существовать инструменты с одинаковыми именами. Чтобы избежать коллизий, broxy
-использует namespace:
+Multiple downstream servers can expose the same tool name. broxy avoids collisions by requiring
+prefixed tool names:
 
-- входящее имя инструмента: `serverId:toolName`;
-- downstream инструмент вызывается без префикса (`toolName`).
+- inbound tool name: `serverId:toolName`
+- downstream tool invocation: `toolName` (prefix removed)
 
-Реализация:
+Implementation:
 
 - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/DefaultNamespaceManager.parsePrefixedToolName(...)`
 - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/DefaultNamespaceManager.prefixToolName(...)`
 
-### Ошибка формата
+### Format errors
 
-Если имя не соответствует формату (нет `:` или он в неправильном месте), `parsePrefixedToolName` кидает
-`IllegalArgumentException`. Это важно: для большинства клиентов “без префикса” вызов считается некорректным и будет
-отклонён.
+If the name does not match `serverId:tool`, `parsePrefixedToolName` throws `IllegalArgumentException`.
+Clients that omit the prefix are rejected.
 
-## Слой 1: InboundServer → MCP SDK Server
+## Layer 1: InboundServer -> MCP SDK Server
 
 ### STDIO inbound
 
-- `InboundServerFactory.create(...)` возвращает `StdioInboundServer`.
-- В `StdioInboundServer.start()` создаётся `StdioServerTransport` и подключается `Server.connect(...)`.
+- `InboundServerFactory.create(...)` returns `StdioInboundServer`.
+- `StdioInboundServer.start()` builds a `StdioServerTransport` and creates an SDK session:
+  `server.createSession(transport)`.
 
-Файл: `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/InboundServers.kt`
+File: `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/InboundServers.kt`
 
-### HTTP Streamable inbound
+### Streamable HTTP inbound
 
-`KtorStreamableHttpInboundServer` поднимает embedded Ktor (Netty):
+`KtorStreamableHttpInboundServer` starts an embedded Ktor server (Netty):
 
-- `POST .../mcp` принимает MCP JSON-RPC сообщения (Streamable HTTP, JSON-only режим) и возвращает `application/json` для
-  запросов (`JSONRPCResponse`).
-- `mcp-session-id` передаётся заголовком (не query параметром) и используется для мультисессионности.
+- `POST .../mcp` accepts MCP JSON-RPC over HTTP in JSON-only Streamable HTTP mode and returns
+  `application/json` for requests (`JSONRPCResponse`).
+- `mcp-session-id` is passed via a header (not query) and enables multi-session handling.
+- `GET` returns `405 Method Not Allowed` (SSE is not supported).
+- `DELETE` closes the session and removes it from the registry.
 
-Реализация мультисессий:
+Multi-session registry:
 
-- `InboundStreamableHttpRegistry` хранит `sessionId -> ServerSession`.
+- `InboundStreamableHttpRegistry` stores `sessionId -> ServerSession`.
 
-Файл: `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/InboundServers.kt`
+File: `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/InboundServers.kt`
 
-## Слой 2: MCP SDK Server → ProxyMcpServer
+## Layer 2: MCP SDK Server -> ProxyMcpServer
 
-### Регистрация tools/prompts/resources
+### Register tools/prompts/resources
 
-`buildSdkServer(proxy)` синхронизирует MCP SDK `Server` с текущими отфильтрованными capabilities прокси и регистрирует:
+`buildSdkServer(proxy)` syncs the SDK `Server` with the current filtered capabilities and registers:
 
 - tools: `server.addTool(...)` / `server.addTools(...)`
 - prompts: `server.addPrompt(...)` / `server.addPrompts(...)`
 - resources: `server.addResource(...)` / `server.addResources(...)`
 
-Файл: `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/SdkServerFactory.kt`
+File: `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/SdkServerFactory.kt`
 
-### Runtime обновление capabilities при смене пресета
+### Runtime capability updates on preset change
 
-При `ProxyController.applyPreset(...)` broxy:
+When `ProxyController.applyPreset(...)` is called broxy:
 
-1) пересчитывает `filteredCaps/allowedTools/...` в `ProxyMcpServer`;
-2) пересинхронизирует уже запущенный MCP SDK `Server` (inbound STDIO/HTTP) через `syncSdkServer(...)`.
+1) recomputes `filteredCaps/allowedTools/...` in `ProxyMcpServer`;
+2) re-syncs the running SDK `Server` via `syncSdkServer(...)`.
 
-Это означает, что при смене пресета **не требуется перезапуск inbound сервера**, а ответы `tools/list`/`prompts/list`/
-`resources/list` обновятся в рамках той же запущенной сессии.
+Inbound (STDIO or Streamable HTTP) does not restart; `tools/list`, `prompts/list`, and `resources/list`
+reflect the new preset within the same session.
 
-### Runtime обновление capabilities при включении/выключении downstream серверов
+### Runtime updates on downstream enable/disable
 
-При изменении списка активных downstream серверов (например, включение/выключение уже настроенного сервера) broxy
-использует тот же принцип, что и при смене пресета:
+When the downstream set changes, `ProxyController.updateServers(...)`:
 
-1) обновляет набор downstream соединений в `ProxyMcpServer` (без пересоздания inbound);
-2) пересчитывает `filteredCaps` для текущего пресета;
-3) пересинхронизирует уже запущенный MCP SDK `Server` через `syncSdkServer(...)`.
+1) updates downstream connections in `ProxyMcpServer` (without recreating inbound);
+2) recomputes filtered capabilities for the current preset;
+3) re-syncs the SDK `Server` via `syncSdkServer(...)`.
 
-Фасад (inbound STDIO/HTTP) при этом **не перезапускается**, но опубликованные capabilities меняются.
+The inbound facade stays up, but published capabilities change.
 
-## Слой 3: ProxyMcpServer → RequestDispatcher → downstream
+## Layer 3: ProxyMcpServer -> RequestDispatcher -> downstream
 
-### ProxyMcpServer как “ядро”
+### ProxyMcpServer responsibilities
 
-`ProxyMcpServer` отвечает за:
+`ProxyMcpServer` maintains:
 
-- хранение текущего пресета и filtered view;
-- вычисление `filteredCaps`, `allowedTools`, `promptServerByName`, `resourceServerByUri`;
-- делегирование входящих запросов `RequestDispatcher`.
+- current preset and filtered view;
+- `filteredCaps`, `allowedTools`, `promptServerByName`, `resourceServerByUri`;
+- delegation of inbound requests to `RequestDispatcher`.
 
-Файл: `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/ProxyMcpServer.kt`
+File: `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/ProxyMcpServer.kt`
 
-Ключевые методы:
+Key methods:
 
-- `start(preset, transport)` — сохраняет пресет и делает best-effort `refreshFilteredCapabilities()` (с `runBlocking`).
-- `refreshFilteredCapabilities()` — скачивает capabilities всех downstream и применяет фильтр/пресет.
-- `callTool(toolName, arguments)` — делегирует в `dispatcher.dispatchToolCall(...)`.
-- `getPrompt(name, arguments)` — делегирует в `dispatcher.dispatchPrompt(...)`.
-- `readResource(uri)` — делегирует в `dispatcher.dispatchResource(...)`.
+- `start(preset, transport)` - stores the preset and performs a best-effort
+  `refreshFilteredCapabilities()`.
+- `refreshFilteredCapabilities()` - fetches downstream capabilities and applies the preset filter.
+- `callTool(toolName, arguments)` - delegates to `dispatcher.dispatchToolCall(...)`.
+- `getPrompt(name, arguments)` - delegates to `dispatcher.dispatchPrompt(...)`.
+- `readResource(uri)` - delegates to `dispatcher.dispatchResource(...)`.
 
-### DefaultRequestDispatcher: проверки и роутинг
+`getPrompt` and `readResource` also validate that the requested item exists in the filtered view.
 
-Файл: `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/RequestDispatcher.kt`
+### DefaultRequestDispatcher: checks and routing
 
-Ключевая логика:
+File: `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/RequestDispatcher.kt`
 
-1) **Enforcement allow-list**:
+Core logic:
 
-- `allowedPrefixedTools()` возвращает Set.
-- Если set не пустой и `request.name` не входит в него → ошибка (`Tool '...' is not allowed by current preset`).
+1) Allow list enforcement:
+   - `allowedPrefixedTools()` returns a set.
+   - If the set is non-empty and `request.name` is not in it, the call is rejected.
+   - In proxy mode, `ProxyMcpServer` sets `allowAllWhenNoAllowedTools = false`, so an empty
+     allow list denies all tool calls.
+2) Namespace parsing:
+   - `namespace.parsePrefixedToolName(name)` -> `(serverId, tool)`
+3) Downstream lookup:
+   - `servers.firstOrNull { it.serverId == serverId }`
+4) Tool call without prefix:
+   - `server.callTool(tool, request.arguments)`
+5) Prompts/resources:
+   - First use the maps computed by the preset filter.
+   - If missing, fall back to scanning capabilities via `MultiServerClient.fetchAllCapabilities()`.
 
-2) **Разбор namespace**:
+### Batch calls
 
-- `namespace.parsePrefixedToolName(name)` → `(serverId, tool)`
+`dispatchBatch(requests)` runs tool calls in parallel with `async/awaitAll`. This is not MCP batch
+on the wire; it is a convenience for internal use.
 
-3) **Поиск downstream**:
+## Result decoding and fallback
 
-- `servers.firstOrNull { it.serverId == serverId }`
-
-4) **Вызов без префикса**:
-
-- `server.callTool(tool, request.arguments)`
-
-5) **Prompts/resources**:
-
-Сначала использует маппинг, вычисленный при фильтрации:
-
-- `promptServerResolver(name)` → serverId?
-- `resourceServerResolver(uri)` → serverId?
-
-Если резолвер отсутствует или вернул `null`, выполняется fallback “скан по capabilities”:
-
-- `multi.fetchAllCapabilities()`
-- поиск prompt/resource в capabilities каждого downstream.
-
-### Batch вызовы
-
-`dispatchBatch(requests)` обрабатывает параллельно (`async/awaitAll`) и делегирует в `dispatchToolCall(...)`. Это не
-“MCP batch” на wire-уровне, а утилита для внутренних сценариев.
-
-## Преобразование результатов: decode/fallback
-
-`SdkServerFactory` пытается декодировать ответ downstream в типы MCP SDK:
+`SdkServerFactory` attempts to decode downstream responses into MCP SDK types:
 
 - `decodeCallToolResult(json, element)`
 - `decodePromptResult(json, element)`
 
-Если downstream прислал несовместимую структуру:
+If the payload is incompatible:
 
-- выполняется нормализация content-блоков (добавление `type`, если он отсутствует);
-- иначе используется `fallbackCallToolResult(raw)`, который превращает произвольный JSON в:
-    - `CallToolResult(content = [TextContent(text = raw.toString())], structuredContent = rawObjectOrWrapped, ...)`
+- the content blocks are normalized (adds missing `type` where it can be inferred);
+- otherwise `fallbackCallToolResult(raw)` produces a `CallToolResult` with text content
+  and a best-effort `structuredContent` object.
 
-Файл: `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/SdkServerFactory.kt`
+File: `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/SdkServerFactory.kt`
 
-## Логирование фасада (ключевые события)
+## Facade logging (key events)
 
-Набор событий (в JSON-формате, через `Logger.infoJson/warnJson/errorJson`):
+Structured JSON events (via `Logger.infoJson/warnJson/errorJson`):
 
-- `llm_to_facade.request` — входящий `tools/call` (имя/аргументы/meta).
-- `facade_to_downstream.request` — запрос после резолвинга serverId/tool.
-- `downstream.response` / `downstream.response.error` — результат от downstream.
-- `facade_to_llm.response` / `facade_to_llm.error` — ответ/ошибка, которые вернутся клиенту.
-- `proxy.tool.denied` — отказ по пресету (allow-list).
-- `facade_to_llm.decode_failed` — downstream прислал payload, который не декодируется как `CallToolResult`.
+- `llm_to_facade.request` - inbound `tools/call` (name/arguments/meta).
+- `facade_to_downstream.request` - resolved serverId/tool for downstream.
+- `downstream.response` / `downstream.response.error` - downstream result.
+- `facade_to_llm.response` / `facade_to_llm.error` - response/error returned to the client.
+- `proxy.tool.denied` - tool call denied by preset allow list.
+- `facade_to_llm.decode_failed` - downstream payload could not be decoded as `CallToolResult`.
 
-Файлы:
+Files:
 
 - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/RequestDispatcher.kt`
 - `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/SdkServerFactory.kt`

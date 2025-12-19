@@ -1,15 +1,15 @@
-# Inbound транспорты: STDIO и HTTP Streamable
+# Inbound transports: STDIO and Streamable HTTP
 
-## Что такое inbound транспорт
+## What inbound transport means
 
-Inbound — это “как broxy принимает входящие MCP JSON-RPC запросы от клиента”.
+Inbound is how broxy accepts MCP JSON-RPC requests from clients.
 
-В JVM реализации поддерживаются:
+Supported inbound transports on JVM:
 
-- `STDIO` (локальный режим, удобно для IDE/агентов);
-- `HTTP Streamable` (удалённый режим для клиентов, которым нужен HTTP endpoint).
+- STDIO (local mode for IDEs/agents)
+- Streamable HTTP (JSON-only mode for clients that need an HTTP endpoint)
 
-Файлы:
+Files:
 
 - `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/InboundServers.kt`
 - `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/SdkServerFactory.kt`
@@ -18,109 +18,107 @@ Inbound — это “как broxy принимает входящие MCP JSON-
 
 `InboundServerFactory.create(transport, proxy, logger)`:
 
-- `TransportConfig.StdioTransport` → `StdioInboundServer`
-- `TransportConfig.StreamableHttpTransport` → `KtorStreamableHttpInboundServer`
-- `TransportConfig.HttpTransport` → backward compatible alias (исторически был SSE inbound; теперь трактуется как
-  Streamable HTTP inbound)
-- другие типы inbound не поддерживаются (ошибка).
+- `TransportConfig.StdioTransport` -> `StdioInboundServer`
+- `TransportConfig.StreamableHttpTransport` -> `KtorStreamableHttpInboundServer`
+- `TransportConfig.HttpTransport` -> backward-compatible alias (treated as Streamable HTTP)
+- other types are rejected
 
-Важно: downstream поддерживает больше транспортов, чем inbound.
+Note: downstream supports more transports than inbound.
 
 ## STDIO inbound
 
 `StdioInboundServer.start()`:
 
-1) берёт `System.in`/`System.out`;
-2) строит `StdioServerTransport` (MCP SDK);
-3) строит MCP SDK `Server` через `buildSdkServer(proxy)`;
-4) делает `server.connect(transport)` в `runBlocking`.
+1) uses `System.in` / `System.out`;
+2) creates `StdioServerTransport` (MCP SDK);
+3) builds SDK `Server` via `buildSdkServer(proxy)`;
+4) starts a session with `server.createSession(transport)`.
 
-Особенность:
+STDIO requires stdout to remain clean for the MCP protocol. CLI uses a stderr logger:
 
-- STDIO режим требует, чтобы stdout был “чистым” для MCP протокола. Поэтому в CLI используется `StderrLogger` (логи в
-  stderr).
+- `cli/src/main/kotlin/io/qent/broxy/cli/support/StderrLogger.kt`
+- `cli/src/main/kotlin/io/qent/broxy/cli/commands/ProxyCommand.kt`
 
-Важно про жизненный цикл:
+Lifecycle note:
 
-- В текущем MCP Kotlin SDK `server.connect(transport)` может **не блокировать** поток до закрытия сессии (соединение
-  продолжает жить, пока процесс жив и transport не закрыт).
-- Поэтому процесс должен оставаться живым: либо “держать” основной поток (как делает CLI), либо явно ждать завершения
-  STDIO сессии через `transport.onClose { ... }`.
-    - См. `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/headless/HeadlessEntrypointJvm.kt` — headless STDIO
-      режим ожидает закрытия transport, чтобы не завершать процесс сразу после запуска.
-    - В упакованном Desktop приложении этот режим запускается так: `broxy --stdio-proxy` (без дополнительных
-      аргументов); пресет берётся из `defaultPresetId` в `mcp.json`, конфиг — из `~/.config/broxy` (macOS/Linux) или
-      `%USERPROFILE%\\.config\\broxy` (Windows).
+- MCP SDK sessions do not block the main thread automatically. CLI keeps the process alive
+  with a loop; headless UI mode waits on `transport.onClose`.
 
-См. также:
+Headless STDIO mode (packaged app):
 
-- `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/runtime/ProxyController.kt` → `createStdioProxyController(...)` (
-  специализированный factory).
+- `broxy --stdio-proxy`
+- preset selection order:
+  1) explicit `--stdio-proxy` override (if provided by app entrypoint),
+  2) `defaultPresetId` from `mcp.json`,
+  3) the only preset if exactly one exists,
+  4) otherwise an empty preset.
 
-## HTTP Streamable inbound
+See: `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/headless/HeadlessEntrypointJvm.kt`
 
-### URL парсинг и нормализация
+## Streamable HTTP inbound
 
-`KtorStreamableHttpInboundServer` принимает `url` (например `http://localhost:3335/mcp`) и извлекает:
+### URL parsing and normalization
 
-- host / port / path через `URI(url)`;
-- если path пустой → default `/mcp`;
-- если path заканчивается на `/` → отрезается trailing slash;
-- route segments вычисляются через `normalizePath(...)`.
+`KtorStreamableHttpInboundServer` parses `url` (for example `http://localhost:3335/mcp`):
 
-Файлы:
+- host/port/path via `URI(url)`
+- if host is empty -> `0.0.0.0`
+- if port is missing -> 80 (http) or 443 (https)
+- if path is empty -> `/mcp`
+- trailing slash is removed
 
-- `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/InboundServers.kt`
+File: `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/InboundServers.kt`
 
-### Один endpoint: `POST /mcp`
+### Single endpoint: `POST /mcp`
 
-В `mountStreamableHttpRoute(...)` определены обработчики:
+`mountStreamableHttpRoute(...)` handlers:
 
-1) `post { ... }`:
-    - читает MCP JSON-RPC сообщение из body (ожидается `Content-Type: application/json`);
-    - определяет `sessionId` по заголовку `mcp-session-id` (если заголовка нет — создаётся новая сессия);
-    - создаёт MCP SDK `ServerSession` через `server.createSession(transport)` и кладёт её в registry по `sessionId`;
-    - для `JSONRPCRequest` возвращает `application/json` с `JSONRPCResponse` (т.е. “JSON-only” режим Streamable HTTP);
-    - для уведомлений возвращает `200 OK` без тела.
+1) `POST`:
+   - expects `Content-Type: application/json`;
+   - uses `mcp-session-id` header to select or create a session;
+   - sets `mcp-session-id` on the response;
+   - for `JSONRPCRequest` returns `JSONRPCResponse` as `application/json`;
+   - for notifications returns `200 OK` with no body.
+2) `GET`:
+   - returns `405 Method Not Allowed` (SSE is not supported).
+3) `DELETE`:
+   - requires `mcp-session-id` header; closes the session and returns `204 No Content`.
 
-2) `get { ... }`:
-    - возвращает `405 Method Not Allowed` (SSE stream не используется в текущей реализации).
+Requests use a 60s response timeout (`DEFAULT_REQUEST_TIMEOUT_MILLIS`).
 
-3) `delete { ... }`:
-    - удаляет `sessionId` из registry и закрывает MCP SDK сессию (`204 No Content`).
-
-Важно: такой “JSON-only” Streamable HTTP режим совместим с `mcpStreamableHttp(...)` клиентом MCP Kotlin SDK.
-
-### Мультисессии
+### Multi-session registry
 
 `InboundStreamableHttpRegistry` (ConcurrentHashMap):
 
-- хранит `sessionId -> ServerSession`;
-- `remove(sessionId)` закрывает сессию и удаляет из registry.
+- stores `sessionId -> ServerSession`;
+- `remove(sessionId)` closes the session and removes it.
 
-## Адаптер к MCP SDK (buildSdkServer)
+### JSON-only behavior
 
-Outbound API для MCP клиентов формирует SDK `Server`:
+Outbound messages from the server to the client (notifications) are dropped because the
+implementation does not maintain an SSE stream.
 
-- синхронизирует зарегистрированные tools/prompts/resources с `proxy.getCapabilities()` и может пересинхронизироваться
-  при смене пресета без рестарта inbound;
-- перенаправляет `callTool/getPrompt/readResource` в `ProxyMcpServer`.
+## MCP SDK adapter (buildSdkServer)
 
-Подробности — `docs/PROXY_FACADE.md`.
+`buildSdkServer` creates an SDK `Server` backed by `ProxyMcpServer`:
 
-## CLI параметры для inbound
+- registers tools/prompts/resources based on `proxy.getCapabilities()`
+- re-syncs on preset or server changes via `syncSdkServer`
 
-Файл: `cli/src/main/kotlin/io/qent/broxy/cli/commands/ProxyCommand.kt`
+See: `docs/proxy_facade.md`.
 
-- `--inbound stdio|http` (алиасы: `local|remote|sse`)
-- `--url http://localhost:3335/mcp` (для `http` inbound)
+## CLI inbound flags
+
+File: `cli/src/main/kotlin/io/qent/broxy/cli/commands/ProxyCommand.kt`
+
+- `--inbound stdio|http` (aliases: `local|remote|sse`)
+- `--url http://localhost:3335/mcp` (for `http` inbound)
 
 ## Desktop UI: auto HTTP inbound
 
-В desktop UI режиме локальный HTTP Streamable inbound поднимается автоматически при старте приложения и останавливается
-вместе с процессом.
+Desktop UI starts a local Streamable HTTP inbound automatically on app launch and
+stops it on exit.
 
-- Порт задаётся в `mcp.json` ключом `inboundSsePort` (default `3335`). (Историческое имя ключа сохранено для
-  совместимости.)
-- При изменении порта через UI сервер автоматически перезапускается.
-- Если порт занят, старт inbound завершится ошибкой (UI показывает статус “порт занят”).
+- Port is configured via `mcp.json` key `inboundSsePort` (default `3335`).
+- Port changes via UI restart the inbound server.
+- If the port is in use, inbound start fails and UI reports the error.

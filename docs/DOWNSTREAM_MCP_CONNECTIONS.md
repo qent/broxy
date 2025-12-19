@@ -1,173 +1,172 @@
-# Подключение downstream MCP-серверов (McpServerConnection + McpClient)
+# Downstream MCP connections (McpServerConnection + McpClient)
 
-## Задача слоя downstream
+## Purpose of the downstream layer
 
-Downstream слой отвечает за “подключиться → выполнить операцию → отключиться” к конкретному MCP серверу и вернуть
-`Result<T>` наверх, не утягивая наружу детали транспорта.
+The downstream layer implements a short-lived session model: connect -> perform one operation -> disconnect.
+It hides transport details and returns `Result<T>` to the caller.
 
-Основная абстракция:
+Main abstractions:
 
-- `core/src/commonMain/kotlin/io/qent/broxy/core/mcp/McpServerConnection.kt` — интерфейс соединения.
-- `core/src/commonMain/kotlin/io/qent/broxy/core/mcp/DefaultMcpServerConnection.kt` — реализация с retry/backoff и кешем
-  capabilities.
+- `core/src/commonMain/kotlin/io/qent/broxy/core/mcp/McpServerConnection.kt` - connection interface.
+- `core/src/commonMain/kotlin/io/qent/broxy/core/mcp/DefaultMcpServerConnection.kt` - implementation with
+  retry/backoff and capabilities caching.
 
-Клиентский транспорт:
+Client transport:
 
-- `core/src/commonMain/kotlin/io/qent/broxy/core/mcp/McpClient.kt` — интерфейс клиента.
-- `core/src/commonMain/kotlin/io/qent/broxy/core/mcp/McpClientFactory.kt` — фабрика через provider.
-- `core/src/jvmMain/kotlin/io/qent/broxy/core/mcp/McpClientFactoryJvm.kt` — JVM provider: STDIO / SSE / Streamable
-  HTTP / WebSocket.
+- `core/src/commonMain/kotlin/io/qent/broxy/core/mcp/McpClient.kt` - client interface.
+- `core/src/commonMain/kotlin/io/qent/broxy/core/mcp/McpClientFactory.kt` - factory using a provider.
+- `core/src/jvmMain/kotlin/io/qent/broxy/core/mcp/McpClientFactoryJvm.kt` - JVM provider for STDIO/SSE/Streamable HTTP/WS.
 
-## TransportConfig и mapping в клиентов
+## TransportConfig mapping to clients
 
-Модель:
+Model:
 
 - `core/src/commonMain/kotlin/io/qent/broxy/core/models/TransportConfig.kt`
 
-JVM mapping (provider):
+JVM provider:
 
 - `core/src/jvmMain/kotlin/io/qent/broxy/core/mcp/McpClientFactoryJvm.kt`
 
-Таблица:
+Mapping table:
 
-| TransportConfig           | Downstream клиент         | Реализация                           |
-|---------------------------|---------------------------|--------------------------------------|
-| `StdioTransport`          | процесс + stdio transport | `StdioMcpClient`                     |
-| `HttpTransport`           | HTTP SSE                  | `KtorMcpClient(Mode.Sse)`            |
-| `StreamableHttpTransport` | streamable HTTP           | `KtorMcpClient(Mode.StreamableHttp)` |
-| `WebSocketTransport`      | WebSocket                 | `KtorMcpClient(Mode.WebSocket)`      |
+| TransportConfig              | Downstream client        | Implementation                         |
+|-----------------------------|--------------------------|----------------------------------------|
+| `StdioTransport`            | process + stdio transport| `StdioMcpClient`                       |
+| `HttpTransport`             | HTTP SSE                 | `KtorMcpClient(Mode.Sse)`              |
+| `StreamableHttpTransport`   | Streamable HTTP          | `KtorMcpClient(Mode.StreamableHttp)`   |
+| `WebSocketTransport`        | WebSocket                | `KtorMcpClient(Mode.WebSocket)`        |
 
-Важно: inbound транспорт (то, “как broxy слушает”) ограничен STDIO/HTTP Streamable, а downstream транспортов больше (
-включая SSE и WS).
+Note: inbound transport is limited to STDIO and Streamable HTTP. Downstream supports more modes,
+including SSE and WebSocket.
 
-## DefaultMcpServerConnection: модель “короткой сессии”
+## DefaultMcpServerConnection: short-lived session model
 
-Файл: `core/src/commonMain/kotlin/io/qent/broxy/core/mcp/DefaultMcpServerConnection.kt`
+File: `core/src/commonMain/kotlin/io/qent/broxy/core/mcp/DefaultMcpServerConnection.kt`
 
-Ключевые свойства:
+Key properties:
 
-- На **каждую операцию** создаётся новый `McpClient` (`newClient()`), выполняется `connect()` и после операции —
-  `disconnect()`.
-- Это снижает риски “висячих” соединений и упрощает lifecycle; статус соединения отражает последнюю попытку.
+- Each operation creates a new `McpClient` (`newClient()`), calls `connect()`, performs the operation,
+  and then calls `disconnect()`.
+- This avoids long-lived stale connections and keeps the status tied to the last operation.
 
-### Статусы
+### Status values
 
-- `ServerStatus.Starting` — перед connect.
-- `ServerStatus.Running` — после успешного connect.
-- `ServerStatus.Error(message)` — если операция провалилась.
-- `ServerStatus.Stopped` — после disconnect.
+- `ServerStatus.Starting` - before connect.
+- `ServerStatus.Running` - after successful connect.
+- `ServerStatus.Error(message)` - when an operation fails.
+- `ServerStatus.Stopped` - after disconnect.
 
-Тип: `core/src/commonMain/kotlin/io/qent/broxy/core/mcp/ServerStatus.kt`
+Type: `core/src/commonMain/kotlin/io/qent/broxy/core/mcp/ServerStatus.kt`
 
-### Таймауты (2 уровня)
+### Timeouts
 
-В `DefaultMcpServerConnection` есть три значения:
+There are three timeouts:
 
-- `callTimeoutMillis` — общий таймаут на `callTool/getPrompt/readResource` (оборачивается `withTimeout`).
-- `capabilitiesTimeoutMillis` — используется клиентом для list-операций (подробнее ниже).
-- `connectTimeoutMillis` — таймаут на `client.connect()`.
+- `callTimeoutMillis` - tool/prompt/resource calls (wrapped in `withTimeout`).
+- `capabilitiesTimeoutMillis` - used by clients for list operations.
+- `connectTimeoutMillis` - timeout for `client.connect()`.
 
-Методы обновления:
+Update methods:
 
 - `updateCallTimeout(millis)`
-- `updateCapabilitiesTimeout(millis)` (также синхронизирует `connectTimeoutMillis`)
+- `updateCapabilitiesTimeout(millis)` (also updates `connectTimeoutMillis`)
 
-В runtime эти значения прокидываются из `ProxyLifecycle.updateCallTimeout(...)` и `updateCapabilitiesTimeout(...)` (см.
-`core/src/commonMain/kotlin/io/qent/broxy/core/proxy/runtime/ProxyLifecycle.kt` и JVM-реализацию `ProxyControllerJvm`).
+Runtime wiring:
 
-### Retry/backoff на connect
+- `ProxyLifecycle.updateCallTimeout(...)`
+- `ProxyLifecycle.updateCapabilitiesTimeout(...)`
+
+The default configuration values are defined in `mcp.json` defaults (60s request, 30s capabilities).
+If a connection is created outside that flow, the internal defaults are 60s and 10s respectively.
+
+### Retry/backoff on connect
 
 `connectClient(client)`:
 
-- `maxRetries` попыток (по умолчанию 5).
-- backoff: `ExponentialBackoff` (`core/src/commonMain/kotlin/io/qent/broxy/core/utils/Backoff.kt`) с `delay(...)`.
-- connect обёрнут в `withTimeout(connectTimeoutMillis)`.
+- `maxRetries` attempts (default 5).
+- backoff via `ExponentialBackoff` (`core/src/commonMain/kotlin/io/qent/broxy/core/utils/Backoff.kt`).
+- connect is wrapped in `withTimeout(connectTimeoutMillis)`.
 
-Ошибки таймаута и подключения типизированы:
+Error types:
 
 - `McpError.TimeoutError`
 - `McpError.ConnectionError`
 
-Файл ошибок: `core/src/commonMain/kotlin/io/qent/broxy/core/mcp/errors/McpError.kt`
+File: `core/src/commonMain/kotlin/io/qent/broxy/core/mcp/errors/McpError.kt`
 
-## Кеш capabilities: CapabilitiesCache (per-server)
+## Capabilities cache (per server)
 
-Файл: `core/src/commonMain/kotlin/io/qent/broxy/core/mcp/CapabilitiesCache.kt`
+File: `core/src/commonMain/kotlin/io/qent/broxy/core/mcp/CapabilitiesCache.kt`
 
-Особенности:
+Behavior:
 
-- TTL по умолчанию 5 минут (можно задать через `cacheTtlMs` в `DefaultMcpServerConnection`).
-- Потокобезопасность через `Mutex`.
+- Default TTL is 5 minutes (configurable via `cacheTtlMs`).
+- Thread safety via `Mutex`.
 - `getCapabilities(forceRefresh = false)`:
-    - сначала пытается вернуть кеш;
-    - иначе делает fetch и кладёт в кеш;
-    - при ошибке пытается вернуть “протухший” кеш как fallback, чтобы прокси мог продолжать работу.
+  - returns cache if fresh and `forceRefresh` is false;
+  - otherwise fetches from downstream and updates the cache;
+  - on failure, returns cached capabilities only if still within TTL.
 
-Эта логика критична для стабильности прокси: отсутствие caps у одного сервера не должно “ронять” весь агрегатор.
+This keeps the proxy running even when a downstream server is temporarily unavailable.
 
 ## KtorMcpClient (HTTP SSE / Streamable HTTP / WebSocket)
 
-Файл: `core/src/jvmMain/kotlin/io/qent/broxy/core/mcp/clients/KtorMcpClient.kt`
+File: `core/src/jvmMain/kotlin/io/qent/broxy/core/mcp/clients/KtorMcpClient.kt`
 
-Семантика таймаутов:
+Timeout behavior:
 
-- На connect создаётся `HttpClient(CIO)` + `HttpTimeout` с `request/socket/connectTimeoutMillis = connectTimeoutMillis`.
-- Получение capabilities (`fetchCapabilities`) вызывает три операции:
-    - `getTools()`, `getResources()`, `getPrompts()`
-    - каждая обёрнута в `withTimeout(capabilitiesTimeoutMillis)`
-    - при таймауте/ошибке возвращается **пустой список**, а не ошибка (логируется `warn`).
+- The client uses Ktor `HttpTimeout` for connect/request/socket timeouts.
+- `fetchCapabilities()` calls `getTools()`, `getResources()`, and `getPrompts()` with per-call timeouts.
+- If a list operation times out or fails, the client returns an empty list for that category and
+  continues. The overall `fetchCapabilities()` call still succeeds unless the client is not connected.
 
-Это сделано намеренно: “частично доступные capabilities” предпочтительнее полного фейла (например, если `resources/list`
-висит, но tools работают).
+## StdioMcpClient (process + STDIO transport)
 
-## StdioMcpClient (процесс + STDIO transport)
+File: `core/src/jvmMain/kotlin/io/qent/broxy/core/mcp/clients/StdioMcpClient.kt`
 
-Файл: `core/src/jvmMain/kotlin/io/qent/broxy/core/mcp/clients/StdioMcpClient.kt`
+### Process startup and environment
 
-### Запуск процесса и окружение
+- `ProcessBuilder(listOf(command) + args)` with environment populated from `env`.
+- `env` is resolved via `EnvironmentVariableResolver.resolveMap(...)`.
+- Logs are sanitized via `EnvironmentVariableResolver.logResolvedEnv(...)`.
 
-- `ProcessBuilder(listOf(command) + args)` + `pb.environment()` дополняется `env`.
-- `env` предварительно проходит через `EnvironmentVariableResolver.resolveMap(...)` (поддержка `${VAR}` и `{VAR}`).
-- В логах окружение санитизируется (см. `EnvironmentVariableResolver.logResolvedEnv(...)`).
+File: `core/src/jvmMain/kotlin/io/qent/broxy/core/config/EnvironmentVariableResolver.kt`
 
-Файл: `core/src/jvmMain/kotlin/io/qent/broxy/core/config/EnvironmentVariableResolver.kt`
+### Handshake and timeout
 
-### Handshake и таймаут
+The handshake is performed in `async(Dispatchers.IO)`:
 
-Подключение выполняется в `async(Dispatchers.IO)`:
+- builds `StdioClientTransport` and wraps it in `LoggingTransport`;
+- creates `Client(Implementation(...))`;
+- calls `sdk.connect(transport)`;
+- `withTimeout(connectTimeout)` waits for completion.
 
-- создаётся `StdioClientTransport(source, sink)` и оборачивается в `LoggingTransport`;
-- создаётся `Client(Implementation(...))`;
-- выполняется `sdk.connect(transport)`;
-- затем `withTimeout(connectTimeout)` ждём завершения handshake.
+On timeout:
 
-При таймауте:
+- the process is destroyed (`destroyForcibly()`);
+- a `McpError.TimeoutError("STDIO connect timed out ...")` is returned.
 
-- процесс форсированно уничтожается (`destroyForcibly()`),
-- кидается `McpError.TimeoutError("STDIO connect timed out ...")`.
+### stderr logging
 
-### stderr логирование
+A dedicated thread reads `proc.errorStream` and logs lines as
+`logger.warn("[STDERR][cmd] ...")`.
 
-Отдельный поток читает `proc.errorStream` и пишет строки как `logger.warn("[STDERR][cmd] ...")`.
-Это важно: многие MCP сервера печатают диагностические сообщения в stderr.
+### LoggingTransport: MCP message tracing
 
-### LoggingTransport: трассировка MCP сообщений
+`LoggingTransport` logs:
 
-`LoggingTransport` логирует:
+- `tools/list`, `resources/list`, `prompts/list` requests by method;
+- corresponding responses by request id;
+- `*_list_changed` notifications.
 
-- `tools/list`, `resources/list`, `prompts/list` запросы (по `method`);
-- соответствующие ответы (по `id`);
-- уведомления `*_list_changed`.
+## MultiServerClient: parallel requests
 
-Это облегчает диагностику “почему capabilities не приходят” для STDIO серверов.
+File: `core/src/commonMain/kotlin/io/qent/broxy/core/mcp/MultiServerClient.kt`
 
-## MultiServerClient: параллельные запросы
+Responsibilities:
 
-Файл: `core/src/commonMain/kotlin/io/qent/broxy/core/mcp/MultiServerClient.kt`
+- `fetchAllCapabilities()` - fetches capabilities in parallel across servers.
+- `listPrefixedTools(allCaps)` - builds `serverId:` prefixed tool list.
 
-Назначение:
-
-- `fetchAllCapabilities()` — параллельно спрашивает `server.getCapabilities()` у всех соединений.
-- `listPrefixedTools(allCaps)` — утилита для построения списка инструментов с `serverId:` префиксом.
-
-В `RequestDispatcher` используется для fallback-скана prompts/resources.
+`RequestDispatcher` uses `MultiServerClient` as a fallback when prompt/resource routing
+maps are missing.

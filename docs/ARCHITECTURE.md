@@ -1,78 +1,79 @@
-# Архитектура broxy (Clean Architecture + прокси MCP)
+# broxy architecture (clean architecture + MCP proxy)
 
-## Цель проекта
+## Goal
 
-`broxy` — прокси для Model Context Protocol (MCP), который:
+broxy is a proxy for Model Context Protocol (MCP) that:
 
-- подключается к нескольким downstream MCP-серверам (STDIO/HTTP(SSE)/Streamable HTTP/WebSocket);
-- агрегирует их capabilities (tools/prompts/resources);
-- применяет пресет (allow-list) и публикует **отфильтрованный** набор capabilities наружу;
-- маршрутизирует входящие RPC (`tools/call`, `prompts/get`, `resources/read`) в правильный downstream.
+- connects to multiple downstream MCP servers (STDIO, HTTP SSE, Streamable HTTP, WebSocket);
+- aggregates their capabilities (tools, prompts, resources);
+- applies a preset allow list and publishes a filtered capabilities view;
+- routes inbound RPCs (`tools/call`, `prompts/get`, `resources/read`) to the correct downstream server.
 
-## Модули и слои
+## Modules and layers
 
 ### `core/` (domain + data + runtime wiring)
 
-Содержит платформенно-независимую бизнес-логику прокси и модели:
+Platform-independent proxy logic and models:
 
-- Прокси и маршрутизация:
-    - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/ProxyMcpServer.kt`
-    - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/RequestDispatcher.kt`
-    - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/ToolFilter.kt`
-    - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/NamespaceManager.kt`
-- Подключения downstream MCP:
-    - `core/src/commonMain/kotlin/io/qent/broxy/core/mcp/DefaultMcpServerConnection.kt`
-    - `core/src/jvmMain/kotlin/io/qent/broxy/core/mcp/clients/StdioMcpClient.kt`
-    - `core/src/jvmMain/kotlin/io/qent/broxy/core/mcp/clients/KtorMcpClient.kt`
-- Конфигурация и хот-релоад:
-    - `core/src/jvmMain/kotlin/io/qent/broxy/core/config/JsonConfigurationRepository.kt`
-    - `core/src/jvmMain/kotlin/io/qent/broxy/core/config/ConfigurationWatcher.kt`
-    - `core/src/jvmMain/kotlin/io/qent/broxy/core/config/EnvironmentVariableResolver.kt`
+- Proxy and routing:
+  - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/ProxyMcpServer.kt`
+  - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/RequestDispatcher.kt`
+  - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/ToolFilter.kt`
+  - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/NamespaceManager.kt`
+- Downstream MCP connections:
+  - `core/src/commonMain/kotlin/io/qent/broxy/core/mcp/DefaultMcpServerConnection.kt`
+  - `core/src/jvmMain/kotlin/io/qent/broxy/core/mcp/clients/StdioMcpClient.kt`
+  - `core/src/jvmMain/kotlin/io/qent/broxy/core/mcp/clients/KtorMcpClient.kt`
+- Configuration and hot reload:
+  - `core/src/jvmMain/kotlin/io/qent/broxy/core/config/JsonConfigurationRepository.kt`
+  - `core/src/jvmMain/kotlin/io/qent/broxy/core/config/ConfigurationWatcher.kt`
+  - `core/src/jvmMain/kotlin/io/qent/broxy/core/config/EnvironmentVariableResolver.kt`
 - Runtime wiring (JVM):
-    - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/runtime/ProxyLifecycle.kt`
-    - `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/runtime/ProxyControllerJvm.kt`
-    - `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/InboundServers.kt`
-    - `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/SdkServerFactory.kt`
+  - `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/runtime/ProxyLifecycle.kt`
+  - `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/runtime/ProxyControllerJvm.kt`
+  - `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/InboundServers.kt`
+  - `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/SdkServerFactory.kt`
 
 ### `ui-adapter/` (presentation adapter, UDF/MVI)
 
-Слой презентации без Compose-зависимостей: состояния, интенты, фоновые джобы.
+Presentation layer without Compose dependencies: state, intents, and background jobs.
 
-- Store и intents:
-    - `ui-adapter/src/commonMain/kotlin/io/qent/broxy/ui/adapter/store/AppStore.kt`
-    - `ui-adapter/src/commonMain/kotlin/io/qent/broxy/ui/adapter/store/internal/AppStoreIntents.kt`
-    - `ui-adapter/src/commonMain/kotlin/io/qent/broxy/ui/adapter/store/internal/ProxyRuntime.kt`
-- Remote режим (OAuth + WebSocket):
-    - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/RemoteConnectorImpl.kt`
-    - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/ws/RemoteWsClient.kt`
-    - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/ws/ProxyWebSocketTransport.kt`
+- Store and intents:
+  - `ui-adapter/src/commonMain/kotlin/io/qent/broxy/ui/adapter/store/AppStore.kt`
+  - `ui-adapter/src/commonMain/kotlin/io/qent/broxy/ui/adapter/store/internal/AppStoreIntents.kt`
+  - `ui-adapter/src/commonMain/kotlin/io/qent/broxy/ui/adapter/store/internal/ProxyRuntime.kt`
+- Remote mode (OAuth + WebSocket):
+  - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/RemoteConnectorImpl.kt`
+  - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/ws/RemoteWsClient.kt`
+  - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/ws/ProxyWebSocketTransport.kt`
 
-### `ui/` (Compose Desktop, “тонкий UI”)
+### `ui/` (Compose Desktop, thin UI)
 
-UI рендерит `UIState` и вызывает интенты (без прямого импорта `core`).
+UI renders `UIState` and calls intents, with no direct dependency on `core`.
 
-### `cli/` (CLI режим)
+### `cli/` (CLI mode)
 
-CLI поднимает прокси и watcher для хот-релоада:
+CLI starts the proxy and the configuration watcher:
 
 - `cli/src/main/kotlin/io/qent/broxy/cli/commands/ProxyCommand.kt`
 
-## Сквозные потоки данных (end-to-end)
+## End-to-end flows
 
-### 1) Запуск прокси (CLI или UI)
+### 1) Start proxy (CLI or UI)
 
-1. Загружается конфигурация (`mcp.json`) и пресет (`preset_<id>.json`).
-2. Собирается runtime:
-    - downstream соединения: `DefaultMcpServerConnection` (по одному на сервер).
-    - прокси-ядро: `ProxyMcpServer`.
-    - inbound server: STDIO или HTTP Streamable (`InboundServerFactory`).
-3. На старте `ProxyMcpServer.start(...)` вычисляет отфильтрованные capabilities (см. `refreshFilteredCapabilities()`).
-4. Inbound-адаптер строит MCP SDK `Server` через `buildSdkServer(proxy)` и публикует наружу `tools/list`,
-   `prompts/list`, `resources/list` и обработчики `callTool/getPrompt/readResource`.
+1. Load configuration (`mcp.json`) and preset (`preset_<id>.json`).
+2. Build runtime:
+   - downstream connections: `DefaultMcpServerConnection` for each enabled server;
+   - proxy core: `ProxyMcpServer`;
+   - inbound server: STDIO or Streamable HTTP (`InboundServerFactory`).
+3. `ProxyMcpServer.start(...)` computes filtered capabilities (best-effort) using
+   `refreshFilteredCapabilities()`.
+4. The inbound adapter builds an MCP SDK `Server` via `buildSdkServer(proxy)` and exposes
+   `tools/list`, `prompts/list`, `resources/list`, and handlers for `callTool/getPrompt/readResource`.
 
-### 2) Вызов инструмента (LLM → broxy → downstream)
+### 2) Tool call (LLM -> broxy -> downstream)
 
-**Ключевой контракт**: входящее имя инструмента **обязано** быть префиксовано: `serverId:toolName`.
+Key contract: inbound tool names must be prefixed as `serverId:toolName`.
 
 ```mermaid
 sequenceDiagram
@@ -85,7 +86,7 @@ sequenceDiagram
   LLM->>Inbound: tools/call {name: "s1:search", arguments: {...}}
   Inbound->>Proxy: callTool("s1:search", args)
   Proxy->>Disp: dispatchToolCall("s1:search")
-  Disp->>Disp: validate allowedPrefixedTools
+  Disp->>Disp: enforce allowedPrefixedTools
   Disp->>Disp: parse serverId/tool via NamespaceManager
   Disp->>DS: callTool("search", args)
   DS->>DS: connect -> call -> disconnect
@@ -95,16 +96,16 @@ sequenceDiagram
   Inbound-->>LLM: CallToolResult (decoded/fallback)
 ```
 
-### 3) Обновление конфигурации/пресета (hot reload)
+### 3) Hot reload (config/preset)
 
-В CLI и (частично) в UI используется `ConfigurationWatcher`:
+`ConfigurationWatcher` is used in CLI and UI:
 
-- на изменение `mcp.json` → `onConfigurationChanged(...)` → `ProxyLifecycle.restartWithConfig(...)`;
-- на изменение `preset_*.json` → `onPresetChanged(...)` → `ProxyLifecycle.applyPreset(...)` (пересчёт filtered
-  capabilities в прокси + обновление списка capabilities наружу без рестарта inbound; подробности — в
-  `docs/PRESETS_AND_FILTERING.md`).
+- `mcp.json` change -> `onConfigurationChanged(...)` -> `ProxyLifecycle.restartWithConfig(...)`.
+- `preset_*.json` change -> `onPresetChanged(...)` -> `ProxyLifecycle.applyPreset(...)`.
 
-### 4) Remote режим (UI): авторизация + WebSocket
+Inbound does not restart; the SDK server is re-synced with the new filtered capabilities.
 
-UI-adapter выполняет OAuth и регистрирует “сервер-идентификатор” на `broxy.run`, затем поднимает WebSocket, в котором
-проксируются MCP JSON-RPC сообщения (см. `docs/REMOTE_AUTH_AND_WEBSOCKET.md`).
+### 4) Remote mode (UI): OAuth + WebSocket
+
+UI adapter performs OAuth and registers a `serverIdentifier` on `broxy.run`, then opens a WebSocket
+connection that carries MCP JSON-RPC sessions (see `docs/remote_auth_and_websocket.md`).

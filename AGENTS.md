@@ -1,149 +1,144 @@
-# AGENTS.md - Руководство по разработке broxy
+# agents.md - development guide for broxy
 
-## Документация (обязательно для AI-агентов)
+## Documentation (mandatory for AI agents)
 
-Обязательные правила для любого агента:
+Required rules for any agent:
 
-1. Перед началом работы над задачей прочитать документы из `docs/`, которые относятся к текущей задаче (минимум —
-   `docs/README.md`, затем профильные разделы).
-2. После выполнения задачи, которая меняет поведение/контракты/потоки данных, агент обязан актуализировать
-   соответствующие файлы в `docs/*.md` (и при необходимости обновить этот список ссылок).
+1. Before starting work, read relevant documents under `docs/` (minimum: `docs/readme.md`, then related sections).
+2. After finishing a task that changes behavior, contracts, or data flows, update the corresponding `docs/*.md`
+   files and the link list if needed.
 
-Список ключевых документов:
+Key documents:
 
-- `docs/README.md` — индекс и рекомендуемый порядок чтения.
-- `docs/ARCHITECTURE.md` — общая архитектура, модули и сквозные флоу.
-- `docs/PROXY_FACADE.md` — фасад прокси, маршрутизация, namespace `serverId:tool`, ограничения snapshot capabilities.
-- `docs/DOWNSTREAM_MCP_CONNECTIONS.md` — downstream подключения (STDIO/HTTP(SSE)/Streamable HTTP/WS), таймауты,
-  retry/backoff, кеш caps.
-- `docs/PRESETS_AND_FILTERING.md` — пресеты, фильтрация capabilities, маршрутизация prompt/resource, runtime
-  переключение и ограничения.
-- `docs/CONFIGURATION_AND_HOT_RELOAD.md` — `mcp.json`, `preset_*.json`, переменные окружения, `ConfigurationWatcher` и
-  hot reload.
-- `docs/INBOUND_TRANSPORTS.md` — inbound транспорты (STDIO/HTTP SSE) и адаптер к MCP SDK.
-- `docs/REMOTE_AUTH_AND_WEBSOCKET.md` — OAuth, регистрация, токены/хранилище, протокол WebSocket и envelope сообщений.
-- `docs/CAPABILITIES_CACHE_AND_UI_REFRESH.md` — UI-ориентированный кеш capabilities, фоновые обновления и статусы.
-- `docs/LOGGING_AND_OBSERVABILITY.md` — логирование, JSON события и рекомендации по трассировке.
-- `docs/websocket-preset-capabilities.md` — payload’ы WebSocket и capabilities активного пресета (remote режим).
-- `docs/TESTING.md` — практики unit-тестирования в репозитории.
-- `docs/TEST_MCP_SERVER_STATUS.md` — self-check для тестового MCP сервера.
+- `docs/readme.md` - index and reading order.
+- `docs/architecture.md` - architecture, modules, end-to-end flows.
+- `docs/proxy_facade.md` - proxy facade, routing, `serverId:tool` namespace, SDK sync.
+- `docs/downstream_mcp_connections.md` - downstream connections, timeouts, retry/backoff, capabilities cache.
+- `docs/presets_and_filtering.md` - presets, filtering, prompt/resource routing, runtime switching.
+- `docs/configuration_and_hot_reload.md` - `mcp.json`, `preset_*.json`, env placeholders, `ConfigurationWatcher`.
+- `docs/inbound_transports.md` - inbound STDIO/Streamable HTTP and SDK adapter.
+- `docs/remote_auth_and_websocket.md` - OAuth, registration, tokens, WebSocket envelope.
+- `docs/capabilities_cache_and_ui_refresh.md` - UI capability cache, background refresh, statuses.
+- `docs/logging_and_observability.md` - logging formats and trace events.
+- `docs/testing.md` - unit testing practices.
+- `docs/test_mcp_server_status.md` - self-check for the test MCP server.
+- `docs/websocket_preset_capabilities.md` - WebSocket payloads for preset capabilities.
 
-## Архитектурные принципы
+## Architectural principles
 
-### 1. Clean Architecture
+### 1) Clean Architecture
 
-Проект следует принципам чистой архитектуры с четким разделением на слои:
+The project follows Clean Architecture with clear separation of layers:
 
-- **Domain Layer (core)**: Бизнес-логика, не зависящая от фреймворков и платформ
-- **Data Layer (core)**: Репозитории, работа с данными, MCP клиенты/серверы
-- **Presentation Layer (ui/ui-adapter/cli)**: Compose UI, адаптер презентации (формирование состояния), CLI команды
+- Domain layer (core): business logic independent of frameworks or platforms
+- Data layer (core): repositories, data access, MCP clients/servers
+- Presentation layer (ui/ui-adapter/cli): UI state, adapters, CLI commands
 
-### 2. SOLID принципы
+### 2) SOLID
 
-#### Single Responsibility Principle (SRP)
+Single Responsibility Principle:
 
-- Каждый класс отвечает за одну конкретную задачу
-- Разделение concerns: UI логика отделена от бизнес-логики
-- Модули имеют четкие границы ответственности
+- each class has a single responsibility
+- UI logic is separated from business logic
+- modules have clear boundaries
 
-#### Open/Closed Principle (OCP)
+Open/Closed Principle:
 
-- Использование интерфейсов для расширяемости
-- Sealed classes для типобезопасных расширений
-- Plugin-подобная архитектура для транспортов
+- use interfaces for extensibility
+- sealed classes for type-safe extensions
+- plugin-like transport architecture
 
-#### Liskov Substitution Principle (LSP)
+Liskov Substitution Principle:
 
-- Все реализации интерфейсов полностью соответствуют контракту
-- Наследники не нарушают поведение базовых классов
+- implementations must conform to interface contracts
+- subclasses must preserve base behavior
 
-#### Interface Segregation Principle (ISP)
+Interface Segregation Principle:
 
-- Мелкие, специализированные интерфейсы вместо больших
-- Клиенты зависят только от нужных им методов
+- small, focused interfaces
+- clients depend only on what they use
 
-#### Dependency Inversion Principle (DIP)
+Dependency Inversion Principle:
 
-- Зависимость от абстракций, а не от конкретных реализаций
-- Dependency Injection для управления зависимостями
-- Core модуль не зависит от UI/CLI модулей
+- depend on abstractions, not concrete implementations
+- dependency injection for wiring
+- core does not depend on UI/CLI modules
 
-### 3. Низкая связанность (Low Coupling)
+### 3) Low coupling
 
-- Минимальные зависимости между модулями
-- Использование событий/callbacks для коммуникации
-- Избегание циклических зависимостей
+- minimize dependencies between modules
+- use events/callbacks for communication
+- avoid cyclic dependencies
 
-## Структура проекта
+## Project structure
 
 ```
 broxy/
-├── core/                      # Платформенно-независимая логика
-│   ├── src/
-│   │   ├── commonMain/       # Общий код для всех платформ
-│   │   │   ├── models/       # Data classes, sealed classes
-│   │   │   ├── repository/   # Интерфейсы репозиториев
-│   │   │   ├── mcp/          # MCP клиент/сервер логика
-│   │   │   ├── proxy/        # Прокси логика
-│   │   │   └── utils/        # Утилиты
-│   │   ├── jvmMain/          # JVM-специфичный код
-│   │   └── nativeMain/       # Native-специфичный код
-│   └── build.gradle.kts
-├── ui-adapter/                # Адаптер презентации (UDF/MVI, Flow)
-│   ├── src/
-│   │   ├── commonMain/       # Общие view-models, интерфейсы, алиасы core типов
-│   │   └── jvmMain/          # JVM-реализации (ProxyController, ToolService)
-│   └── build.gradle.kts
-├── ui/                        # Compose Multiplatform UI (тонкий слой)
-│   ├── src/
-│   │   ├── commonMain/       # Общий UI код (чистые Composable)
-│   │   │   ├── screens/      # Экраны приложения
-│   │   │   ├── components/   # Переиспользуемые компоненты
-│   │   │   ├── theme/        # Material 3 тема
-│   │   │   └── viewmodels/   # Только AppState и UI-модели
-│   │   ├── desktopMain/      # Desktop-специфичный UI
-│   │   └── resources/        # Ресурсы (иконки, строки)
-│   └── build.gradle.kts
-├── cli/                       # CLI модуль
-│   ├── src/
-│   │   └── main/
-│   │       └── kotlin/
-│   │           └── commands/ # CLI команды
-│   └── build.gradle.kts
-└── build.gradle.kts          # Root build файл
+|-- core/                      # platform-independent logic
+|   |-- src/
+|   |   |-- commonMain/       # shared code
+|   |   |   |-- models/       # data classes, sealed classes
+|   |   |   |-- repository/   # repository interfaces
+|   |   |   |-- mcp/          # MCP client/server logic
+|   |   |   |-- proxy/        # proxy logic
+|   |   |   `-- utils/        # utilities
+|   |-- jvmMain/              # JVM-specific code
+|   `-- nativeMain/           # native-specific code
+|-- ui-adapter/                # presentation adapter (UDF/MVI, Flow)
+|   |-- src/
+|   |   |-- commonMain/       # shared view-models, interfaces, core type aliases
+|   |   `-- jvmMain/          # JVM implementations (ProxyController, ToolService)
+|   `-- build.gradle.kts
+|-- ui/                        # Compose Multiplatform UI (thin layer)
+|   |-- src/
+|   |   |-- commonMain/       # UI composables
+|   |   |   |-- screens/      # app screens
+|   |   |   |-- components/   # reusable components
+|   |   |   |-- theme/        # Material 3 theme
+|   |   |   `-- viewmodels/   # AppState and UI models only
+|   |   |-- desktopMain/      # desktop-specific UI
+|   |   `-- resources/        # resources (icons, strings)
+|   `-- build.gradle.kts
+|-- cli/                       # CLI module
+|   |-- src/
+|   |   `-- main/
+|   |       `-- kotlin/
+|   |           `-- commands/ # CLI commands
+|   `-- build.gradle.kts
+`-- build.gradle.kts           # root build file
 ```
 
-## Тонкий UI на UDF + Compose
+## Thin UI with UDF + Compose
 
-- Единое направление данных (UDF): события от UI → интенты → адаптер (ui-adapter) → обновление `StateFlow` состояния →
-  UI отображает через `collectAsState()`.
-- MVI: явно моделируем три сущности
-    - State: неизменяемые data-классы UI-состояния (без ссылок на core), публикуются как `StateFlow`.
-    - Intent: действия пользователя/системы; UI вызывает методы/диспетчер адаптера, не мутирует состояние напрямую.
-    - Effect: одноразовые события (tost/snackbar/навигация) — как `SharedFlow`/каналы.
-- UI-модуль
-    - Содержит только Composable-функции, тему, простые UI-модели и `AppState` для локальных визуальных настроек.
-    - Не импортирует `core`. Любые доменные типы приходят из `ui-adapter` (через алиасы/модели).
-    - Не содержит побочных эффектов работы с сетью/файлами — только подписки на `Flow` и вызовы коллбеков.
-    - Никаких `GlobalScope`; эффекты — в `LaunchedEffect`/`rememberCoroutineScope` только для вызова адаптера.
-- ui-adapter
-    - Зависит от `core`. Инкапсулирует всю логику презентации, IO, orchestration, кеши и жизненный цикл.
-    - Экспортирует: view-models/сторы на `StateFlow`, сервисы (ProxyController, ToolService), провайдеры репозиториев.
-    - Предоставляет UI-модели без утечек domain-типов; допустимы `typealias` для прозрачной инкапсуляции.
-    - Не зависит от Compose: никаких `MutableState`, `SnapshotStateList` и пр. Только Kotlin/Coroutines.
-- Коллекция состояния в UI
-    - Всегда `collectAsState()` из `StateFlow`.
-    - Никаких `.value =` в UI — изменения только через интенты/методы адаптера.
-- Обработка ошибок
-    - Все публичные методы адаптера возвращают `Result<T>` и логируют.
-    - UI отображает ошибки (snackbar/диалоги), не решает доменную логику.
-- Тестирование
-    - ViewModel/Store тестируется на уровне `ui-adapter` с подменой зависимостей (Mockito).
-    - UI тестируется как чистый рендер по состоянию (скриншоты/Compose tests), без реального IO.
+- Unidirectional data flow: UI events -> intents -> ui-adapter -> `StateFlow` updates -> UI renders via
+  `collectAsState()`.
+- MVI entities:
+  - State: immutable UI data classes, exposed as `StateFlow`.
+  - Intent: user/system actions; UI calls adapter methods, does not mutate state directly.
+  - Effect: one-off events (toast/snackbar/navigation) via `SharedFlow` or channels.
+- UI module:
+  - contains Composables, theme, and simple UI models only.
+  - does not import `core`.
+  - no IO side effects; use `Flow` subscriptions and callbacks.
+  - no `GlobalScope`; side effects only via `LaunchedEffect` / `rememberCoroutineScope`.
+- ui-adapter:
+  - depends on `core`.
+  - encapsulates presentation logic, IO, orchestration, caches, lifecycle.
+  - exports stores on `StateFlow`, services (ProxyController, ToolService), repository providers.
+  - no Compose dependencies: no `MutableState`, `SnapshotStateList`, etc.
+- State collection in UI:
+  - always use `collectAsState()` from `StateFlow`.
+  - no direct state mutation in UI; use intents only.
+- Error handling:
+  - public adapter methods return `Result<T>` and log failures.
+  - UI displays errors (snackbar/dialog), no domain logic in UI.
+- Testing:
+  - ViewModel/store tests in `ui-adapter` with mocks.
+  - UI tests render from state only (no real IO).
 
-## Паттерны проектирования
+## Design patterns
 
-### 1. Repository Pattern
+### 1) Repository pattern
 
 ```kotlin
 interface ConfigurationRepository {
@@ -154,7 +149,7 @@ interface ConfigurationRepository {
 }
 ```
 
-### 2. Factory Pattern
+### 2) Factory pattern
 
 ```kotlin
 object McpClientFactory {
@@ -166,7 +161,7 @@ object McpClientFactory {
 }
 ```
 
-### 3. Observer Pattern
+### 3) Observer pattern
 
 ```kotlin
 interface ConfigurationObserver {
@@ -175,26 +170,26 @@ interface ConfigurationObserver {
 }
 ```
 
-### 4. Strategy Pattern
+### 4) Strategy pattern
 
-Для различных стратегий фильтрации и маршрутизации инструментов.
+Used for filtering and routing strategies.
 
-### 5. Proxy Pattern
+### 5) Proxy pattern
 
-Основной паттерн приложения - проксирование MCP запросов.
+The core pattern of the project: MCP proxying.
 
-## Работа с MCP
+## Working with MCP
 
-### Основные концепции
+### Core concepts
 
-1. **Client**: Подключается к MCP серверу, запрашивает capabilities
-2. **Server**: Предоставляет tools, resources, prompts
-3. **Transport**: Способ коммуникации (STDIO, HTTP+SSE, WebSocket)
-4. **Capabilities**: Возможности сервера (tools, resources, prompts)
+1) Client: connects to MCP server, requests capabilities
+2) Server: provides tools, resources, prompts
+3) Transport: communication method (STDIO, HTTP SSE, Streamable HTTP, WebSocket)
+4) Capabilities: server features (tools, resources, prompts)
 
-### Best Practices для MCP
+### Best practices
 
-#### 1. Управление жизненным циклом
+#### 1) Lifecycle management
 
 ```kotlin
 class McpServerConnection(
@@ -202,18 +197,18 @@ class McpServerConnection(
     private val client: McpClient
 ) : AutoCloseable {
     private var isConnected = false
-    
+
     suspend fun connect(): Result<Unit> {
-        // Подключение с retry логикой
+        // connect with retry/backoff
     }
-    
+
     override fun close() {
-        // Graceful shutdown
+        // graceful shutdown
     }
 }
 ```
 
-#### 2. Обработка ошибок
+#### 2) Error handling
 
 ```kotlin
 sealed class McpError : Exception() {
@@ -224,143 +219,112 @@ sealed class McpError : Exception() {
 }
 ```
 
-#### 3. Кэширование capabilities
+#### 3) Capabilities cache
 
 ```kotlin
 class CapabilitiesCache {
     private val cache = mutableMapOf<String, ServerCapabilities>()
     private val timestamps = mutableMapOf<String, Long>()
-    
+
     fun get(serverId: String): ServerCapabilities? {
-        // Проверка TTL и возврат из кэша
+        // TTL check and return cached value
     }
-    
+
     fun put(serverId: String, capabilities: ServerCapabilities) {
-        // Сохранение с timestamp
+        // store with timestamp
     }
 }
 ```
 
-#### 4. Управление таймаутами и повторными попытками
+#### 4) Timeouts and retry/backoff
 
-- `core/src/commonMain/kotlin/io/qent/broxy/core/mcp/DefaultMcpServerConnection.kt` реализует экспоненциальный backoff,
-  ограничение числа попыток и обёртку `withTimeout`. Методы `updateCallTimeout` и `updateCapabilitiesTimeout` позволяют
-  синхронизировать таймауты RPC-вызовов и загрузки capabilities с пользовательскими настройками.
-- Соединения с downstream MCP серверами держатся только на время конкретного RPC: `DefaultMcpServerConnection` создаёт
-  клиент по требованию, коннектится с retry/backoff, выполняет запрос (tools/prompts/resources/capabilities) и сразу
-  вызывает `disconnect()`, обновляя статус по результату последней сессии.
-- При сбое получения capabilities соединение возвращается к кэшу и логирует ошибку через `Logger`, не прерывая работу
-  прокси (`Result`-контракты на всех публичных методах).
+- `DefaultMcpServerConnection` implements exponential backoff, max retries, and `withTimeout`.
+- `updateCallTimeout` and `updateCapabilitiesTimeout` keep RPC timeouts and capability fetch timeouts in sync.
+- Each RPC uses a short-lived connection: create client -> connect -> call -> disconnect.
+- `getCapabilities` falls back to cached data when available.
 
-#### 5. Пакетная работа с несколькими серверами
+#### 5) Multi-server batching
 
-- `MultiServerClient` (`core/src/commonMain/kotlin/io/qent/broxy/core/mcp/MultiServerClient.kt`) инкапсулирует
-  параллельные запросы к downstream-серверам, поддерживает преобразование префиксованных имён инструментов и
-  используется как в фильтрации (`ProxyMcpServer`), так и в `ToolRegistry`.
-- `DefaultRequestDispatcher` (`core/src/commonMain/kotlin/io/qent/broxy/core/proxy/RequestDispatcher.kt`) обеспечивает
-  маршрутизацию batch-вызовов, prompt/resource запросов и строгую проверку разрешённых инструментов.
+- `MultiServerClient` performs parallel capability fetches and prefix handling.
+- `DefaultRequestDispatcher` handles routing, batch calls, and strict tool allow lists.
 
-## Конфигурация и наблюдение
+## Configuration and observation
 
-- `JsonConfigurationRepository` (`core/src/jvmMain/kotlin/io/qent/broxy/core/config/JsonConfigurationRepository.kt`)
-  читает/пишет `mcp.json` и `preset_*.json`, валидирует транспорты, разрешает `${ENV}` и `{ENV}` плейсхолдеры через
-  `EnvironmentVariableResolver`, проверяет наличие обязательных переменных окружения и логирует безопасные копии
-  конфигураций. Поддерживаются глобальные ключи `requestTimeoutSeconds`, `capabilitiesTimeoutSeconds` и
-  `capabilitiesRefreshIntervalSeconds` (частота фонового обновления сведений о серверах) для управления таймаутами и
-  актуальностью capabilities.
-- JSON-схемы в `core/src/commonMain/resources/schemas/` фиксируют контракт конфигурации и пресетов; при изменениях
-  структуры обновляйте схемы и документацию.
-- `ConfigurationWatcher` (`core/src/jvmMain/kotlin/io/qent/broxy/core/config/ConfigurationWatcher.kt`) отслеживает
-  изменения файлов, применяет debounce, отправляет события наблюдателям (`ConfigurationObserver`). CLI и UI адаптер
-  используют его для хот-релоада конфигурации без перезапуска процесса.
-- Для тестов и headless-режима предусмотрены ручные триггеры `triggerConfigReload/triggerPresetReload`, что упрощает
-  имитацию событий файловой системы.
+- `JsonConfigurationRepository` reads/writes `mcp.json` and `preset_*.json`, validates transports,
+  resolves `${ENV}` and `{ENV}` placeholders via `EnvironmentVariableResolver`, and logs sanitized configs.
+  Supported global keys: `requestTimeoutSeconds`, `capabilitiesTimeoutSeconds`,
+  `capabilitiesRefreshIntervalSeconds`, `showTrayIcon`, `inboundSsePort`, `defaultPresetId`.
+- JSON schemas in `core/src/commonMain/resources/schemas/` define config contracts; update them when
+  structure changes.
+- `ConfigurationWatcher` watches config files, debounces changes, and notifies observers. CLI and UI
+  use it for hot reload without restarts.
+- Manual triggers (`triggerConfigReload/triggerPresetReload`) are available for tests/headless flows.
 
-## Логирование и телеметрия
+## Logging and observability
 
-- `Logger` и `CollectingLogger` (`core/src/commonMain/kotlin/io/qent/broxy/core/utils/Logger.kt`, `CollectingLogger.kt`)
-  формируют единый интерфейс логов. UI подписывается на `CollectingLogger.events`, отображая сообщения и ограничивая
-  буфер (`AppStore` хранит максимум 500 записей).
-- JSON-формат логов (`core/src/commonMain/kotlin/io/qent/broxy/core/utils/JsonLogging.kt`) стандартизирует события:
-  `infoJson`, `warnJson`, `errorJson` добавляют timestamp, event name и payload. Это используется в `RequestDispatcher`,
-  `ProxyMcpServer`, `SdkServerFactory` для трассировки цепочки LLM → прокси → downstream.
-- Для CLI поддерживается установка минимального уровня логирования через `FilteredLogger` (
-  `core/src/commonMain/kotlin/io/qent/broxy/core/utils/Logger.kt`), чтобы не засорять STDOUT.
+- `Logger` and `CollectingLogger` (`core/src/commonMain/kotlin/io/qent/broxy/core/utils/Logger.kt` and
+  `CollectingLogger.kt`) define the logging interface.
+- `CollectingLogger` uses a `SharedFlow` with a replay buffer of 200 events.
+- JSON logging (`JsonLogging.kt`) adds `timestamp`, `event`, and payload. This is used in
+  `RequestDispatcher` and `SdkServerFactory` to trace LLM -> proxy -> downstream flows.
+- CLI uses `FilteredLogger` to limit stdout noise; STDIO mode logs to stderr.
 
-## Маршрутизация и пространства имён
+## Namespace and routing
 
-- `DefaultNamespaceManager` (`core/src/commonMain/kotlin/io/qent/broxy/core/proxy/NamespaceManager.kt`) отвечает за
-  префиксы `serverId:tool`. Входящие вызовы без префикса считаются некорректными.
-- `DefaultToolFilter`/`DefaultPresetEngine` (`core/src/commonMain/kotlin/io/qent/broxy/core/proxy/ToolFilter.kt`,
-  `PresetEngine.kt`) применяют пресеты: формируют список доступных инструментов, маршрутизируют prompts/resources,
-  логируют отсутствующие инструменты.
-- `ToolRegistry` (`core/src/commonMain/kotlin/io/qent/broxy/core/proxy/ToolRegistry.kt`) строит индекс инструментов с
-  TTL и предоставляет поиск. Используйте его для UI-автодополнений и инспекции пресетов.
+- `DefaultNamespaceManager` enforces `serverId:tool` prefixes. Calls without prefix are invalid.
+- `DefaultToolFilter` and `DefaultPresetEngine` apply presets and build routing tables for prompts/resources.
+- `ToolRegistry` indexes tools with a 1-minute TTL for search/autocomplete.
 
-## Платформенные адаптеры
+## Platform adapters
 
-- MCP клиенты абстрагированы через `McpClientProvider` (
-  `core/src/commonMain/kotlin/io/qent/broxy/core/mcp/McpClientProvider.kt`) и `defaultMcpClientProvider()` с реализацией
-  для JVM (`core/src/jvmMain/kotlin/io/qent/broxy/core/mcp/McpClientFactoryJvm.kt`). `StdioMcpClient` и `KtorMcpClient`
-  покрывают STDIO/SSE/StreamableHttp/WebSocket транспорты.
-- Входящий трафик обслуживается `InboundServerFactory` и его реализациями (
-  `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/InboundServers.kt`): STDIO использует SDK transport, HTTP(
-  SSE) — встраиваемый Ktor Netty. Другие транспорты поддерживаются только на downstream стороне.
-- `buildSdkServer` (`core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/SdkServerFactory.kt`) проксирует прокси в
-  MCP SDK, декодирует ответы, применяет fallback-логику и логирует события. Unit-тест
-  `core/src/jvmTest/kotlin/io/qent/broxy/core/proxy/inbound/SdkServerFactoryTest.kt` фиксирует ожидаемое поведение.
+- MCP clients are abstracted via `McpClientProvider` and `defaultMcpClientProvider()` with JVM
+  implementation in `McpClientFactoryJvm`. `StdioMcpClient` and `KtorMcpClient` cover STDIO/SSE/
+  Streamable HTTP/WebSocket downstream transports.
+- Inbound traffic is served by `InboundServerFactory` and its JVM implementations
+  (`core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/InboundServers.kt`):
+  STDIO and Streamable HTTP (JSON-only). HTTP SSE inbound is not supported; `HttpTransport` is
+  treated as Streamable HTTP for backward compatibility.
+- `buildSdkServer` (`core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/SdkServerFactory.kt`) adapts
+  proxy capabilities to MCP SDK and applies fallback decoding.
 
-## UI-адаптер и AppStore
+## UI adapter and AppStore
 
-- `AppStore` (`ui-adapter/src/commonMain/kotlin/io/qent/broxy/ui/adapter/store/AppStore.kt`) реализует UDF/MVI на
-  корутинах: хранит конфигурацию, управляет `StateFlow<UIState>`, кэширует snapshots capabilities при включении сервера
-  и пересканирует их по расписанию `capabilitiesRefreshIntervalSeconds` (по умолчанию 5 минут, настраивается через
-  UI/конфиг), ограничивает количество логов и проксирует интенты (refresh, CRUD серверов/пресетов, запуск/остановка
-  прокси, управление таймаутом, фоновым обновлением и треем).
-- `ProxyController` (`ui-adapter/src/commonMain/kotlin/io/qent/broxy/ui/adapter/proxy/ProxyController.kt`) — `expect`
-  -интерфейс; JVM-реализация (`ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/proxy/ProxyControllerJvm.kt`)
-  создаёт downstream соединения, inbound сервер и управляет таймаутами.
-- `fetchServerCapabilities` (`ui-adapter/src/commonMain/kotlin/io/qent/broxy/ui/adapter/services/ToolService.kt`)
-  используется UI для валидации серверов; JVM-версия (
-  `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/services/ToolServiceJvm.kt`) уважает пользовательский таймаут
-  capabilities и выполняет одну попытку.
-- UI (`ui/src/commonMain/...`) остаётся декларативным слоем: `MainWindow`/`ServersScreen` подписываются на `UIState`,
-  диалоги вызывают интенты из `Intents`.
+- `AppStore` implements UDF/MVI with coroutines: it stores config, manages `StateFlow<UIState>`,
+  caches capability snapshots, refreshes them on `capabilitiesRefreshIntervalSeconds` (default 300s,
+  UI enforces min 30s), and proxies intents (refresh, CRUD, start/stop proxy, timeouts, tray).
+- `ProxyController` is an `expect` interface; JVM implementation `ProxyControllerJvm` wires downstream
+  connections and inbound server, and propagates timeouts.
+- `fetchServerCapabilities` is used by UI to validate servers; JVM implementation uses one attempt
+  with user-configured timeouts.
+- UI (`ui/src/commonMain/...`) is declarative: screens collect `UIState` and call `Intents`.
 
-## CLI режим
+## CLI mode
 
-- Основная команда `broxy proxy` (`cli/src/main/kotlin/io/qent/broxy/cli/commands/ProxyCommand.kt`) поднимает прокси с
-  указанным inbound, применяет пресет и запускает `ConfigurationWatcher` для хот-релоада.
-- CLI использует те же `DefaultMcpServerConnection`, `ProxyMcpServer`, `InboundServerFactory`; при изменении
-  конфигурации пересоздаёт downstream и inbound, выполняя graceful shutdown предыдущих соединений.
-- Флаги `--inbound`, `--url`, `--log-level`, `--config-dir`, `--preset-id` должны поддерживаться и в документе (с учётом
-  дефолтов STDIO/портов).
+- `broxy proxy` (`cli/src/main/kotlin/io/qent/broxy/cli/commands/ProxyCommand.kt`) starts the proxy,
+  applies a preset, and runs `ConfigurationWatcher` for hot reload.
+- CLI uses `DefaultMcpServerConnection`, `ProxyMcpServer`, `InboundServerFactory`; config changes
+  rebuild downstream and inbound with graceful shutdown.
+- Flags: `--inbound`, `--url`, `--log-level`, `--config-dir`, `--preset-id` (required).
 
-## Сборка и зависимости
+## Build and dependencies
 
-- Модули подключены через Gradle KMP: `core`, `ui-adapter`, `ui`, `cli` (см. `settings.gradle.kts`). `core` и
-  `ui-adapter` — multiplatform, `ui` — Compose Multiplatform Desktop, `cli` — JVM.
-- Ключевые зависимости: MCP Kotlin SDK (`io.modelcontextprotocol:kotlin-sdk`), Ktor server/client, Compose Multiplatform
-  `material3`, Clikt CLI. Версии централизованы в `gradle.properties`.
-- `cli` собирается через ShadowJar и публикует `broxy-cli` fat-jar; при обновлении зависимостей и плагинов отражайте это
-  здесь.
-- `./gradlew clean build` запускает ShadowJar и модульные тесты; не забывайте, что UI зависит от `ui-adapter`, поэтому
-  изменения в адаптере автоматически тянут пересборку UI.
+- Modules: `core`, `ui-adapter`, `ui`, `cli` (see `settings.gradle.kts`).
+- Key dependencies: MCP Kotlin SDK (`io.modelcontextprotocol:kotlin-sdk`), Ktor server/client,
+  Compose Multiplatform `material3`, Clikt CLI. Versions are centralized in `gradle.properties`.
+- `cli` is built via ShadowJar, producing `broxy-cli` fat jar.
+- `./gradlew build` runs module tests and produces artifacts.
 
-## Тестирование
+## Testing
 
-- Текущие тестовые наборы размещены в `core/src/jvmTest` и `ui-adapter/src/jvmTest`; пример —
-  `core/src/jvmTest/kotlin/io/qent/broxy/core/proxy/inbound/SdkServerFactoryTest.kt`.
-- Для корутин используем `kotlinx-coroutines-test` (уже подключён в Gradle), избегаем `Thread.sleep`, переключаем
-  диспетчеры через `runTest`.
-- UI-адаптер следует покрывать тестами `AppStore` и `ProxyController` с моками `ConfigurationRepository` и
-  `ProxyController`, используя Mockito-Kotlin, как прописано ниже.
+- Tests live in `core/src/jvmTest` and `ui-adapter/src/jvmTest`.
+- Use `kotlinx-coroutines-test` for coroutine tests; avoid `Thread.sleep`.
+- UI adapter tests should cover `AppStore` and `ProxyController` with `ConfigurationRepository` mocks.
 
-### 1. Unit тесты
+### 1) Unit tests
 
-- Тестирование каждого класса в изоляции
-- Использование mock объектов для зависимостей
-- Покрытие edge cases и error scenarios
+- test each class in isolation
+- use mocks for dependencies
+- cover edge cases and error scenarios
 
 ```kotlin
 class PresetEngineTest {
@@ -368,24 +332,24 @@ class PresetEngineTest {
     fun `should filter tools based on preset`() {
         // Given
         val preset = Preset(/* ... */)
-        val tools = listOf(/* ... */)
-        
+        val all = mapOf<String, ServerCapabilities>(/* ... */)
+
         // When
-        val filtered = PresetEngine.filter(tools, preset)
-        
+        val filtered = DefaultToolFilter().filter(all, preset)
+
         // Then
         assertEquals(expected, filtered)
     }
 }
 ```
 
-### 2. Integration тесты
+### 2) Integration tests
 
-- Тестирование взаимодействия компонентов
-- Использование test doubles для внешних сервисов
-- Проверка полных workflows
+- test interactions between components
+- use test doubles for external services
+- validate complete workflows
 
-### 3. UI тесты
+### 3) UI tests
 
 ```kotlin
 @Test
@@ -397,31 +361,31 @@ fun serverCard_displaysCorrectInfo() = runComposeUiTest {
             onDelete = {}
         )
     }
-    
+
     onNodeWithText("Test Server").assertExists()
     onNodeWithText("Connected").assertExists()
 }
 ```
 
-## Обработка ошибок
+## Error handling
 
-### 1. Result type для операций
+### 1) Result type for operations
 
 ```kotlin
 suspend fun loadConfig(): Result<Config> = runCatching {
-    // Операция, которая может fail
+    // operation that can fail
 }.onFailure { exception ->
     logger.error("Failed to load config", exception)
 }
 ```
 
-### 2. Graceful degradation
+### 2) Graceful degradation
 
-- При недоступности сервера - продолжать работу с остальными
-- При ошибке загрузки пресета - использовать default
-- При ошибке сохранения - уведомить пользователя, но не крашить приложение
+- if a server is unavailable, continue with others
+- if preset load fails, fall back to default
+- if save fails, notify the user but do not crash
 
-### 3. Логирование
+### 3) Logging
 
 ```kotlin
 private val logger = LoggerFactory.getLogger(this::class.java)
@@ -429,7 +393,7 @@ private val logger = LoggerFactory.getLogger(this::class.java)
 fun processRequest(request: Request) {
     logger.debug("Processing request: ${request.id}")
     try {
-        // обработка
+        // processing
         logger.info("Request processed successfully: ${request.id}")
     } catch (e: Exception) {
         logger.error("Failed to process request: ${request.id}", e)
@@ -438,14 +402,14 @@ fun processRequest(request: Request) {
 }
 ```
 
-## Конфигурация и безопасность
+## Configuration and security
 
-### 1. Переменные окружения
+### 1) Environment variables
 
 ```kotlin
 object EnvironmentResolver {
     private val pattern = Pattern.compile("\\$\\{([^}]+)\\}")
-    
+
     fun resolve(value: String): String {
         val matcher = pattern.matcher(value)
         return matcher.replaceAll { match ->
@@ -456,7 +420,7 @@ object EnvironmentResolver {
 }
 ```
 
-### 2. Валидация конфигурации
+### 2) Configuration validation
 
 ```kotlin
 @Serializable
@@ -472,7 +436,7 @@ data class McpServerConfig(
 }
 ```
 
-### 3. Безопасное логирование
+### 3) Safe logging
 
 ```kotlin
 fun logConfig(config: McpServerConfig) {
@@ -489,9 +453,9 @@ fun logConfig(config: McpServerConfig) {
 }
 ```
 
-## Производительность
+## Performance
 
-### 1. Корутины и параллелизм
+### 1) Coroutines and parallelism
 
 ```kotlin
 class MultiServerClient {
@@ -505,70 +469,70 @@ class MultiServerClient {
 }
 ```
 
-### 2. Lazy loading
+### 2) Lazy loading
 
 ```kotlin
 class ToolRegistry {
     private val tools by lazy {
         loadToolsFromServers()
     }
-    
+
     fun getTools(): List<Tool> = tools
 }
 ```
 
-### 3. Кэширование
+### 3) Caching
 
-- Кэширование capabilities серверов
-- Кэширование результатов фильтрации
-- Invalidation при изменении конфигурации
+- cache server capabilities
+- cache filtered results
+- invalidate cache on configuration changes
 
-## Code Style и соглашения
+## Code style and conventions
 
-### 1. Naming conventions
+### 1) Naming
 
-- Классы: PascalCase (`McpServerConfig`)
-- Функции и переменные: camelCase (`loadConfig`)
-- Константы: UPPER_SNAKE_CASE (`DEFAULT_TIMEOUT`)
-- Пакеты: lowercase (`io.qent.broxy.core`)
+- classes: PascalCase (`McpServerConfig`)
+- functions/variables: camelCase (`loadConfig`)
+- constants: UPPER_SNAKE_CASE (`DEFAULT_TIMEOUT`)
+- packages: lowercase (`io.qent.broxy.core`)
 
-### 2. Структура класса
+### 2) Class structure
 
 ```kotlin
 class ExampleClass(
-    private val dependency: Dependency  // Constructor parameters
+    private val dependency: Dependency  // constructor parameters
 ) {
     companion object {
-        // Constants
+        // constants
         private const val CONSTANT = "value"
     }
-    
-    // Properties
+
+    // properties
     private val property = "value"
-    
-    // Initialization
+
+    // initialization
     init {
-        // Init block
+        // init block
     }
-    
-    // Public functions
+
+    // public functions
     fun publicFunction() {
-        // Implementation
+        // implementation
     }
-    
-    // Private functions
+
+    // private functions
     private fun privateFunction() {
-        // Implementation
+        // implementation
     }
 }
 ```
 
-### 3. Документация
+### 3) Documentation
 
 ```kotlin
 /**
  * Manages MCP server connections and lifecycle.
- * 
+ *
  * @property config Configuration for the MCP server
  * @property client MCP client instance
  */
@@ -578,9 +542,8 @@ class McpServerManager(
 ) {
     /**
      * Starts the MCP server connection.
-     * 
+     *
      * @return Result indicating success or failure
-     * @throws McpConnectionException if connection fails after retries
      */
     suspend fun start(): Result<Unit> {
         // Implementation
@@ -588,9 +551,9 @@ class McpServerManager(
 }
 ```
 
-## Расширяемость
+## Extensibility
 
-### 1. Plugin architecture для транспортов
+### 1) Transport plugin architecture
 
 ```kotlin
 interface TransportPlugin {
@@ -601,16 +564,16 @@ interface TransportPlugin {
 
 object TransportRegistry {
     private val plugins = mutableMapOf<String, TransportPlugin>()
-    
+
     fun register(plugin: TransportPlugin) {
         plugins[plugin.name] = plugin
     }
-    
+
     fun getPlugin(name: String): TransportPlugin? = plugins[name]
 }
 ```
 
-### 2. Custom фильтры
+### 2) Custom filters
 
 ```kotlin
 interface ToolFilter {
@@ -628,103 +591,65 @@ class CompositeFilter(
 }
 ```
 
-## Checklist для code review
+## Code review checklist
 
-- [ ] Код следует архитектурным принципам (SOLID, Clean Architecture)
-- [ ] Нет циклических зависимостей между модулями
-- [ ] Все публичные API задокументированы
-- [ ] Обработка ошибок использует Result type
-- [ ] Асинхронный код использует корутины правильно
-- [ ] Нет утечек памяти (закрытие ресурсов)
-- [ ] Тесты покрывают основную функциональность
-- [ ] Конфигурация валидируется при загрузке
-- [ ] Чувствительные данные не логируются
-- [ ] UI компоненты переиспользуемые и тестируемые
-- [ ] Выполнена сборка проекта (`./gradlew build`) без ошибок
-- [ ] Пройдены все имеющиеся unit-тесты (см. раздел ниже)
+- [ ] Code follows architectural principles (SOLID, Clean Architecture)
+- [ ] No cyclic dependencies between modules
+- [ ] Public APIs are documented
+- [ ] Error handling uses `Result`
+- [ ] Async code uses coroutines correctly
+- [ ] Resources are closed (no leaks)
+- [ ] Tests cover key functionality
+- [ ] Configuration is validated on load
+- [ ] Sensitive data is not logged
+- [ ] UI components are reusable and testable
+- [ ] `./gradlew build` succeeds
+- [ ] `./gradlew testAll` succeeds
 
-## Unit-тесты с Mockito
+## Unit tests with Mockito
 
-- Конструкторная инъекция зависимостей
-    - Все зависимости, которые нужно подменять в тестах (клиенты, кэши, фабрики), передаются через конструктор.
-    - Не используем глобальные singletons/hook-объекты и не модифицируем внутренние поля в тестах.
+- Constructor injection only:
+  - dependencies to mock are passed via constructors;
+  - no global singletons or test hooks.
+- Mockito-Kotlin usage:
+  - create mocks: `val dep: Dep = mock()`
+  - stub sync methods: `whenever(dep.method(arg)).thenReturn(value)`
+  - stub suspend methods inside `runBlocking` or Mockito-Kotlin extensions
+  - sequential answers: `whenever(dep.call()).thenReturn(v1, v2, v3)`
+  - verify: `verify(dep).method(arg)`, with `times(n)` for counts
+- Test structure (AAA):
+  - Arrange: create inputs and mocks
+  - Act: one clear method call
+  - Assert: minimal verification of outcomes/interactions
+- Coroutines:
+  - use `runBlocking` or `kotlinx-coroutines-test`
+  - avoid `Thread.sleep`
+- Avoid:
+  - mutating internal fields
+  - mocking simple data classes
+  - testing through global state
 
-- Использование Mockito-Kotlin
-    - Создание моков: `val dep: Dep = mock()`.
-    - Стаббинг обычных функций: `whenever(dep.method(arg)).thenReturn(value)`.
-    - Стаббинг suspend-функций выполняем внутри `runBlocking { ... }` или с использованием расширений Mockito-Kotlin:
-      `whenever(dep.suspending()).thenReturn(value)` внутри `runBlocking`.
-    - Последовательные ответы: `whenever(dep.call()).thenReturn(v1, v2, v3)`.
-    - Верификация: `verify(dep).method(arg)`, счётчик: `verify(dep, times(2)).call()`.
-
-- Структура тестов (AAA)
-    - Arrange: подготовка данных и моков явно через конструкторы.
-    - Act: один чёткий вызов тестируемого метода.
-    - Assert: минимально необходимая верификация результата и взаимодействий.
-
-- Работа с корутинами
-    - Для тестов корутин используем `runBlocking` либо `kotlinx-coroutines-test` для виртуального времени.
-    - Избегаем `Thread.sleep`; для таймингов берём `kotlinx-coroutines-test` или минимальные TTL и `delay`.
-
-- Что не делаем
-    - Не меняем внутренние поля объектов из тестов (никаких `set*ForTests`).
-    - Не мокируем простые data-классы; используем реальные значения.
-    - Не тестируем реализацию через глобальные состояния.
-
-Пример
+Example:
 
 ```kotlin
 @Test
-fun caches_and_falls_back_to_cached_caps() = runBlocking {
-    val client: McpClient = mock()
-    val caps1 = ServerCapabilities(tools = listOf(ToolDescriptor("t1")))
-    whenever(client.connect()).thenReturn(Result.success(Unit))
-    whenever(client.fetchCapabilities()).thenReturn(
-        Result.success(caps1),
-        Result.failure(IllegalStateException("boom"))
-    )
+fun `should update server list when config changes`() = runTest {
+    // Arrange
+    val repo = mock<ConfigurationRepository>()
+    val store = AppStore(...)
 
-    val config = McpServerConfig("s1", "Srv", TransportConfig.HttpTransport("http://"))
-    val conn = DefaultMcpServerConnection(config, client = client)
+    // Act
+    val result = store.loadConfig()
 
-    conn.connect()
-    assertTrue(conn.getCapabilities().isSuccess)       // put to cache
-    assertTrue(conn.getCapabilities(forceRefresh = true).isSuccess) // fallback to cache
+    // Assert
+    assertTrue(result.isSuccess)
 }
 ```
 
-## Обязательная проверка билда и тестов
+## Build and test requirement (for releases)
 
-- В конце КАЖДОЙ задачи обязательно:
-    1. Выполнить полную сборку Gradle.
-    2. Запустить все доступные unit‑тесты во всех модулях.
-    3. Прогнать интеграционные тесты CLI JAR (`./gradlew :cli:integrationTest`).
-- Интеграционный прогон обязан:
-    1. Собрать shadow JAR CLI.
-    2. Запустить jar в STDIO режиме с конфигами `mcp.json` и `preset_test.json`.
-    3. Через STDIO MCP протокол запросить инструменты/промпты/ресурсы и убедиться, что фильтрация соответствует пресету.
-    4. Выполнить каждый доступный инструмент, промпт и ресурс без ошибок.
-    5. Повторить пункты 3–4 для HTTP+SSE режима jar.
-- Задача считается выполненной ТОЛЬКО при условии успешной сборки, прохождения всех unit‑ и интеграционных тестов.
+When preparing a release or major change:
 
-Рекомендуемые команды (используйте то, что применимо к изменённым модулям):
-
-```bash
-# Полная сборка (включает тесты через задачу check)
-./gradlew clean build
-
-# Агрегированный запуск модульных тестов (core JVM, CLI)
-./gradlew testAll
-
-# Интеграционные тесты CLI jar (STDIO + HTTP SSE)
-./gradlew :cli:integrationTest
-
-# Альтернатива: ручной запуск известных задач по модулям
-./gradlew :core:jvmTest :cli:test
-
-# Таргетно: юнит‑тесты core для JVM
-./gradlew :core:jvmTest
-
-# Диагностика при падениях (опционально)
-./gradlew :core:jvmTest --no-daemon --stacktrace
-```
+1) Run full build: `./gradlew build`.
+2) Run all tests: `./gradlew testAll`.
+3) Run CLI integration tests: `./gradlew :cli:integrationTest`.

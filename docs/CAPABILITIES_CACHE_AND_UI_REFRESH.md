@@ -1,22 +1,22 @@
-# Capabilities в UI: кеш, статусы и фоновое обновление
+# UI capabilities: cache, statuses, and background refresh
 
-Этот документ описывает UI-ориентированную подсистему capabilities (для отображения и валидации), которая живёт отдельно
-от “прокси-фильтрации” пресета.
+This document describes the UI-oriented capability subsystem (for display and validation). It is
+separate from the proxy preset filtering pipeline.
 
-## Где используется
+## Where it is used
 
-В UI-adapter `AppStore` поддерживает:
+`AppStore` in ui-adapter maintains:
 
-- список серверов и их статусы подключения;
-- “снимки capabilities” для UI (кол-во tools/prompts/resources, аргументы по JSON Schema);
-- фоновые обновления по интервалу.
+- the server list and connection statuses;
+- capability snapshots for UI (tool/prompt/resource counts and argument summaries);
+- background refresh based on the configured interval.
 
-В UI (Compose Desktop) эти снимки используются для компактного отображения summary по tools/prompts/resources:
+UI (Compose Desktop) uses these snapshots to display compact summaries in:
 
-- в списке серверов — для enabled + `Available` серверов в строке с типом подключения;
-- в списке пресетов — в строке описания пресета.
+- server list cards (enabled + available servers);
+- preset summary rows.
 
-Файлы:
+Files:
 
 - `ui-adapter/src/commonMain/kotlin/io/qent/broxy/ui/adapter/store/AppStore.kt`
 - `core/src/commonMain/kotlin/io/qent/broxy/core/capabilities/CapabilityRefresher.kt`
@@ -24,99 +24,99 @@
 - `core/src/commonMain/kotlin/io/qent/broxy/core/capabilities/ServerStatusTracker.kt`
 - `core/src/commonMain/kotlin/io/qent/broxy/core/capabilities/CapabilitySnapshots.kt`
 
-## Разделение уровней: UI snapshots vs proxy capabilities
+## Layer separation: UI snapshots vs proxy capabilities
 
-Важно различать:
+Important distinction:
 
-1) `core.mcp.ServerCapabilities` — “сырые” MCP capabilities (ToolDescriptor/PromptDescriptor/ResourceDescriptor),
-   используются в `ProxyMcpServer` для публикации наружу и фильтрации.
+1) `core.mcp.ServerCapabilities` - raw MCP capabilities (ToolDescriptor/PromptDescriptor/ResourceDescriptor)
+   used by `ProxyMcpServer` for filtering and routing.
 
-2) `core.capabilities.ServerCapsSnapshot` — UI-friendly summary:
-    - упрощённые `ToolSummary/PromptSummary/ResourceSummary`;
-    - список аргументов и типов (best-effort из JSON Schema);
-    - хранит `serverId` и `name`.
+2) `core.capabilities.ServerCapsSnapshot` - UI-friendly summary:
+   - simplified `ToolSummary/PromptSummary/ResourceSummary`;
+   - argument lists derived from JSON Schema (best-effort);
+   - includes `serverId` and `name` for display.
 
-UI snapshots не участвуют в `tools/call` маршрутизации: это только отображение/инспекция.
+UI snapshots never participate in routing; they are for inspection and display only.
 
-## CapabilityRefresher: основной orchestrator
+## CapabilityRefresher: orchestrator
 
-Файл: `core/src/commonMain/kotlin/io/qent/broxy/core/capabilities/CapabilityRefresher.kt`
+File: `core/src/commonMain/kotlin/io/qent/broxy/core/capabilities/CapabilityRefresher.kt`
 
-Входные зависимости:
+Dependencies:
 
-- `capabilityFetcher: CapabilityFetcher` — функция `(McpServerConfig, timeoutSeconds) -> Result<ServerCapabilities>`.
-    - в UI на JVM реализована через `DefaultMcpServerConnection(...).getCapabilities(forceRefresh=true)`:
-        - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/services/ToolServiceJvm.kt`
-- `capabilityCache: CapabilityCache` — хранит snapshot + timestamp.
-- `statusTracker: ServerStatusTracker` — transient статусы для UI.
-- `serversProvider()` — текущий список серверов (из store snapshot).
-- `capabilitiesTimeoutProvider()` — таймаут из конфигурации.
-- `publishUpdate()` — callback, чтобы `AppStore` пересобрал `UIState`.
-- `refreshIntervalMillis()` — интервал обновления (из конфигурации).
+- `capabilityFetcher: (McpServerConfig, timeoutSeconds) -> Result<ServerCapabilities>`.
+  - JVM UI implementation uses `DefaultMcpServerConnection(...).getCapabilities(forceRefresh=true)`:
+    `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/services/ToolServiceJvm.kt`.
+- `capabilityCache: CapabilityCache` - snapshot + timestamp.
+- `statusTracker: ServerStatusTracker` - transient UI statuses.
+- `serversProvider()` - current server list from store snapshot.
+- `capabilitiesTimeoutProvider()` - timeout from config.
+- `publishUpdate()` - callback to rebuild UI state.
+- `refreshIntervalMillis()` - interval from config (UI enforces minimum 30s).
 
-### Когда обновляется кеш
+### When the cache is refreshed
 
 `refreshEnabledServers(force)`:
 
-- выбирает только `serversProvider().filter { enabled }`;
-- пропускает те, у которых не истёк интервал (`CapabilityCache.shouldRefresh(...)`), если `force=false`;
-- параллельно обновляет capabilities через `fetchAndCacheCapabilities(...)`.
+- filters to `serversProvider().filter { enabled }`;
+- skips servers that are not due (`CapabilityCache.shouldRefresh(...)`) unless `force=true`;
+- refreshes in parallel via `fetchAndCacheCapabilities(...)`.
 
-При старте `AppStore`:
+On `AppStore.start()`:
 
-- выполняется `refreshEnabledServers(force=true)`;
-- затем включается background job (`restartBackgroundJob(enableBackgroundRefresh)`).
+- `refreshEnabledServers(force=true)`;
+- then `restartBackgroundJob(enableBackgroundRefresh)`.
 
 ### Background job
 
 `restartBackgroundJob(enabled)`:
 
-- отменяет старую job;
-- если включено, запускает цикл:
-    - `delay(refreshIntervalMillis())`
-    - `refreshEnabledServers(force=false)`
+- cancels the previous job;
+- when enabled, runs a loop:
+  - `delay(refreshIntervalMillis())`
+  - `refreshEnabledServers(force=false)`
 
-### Статусы
+### Status tracking
 
-До выполнения запросов:
+Before a refresh:
 
 - `statusTracker.setAll(targetIds, Connecting)`
-    - UI в списке серверов показывает `Connecting: {n} s`, где `n` — секунды с момента начала подключения.
 
-После:
+After results:
 
-- если сервер disabled → `Disabled`;
-- если snapshot есть (из fetch или кеша) → `Available`;
-- иначе → `Error`.
+- disabled -> `Disabled`
+- snapshot exists -> `Available`
+- no snapshot -> `Error`
 
-UI отображает статусы из `CapabilityCache` и `ServerStatusTracker` в `StoreSnapshot.toUiState(...)`.
+`connectingSince(...)` is used by the UI to show a running timer while a server is connecting.
 
-## Преобразование MCP capabilities в UI snapshot
+## Snapshot conversion details
 
-Файл: `core/src/commonMain/kotlin/io/qent/broxy/core/capabilities/CapabilitySnapshots.kt`
+File: `core/src/commonMain/kotlin/io/qent/broxy/core/capabilities/CapabilitySnapshots.kt`
 
-### Tool arguments из JSON Schema
+### Tool arguments from JSON Schema
 
-Алгоритм:
+Algorithm:
 
-- берём `ToolDescriptor.inputSchema`;
-- читаем `properties` и `required`;
-- для каждого property пытаемся извлечь тип:
-    - `type`, `items`, `anyOf/oneOf/allOf`, `enum`, `format` → `schemaTypeLabel()`
+- read `ToolDescriptor.inputSchema.properties` and `required`;
+- infer type labels from:
+  - `type`, `items`, `anyOf/oneOf/allOf`, `enum`, `format`;
+- build `CapabilityArgument(name, type, required)` entries.
 
-Это best-effort: если schema сложная или не содержит `properties`, аргументы будут пустыми.
+This is best-effort; complex schemas may produce empty argument lists.
 
-### Resource arguments из URI
+### Resource arguments from URI
 
-Если `ResourceDescriptor.uri` содержит `{placeholder}`, то placeholder превращается в
+If `ResourceDescriptor.uri` contains `{placeholder}`, each placeholder becomes a
 `CapabilityArgument(name=..., required=true)`.
 
-## Связь с proxy runtime
+## Relationship to proxy runtime
 
-UI store и proxy runtime независимы, но связаны через конфигурацию:
+UI snapshots and proxy runtime are separate but share configuration:
 
-- при обновлении таймаутов UI вызывает:
-    - `ProxyLifecycle.updateCallTimeout(...)`
-    - `ProxyLifecycle.updateCapabilitiesTimeout(...)`
+- UI updates timeouts via:
+  - `ProxyLifecycle.updateCallTimeout(...)`
+  - `ProxyLifecycle.updateCapabilitiesTimeout(...)`
 
-CapabilityRefresher использует `capabilitiesTimeoutSeconds` из store snapshot для UI-проверок/валидаторов.
+`CapabilityRefresher` uses `capabilitiesTimeoutSeconds` from store snapshots for
+server validation and background refresh.

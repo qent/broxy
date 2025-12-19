@@ -51,6 +51,19 @@ fun ServersScreen(ui: UIState, state: AppState, store: AppStore, notify: (String
             return@Box
         }
 
+        if (viewing != null) {
+             Column(modifier = Modifier.fillMaxSize()) {
+                Spacer(Modifier.height(1.dp))
+                ServerCapabilitiesScreen(
+                    store = store,
+                    serverId = viewing!!.id,
+                    onClose = { viewing = null }
+                )
+                Spacer(Modifier.height(AppTheme.spacing.md))
+            }
+            return@Box
+        }
+
         Column(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)
@@ -108,9 +121,7 @@ fun ServersScreen(ui: UIState, state: AppState, store: AppStore, notify: (String
             Spacer(Modifier.height(AppTheme.spacing.md))
         }
 
-        viewing?.let { server ->
-            ServerDetailsDialog(server = server, store = store, onClose = { viewing = null })
-        }
+
 
         val readyUi = ui as? UIState.Ready
         val toDelete = pendingDeletion

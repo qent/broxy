@@ -1,181 +1,179 @@
-# Remote режим: OAuth, регистрация и WebSocket-транспорт с бэкэндом
+# Remote mode: OAuth, registration, and WebSocket transport
 
-## Назначение remote режима
+## Purpose
 
-Remote режим позволяет “прикрепить” локальный broxy (который уже умеет ходить в downstream MCP-сервера) к удалённому
-бэкэнду `broxy.run`, чтобы бэкэнд мог проксировать MCP JSON-RPC сессии через WebSocket.
+Remote mode lets a local broxy instance connect to the `broxy.run` backend. The backend proxies
+MCP JSON-RPC sessions over WebSocket.
 
-Ключевая идея:
+Key idea:
 
-- локально строится MCP SDK `Server` поверх `ProxyMcpServer` (как и для inbound);
-- затем этот `Server` подключается к `ProxyWebSocketTransport`, который отправляет/принимает MCP JSON-RPC сообщения,
-  завернутые в envelope бэкэнда.
+- locally build an MCP SDK `Server` on top of `ProxyMcpServer` (same as inbound);
+- connect that server to a `ProxyWebSocketTransport` that wraps MCP messages in the backend envelope.
 
-## Компоненты remote подсистемы
+## Remote subsystem components
 
-- Контроллер remote режима (стейт-машина + OAuth + токены + WS):
-    - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/RemoteConnectorImpl.kt`
-- WebSocket клиент:
-    - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/ws/RemoteWsClient.kt`
-- Транспорт-адаптер MCP SDK ↔ WS envelope:
-    - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/ws/ProxyWebSocketTransport.kt`
-- Хранилище токенов:
-    - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/storage/RemoteConfigStore.kt`
-    - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/storage/SecureStore.kt`
-- OAuth callback сервер:
-    - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/auth/LoopbackCallbackServer.kt`
+- Remote controller (state machine + OAuth + tokens + WS):
+  - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/RemoteConnectorImpl.kt`
+- WebSocket client:
+  - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/ws/RemoteWsClient.kt`
+- MCP SDK <-> WS envelope adapter:
+  - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/ws/ProxyWebSocketTransport.kt`
+- Token storage:
+  - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/storage/RemoteConfigStore.kt`
+  - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/storage/SecureStore.kt`
+- OAuth callback server:
+  - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/auth/LoopbackCallbackServer.kt`
 
-## RemoteConnectorImpl: состояние и интерфейс
+## RemoteConnectorImpl: state and interface
 
-Интерфейс:
+Interface:
 
 - `ui-adapter/src/commonMain/kotlin/io/qent/broxy/ui/adapter/remote/RemoteConnector.kt`
 
-Состояние в UI:
+UI state:
 
-- `UiRemoteConnectionState` (ui-adapter models) хранит:
-    - `serverIdentifier`
-    - `email`
-    - `hasCredentials`
-    - `status` (`UiRemoteStatus`)
-    - `message`
+- `UiRemoteConnectionState` contains:
+  - `serverIdentifier`
+  - `email`
+  - `hasCredentials`
+  - `status` (`UiRemoteStatus`)
+  - `message`
 
 ### serverIdentifier
 
-- default вычисляется в `defaultRemoteServerIdentifier()`:
-    - `broxy-<host>-<os>` → нормализация, max 48 символов.
-    - файл: `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/RemoteDefaultsJvm.kt`
+Default is computed in `defaultRemoteServerIdentifier()`:
 
-Из UI можно изменить `serverIdentifier`:
+- format: `broxy-<host>-<os>` -> normalized to lowercase, non-alnum replaced by `-`;
+- truncated to 48 characters.
+
+File: `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/RemoteDefaultsJvm.kt`
+
+User override:
 
 - `RemoteConnectorImpl.updateServerIdentifier(value)`:
-    - нормализует (буквы/цифры + `-_.`, прочее → `-`);
-    - сбрасывает UI в `NotAuthorized`;
-    - дисконнектит WS;
-    - очищает токены и сохраняет “пустую” конфигурацию.
+  - normalizes to lowercase; letters/digits are preserved, `-`/`_`/`.` are normalized to `-`, all other
+    characters become `-`;
+  - collapses multiple `-` and trims;
+  - max length 64;
+  - resets UI to `NotAuthorized`, disconnects WS, and clears stored tokens.
 
-Это важно: смена идентификатора эквивалентна “новому устройству/инстансу”.
+Changing the identifier is equivalent to registering a new device.
 
 ## OAuth flow (beginAuthorization)
 
-Файл: `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/RemoteConnectorImpl.kt`
+File: `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/RemoteConnectorImpl.kt`
 
-Константы:
+Constants:
 
 - `BASE_URL = "https://broxy.run"`
 - `WS_BASE_URL = "wss://broxy.run"`
 - `WS_PATH = "/ws"`
-- `REDIRECT_URI = "http://127.0.0.1:8765/oauth/callback"` (см. `LoopbackCallbackServer.DEFAULT_PORT`)
+- `REDIRECT_URI = "http://127.0.0.1:8765/oauth/callback"`
 
-Последовательность:
+Sequence:
 
-1) UI вызывает `RemoteConnector.beginAuthorization()`.
-2) `GET https://broxy.run/auth/mcp/login?redirect_uri=<REDIRECT_URI>` → `LoginResponse(authorization_url, state)`.
-3) Проверка, что `authorization_url` содержит **тот же** `redirect_uri` (защита от рассинхронизации/устаревшего
-   бэкэнда).
-4) Открытие браузера (`Desktop.getDesktop().browse(...)`) на `authorization_url`.
-5) Запуск loopback HTTP сервера на `127.0.0.1:8765` и ожидание callback:
-    - `LoopbackCallbackServer.awaitCallback(expectedState)`
-    - парсит query `code` и `state`;
-    - проверяет `state == expectedState`.
-6) Обмен code → access token:
-    - `POST https://broxy.run/auth/mcp/callback` с JSON body
-      `CallbackRequest(code, state, audience="mcp", redirect_uri=REDIRECT_URI)`
-    - ответ: `TokenResponse(access_token, token_type, expires_at, scope)`
-    - проверки:
-        - `token_type` должен быть `bearer`
-        - `scope` должен быть `mcp`
-7) Регистрация serverIdentifier на бэкэнде:
-    - `POST https://broxy.run/auth/mcp/register` с `Authorization: Bearer <access_token>`
-    - body: `RegisterRequest(serverIdentifier, name, capabilities={prompts/tools/resources=true})`
-    - ответ: `RegisterResponse(server_identifier, status, jwt_token)` — отдельный JWT для WebSocket.
-8) Сохранение конфигурации (см. ниже) и, если локальный прокси уже запущен, подключение WebSocket.
+1) UI calls `RemoteConnector.beginAuthorization()`.
+2) `GET https://broxy.run/auth/mcp/login?redirect_uri=<REDIRECT_URI>` ->
+   `LoginResponse(authorization_url, state)`.
+3) Validate `authorization_url` contains the same `redirect_uri` (guards against stale backend).
+4) Open browser to `authorization_url`.
+5) Start loopback server on `127.0.0.1:8765` and wait for callback:
+   - `LoopbackCallbackServer.awaitCallback(expectedState)`
+   - parse `code` + `state` and validate `state`.
+6) Exchange code for access token:
+   - `POST https://broxy.run/auth/mcp/callback` with JSON body
+     `CallbackRequest(code, state, audience="mcp", redirect_uri=REDIRECT_URI)`
+   - response: `TokenResponse(access_token, token_type, expires_at, scope)`
+   - validate `token_type == bearer` and `scope == mcp`.
+7) Register server identifier:
+   - `POST https://broxy.run/auth/mcp/register` with `Authorization: Bearer <access_token>`
+   - body: `RegisterRequest(serverIdentifier, name, capabilities={prompts/tools/resources=true})`
+   - response: `RegisterResponse(server_identifier, status, jwt_token)` (JWT for WebSocket).
+8) Persist config and connect WebSocket if proxy is already running.
 
 ### Email extraction (best-effort)
 
 `RemoteConnectorImpl.extractEmail(token)`:
 
-- берёт payload JWT (2-я часть `.`), base64url decode;
-- пытается прочитать поле `email`.
+- base64url-decodes the JWT payload;
+- reads the `email` field if present.
 
-Используется только для UI отображения; фейл не критичен.
+Used only for UI display; failure is not fatal.
 
-## Хранение токенов и безопасность
+## Token storage and security
 
-`RemoteConfigStore` разделяет данные:
+`RemoteConfigStore` splits storage:
 
-1) `remote.json` (не секреты):
-    - `serverIdentifier`
-    - `email`
-    - `accessTokenExpiresAt`
-    - `wsTokenExpiresAt`
+1) `remote.json` (non-secret):
+   - `serverIdentifier`
+   - `email`
+   - `accessTokenExpiresAt`
+   - `wsTokenExpiresAt`
 
-2) `SecureStore` (секреты):
-    - `remote.access_token`
-    - `remote.ws_token`
+2) `SecureStore` (secrets):
+   - `remote.access_token`
+   - `remote.ws_token`
 
-По умолчанию используется `FileSecureStore` в:
+Default implementation is filesystem-based:
 
-`~/.config/broxy/secrets/`
+- `~/.config/broxy/secrets/`
+- attempts to set POSIX permissions `0600` when supported.
 
-и пытается выставить POSIX permissions `0600` (owner read/write).
-
-Файлы:
+Files:
 
 - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/storage/RemoteConfigStore.kt`
 - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/storage/SecureStore.kt`
 
-В логах токены редактируются (“redact”):
+Tokens are redacted in logs using `RemoteConnectorImpl.redactToken(...)`.
 
-- `abcdef...wxyz (len chars)`
+## Auto-connect and refresh
 
-см. `RemoteConnectorImpl.redactToken(...)`.
+On `RemoteConnectorImpl.start()`:
 
-## Автоподключение и refresh токенов
+- load cached config;
+- if both access and WS tokens are expired -> clear config and wait for authorization;
+- if credentials exist and local proxy is running -> `connectWithCachedTokens(auto=true)`.
 
-На `RemoteConnectorImpl.start()`:
+`connectWithCachedTokens(auto)`:
 
-- загружается cached config;
-- если токены протухли → конфиг чистится;
-- если есть креды и локальный прокси уже запущен → `connectWithCachedTokens(auto=true)`.
+1) If valid `wsToken` exists -> `connectWebSocket(wsToken)`.
+2) Else if access token is valid -> `registerServer(accessToken)` to obtain new `wsToken`.
+3) Else -> require re-authorization and clear credentials.
 
-`connectWithCachedTokens(auto)` выбирает:
+Notes:
 
-1) Если есть валидный `wsToken` → сразу `connectWebSocket(wsToken)`.
-2) Иначе, если access token валиден → повторно делает `registerServer(accessToken)` для получения нового `wsToken`,
-   сохраняет его и подключается.
-3) Иначе → требует повторной авторизации (logout/clear).
+- `wsTokenExpiresAt` is stored as `accessTokenExpiresAt + 24h` (best-effort; backend controls the real lifetime).
 
-Валидация expiry:
+Expiry validation:
 
-- `isExpired(expiry) = now() > expiry - 60s` (минутный “skew”).
+- `isExpired(expiry) = now() > expiry - 60s`
 
-## WebSocket протокол: URL, заголовки, envelope
+## WebSocket protocol: URL, headers, envelope
 
-### Подключение
+### Connection
 
-`RemoteConnectorImpl.connectWebSocket(jwt)` строит URL:
+`RemoteConnectorImpl.connectWebSocket(jwt)` builds:
 
 - `wss://broxy.run/ws/{serverIdentifier}`
 
-`RemoteWsClient.connect()` подключается с заголовками:
+`RemoteWsClient.connect()` uses headers:
 
 - `Authorization: Bearer <jwt>`
 - `Sec-WebSocket-Protocol: mcp`
 
-Файл: `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/ws/RemoteWsClient.kt`
+File: `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/ws/RemoteWsClient.kt`
 
-### Envelope сообщений
+### Envelope messages
 
-Сериализация выполняется через `McpJson` (MCP SDK json).
+Serialization uses `McpJson` (MCP SDK JSON).
 
-Вход (от бэкэнда):
+Inbound (from backend):
 
 ```json
 { "session_identifier": "uuid", "message": { /* MCP JSON-RPC */ } }
 ```
 
-Выход (к бэкэнду):
+Outbound (to backend):
 
 ```json
 {
@@ -185,54 +183,51 @@ Remote режим позволяет “прикрепить” локальны
 }
 ```
 
-Структуры:
+Structures:
 
 - `McpProxyRequestPayload`
 - `McpProxyResponsePayload`
 
-Файл: `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/ws/ProxyWebSocketTransport.kt`
+File: `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/ws/ProxyWebSocketTransport.kt`
 
-### “MCP поверх WebSocket”: где живёт SDK Server
+### MCP over WebSocket: where the SDK server lives
 
-При connect:
+On connect:
 
-1) `proxyProvider()` должен вернуть активный `ProxyMcpServer` (иначе ошибка).
-2) создаётся `ProxyWebSocketTransport(serverIdentifier, sender=...)`.
-3) строится MCP SDK `Server` через `buildSdkServer(proxy)`.
-4) запускается `server.createSession(transport)` (отдельная SDK-сессия).
-5) параллельно запускается reader loop:
-    - читает `Frame.Text`;
-    - декодирует `McpProxyRequestPayload`;
-    - декодирует `JSONRPCMessage` из `message`;
-    - вызывает `transport.handleIncoming(message, session_identifier)`.
+1) `proxyProvider()` must return an active `ProxyMcpServer`.
+2) `ProxyWebSocketTransport(serverIdentifier, sender=...)` is created.
+3) MCP SDK `Server` is built via `buildSdkServer(proxy)`.
+4) `server.createSession(transport)` starts a dedicated SDK session.
+5) Reader loop:
+   - reads `Frame.Text`;
+   - decodes `McpProxyRequestPayload`;
+   - decodes `JSONRPCMessage` from `message`;
+   - calls `transport.handleIncoming(message, session_identifier)`.
 
-Важная деталь синхронизации:
+Synchronization details:
 
-- `ProxyWebSocketTransport` хранит `sessionIdentifier` и использует `Mutex`, чтобы корректно отправлять ответы в ту же
-  сессию.
+- `ProxyWebSocketTransport` stores the current `sessionIdentifier`.
+- `RemoteWsClient` uses a `Mutex` to serialize inbound handling per session.
 
-### Обработка авторизационных ошибок
+### Auth errors
 
-`RemoteWsClient.connect()` ловит `ClientRequestException`:
+`RemoteWsClient.connect()` error handling:
 
-- если status `401/403`:
-    - вызывает `onAuthFailure("WebSocket unauthorized (...)")`
-    - выставляет статус `WsOffline/Error` в UI.
+- on `ClientRequestException` with status `401/403`, it invokes `onAuthFailure("WebSocket unauthorized ...")`.
+- on other connection failures, it also calls `onAuthFailure(reason)` with the failure message.
 
-RemoteConnectorImpl по умолчанию не удаляет токены при такой ошибке, но переводит UI в `Error`. Это стоит учитывать при
-изменениях протокола/серверной стороны.
+`RemoteConnectorImpl` does not clear tokens on WS failures by default. It sets the UI status
+to `Error` (or `WsOffline`) and keeps credentials for manual recovery.
 
-## Логи и диагностика WS-трафика
+## Logging and WS diagnostics
 
-`ProxyWebSocketTransport.describeJsonRpcPayload(...)` формирует человекочитаемую сводку:
+`ProxyWebSocketTransport.describeJsonRpcPayload(...)` logs a compact summary per JSON-RPC message:
 
-- тип JSON-RPC сообщения (request/response/notification/error)
-- id/method/params ключи
-- для `tools/list`/capabilities: счётчики, имена, поля схем.
+- message type (request/response/notification/error)
+- id/method
+- params keys (`name/uri`, arguments/meta keys)
+- for capabilities: counts and schema field previews
 
-Это используется в логах `RemoteWsClient` для каждой входящей/исходящей рамки.
+See also:
 
-Также см. существующий документ:
-
-- `docs/websocket-preset-capabilities.md`
-
+- `docs/websocket_preset_capabilities.md`
