@@ -1,10 +1,15 @@
 package io.qent.broxy.ui.components
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.adapter.models.UiPromptRef
 import io.qent.broxy.ui.adapter.models.UiResourceRef
@@ -32,7 +37,7 @@ fun PresetSelector(
     var loading by remember { mutableStateOf(true) }
     val snaps = remember { mutableStateOf<List<UiServerCapsSnapshot>>(emptyList()) }
     val serverNames = remember { mutableStateMapOf<String, String>() }
-    val expanded = remember { mutableStateMapOf<String, Boolean>() }
+    var expandedServerId by remember { mutableStateOf<String?>(null) }
 
     // Selection state
     val selectedServers = remember { mutableStateMapOf<String, Boolean>() }
@@ -71,8 +76,8 @@ fun PresetSelector(
         val availableServers = data.map { it.serverId }.toSet()
         data.forEach { snap ->
             serverNames[snap.serverId] = snap.name
-            expanded[snap.serverId] = false
         }
+        expandedServerId = null
         // Initialize selection from provided refs
         initialToolRefs.filter { it.enabled && it.serverId in availableServers }.forEach { ref ->
             val prev = selectedTools[ref.serverId] ?: emptySet()
@@ -133,6 +138,7 @@ fun PresetSelector(
 
         snaps.value.forEach { snap ->
             val serverId = snap.serverId
+            val isExpanded = expandedServerId == serverId
             val serverSelected = selectedServers[serverId] == true
             val cardColor = if (serverSelected) {
                 MaterialTheme.colorScheme.secondaryContainer
@@ -154,6 +160,13 @@ fun PresetSelector(
             } else {
                 MaterialTheme.colorScheme.onSurfaceVariant
             }
+            val selectedToolsCount = selectedTools[serverId]?.size ?: 0
+            val selectedPromptsCount = selectedPrompts[serverId]?.size ?: 0
+            val selectedResourcesCount = selectedResources[serverId]?.size ?: 0
+            val arrowRotation by animateFloatAsState(
+                targetValue = if (isExpanded) 180f else 0f,
+                label = "serverCapabilitiesArrow"
+            )
             androidx.compose.material3.Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = AppTheme.shapes.item,
@@ -192,22 +205,46 @@ fun PresetSelector(
                                 .weight(1f)
                                 .padding(start = AppTheme.spacing.sm)
                         ) {
-                            Text(
-                                serverNames[serverId] ?: serverId,
-                                style = MaterialTheme.typography.titleSmall,
-                                color = contentColor
-                            )
-                            Text(
-                                "${snap.tools.size} tools · ${snap.prompts.size} prompts · ${snap.resources.size} resources",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = metaLabelColor
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    serverNames[serverId] ?: serverId,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = contentColor,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Text(
+                                    "·",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = metaLabelColor
+                                )
+                                Spacer(Modifier.width(AppTheme.spacing.xs))
+                                CapabilitiesInlineSummary(
+                                    toolsCount = selectedToolsCount,
+                                    promptsCount = selectedPromptsCount,
+                                    resourcesCount = selectedResourcesCount,
+                                    tint = metaLabelColor,
+                                    iconSize = 12.dp,
+                                    textStyle = MaterialTheme.typography.bodySmall
+                                )
+                            }
                         }
-                        TextButton(onClick = { expanded[serverId] = !(expanded[serverId] ?: false) }) {
-                            Text(if (expanded[serverId] == true) "Hide" else "Show")
+                        IconButton(
+                            onClick = { expandedServerId = if (isExpanded) null else serverId }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.ExpandMore,
+                                contentDescription = if (isExpanded) "Hide details" else "Show details",
+                                tint = contentColor,
+                                modifier = Modifier.rotate(arrowRotation)
+                            )
                         }
                     }
-                    if (expanded[serverId] == true) {
+                    if (isExpanded) {
                         CapabilitySection(
                             label = "Tools",
                             isEmpty = snap.tools.isEmpty(),

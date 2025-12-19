@@ -13,6 +13,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.adapter.models.UiPresetDraft
 import io.qent.broxy.ui.adapter.models.UiPromptRef
@@ -87,87 +88,89 @@ fun PresetEditorScreen(
 
     val scrollState = rememberScrollState()
     val actionRowHeight = 40.dp
-    val contentBottomPadding = AppTheme.spacing.lg + actionRowHeight + AppTheme.spacing.md
+    val serverNamesById = remember(ui) {
+        (ui as? UIState.Ready)?.servers?.associate { it.id to it.name }.orEmpty()
+    }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(scrollState)
-                .padding(bottom = contentBottomPadding),
-            verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)
-        ) {
-            Spacer(Modifier.height(AppTheme.spacing.xs))
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(scrollState),
+        verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md)
+    ) {
+        Spacer(Modifier.height(AppTheme.spacing.xs))
 
-            HeaderRow(
-                title = title,
-                onBack = onClose
-            )
-
-            PresetIdentityCard(
-                name = name,
-                onNameChange = { name = it },
-                resolvedId = resolvedId
-            )
-
-            FormCard(title = "Capabilities") {
-                Text(
-                    "Select tools/prompts/resources from connected servers",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(Modifier.height(AppTheme.spacing.xs))
-                PresetSelector(
-                    store = store,
-                    initialToolRefs = initialDraft.tools,
-                    initialPromptRefs = initialDraft.prompts,
-                    initialResourceRefs = initialDraft.resources,
-                    promptsConfigured = promptsConfigured,
-                    resourcesConfigured = resourcesConfigured,
-                    onSelectionChanged = { tools, prompts, resources ->
-                        selectedTools = tools
-                        selectedPrompts = prompts
-                        selectedResources = resources
+        HeaderRow(
+            title = title,
+            onBack = onClose,
+            actions = {
+                AppSecondaryButton(
+                    onClick = onClose,
+                    modifier = Modifier.height(actionRowHeight)
+                ) {
+                    Text("Cancel", style = MaterialTheme.typography.labelSmall)
+                }
+                AppPrimaryButton(
+                    onClick = {
+                        val readyUi = ui as? UIState.Ready ?: return@AppPrimaryButton
+                        val draft = UiPresetDraft(
+                            id = resolvedId,
+                            name = resolvedName,
+                            tools = selectedTools,
+                            prompts = selectedPrompts,
+                            resources = selectedResources,
+                            promptsConfigured = promptsConfigured,
+                            resourcesConfigured = resourcesConfigured,
+                            originalId = if (isCreate) null else (initialDraft.originalId ?: initialDraft.id)
+                        )
+                        readyUi.intents.upsertPreset(draft)
+                        onClose()
                     },
-                    onPromptsConfiguredChange = { promptsConfigured = it },
-                    onResourcesConfiguredChange = { resourcesConfigured = it }
-                )
+                    enabled = canSubmit,
+                    modifier = Modifier.height(actionRowHeight)
+                ) {
+                    Text(primaryActionLabel, style = MaterialTheme.typography.labelSmall)
+                }
             }
+        )
+
+        PresetIdentityCard(
+            name = name,
+            onNameChange = { name = it },
+            resolvedId = resolvedId
+        )
+
+        FormCard(title = "MCP servers") {
+            Text(
+                "Select tools/prompts/resources from connected servers",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(AppTheme.spacing.xs))
+            PresetSelector(
+                store = store,
+                initialToolRefs = initialDraft.tools,
+                initialPromptRefs = initialDraft.prompts,
+                initialResourceRefs = initialDraft.resources,
+                promptsConfigured = promptsConfigured,
+                resourcesConfigured = resourcesConfigured,
+                onSelectionChanged = { tools, prompts, resources ->
+                    selectedTools = tools
+                    selectedPrompts = prompts
+                    selectedResources = resources
+                },
+                onPromptsConfiguredChange = { promptsConfigured = it },
+                onResourcesConfiguredChange = { resourcesConfigured = it }
+            )
         }
 
-        Row(
-            modifier = Modifier
-                .align(Alignment.BottomEnd),
-            horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            AppSecondaryButton(
-                onClick = onClose,
-                modifier = Modifier.height(actionRowHeight)
-            ) {
-                Text("Cancel", style = MaterialTheme.typography.labelSmall)
-            }
-            AppPrimaryButton(
-                onClick = {
-                    val readyUi = ui as? UIState.Ready ?: return@AppPrimaryButton
-                    val draft = UiPresetDraft(
-                        id = resolvedId,
-                        name = resolvedName,
-                        tools = selectedTools,
-                        prompts = selectedPrompts,
-                        resources = selectedResources,
-                        promptsConfigured = promptsConfigured,
-                        resourcesConfigured = resourcesConfigured,
-                        originalId = if (isCreate) null else (initialDraft.originalId ?: initialDraft.id)
-                    )
-                    readyUi.intents.upsertPreset(draft)
-                    onClose()
-                },
-                enabled = canSubmit,
-                modifier = Modifier.height(actionRowHeight)
-            ) {
-                Text(primaryActionLabel, style = MaterialTheme.typography.labelSmall)
-            }
+        FormCard(title = "Preset capabilities") {
+            PresetCapabilitiesSummary(
+                tools = selectedTools,
+                prompts = selectedPrompts,
+                resources = selectedResources,
+                serverNames = serverNamesById
+            )
         }
     }
 }
@@ -190,20 +193,36 @@ private fun PresetIdentityCard(
 @Composable
 private fun HeaderRow(
     title: String,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    actions: (@Composable RowScope.() -> Unit)? = null
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)
     ) {
-        IconButton(onClick = onBack) {
-            Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back")
+        Row(
+            modifier = Modifier.weight(1f),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back")
+            }
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleLarge
-        )
+        if (actions != null) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm),
+                verticalAlignment = Alignment.CenterVertically,
+                content = actions
+            )
+        }
     }
 }
 
@@ -228,6 +247,79 @@ private fun FormCard(
             content(this)
         }
     }
+}
+
+@Composable
+private fun PresetCapabilitiesSummary(
+    tools: List<UiToolRef>,
+    prompts: List<UiPromptRef>,
+    resources: List<UiResourceRef>,
+    serverNames: Map<String, String>
+) {
+    val toolItems = tools.filter { it.enabled }.map { ref ->
+        formatCapabilityLabel(serverNames, ref.serverId, ref.toolName)
+    }
+    val promptItems = prompts.filter { it.enabled }.map { ref ->
+        formatCapabilityLabel(serverNames, ref.serverId, ref.promptName)
+    }
+    val resourceItems = resources.filter { it.enabled }.map { ref ->
+        formatCapabilityLabel(serverNames, ref.serverId, ref.resourceKey)
+    }
+
+    val sections = listOf(
+        "Tools" to toolItems,
+        "Prompts" to promptItems,
+        "Resources" to resourceItems
+    ).filter { it.second.isNotEmpty() }
+
+    if (sections.isEmpty()) {
+        Text(
+            "No capabilities selected yet",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        return
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)) {
+        sections.forEachIndexed { index, (label, items) ->
+            if (index > 0) {
+                HorizontalDivider(
+                    thickness = AppTheme.strokeWidths.hairline,
+                    color = MaterialTheme.colorScheme.outlineVariant
+                )
+            }
+            PresetCapabilitiesSection(label = label, items = items)
+        }
+    }
+}
+
+@Composable
+private fun PresetCapabilitiesSection(
+    label: String,
+    items: List<String>
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.xs)) {
+        Text(label, style = MaterialTheme.typography.labelLarge)
+        Column(verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.xxs)) {
+            items.forEach { item ->
+                Text(
+                    text = "- $item",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+private fun formatCapabilityLabel(
+    serverNames: Map<String, String>,
+    serverId: String,
+    capabilityName: String
+): String {
+    val serverName = serverNames[serverId] ?: serverId
+    return "$serverName: $capabilityName"
 }
 
 private fun generatePresetId(name: String): String {
