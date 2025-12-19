@@ -31,7 +31,7 @@ fun CapabilitiesInlineSummary(
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         CapabilitiesInlineItem(
             icon = Icons.Outlined.Construction,
@@ -70,7 +70,7 @@ private fun CapabilitiesInlineItem(
     textStyle: TextStyle
 ) {
     Row(
-        modifier = Modifier.widthIn(min = 26.dp),
+        modifier = Modifier.widthIn(min = 24.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
@@ -84,7 +84,7 @@ private fun CapabilitiesInlineItem(
             text = count.toString(),
             style = textStyle,
             color = tint,
-            modifier = Modifier.widthIn(min = 16.dp),
+            modifier = Modifier.widthIn(min = 12.dp),
             textAlign = TextAlign.Center
         )
     }
