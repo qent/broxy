@@ -48,8 +48,8 @@
 
 - В `mcp.json` `serverId` является ключом в `mcpServers` и участвует в namespace инструментов: `serverId:toolName`.
 - Desktop UI генерирует `serverId` автоматически из `name` (slugify).
-- При изменении имени сервера Desktop UI может выполнить rename (`oldId` → `newId`) и также обновит все `preset_*.json`,
-  заменив ссылки на старый `serverId` в tools/prompts/resources.
+- При изменении имени сервера Desktop UI вызывает `ConfigurationManager.renameServer` (`oldId` → `newId`), который
+  обновляет `mcp.json` и переписывает все `preset_*.json`, заменяя ссылки на старый `serverId` в tools/prompts/resources.
 
 ### Поддерживаемые транспорты downstream
 
