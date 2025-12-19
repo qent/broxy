@@ -70,7 +70,7 @@ private fun CapabilitiesInlineItem(
     textStyle: TextStyle
 ) {
     Row(
-        modifier = Modifier.widthIn(min = 24.dp),
+        modifier = Modifier.widthIn(min = 29.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
@@ -84,7 +84,7 @@ private fun CapabilitiesInlineItem(
             text = count.toString(),
             style = textStyle,
             color = tint,
-            modifier = Modifier.widthIn(min = 12.dp),
+            modifier = Modifier.widthIn(min = 15.dp),
             textAlign = TextAlign.Center
         )
     }

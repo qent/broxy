@@ -217,12 +217,6 @@ fun PresetSelector(
                                     overflow = TextOverflow.Ellipsis,
                                     modifier = Modifier.weight(1f)
                                 )
-                                Text(
-                                    "·",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = metaLabelColor
-                                )
-                                Spacer(Modifier.width(AppTheme.spacing.xs))
                                 CapabilitiesInlineSummary(
                                     toolsCount = selectedToolsCount,
                                     promptsCount = selectedPromptsCount,
