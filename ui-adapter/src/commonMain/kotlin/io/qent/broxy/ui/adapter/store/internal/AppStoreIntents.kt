@@ -3,7 +3,6 @@ package io.qent.broxy.ui.adapter.store.internal
 import io.qent.broxy.core.capabilities.CapabilityRefresher
 import io.qent.broxy.core.config.ConfigurationManager
 import io.qent.broxy.core.proxy.runtime.ProxyLifecycle
-import io.qent.broxy.core.repository.ConfigurationRepository
 import io.qent.broxy.core.utils.CollectingLogger
 import io.qent.broxy.ui.adapter.models.*
 import io.qent.broxy.ui.adapter.remote.RemoteConnector
@@ -19,7 +18,6 @@ internal class AppStoreIntents(
     private val scope: CoroutineScope,
     private val logger: CollectingLogger,
     private val configurationManager: ConfigurationManager,
-    private val configurationRepository: ConfigurationRepository,
     private val state: StoreStateAccess,
     private val capabilityRefresher: CapabilityRefresher,
     private val proxyRuntime: ProxyRuntime,
@@ -137,29 +135,32 @@ internal class AppStoreIntents(
             if (idx >= 0) updated[idx] = cfg else updated += cfg
             state.updateSnapshot { copy(servers = updated) }
 
-            val result = if (isRename) {
+            val renameResult = if (isRename) {
                 configurationManager.renameServer(previousConfig, oldId = oldId!!, server = cfg)
             } else {
-                configurationManager.upsertServer(previousConfig, cfg)
+                null
             }
+            val saveResult = renameResult?.map { it.config }
+                ?: configurationManager.upsertServer(previousConfig, cfg)
 
-            if (result.isFailure) {
+            if (saveResult.isFailure) {
                 revertServersOnFailure(
                     "upsertServer",
                     previousServers,
-                    result.exceptionOrNull(),
+                    saveResult.exceptionOrNull(),
                     "Failed to save server"
                 )
             } else {
-                capabilityRefresher.syncWithServers(result.getOrNull()?.servers ?: updated)
+                val savedConfig = saveResult.getOrNull()
+                capabilityRefresher.syncWithServers(savedConfig?.servers ?: updated)
                 if (isRename) {
                     capabilityRefresher.markServerRemoved(oldId!!)
-                    migratePresetsServerId(oldId = oldId, newId = cfg.id)
-                        .onFailure { error ->
-                            val msg = error.message ?: "Failed to update presets after server rename"
-                            logger.info("[AppStore] upsertServer rename preset migration failed: $msg")
-                            state.setError(msg)
-                        }
+                    val migrationError = renameResult?.getOrNull()?.presetMigrationError
+                    if (migrationError != null) {
+                        val msg = migrationError.message ?: "Failed to update presets after server rename"
+                        logger.info("[AppStore] upsertServer rename preset migration failed: $msg")
+                        state.setError(msg)
+                    }
                 }
                 triggerServerRefresh(setOf(cfg.id), force = true)
                 proxyRuntime.ensureInboundRunning(forceRestart = true)
@@ -516,24 +517,4 @@ internal class AppStoreIntents(
         scope.launch { capabilityRefresher.refreshServersById(ids, force) }
     }
 
-    private suspend fun migratePresetsServerId(oldId: String, newId: String): Result<Unit> = runCatching {
-        if (oldId == newId) return@runCatching
-        val presets = configurationRepository.listPresets()
-        presets.forEach { preset ->
-            val updated = preset.copy(
-                tools = preset.tools.map { ref ->
-                    if (ref.serverId == oldId) ref.copy(serverId = newId) else ref
-                },
-                prompts = preset.prompts?.map { ref ->
-                    if (ref.serverId == oldId) ref.copy(serverId = newId) else ref
-                },
-                resources = preset.resources?.map { ref ->
-                    if (ref.serverId == oldId) ref.copy(serverId = newId) else ref
-                }
-            )
-            if (updated != preset) {
-                configurationRepository.savePreset(updated)
-            }
-        }
-    }
 }

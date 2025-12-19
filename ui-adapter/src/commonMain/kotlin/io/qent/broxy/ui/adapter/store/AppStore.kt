@@ -76,7 +76,6 @@ class AppStore(
         scope = scope,
         logger = logger,
         configurationManager = configurationManager,
-        configurationRepository = configurationRepository,
         state = stateAccess,
         capabilityRefresher = capabilityRefresher,
         proxyRuntime = proxyRuntime,

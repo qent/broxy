@@ -10,6 +10,11 @@ class ConfigurationManager(
     private val repository: ConfigurationRepository,
     private val logger: Logger
 ) {
+    data class ServerRenameResult(
+        val config: McpServersConfig,
+        val presetMigrationError: Throwable? = null
+    )
+
     fun upsertServer(config: McpServersConfig, server: McpServerConfig): Result<McpServersConfig> =
         saveConfig(mutateServers(config) { servers ->
             val idx = servers.indexOfFirst { it.id == server.id }
@@ -20,13 +25,31 @@ class ConfigurationManager(
         config: McpServersConfig,
         oldId: String,
         server: McpServerConfig
-    ): Result<McpServersConfig> = saveConfig(mutateServers(config) { servers ->
-        if (oldId.isNotBlank() && oldId != server.id) {
-            servers.removeAll { it.id == oldId }
+    ): Result<ServerRenameResult> {
+        val updated = mutateServers(config) { servers ->
+            if (oldId.isNotBlank() && oldId != server.id) {
+                servers.removeAll { it.id == oldId }
+            }
+            val idx = servers.indexOfFirst { it.id == server.id }
+            if (idx >= 0) servers[idx] = server else servers += server
         }
-        val idx = servers.indexOfFirst { it.id == server.id }
-        if (idx >= 0) servers[idx] = server else servers += server
-    })
+        val saveResult = saveConfig(updated)
+        if (saveResult.isFailure) {
+            return saveResult.map { ServerRenameResult(it) }
+        }
+        val migrationError = if (oldId.isNotBlank() && oldId != server.id) {
+            runCatching { migratePresetsServerId(oldId, server.id) }.exceptionOrNull()
+        } else {
+            null
+        }
+        if (migrationError != null) {
+            logger.warn(
+                "Failed to update presets after renaming server '$oldId' -> '${server.id}': ${migrationError.message}",
+                migrationError
+            )
+        }
+        return Result.success(ServerRenameResult(updated, migrationError))
+    }
 
     fun removeServer(config: McpServersConfig, serverId: String): Result<McpServersConfig> =
         saveConfig(mutateServers(config) { servers ->
@@ -82,4 +105,25 @@ class ConfigurationManager(
         }.onFailure {
             logger.warn("Failed to save configuration: ${it.message}", it)
         }
+
+    private fun migratePresetsServerId(oldId: String, newId: String) {
+        if (oldId == newId) return
+        val presets = repository.listPresets()
+        presets.forEach { preset ->
+            val updated = preset.copy(
+                tools = preset.tools.map { ref ->
+                    if (ref.serverId == oldId) ref.copy(serverId = newId) else ref
+                },
+                prompts = preset.prompts?.map { ref ->
+                    if (ref.serverId == oldId) ref.copy(serverId = newId) else ref
+                },
+                resources = preset.resources?.map { ref ->
+                    if (ref.serverId == oldId) ref.copy(serverId = newId) else ref
+                }
+            )
+            if (updated != preset) {
+                repository.savePreset(updated)
+            }
+        }
+    }
 }
