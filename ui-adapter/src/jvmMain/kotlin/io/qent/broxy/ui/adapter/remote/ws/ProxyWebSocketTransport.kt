@@ -1,9 +1,9 @@
 package io.qent.broxy.ui.adapter.remote.ws
 
-import io.modelcontextprotocol.kotlin.sdk.JSONRPCMessage
 import io.modelcontextprotocol.kotlin.sdk.shared.AbstractTransport
-import io.modelcontextprotocol.kotlin.sdk.shared.McpJson
 import io.modelcontextprotocol.kotlin.sdk.shared.TransportSendOptions
+import io.modelcontextprotocol.kotlin.sdk.types.JSONRPCMessage
+import io.modelcontextprotocol.kotlin.sdk.types.McpJson
 import io.qent.broxy.core.utils.CollectingLogger
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable

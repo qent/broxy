@@ -110,7 +110,6 @@ object ServerFormStateFactory {
                     )
 
                 is UiWebSocketDraft -> arrayOf("WS", "", "", t.url, "")
-                else -> arrayOf("STDIO", "", "", "", "")
             }
         return ServerFormState(
             name = initial.name,

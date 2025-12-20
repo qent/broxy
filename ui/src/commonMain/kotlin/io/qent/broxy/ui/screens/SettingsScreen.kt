@@ -363,7 +363,10 @@ private fun ThemeSetting(
         ) {
             ThemeDropdownField(
                 text = label,
-                modifier = Modifier.fillMaxWidth().menuAnchor(),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true),
                 expanded = expanded,
                 shape = fieldShape,
             )

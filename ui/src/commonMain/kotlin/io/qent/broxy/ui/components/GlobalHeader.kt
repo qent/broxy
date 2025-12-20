@@ -209,7 +209,10 @@ private fun PresetDropdown(
             ) {
                 HeaderField(
                     text = currentName,
-                    modifier = Modifier.fillMaxWidth().menuAnchor(),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true),
                     shape = headerShape,
                     trailing = {
                         Icon(

@@ -4,9 +4,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.toComposeImageBitmap
 import org.jetbrains.skia.Image
 import java.awt.RenderingHints
 import java.awt.image.BufferedImage
@@ -19,7 +19,7 @@ private const val TRAY_ICON_RESOURCE_PATH = "/icons/broxy_tray.png"
 private object IconResourceMarker
 
 private val appIconBytes: ByteArray by lazy { loadIconBytes(APP_ICON_RESOURCE_PATH) }
-private val appIconBitmap: ImageBitmap by lazy { Image.makeFromEncoded(appIconBytes).asImageBitmap() }
+private val appIconBitmap: ImageBitmap by lazy { Image.makeFromEncoded(appIconBytes).toComposeImageBitmap() }
 private val baseAppIconImage: BufferedImage by lazy { readBufferedImage(appIconBytes, APP_ICON_RESOURCE_PATH) }
 private val trayIconBytes: ByteArray by lazy { loadIconBytes(TRAY_ICON_RESOURCE_PATH) }
 private val baseTrayIconImage: BufferedImage by lazy { readBufferedImage(trayIconBytes, TRAY_ICON_RESOURCE_PATH) }
