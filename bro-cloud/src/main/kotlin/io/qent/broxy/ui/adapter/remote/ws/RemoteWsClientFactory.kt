@@ -1,9 +1,9 @@
 package io.qent.broxy.ui.adapter.remote.ws
 
 import io.ktor.client.HttpClient
-import io.qent.broxy.core.proxy.ProxyMcpServer
-import io.qent.broxy.core.utils.CollectingLogger
-import io.qent.broxy.ui.adapter.models.UiRemoteStatus
+import io.qent.broxy.cloud.api.CloudLogger
+import io.qent.broxy.cloud.api.CloudProxyRuntime
+import io.qent.broxy.cloud.api.CloudRemoteStatus
 import kotlinx.coroutines.CoroutineScope
 
 class RemoteWsClientFactory {
@@ -12,10 +12,10 @@ class RemoteWsClientFactory {
         url: String,
         authToken: String,
         serverIdentifier: String,
-        proxyProvider: () -> ProxyMcpServer?,
-        logger: CollectingLogger,
+        proxyRuntime: CloudProxyRuntime,
+        logger: CloudLogger,
         scope: CoroutineScope,
-        onStatus: (UiRemoteStatus, String?) -> Unit,
+        onStatus: (CloudRemoteStatus, String?) -> Unit,
         onAuthFailure: (String) -> Unit,
     ): RemoteWsClient =
         RemoteWsClient(
@@ -23,7 +23,7 @@ class RemoteWsClientFactory {
             url = url,
             authToken = authToken,
             serverIdentifier = serverIdentifier,
-            proxyProvider = proxyProvider,
+            proxyRuntime = proxyRuntime,
             logger = logger,
             scope = scope,
             onStatus = onStatus,

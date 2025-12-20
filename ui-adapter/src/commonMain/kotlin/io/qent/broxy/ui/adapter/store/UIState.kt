@@ -25,6 +25,7 @@ sealed class UIState {
         val showTrayIcon: Boolean,
         val intents: Intents,
         val remote: UiRemoteConnectionState,
+        val remoteEnabled: Boolean,
     ) : UIState()
 }
 

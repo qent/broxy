@@ -42,10 +42,22 @@ Presentation layer without Compose dependencies: state, intents, and background 
     - `ui-adapter/src/commonMain/kotlin/io/qent/broxy/ui/adapter/store/AppStore.kt`
     - `ui-adapter/src/commonMain/kotlin/io/qent/broxy/ui/adapter/store/internal/AppStoreIntents.kt`
     - `ui-adapter/src/commonMain/kotlin/io/qent/broxy/ui/adapter/store/internal/ProxyRuntime.kt`
-- Remote mode (OAuth + WebSocket):
-    - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/RemoteConnectorImpl.kt`
-    - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/ws/RemoteWsClient.kt`
-    - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/ws/ProxyWebSocketTransport.kt`
+- Remote mode (OAuth + WebSocket) wiring:
+    - `ui-adapter/src/commonMain/kotlin/io/qent/broxy/ui/adapter/remote/RemoteConnector.kt`
+    - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/RemoteConnectorFactoryJvm.kt`
+    - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/BroCloudRemoteConnectorAdapter.kt`
+
+### `bro-cloud/` (private backend integration)
+
+Remote OAuth + WebSocket integration packaged as a separate Gradle build and distributed as an obfuscated jar.
+The module is standalone and does not depend on the main broxy modules.
+
+- Remote controller + OAuth:
+    - `bro-cloud/src/main/kotlin/io/qent/broxy/ui/adapter/remote/RemoteConnectorImpl.kt`
+    - `bro-cloud/src/main/kotlin/io/qent/broxy/ui/adapter/remote/auth/LoopbackCallbackServer.kt`
+- WebSocket transport:
+    - `bro-cloud/src/main/kotlin/io/qent/broxy/ui/adapter/remote/ws/RemoteWsClient.kt`
+    - `bro-cloud/src/main/kotlin/io/qent/broxy/ui/adapter/remote/ws/ProxyWebSocketTransport.kt`
 
 ### `ui/` (Compose Desktop, thin UI)
 

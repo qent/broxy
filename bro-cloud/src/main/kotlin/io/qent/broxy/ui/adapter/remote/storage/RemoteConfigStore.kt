@@ -1,7 +1,7 @@
 package io.qent.broxy.ui.adapter.remote.storage
 
-import io.qent.broxy.ui.adapter.models.UiRemoteConnectionState
-import io.qent.broxy.ui.adapter.models.UiRemoteStatus
+import io.qent.broxy.cloud.api.CloudRemoteState
+import io.qent.broxy.cloud.api.CloudRemoteStatus
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.nio.file.Files
@@ -26,12 +26,12 @@ data class LoadedRemoteConfig(
 ) {
     private fun hasCredentials(): Boolean = !accessToken.isNullOrBlank() || !wsToken.isNullOrBlank()
 
-    fun toUi(): UiRemoteConnectionState =
-        UiRemoteConnectionState(
+    fun toCloudState(): CloudRemoteState =
+        CloudRemoteState(
             serverIdentifier = serverIdentifier,
             email = email,
             hasCredentials = hasCredentials(),
-            status = if (hasCredentials()) UiRemoteStatus.Registered else UiRemoteStatus.NotAuthorized,
+            status = if (hasCredentials()) CloudRemoteStatus.Registered else CloudRemoteStatus.NotAuthorized,
             message = null,
         )
 }

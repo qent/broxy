@@ -51,7 +51,7 @@ fun GlobalHeader(
             PresetDropdown(ui = ui, notify = notify, width = PRESET_SELECTOR_WIDTH)
         },
         actions = {
-            if (ui is UIState.Ready) {
+            if (ui is UIState.Ready && ui.remoteEnabled) {
                 RemoteHeaderActions(remote = ui.remote, intents = ui.intents)
             }
         },

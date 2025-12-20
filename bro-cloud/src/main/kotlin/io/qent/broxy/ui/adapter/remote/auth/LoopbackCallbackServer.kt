@@ -1,6 +1,6 @@
 package io.qent.broxy.ui.adapter.remote.auth
 
-import io.qent.broxy.core.utils.Logger
+import io.qent.broxy.cloud.api.CloudLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withContext
@@ -16,7 +16,7 @@ import java.net.URLDecoder
 
 class LoopbackCallbackServer(
     private val port: Int = DEFAULT_PORT,
-    private val logger: Logger? = null,
+    private val logger: CloudLogger? = null,
 ) {
     companion object {
         const val DEFAULT_PORT: Int = 8765

@@ -4,7 +4,7 @@ import io.modelcontextprotocol.kotlin.sdk.shared.AbstractTransport
 import io.modelcontextprotocol.kotlin.sdk.shared.TransportSendOptions
 import io.modelcontextprotocol.kotlin.sdk.types.JSONRPCMessage
 import io.modelcontextprotocol.kotlin.sdk.types.McpJson
-import io.qent.broxy.core.utils.CollectingLogger
+import io.qent.broxy.cloud.api.CloudLogger
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonArray
@@ -35,7 +35,7 @@ data class McpProxyResponsePayload(
  */
 class ProxyWebSocketTransport(
     private val serverIdentifier: String,
-    private val logger: CollectingLogger,
+    private val logger: CloudLogger,
     private val sender: suspend (McpProxyResponsePayload) -> Unit,
 ) : AbstractTransport() {
     @Volatile

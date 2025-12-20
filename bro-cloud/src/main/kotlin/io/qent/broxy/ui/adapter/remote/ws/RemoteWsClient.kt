@@ -14,10 +14,9 @@ import io.ktor.websocket.readReason
 import io.ktor.websocket.readText
 import io.modelcontextprotocol.kotlin.sdk.types.JSONRPCMessage
 import io.modelcontextprotocol.kotlin.sdk.types.McpJson
-import io.qent.broxy.core.proxy.ProxyMcpServer
-import io.qent.broxy.core.proxy.inbound.buildSdkServer
-import io.qent.broxy.core.utils.CollectingLogger
-import io.qent.broxy.ui.adapter.models.UiRemoteStatus
+import io.qent.broxy.cloud.api.CloudLogger
+import io.qent.broxy.cloud.api.CloudProxyRuntime
+import io.qent.broxy.cloud.api.CloudRemoteStatus
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -33,10 +32,10 @@ class RemoteWsClient(
     private val url: String,
     private val authToken: String,
     private val serverIdentifier: String,
-    private val proxyProvider: () -> ProxyMcpServer?,
-    private val logger: CollectingLogger,
+    private val proxyRuntime: CloudProxyRuntime,
+    private val logger: CloudLogger,
     private val scope: CoroutineScope,
-    private val onStatus: (UiRemoteStatus, String?) -> Unit,
+    private val onStatus: (CloudRemoteStatus, String?) -> Unit,
     private val onAuthFailure: (String) -> Unit,
 ) {
     private var session: WebSocketSession? = null
@@ -52,17 +51,13 @@ class RemoteWsClient(
                 runCatching {
                     logger.info("[RemoteWsClient] Dialing $url with serverIdentifier=$serverIdentifier (attempt $attempt/$maxAttempts)")
                     try {
-                        onStatus(UiRemoteStatus.WsConnecting, null)
-                        val proxy =
-                            proxyProvider()
-                                ?: error("Proxy is not running; cannot attach remote client")
+                        onStatus(CloudRemoteStatus.WsConnecting, null)
                         val transport =
                             ProxyWebSocketTransport(serverIdentifier, logger) { payload ->
                                 val s = session ?: error("WebSocket not connected")
                                 val text = McpJson.encodeToString(McpProxyResponsePayload.serializer(), payload)
                                 s.send(Frame.Text(text))
                             }
-                        val server = buildSdkServer(proxy, logger)
                         val ws =
                             httpClient.webSocketSession(url) {
                                 header(HttpHeaders.Authorization, "Bearer $authToken")
@@ -70,12 +65,12 @@ class RemoteWsClient(
                             }
                         logger.info("[RemoteWsClient] WebSocket session established; wiring SDK transport")
                         session = ws
-                        onStatus(UiRemoteStatus.WsConnecting, null)
+                        onStatus(CloudRemoteStatus.WsConnecting, null)
 
                         scope.launch(Dispatchers.IO) {
-                            val serverSession = server.createSession(transport)
+                            val serverSession = proxyRuntime.createSession(transport)
                             serverSession.onClose {
-                                onStatus(UiRemoteStatus.WsOffline, "Server session closed")
+                                onStatus(CloudRemoteStatus.WsOffline, "Server session closed")
                                 logger.warn("[RemoteWsClient] SDK server session closed")
                             }
                         }
@@ -121,7 +116,7 @@ class RemoteWsClient(
                                                         )
                                                     }
                                                 }
-                                                onStatus(UiRemoteStatus.WsOnline, null)
+                                                onStatus(CloudRemoteStatus.WsOnline, null)
                                             }
 
                                             is Frame.Close -> {
@@ -132,9 +127,9 @@ class RemoteWsClient(
                                                         "${reason?.knownReason} ${textReason.orEmpty()}",
                                                 )
                                                 if (reason?.knownReason == CloseReason.Codes.NORMAL) {
-                                                    onStatus(UiRemoteStatus.WsOffline, textReason)
+                                                    onStatus(CloudRemoteStatus.WsOffline, textReason)
                                                 } else {
-                                                    onStatus(UiRemoteStatus.WsOffline, textReason ?: "Disconnected")
+                                                    onStatus(CloudRemoteStatus.WsOffline, textReason ?: "Disconnected")
                                                 }
                                             }
 
@@ -146,10 +141,10 @@ class RemoteWsClient(
                                 } catch (t: Throwable) {
                                     val msg = t.message ?: "WebSocket receive failed"
                                     logger.warn("[RemoteWsClient] WebSocket receive loop failed: $msg", t)
-                                    onStatus(UiRemoteStatus.WsOffline, msg)
+                                    onStatus(CloudRemoteStatus.WsOffline, msg)
                                 }
                             }
-                        onStatus(UiRemoteStatus.WsOnline, null)
+                        onStatus(CloudRemoteStatus.WsOnline, null)
                         logger.info("[RemoteWsClient] Remote WebSocket is online")
                     } catch (ce: CancellationException) {
                         throw ce
@@ -159,12 +154,12 @@ class RemoteWsClient(
                         if (status == HttpStatusCode.Unauthorized || status == HttpStatusCode.Forbidden) {
                             onAuthFailure(msg)
                         }
-                        onStatus(UiRemoteStatus.WsOffline, msg)
+                        onStatus(CloudRemoteStatus.WsOffline, msg)
                         logger.error("[RemoteWsClient] WebSocket authentication error: $msg", cre)
                         throw cre
                     } catch (ex: Exception) {
                         val reason = ex.message ?: "WebSocket connect failed"
-                        onStatus(UiRemoteStatus.WsOffline, reason)
+                        onStatus(CloudRemoteStatus.WsOffline, reason)
                         onAuthFailure(reason)
                         logger.error("[RemoteWsClient] WebSocket connect failed: $reason", ex)
                         throw ex

@@ -97,7 +97,7 @@ These help diagnose missing or stale capabilities.
 
 File:
 
-- `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/ws/ProxyWebSocketTransport.kt`
+- `bro-cloud/src/main/kotlin/io/qent/broxy/ui/adapter/remote/ws/ProxyWebSocketTransport.kt`
 
 `describeJsonRpcPayload(...)` logs:
 

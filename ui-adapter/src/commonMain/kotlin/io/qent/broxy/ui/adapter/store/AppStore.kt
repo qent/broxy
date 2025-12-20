@@ -130,13 +130,17 @@ class AppStore(
             proxyRuntime.ensureInboundRunning(forceRestart = true)
             capabilityRefresher.refreshEnabledServers(force = true)
             capabilityRefresher.restartBackgroundJob(enableBackgroundRefresh)
-            remoteConnector.start()
+            if (snapshot.remoteEnabled) {
+                remoteConnector.start()
+            }
         }
     }
 
     fun stop() {
         runCatching { proxyRuntime.stopInbound() }
-        runCatching { remoteConnector.disconnect() }
+        if (snapshot.remoteEnabled) {
+            runCatching { remoteConnector.disconnect() }
+        }
     }
 
     fun getServerDraft(id: String): UiServerDraft? {

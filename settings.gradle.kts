@@ -32,3 +32,15 @@ include(
     "cli",
     "test-mcp-server"
 )
+
+val broCloudEnabled = providers.gradleProperty("broCloudEnabled").orNull?.toBoolean() ?: true
+val broCloudUseLocal = providers.gradleProperty("broCloudUseLocal").orNull?.toBoolean() ?: false
+
+if (broCloudEnabled && broCloudUseLocal) {
+    val broCloudDir = rootDir.resolve("bro-cloud")
+    if (broCloudDir.exists()) {
+        includeBuild("bro-cloud")
+    } else {
+        logger.warn("bro-cloud local build requested but directory not found: $broCloudDir")
+    }
+}

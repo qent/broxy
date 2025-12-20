@@ -10,19 +10,32 @@ Key idea:
 - locally build an MCP SDK `Server` on top of `ProxyMcpServer` (same as inbound);
 - connect that server to a `ProxyWebSocketTransport` that wraps MCP messages in the backend envelope.
 
+## Availability and build flags
+
+Remote backend integration is implemented in the private `bro-cloud` build. It is wired via a JVM adapter in
+`ui-adapter` and controlled by Gradle properties:
+
+- `broCloudEnabled` (default `true`) - enables/disables remote auth + WebSocket integration.
+- `broCloudUseLocal` (default `false`) - use local `bro-cloud/` sources via composite build; otherwise load
+  the obfuscated jar from `bro-cloud/libs/bro-cloud-obfuscated.jar`.
+
+When disabled, the UI hides remote actions and the runtime uses a no-op connector.
+
 ## Remote subsystem components
 
 - Remote controller (state machine + OAuth + tokens + WS):
-    - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/RemoteConnectorImpl.kt`
+    - `bro-cloud/src/main/kotlin/io/qent/broxy/ui/adapter/remote/RemoteConnectorImpl.kt`
 - WebSocket client:
-    - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/ws/RemoteWsClient.kt`
+    - `bro-cloud/src/main/kotlin/io/qent/broxy/ui/adapter/remote/ws/RemoteWsClient.kt`
 - MCP SDK <-> WS envelope adapter:
-    - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/ws/ProxyWebSocketTransport.kt`
+    - `bro-cloud/src/main/kotlin/io/qent/broxy/ui/adapter/remote/ws/ProxyWebSocketTransport.kt`
 - Token storage:
-    - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/storage/RemoteConfigStore.kt`
-    - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/storage/SecureStore.kt`
+    - `bro-cloud/src/main/kotlin/io/qent/broxy/ui/adapter/remote/storage/RemoteConfigStore.kt`
+    - `bro-cloud/src/main/kotlin/io/qent/broxy/ui/adapter/remote/storage/SecureStore.kt`
 - OAuth callback server:
-    - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/auth/LoopbackCallbackServer.kt`
+    - `bro-cloud/src/main/kotlin/io/qent/broxy/ui/adapter/remote/auth/LoopbackCallbackServer.kt`
+- UI adapter bridge (Cloud API -> UI state):
+    - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/BroCloudRemoteConnectorAdapter.kt`
 
 ## RemoteConnectorImpl: state and interface
 
@@ -47,11 +60,11 @@ Default is generated in `defaultRemoteServerIdentifier()`:
 - lowercased and capped at 64 characters;
 - persisted to `remote.json` on first startup so it stays stable across restarts.
 
-File: `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/RemoteDefaultsJvm.kt`
+File: `bro-cloud/src/main/kotlin/io/qent/broxy/ui/adapter/remote/CloudDefaults.kt`
 
 ## OAuth flow (beginAuthorization)
 
-File: `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/RemoteConnectorImpl.kt`
+File: `bro-cloud/src/main/kotlin/io/qent/broxy/ui/adapter/remote/RemoteConnectorImpl.kt`
 
 Constants:
 
@@ -111,8 +124,8 @@ Default implementation is filesystem-based:
 
 Files:
 
-- `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/storage/RemoteConfigStore.kt`
-- `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/storage/SecureStore.kt`
+- `bro-cloud/src/main/kotlin/io/qent/broxy/ui/adapter/remote/storage/RemoteConfigStore.kt`
+- `bro-cloud/src/main/kotlin/io/qent/broxy/ui/adapter/remote/storage/SecureStore.kt`
 
 Tokens are redacted in logs using `RemoteConnectorImpl.redactToken(...)`.
 
@@ -151,7 +164,7 @@ Expiry validation:
 - `Authorization: Bearer <jwt>`
 - `Sec-WebSocket-Protocol: mcp`
 
-File: `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/ws/RemoteWsClient.kt`
+File: `bro-cloud/src/main/kotlin/io/qent/broxy/ui/adapter/remote/ws/RemoteWsClient.kt`
 
 ### Envelope messages
 
@@ -185,7 +198,7 @@ Structures:
 - `McpProxyRequestPayload`
 - `McpProxyResponsePayload`
 
-File: `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/ws/ProxyWebSocketTransport.kt`
+File: `bro-cloud/src/main/kotlin/io/qent/broxy/ui/adapter/remote/ws/ProxyWebSocketTransport.kt`
 
 ### MCP over WebSocket: where the SDK server lives
 

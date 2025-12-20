@@ -14,10 +14,11 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.parseQueryString
 import io.ktor.serialization.kotlinx.json.json
-import io.qent.broxy.core.proxy.runtime.ProxyLifecycle
-import io.qent.broxy.core.utils.CollectingLogger
-import io.qent.broxy.ui.adapter.models.UiRemoteConnectionState
-import io.qent.broxy.ui.adapter.models.UiRemoteStatus
+import io.qent.broxy.cloud.api.CloudLogger
+import io.qent.broxy.cloud.api.CloudProxyRuntime
+import io.qent.broxy.cloud.api.CloudRemoteConnector
+import io.qent.broxy.cloud.api.CloudRemoteState
+import io.qent.broxy.cloud.api.CloudRemoteStatus
 import io.qent.broxy.ui.adapter.remote.auth.LoopbackCallbackServer
 import io.qent.broxy.ui.adapter.remote.auth.OAuthCallback
 import io.qent.broxy.ui.adapter.remote.net.CallbackRequest
@@ -54,8 +55,8 @@ private const val WS_BASE_URL = "wss://broxy.run"
 private const val REDIRECT_URI = "http://127.0.0.1:${LoopbackCallbackServer.DEFAULT_PORT}/oauth/callback"
 
 class RemoteConnectorImpl(
-    private val logger: CollectingLogger,
-    private val proxyLifecycle: ProxyLifecycle,
+    private val logger: CloudLogger,
+    private val proxyRuntime: CloudProxyRuntime,
     private val scope: CoroutineScope,
     private val ioContext: CoroutineContext = Dispatchers.IO,
     private val httpClient: HttpClient = defaultHttpClient(),
@@ -71,11 +72,11 @@ class RemoteConnectorImpl(
     private val now: () -> Instant = { Instant.now() },
     private val callbackServer: LoopbackCallbackServer = LoopbackCallbackServer(logger = logger),
     private val wsFactory: RemoteWsClientFactory = RemoteWsClientFactory(),
-) : RemoteConnector {
+) : CloudRemoteConnector {
     private val jsonParser = Json { ignoreUnknownKeys = true }
-    private val initialState = defaultRemoteState()
+    private val initialState = defaultCloudState()
     private val _state = MutableStateFlow(initialState)
-    override val state: StateFlow<UiRemoteConnectionState> = _state
+    override val state: StateFlow<CloudRemoteState> = _state
 
     private var cachedConfig: LoadedRemoteConfig? = null
 
@@ -85,7 +86,7 @@ class RemoteConnectorImpl(
 
     override fun start() {
         scope.launch(ioContext) {
-            proxyRunning = proxyLifecycle.isRunning()
+            proxyRunning = proxyRuntime.isRunning()
             cachedConfig = configStore.load()
             val loaded = cachedConfig
             if (loaded != null) {
@@ -107,12 +108,12 @@ class RemoteConnectorImpl(
                         wsToken = null,
                         wsTokenExpiresAt = null,
                     )
-                    _state.value = defaultRemoteState().copy(serverIdentifier = loaded.serverIdentifier)
+                    _state.value = defaultCloudState().copy(serverIdentifier = loaded.serverIdentifier)
                     return@launch
                 }
                 _state.value =
-                    loaded.toUi().copy(
-                        status = if (hasCredentials(loaded)) UiRemoteStatus.Registered else UiRemoteStatus.NotAuthorized,
+                    loaded.toCloudState().copy(
+                        status = if (hasCredentials(loaded)) CloudRemoteStatus.Registered else CloudRemoteStatus.NotAuthorized,
                         message = null,
                     )
                 if (hasCredentials(loaded) && proxyRunning) {
@@ -134,7 +135,7 @@ class RemoteConnectorImpl(
                 )
                 _state.value =
                     _state.value.copy(
-                        status = UiRemoteStatus.NotAuthorized,
+                        status = CloudRemoteStatus.NotAuthorized,
                         hasCredentials = false,
                         message = null,
                         email = null,
@@ -144,10 +145,10 @@ class RemoteConnectorImpl(
     }
 
     override fun beginAuthorization() {
-        if (_state.value.status == UiRemoteStatus.Authorizing) return
+        if (_state.value.status == CloudRemoteStatus.Authorizing) return
         scope.launch(ioContext) {
             logger.info("[RemoteAuth] Starting Google OAuth flow for server='${_state.value.serverIdentifier}'")
-            _state.value = _state.value.copy(status = UiRemoteStatus.Authorizing, message = "Opening browser...")
+            _state.value = _state.value.copy(status = CloudRemoteStatus.Authorizing, message = "Opening browser...")
             val login =
                 runCatching {
                     logger.info("[RemoteAuth] oauth_authorization_requested audience=mcp redirect_uri=$REDIRECT_URI")
@@ -160,7 +161,7 @@ class RemoteConnectorImpl(
                     .onFailure { logger.error("[RemoteAuth] login failed: ${it.message}") }
                     .getOrElse {
                         _state.value =
-                            _state.value.copy(status = UiRemoteStatus.Error, message = "Login failed: ${it.message}")
+                            _state.value.copy(status = CloudRemoteStatus.Error, message = "Login failed: ${it.message}")
                         return@launch
                     }
             logger.debug("[RemoteAuth] Login response received: state=${login.state}, redirect=${login.authorizationUrl}")
@@ -173,13 +174,13 @@ class RemoteConnectorImpl(
                 val msg =
                     "Authorization URL missing redirect_uri; backend may be outdated or redirect_uri not forwarded"
                 logger.error("[RemoteAuth] $msg")
-                _state.value = _state.value.copy(status = UiRemoteStatus.Error, message = msg)
+                _state.value = _state.value.copy(status = CloudRemoteStatus.Error, message = msg)
                 return@launch
             }
             if (redirectInAuthUrl != REDIRECT_URI) {
                 val msg = "Authorization URL redirect_uri mismatch; expected $REDIRECT_URI but got $redirectInAuthUrl"
                 logger.error("[RemoteAuth] $msg")
-                _state.value = _state.value.copy(status = UiRemoteStatus.Error, message = msg)
+                _state.value = _state.value.copy(status = CloudRemoteStatus.Error, message = msg)
                 return@launch
             }
             logger.info("[RemoteAuth] Opening browser for OAuth consent")
@@ -196,7 +197,7 @@ class RemoteConnectorImpl(
                             "[RemoteAuth] Authorization failed before callback: $msg",
                             callbackResult.exceptionOrNull(),
                         )
-                        _state.value = _state.value.copy(status = UiRemoteStatus.Error, message = msg)
+                        _state.value = _state.value.copy(status = CloudRemoteStatus.Error, message = msg)
                         return@launch
                     }
             logger.info("[RemoteAuth] OAuth callback received; state=${callback.state}, codeLen=${callback.code.length}")
@@ -216,17 +217,17 @@ class RemoteConnectorImpl(
                 }.onFailure { logger.error("[RemoteAuth] callback exchange failed: ${it.message}") }
                     .getOrElse {
                         _state.value =
-                            _state.value.copy(status = UiRemoteStatus.Error, message = "Exchange failed: ${it.message}")
+                            _state.value.copy(status = CloudRemoteStatus.Error, message = "Exchange failed: ${it.message}")
                         return@launch
                     }
             if (!tokenResp.tokenType.equals("bearer", ignoreCase = true)) {
                 logger.error("[RemoteAuth] Invalid token_type '${tokenResp.tokenType}' received; expected bearer")
-                _state.value = _state.value.copy(status = UiRemoteStatus.Error, message = "Invalid token type")
+                _state.value = _state.value.copy(status = CloudRemoteStatus.Error, message = "Invalid token type")
                 return@launch
             }
             if (!tokenResp.scope.equals("mcp", ignoreCase = true)) {
                 logger.error("[RemoteAuth] Invalid scope '${tokenResp.scope}' received; expected mcp")
-                _state.value = _state.value.copy(status = UiRemoteStatus.Error, message = "Invalid token scope")
+                _state.value = _state.value.copy(status = CloudRemoteStatus.Error, message = "Invalid token scope")
                 return@launch
             }
             logger.info("[RemoteAuth] oauth_code_exchange audience=mcp status=success")
@@ -243,7 +244,7 @@ class RemoteConnectorImpl(
             if (register == null) {
                 _state.value =
                     _state.value.copy(
-                        status = UiRemoteStatus.Error,
+                        status = CloudRemoteStatus.Error,
                         message = "Register failed",
                         hasCredentials = false,
                     )
@@ -262,12 +263,12 @@ class RemoteConnectorImpl(
             logTokenSnapshot("Persisted tokens", tokenResp.accessToken, register.jwtToken)
             _state.value =
                 _state.value.copy(
-                    status = UiRemoteStatus.Registered,
+                    status = CloudRemoteStatus.Registered,
                     message = null,
                     email = email,
                     hasCredentials = true,
                 )
-            proxyRunning = proxyLifecycle.isRunning()
+            proxyRunning = proxyRuntime.isRunning()
             if (proxyRunning) {
                 connectWebSocket(register.jwtToken)
             } else {
@@ -309,19 +310,19 @@ class RemoteConnectorImpl(
         val config = loadCachedConfig()
         if (config == null || !hasCredentials(config)) {
             if (!auto) {
-                _state.value = defaultRemoteState().copy(serverIdentifier = _state.value.serverIdentifier)
+                _state.value = defaultCloudState().copy(serverIdentifier = _state.value.serverIdentifier)
             }
             return
         }
         if (config.serverIdentifier != _state.value.serverIdentifier) {
             _state.value = _state.value.copy(serverIdentifier = config.serverIdentifier)
         }
-        proxyRunning = proxyLifecycle.isRunning()
+        proxyRunning = proxyRuntime.isRunning()
         if (!proxyRunning) {
             if (!auto) {
                 _state.value =
                     _state.value.copy(
-                        status = UiRemoteStatus.Registered,
+                        status = CloudRemoteStatus.Registered,
                         message = "Start MCP proxy to connect",
                         hasCredentials = true,
                     )
@@ -332,7 +333,7 @@ class RemoteConnectorImpl(
         if (wsToken != null) {
             _state.value =
                 _state.value.copy(
-                    status = UiRemoteStatus.WsConnecting,
+                    status = CloudRemoteStatus.WsConnecting,
                     message = null,
                     hasCredentials = true,
                 )
@@ -359,7 +360,7 @@ class RemoteConnectorImpl(
         )
         _state.value =
             _state.value.copy(
-                status = UiRemoteStatus.Registered,
+                status = CloudRemoteStatus.Registered,
                 hasCredentials = true,
                 email = config.email,
                 message = null,
@@ -387,7 +388,7 @@ class RemoteConnectorImpl(
                 wsTokenExpiresAt = null,
             )
             _state.value =
-                defaultRemoteState().copy(
+                defaultCloudState().copy(
                     serverIdentifier = serverIdentifier,
                     message = reason,
                 )
@@ -395,24 +396,23 @@ class RemoteConnectorImpl(
         }
         _state.value =
             _state.value.copy(
-                status = UiRemoteStatus.WsOffline,
+                status = CloudRemoteStatus.WsOffline,
                 message = reason,
                 hasCredentials = true,
             )
     }
 
     private suspend fun connectWebSocket(jwt: String) {
-        if (!proxyLifecycle.isRunning()) {
+        if (!proxyRuntime.isRunning()) {
             logger.warn("[RemoteAuth] Skipping WebSocket connect: MCP proxy is not running")
             _state.value =
                 _state.value.copy(
-                    status = UiRemoteStatus.Registered,
+                    status = CloudRemoteStatus.Registered,
                     message = "Start MCP proxy to connect",
                     hasCredentials = true,
                 )
             return
         }
-        val proxyProvider = { proxyLifecycle.currentProxy() }
         val wsUrl = "$WS_BASE_URL$WS_PATH/${_state.value.serverIdentifier}"
         logger.info("[RemoteAuth] Initiating WebSocket connection to $wsUrl")
         wsClient?.close()
@@ -422,7 +422,7 @@ class RemoteConnectorImpl(
                 url = wsUrl,
                 authToken = jwt,
                 serverIdentifier = _state.value.serverIdentifier,
-                proxyProvider = proxyProvider,
+                proxyRuntime = proxyRuntime,
                 logger = logger,
                 scope = scope,
                 onStatus = { status, message ->
@@ -430,7 +430,7 @@ class RemoteConnectorImpl(
                 },
                 onAuthFailure = { reason ->
                     logger.error("[RemoteAuth] WebSocket authentication failed: $reason")
-                    _state.value = _state.value.copy(status = UiRemoteStatus.Error, message = reason, hasCredentials = true)
+                    _state.value = _state.value.copy(status = CloudRemoteStatus.Error, message = reason, hasCredentials = true)
                 },
             )
         wsClient = client
@@ -439,7 +439,7 @@ class RemoteConnectorImpl(
             logger.warn("[RemoteAuth] WebSocket connection failed: ${result.exceptionOrNull()?.message}")
             _state.value =
                 _state.value.copy(
-                    status = UiRemoteStatus.WsOffline,
+                    status = CloudRemoteStatus.WsOffline,
                     message = result.exceptionOrNull()?.message,
                     hasCredentials = true,
                 )
@@ -453,7 +453,7 @@ class RemoteConnectorImpl(
         runCatching {
             _state.value =
                 _state.value.copy(
-                    status = UiRemoteStatus.Registering,
+                    status = CloudRemoteStatus.Registering,
                     message = "Registering server",
                     hasCredentials = true,
                 )
@@ -486,7 +486,7 @@ class RemoteConnectorImpl(
 
                     else -> it.message ?: "Register failed"
                 }
-            _state.value = _state.value.copy(status = UiRemoteStatus.Error, message = msg, hasCredentials = true)
+            _state.value = _state.value.copy(status = CloudRemoteStatus.Error, message = msg, hasCredentials = true)
             logger.error("[RemoteAuth] register failed: $msg")
         }.getOrNull()
 
