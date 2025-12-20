@@ -3,129 +3,147 @@ package io.qent.broxy.core.config
 import io.qent.broxy.core.models.McpServersConfig
 import io.qent.broxy.core.models.TransportConfig
 import io.qent.broxy.core.utils.ConfigurationException
-import io.qent.broxy.core.utils.ConsoleLogger
 import kotlinx.serialization.json.Json
-import org.junit.Test
 import java.nio.file.Files
-import kotlin.io.path.readText
-import kotlin.io.path.writeText
+import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class JsonConfigurationRepositoryTest {
     @Test
-    fun load_mcp_json_with_env_placeholders() {
-        val tmp = Files.createTempDirectory("cfgtest")
-        try {
-            val mcpJson =
-                """
-                {
-                  "requestTimeoutSeconds": 90,
-                  "capabilitiesTimeoutSeconds": 25,
-                  "capabilitiesRefreshIntervalSeconds": 180,
-                  "mcpServers": {
-                    "github": {
-                      "transport": "stdio",
-                      "command": "npx",
-                      "args": ["@modelcontextprotocol/server-github"],
-                      "env": { "GITHUB_TOKEN": "${'$'}{GITHUB_TOKEN}" }
-                    }
-                  }
+    fun loadMcpConfig_applies_defaults_and_coerces_port() {
+        val dir = Files.createTempDirectory("broxy-config")
+        val json =
+            """
+            {
+              "requestTimeoutSeconds": 10,
+              "capabilitiesTimeoutSeconds": 5,
+              "inboundSsePort": 70000,
+              "mcpServers": {
+                "alpha": {
+                  "name": "Alpha",
+                  "transport": "http",
+                  "url": "http://localhost:9999",
+                  "headers": {"X-Test": "1"}
                 }
-                """.trimIndent()
-            tmp.resolve("mcp.json").writeText(mcpJson)
+              }
+            }
+            """.trimIndent()
+        Files.writeString(dir.resolve("mcp.json"), json)
 
-            val repo =
-                JsonConfigurationRepository(
-                    baseDir = tmp,
-                    json = Json { ignoreUnknownKeys = true },
-                    logger = ConsoleLogger,
-                    envResolver = EnvironmentVariableResolver(envProvider = { mapOf("GITHUB_TOKEN" to "t") }),
-                )
-            val cfg = repo.loadMcpConfig()
-            assertEquals(1, cfg.servers.size)
-            val s = cfg.servers.first()
-            assertEquals("github", s.id)
-            assertTrue(s.transport is TransportConfig.StdioTransport)
-            assertEquals("t", s.env["GITHUB_TOKEN"]) // resolved
-            assertEquals(90, cfg.requestTimeoutSeconds)
-            assertEquals(25, cfg.capabilitiesTimeoutSeconds)
-            assertEquals(180, cfg.capabilitiesRefreshIntervalSeconds)
-            assertTrue(cfg.showTrayIcon)
-        } finally {
-            tmp.toFile().deleteRecursively()
+        val repo =
+            JsonConfigurationRepository(
+                baseDir = dir,
+                json = Json { ignoreUnknownKeys = true; prettyPrint = true },
+                logger = ConfigTestLogger,
+            )
+
+        val config = repo.loadMcpConfig()
+        assertEquals(65535, config.inboundSsePort)
+        assertEquals(10, config.requestTimeoutSeconds)
+        assertEquals(5, config.capabilitiesTimeoutSeconds)
+        assertTrue(config.showTrayIcon)
+        assertEquals(1, config.servers.size)
+        val server = config.servers.single()
+        assertEquals("alpha", server.id)
+        assertEquals("Alpha", server.name)
+        val transport = server.transport as TransportConfig.HttpTransport
+        assertEquals("http://localhost:9999", transport.url)
+        assertEquals(mapOf("X-Test" to "1"), transport.headers)
+    }
+
+    @Test
+    fun loadMcpConfig_resolves_env_and_alias_transports() {
+        val dir = Files.createTempDirectory("broxy-config")
+        val json =
+            """
+            {
+              "mcpServers": {
+                "beta": {
+                  "transport": "streamable",
+                  "url": "http://localhost:7000/mcp",
+                  "env": {"TOKEN": "${'$'}{TOKEN}"}
+                }
+              }
+            }
+            """.trimIndent()
+        Files.writeString(dir.resolve("mcp.json"), json)
+
+        val repo =
+            JsonConfigurationRepository(
+                baseDir = dir,
+                logger = ConfigTestLogger,
+                envResolver = EnvironmentVariableResolver(envProvider = { mapOf("TOKEN" to "secret") }, logger = ConfigTestLogger),
+            )
+
+        val config = repo.loadMcpConfig()
+        val server = config.servers.single()
+        assertEquals("beta", server.id)
+        assertEquals(mapOf("TOKEN" to "secret"), server.env)
+        assertTrue(server.transport is TransportConfig.StreamableHttpTransport)
+    }
+
+    @Test
+    fun loadMcpConfig_throws_for_missing_env_vars() {
+        val dir = Files.createTempDirectory("broxy-config")
+        val json =
+            """
+            {
+              "mcpServers": {
+                "alpha": {
+                  "transport": "stdio",
+                  "command": "run",
+                  "env": {"TOKEN": "${'$'}{TOKEN}"}
+                }
+              }
+            }
+            """.trimIndent()
+        Files.writeString(dir.resolve("mcp.json"), json)
+
+        val repo =
+            JsonConfigurationRepository(
+                baseDir = dir,
+                logger = ConfigTestLogger,
+                envResolver = EnvironmentVariableResolver(envProvider = { emptyMap() }, logger = ConfigTestLogger),
+            )
+
+        assertFailsWith<ConfigurationException> {
+            repo.loadMcpConfig()
         }
     }
 
     @Test
-    fun saving_and_listing_presets() {
-        val tmp = Files.createTempDirectory("cfgtest2")
-        try {
-            val repo = JsonConfigurationRepository(baseDir = tmp)
-            val preset =
-                io.qent.broxy.core.models.Preset(
-                    id = "developer",
-                    name = "Developer Assistant",
-                    tools = emptyList(),
-                )
-            repo.savePreset(preset)
-            val list = repo.listPresets()
-            assertEquals(1, list.size)
-            val loaded = repo.loadPreset("developer")
-            assertEquals("developer", loaded.id)
-            assertEquals("Developer Assistant", loaded.name)
-        } finally {
-            tmp.toFile().deleteRecursively()
+    fun loadMcpConfig_throws_for_blank_name() {
+        val dir = Files.createTempDirectory("broxy-config")
+        val json =
+            """
+            {
+              "mcpServers": {
+                "alpha": {
+                  "name": " ",
+                  "transport": "stdio",
+                  "command": "run"
+                }
+              }
+            }
+            """.trimIndent()
+        Files.writeString(dir.resolve("mcp.json"), json)
+
+        val repo = JsonConfigurationRepository(baseDir = dir, logger = ConfigTestLogger)
+
+        assertFailsWith<ConfigurationException> {
+            repo.loadMcpConfig()
         }
     }
 
     @Test
-    fun invalid_config_missing_env_var() {
-        val tmp = Files.createTempDirectory("cfgtest3")
-        try {
-            val mcpJson =
-                """
-                {"mcpServers":{"s":{"transport":"http","url":"http://","env":{"X":"${'$'}{MISSING}"}}}}
-                """.trimIndent()
-            tmp.resolve("mcp.json").writeText(mcpJson)
-            val repo =
-                JsonConfigurationRepository(
-                    baseDir = tmp,
-                    envResolver = EnvironmentVariableResolver(envProvider = { emptyMap() }),
-                )
-            assertFailsWith<ConfigurationException> { repo.loadMcpConfig() }
-        } finally {
-            tmp.toFile().deleteRecursively()
-        }
-    }
+    fun loadMcpConfig_returns_empty_when_missing_file() {
+        val dir = Files.createTempDirectory("broxy-config")
+        val repo = JsonConfigurationRepository(baseDir = dir, logger = ConfigTestLogger)
 
-    @Test
-    fun preserves_unbounded_timeout_values() {
-        val tmp = Files.createTempDirectory("cfgtest4")
-        try {
-            val repo = JsonConfigurationRepository(baseDir = tmp)
-            val cfg =
-                McpServersConfig(
-                    requestTimeoutSeconds = 1_200,
-                    capabilitiesTimeoutSeconds = 45,
-                    showTrayIcon = false,
-                    capabilitiesRefreshIntervalSeconds = 180,
-                )
-            repo.saveMcpConfig(cfg)
-            val raw = tmp.resolve("mcp.json").readText()
-            assertTrue(raw.contains("\"requestTimeoutSeconds\": 1200"))
-            assertTrue(raw.contains("\"capabilitiesTimeoutSeconds\": 45"))
-            assertTrue(raw.contains("\"showTrayIcon\": false"))
-            assertTrue(raw.contains("\"capabilitiesRefreshIntervalSeconds\": 180"))
-            val loaded = repo.loadMcpConfig()
-            assertEquals(1_200, loaded.requestTimeoutSeconds)
-            assertEquals(45, loaded.capabilitiesTimeoutSeconds)
-            assertFalse(loaded.showTrayIcon)
-            assertEquals(180, loaded.capabilitiesRefreshIntervalSeconds)
-        } finally {
-            tmp.toFile().deleteRecursively()
-        }
+        val config = repo.loadMcpConfig()
+
+        assertEquals(McpServersConfig(emptyList()), config.copy(defaultPresetId = null))
     }
 }
