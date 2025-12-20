@@ -6,21 +6,19 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Construction
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.adapter.models.*
 import io.qent.broxy.ui.adapter.store.AppStore
 import io.qent.broxy.ui.adapter.store.UIState
 import io.qent.broxy.ui.components.CapabilitiesCard
 import io.qent.broxy.ui.components.CapabilityDisplayItem
+import io.qent.broxy.ui.components.EditorHeaderRow
 import io.qent.broxy.ui.components.FormCard
 import io.qent.broxy.ui.components.PresetSelector
 import io.qent.broxy.ui.theme.AppTheme
@@ -57,7 +55,7 @@ fun PresetEditorScreen(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
         ) {
-            HeaderRow(
+            EditorHeaderRow(
                 title = "Edit preset",
                 onBack = onClose,
             )
@@ -126,7 +124,7 @@ fun PresetEditorScreen(
     ) {
         Spacer(Modifier.height(AppTheme.spacing.xs))
 
-        HeaderRow(
+        EditorHeaderRow(
             title = title,
             onBack = onClose,
             actions = {
@@ -222,42 +220,6 @@ private fun PresetIdentityCard(
         modifier = Modifier.fillMaxWidth(),
         singleLine = true,
     )
-}
-
-@Composable
-private fun HeaderRow(
-    title: String,
-    onBack: () -> Unit,
-    actions: (@Composable RowScope.() -> Unit)? = null,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm),
-    ) {
-        Row(
-            modifier = Modifier.weight(1f),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm),
-        ) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back")
-            }
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleLarge,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-        if (actions != null) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm),
-                verticalAlignment = Alignment.CenterVertically,
-                content = actions,
-            )
-        }
-    }
 }
 
 private fun buildToolCapabilityItems(

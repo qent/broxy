@@ -5,11 +5,8 @@ import AppSecondaryButton
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.adapter.models.UiServerDraft
@@ -17,6 +14,7 @@ import io.qent.broxy.ui.adapter.models.UiStdioDraft
 import io.qent.broxy.ui.adapter.services.validateServerConnection
 import io.qent.broxy.ui.adapter.store.AppStore
 import io.qent.broxy.ui.adapter.store.UIState
+import io.qent.broxy.ui.components.EditorHeaderRow
 import io.qent.broxy.ui.components.ServerForm
 import io.qent.broxy.ui.components.ServerFormStateFactory
 import io.qent.broxy.ui.components.toDraft
@@ -54,7 +52,7 @@ fun ServerEditorScreen(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
         ) {
-            HeaderRow(
+            EditorHeaderRow(
                 title = "Edit server",
                 onBack = onClose,
             )
@@ -95,44 +93,19 @@ fun ServerEditorScreen(
 
     val scrollState = rememberScrollState()
     val actionRowHeight = 40.dp
-    val contentBottomPadding = AppTheme.spacing.lg + actionRowHeight + AppTheme.spacing.md
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .verticalScroll(scrollState)
-                    .padding(bottom = contentBottomPadding),
-            verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
-        ) {
-            Spacer(Modifier.height(AppTheme.spacing.xs))
+    Column(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState),
+        verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
+    ) {
+        Spacer(Modifier.height(AppTheme.spacing.xs))
 
-            HeaderRow(
-                title = title,
-                onBack = onClose,
-            )
-
-            OutlinedTextField(
-                value = form.name,
-                onValueChange = { form = form.copy(name = it) },
-                label = { Text("Name") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-            )
-
-            ServerForm(
-                state = form,
-                onStateChange = { form = it },
-            )
-        }
-
-        Row(
-            modifier =
-                Modifier
-                    .align(Alignment.BottomEnd),
-            horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm),
-            verticalAlignment = Alignment.CenterVertically,
+        EditorHeaderRow(
+            title = title,
+            onBack = onClose,
         ) {
             AppSecondaryButton(
                 onClick = onClose,
@@ -180,25 +153,18 @@ fun ServerEditorScreen(
                 Text(primaryActionLabel, style = MaterialTheme.typography.labelSmall)
             }
         }
-    }
-}
 
-@Composable
-private fun HeaderRow(
-    title: String,
-    onBack: () -> Unit,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm),
-    ) {
-        IconButton(onClick = onBack) {
-            Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back")
-        }
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleLarge,
+        OutlinedTextField(
+            value = form.name,
+            onValueChange = { form = form.copy(name = it) },
+            label = { Text("Name") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+        )
+
+        ServerForm(
+            state = form,
+            onStateChange = { form = it },
         )
     }
 }

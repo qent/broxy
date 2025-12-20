@@ -2,7 +2,6 @@ package io.qent.broxy.ui.components
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -133,12 +132,10 @@ fun ServerForm(
         Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
     ) {
-        FormSection(title = "Transport") {
-            TransportSelector(
-                selected = state.transportType,
-                onSelected = { onStateChange(state.copy(transportType = it)) },
-            )
-        }
+        TransportSelector(
+            selected = state.transportType,
+            onSelected = { onStateChange(state.copy(transportType = it)) },
+        )
 
         when (state.transportType) {
             "STDIO" -> StdIoFields(state, onStateChange)
@@ -163,24 +160,24 @@ private fun StdIoFields(
     onStateChange: (ServerFormState) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)) {
-        OutlinedTextField(
+        TransportTextField(
             value = state.command,
             onValueChange = { onStateChange(state.copy(command = it)) },
-            label = { Text("Command") },
+            label = "Command",
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
         )
-        OutlinedTextField(
+        TransportTextField(
             value = state.args,
             onValueChange = { onStateChange(state.copy(args = it)) },
-            label = { Text("Args (comma-separated)") },
+            label = "Args (comma-separated)",
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
         )
-        OutlinedTextField(
+        TransportTextField(
             value = state.env,
             onValueChange = { onStateChange(state.copy(env = it)) },
-            label = { Text("Env (key:value per line, values may use {ENV_VAR})") },
+            label = "Env (key:value per line, values may use {ENV_VAR})",
             modifier = Modifier.fillMaxWidth(),
             minLines = 4,
         )
@@ -194,17 +191,17 @@ private fun HttpFields(
     isStreamable: Boolean,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)) {
-        OutlinedTextField(
+        TransportTextField(
             value = state.url,
             onValueChange = { onStateChange(state.copy(url = it)) },
-            label = { Text(if (isStreamable) "HTTP Streamable URL" else "HTTP SSE URL") },
+            label = if (isStreamable) "HTTP Streamable URL" else "HTTP SSE URL",
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
         )
-        OutlinedTextField(
+        TransportTextField(
             value = state.headers,
             onValueChange = { onStateChange(state.copy(headers = it)) },
-            label = { Text("Headers (key:value per line)") },
+            label = "Headers (key:value per line)",
             modifier = Modifier.fillMaxWidth(),
             minLines = 3,
         )
@@ -216,10 +213,10 @@ private fun WebSocketFields(
     state: ServerFormState,
     onStateChange: (ServerFormState) -> Unit,
 ) {
-    OutlinedTextField(
+    TransportTextField(
         value = state.url,
         onValueChange = { onStateChange(state.copy(url = it)) },
-        label = { Text("WebSocket URL") },
+        label = "WebSocket URL",
         modifier = Modifier.fillMaxWidth(),
         singleLine = true,
     )
@@ -308,44 +305,22 @@ private fun RowScope.TransportOptionCard(
 }
 
 @Composable
-private fun FormSection(
-    title: String,
-    content: @Composable ColumnScope.() -> Unit,
+private fun TransportTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    modifier: Modifier = Modifier,
+    singleLine: Boolean = false,
+    minLines: Int = 1,
 ) {
-    androidx.compose.material3.Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-        shape = AppTheme.shapes.item,
-    ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            Text(
-                text = title,
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(start = AppTheme.spacing.md, end = AppTheme.spacing.md, top = AppTheme.spacing.md),
-                style = MaterialTheme.typography.labelLarge,
-            )
-            FormDivider()
-            Column(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = AppTheme.spacing.md, vertical = AppTheme.spacing.md),
-                verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm),
-                content = content,
-            )
-        }
-    }
-}
-
-@Composable
-private fun FormDivider() {
-    HorizontalDivider(
-        modifier = Modifier.fillMaxWidth(),
-        thickness = AppTheme.strokeWidths.hairline,
-        color = MaterialTheme.colorScheme.outlineVariant,
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(label, style = MaterialTheme.typography.labelSmall) },
+        modifier = modifier,
+        singleLine = singleLine,
+        minLines = minLines,
+        textStyle = MaterialTheme.typography.bodySmall,
     )
 }
 
