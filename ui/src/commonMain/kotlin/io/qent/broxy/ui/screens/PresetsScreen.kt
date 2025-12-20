@@ -83,7 +83,7 @@ fun PresetsScreen(
                         LazyColumn(
                             modifier = Modifier.weight(1f, fill = true),
                             verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
-                            contentPadding = PaddingValues(bottom = PresetListBottomPadding),
+                            contentPadding = PaddingValues(bottom = AppTheme.spacing.fab),
                         ) {
                             items(filtered, key = { it.id }) { preset ->
                                 PresetCard(
@@ -100,8 +100,6 @@ fun PresetsScreen(
                     }
                 }
             }
-
-            Spacer(Modifier.height(AppTheme.spacing.md))
         }
 
         val readyUi = ui as? UIState.Ready
@@ -200,5 +198,3 @@ private fun EmptyState(
         Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
-
-private val PresetListBottomPadding = 88.dp

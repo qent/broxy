@@ -91,6 +91,7 @@ data class AppSpacing(
     val xl: Dp = 24.dp,
     val xxl: Dp = 32.dp,
     val gutter: Dp = 40.dp,
+    val fab: Dp = 88.dp,
 )
 
 data class AppRadii(

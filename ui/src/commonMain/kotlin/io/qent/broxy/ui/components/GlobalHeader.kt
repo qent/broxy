@@ -48,7 +48,12 @@ fun GlobalHeader(
         expandedHeight = GLOBAL_HEADER_HEIGHT,
         colors = colors,
         title = {
-            PresetDropdown(ui = ui, notify = notify, width = PRESET_SELECTOR_WIDTH)
+            Box(
+                modifier = Modifier.fillMaxHeight(),
+                contentAlignment = Alignment.Center,
+            ) {
+                PresetDropdown(ui = ui, notify = notify, width = PRESET_SELECTOR_WIDTH)
+            }
         },
         actions = {
             if (ui is UIState.Ready && ui.remoteEnabled) {

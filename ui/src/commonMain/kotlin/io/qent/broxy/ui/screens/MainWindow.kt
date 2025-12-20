@@ -5,12 +5,15 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import io.qent.broxy.ui.adapter.store.AppStore
@@ -37,6 +40,7 @@ fun MainWindow(
         val snackbarHostState = remember { SnackbarHostState() }
         val scope = rememberCoroutineScope()
         val notify: (String) -> Unit = { msg -> scope.launch { snackbarHostState.showSnackbar(msg) } }
+        val settingsFabState = remember { mutableStateOf<SettingsFabState?>(null) }
 
         // Basic mapping: show snackbar on adapter Error state
         if (ui is UIState.Error) {
@@ -101,7 +105,21 @@ fun MainWindow(
                         }
                     }
 
-                    else -> {}
+                    Screen.Settings -> {
+                        val fabState = settingsFabState.value
+                        if (fabState != null) {
+                            FloatingActionButton(
+                                onClick = {
+                                    if (fabState.enabled) {
+                                        fabState.onClick()
+                                    }
+                                },
+                                modifier = Modifier.alpha(if (fabState.enabled) 1f else 0.5f),
+                            ) {
+                                Icon(Icons.Outlined.Save, contentDescription = "Save settings")
+                            }
+                        }
+                    }
                 }
             },
         ) { padding ->
@@ -140,6 +158,7 @@ fun MainWindow(
                                     ui = ui,
                                     themeStyle = state.themeStyle.value,
                                     onThemeStyleChange = { state.themeStyle.value = it },
+                                    onFabStateChange = { settingsFabState.value = it },
                                     notify = notify,
                                 )
                         }

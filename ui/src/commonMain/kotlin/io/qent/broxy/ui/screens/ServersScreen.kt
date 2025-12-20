@@ -103,7 +103,7 @@ fun ServersScreen(
                         LazyColumn(
                             modifier = Modifier.weight(1f, fill = true),
                             verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
-                            contentPadding = PaddingValues(bottom = ServerListBottomPadding),
+                            contentPadding = PaddingValues(bottom = AppTheme.spacing.fab),
                         ) {
                             items(filtered, key = { it.id }) { cfg ->
                                 ServerCard(
@@ -123,8 +123,6 @@ fun ServersScreen(
                     }
                 }
             }
-
-            Spacer(Modifier.height(AppTheme.spacing.md))
         }
 
         val readyUi = ui as? UIState.Ready
@@ -306,5 +304,3 @@ private fun EmptyState(
         Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
-
-private val ServerListBottomPadding = 88.dp

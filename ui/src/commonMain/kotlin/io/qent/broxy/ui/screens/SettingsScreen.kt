@@ -21,22 +21,41 @@ import io.qent.broxy.ui.adapter.store.UIState
 import io.qent.broxy.ui.theme.AppTheme
 import io.qent.broxy.ui.theme.ThemeStyle
 
+@Immutable
+data class SettingsFabState(
+    val enabled: Boolean,
+    val onClick: () -> Unit,
+)
+
 @Composable
 fun SettingsScreen(
     ui: UIState,
     themeStyle: ThemeStyle,
     onThemeStyleChange: (ThemeStyle) -> Unit,
+    onFabStateChange: (SettingsFabState) -> Unit,
     notify: (String) -> Unit = {},
 ) {
-    Box(modifier = Modifier.fillMaxSize().padding(horizontal = AppTheme.spacing.md)) {
+    Box(modifier = Modifier.fillMaxSize()) {
         when (ui) {
-            UIState.Loading -> Text("Loading...", style = MaterialTheme.typography.bodyMedium)
-            is UIState.Error -> Text("Error: ${ui.message}", style = MaterialTheme.typography.bodyMedium)
+            UIState.Loading ->
+                Text(
+                    "Loading...",
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(horizontal = AppTheme.spacing.md),
+                )
+            is UIState.Error ->
+                Text(
+                    "Error: ${ui.message}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(horizontal = AppTheme.spacing.md),
+                )
             is UIState.Ready ->
                 SettingsContent(
                     modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(horizontal = AppTheme.spacing.md),
                     themeStyle = themeStyle,
                     onThemeStyleChange = onThemeStyleChange,
+                    onFabStateChange = onFabStateChange,
                     requestTimeoutSeconds = ui.requestTimeoutSeconds,
                     capabilitiesTimeoutSeconds = ui.capabilitiesTimeoutSeconds,
                     capabilitiesRefreshIntervalSeconds = ui.capabilitiesRefreshIntervalSeconds,
@@ -74,8 +93,10 @@ fun SettingsScreen(
 @Composable
 private fun SettingsContent(
     modifier: Modifier = Modifier,
+    contentPadding: PaddingValues,
     themeStyle: ThemeStyle,
     onThemeStyleChange: (ThemeStyle) -> Unit,
+    onFabStateChange: (SettingsFabState) -> Unit,
     requestTimeoutSeconds: Int,
     capabilitiesTimeoutSeconds: Int,
     capabilitiesRefreshIntervalSeconds: Int,
@@ -136,8 +157,31 @@ private fun SettingsContent(
     val canSaveAny = canSaveRequest || canSaveCapabilities || canSaveRefresh || canSavePort
 
     val scrollState = rememberScrollState()
-    val saveButtonHeight = 32.dp
-    val contentBottomPadding = AppTheme.spacing.lg + saveButtonHeight + AppTheme.spacing.md
+    val onSave: () -> Unit = onSave@{
+        if (!canSaveAny) return@onSave
+        if (canSaveRequest) {
+            resolvedRequest?.let { onRequestTimeoutSave(it) }
+        }
+        if (canSaveCapabilities) {
+            resolvedCapabilities?.let { onCapabilitiesTimeoutSave(it) }
+        }
+        if (canSaveRefresh) {
+            resolvedRefresh?.let { onCapabilitiesRefreshIntervalSave(it) }
+        }
+        if (canSavePort) {
+            resolvedPort?.let { onInboundSsePortSave(it) }
+        }
+    }
+
+    LaunchedEffect(
+        canSaveAny,
+        resolvedRequest,
+        resolvedCapabilities,
+        resolvedRefresh,
+        resolvedPort,
+    ) {
+        onFabStateChange(SettingsFabState(enabled = canSaveAny, onClick = onSave))
+    }
 
     Box(modifier = modifier) {
         Column(
@@ -145,7 +189,8 @@ private fun SettingsContent(
                 Modifier
                     .fillMaxSize()
                     .verticalScroll(scrollState)
-                    .padding(bottom = contentBottomPadding),
+                    .padding(contentPadding)
+                    .padding(bottom = AppTheme.spacing.fab),
             verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
         ) {
             Spacer(Modifier.height(AppTheme.spacing.sm))
@@ -195,30 +240,6 @@ private fun SettingsContent(
                     }
                 },
             )
-            Spacer(Modifier.height(AppTheme.spacing.md))
-        }
-
-        Box(Modifier.padding(vertical = AppTheme.spacing.md).align(Alignment.BottomEnd)) {
-            AppPrimaryButton(
-                onClick = {
-                    if (canSaveRequest) {
-                        resolvedRequest?.let { onRequestTimeoutSave(it) }
-                    }
-                    if (canSaveCapabilities) {
-                        resolvedCapabilities?.let { onCapabilitiesTimeoutSave(it) }
-                    }
-                    if (canSaveRefresh) {
-                        resolvedRefresh?.let { onCapabilitiesRefreshIntervalSave(it) }
-                    }
-                    if (canSavePort) {
-                        resolvedPort?.let { onInboundSsePortSave(it) }
-                    }
-                },
-                enabled = canSaveAny,
-                modifier = Modifier.height(saveButtonHeight),
-            ) {
-                Text("Save", style = MaterialTheme.typography.labelSmall)
-            }
         }
     }
 }
