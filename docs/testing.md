@@ -34,11 +34,6 @@ Running tests:
 - `./gradlew :cli:integrationTest` runs CLI integration tests (STDIO + Streamable HTTP).
 - `./gradlew :test-mcp-server:selfCheck` runs the test MCP server self-check (STDIO, Streamable HTTP, HTTP SSE, WebSocket).
 
-bro-cloud tests:
-
-- Remote auth/WebSocket tests live in the private `bro-cloud` build.
-- Run `./gradlew -p bro-cloud test` from a private checkout of the module.
-
 Static analysis and coverage:
 
 - `./gradlew ktlintCheck` enforces Kotlin formatting.

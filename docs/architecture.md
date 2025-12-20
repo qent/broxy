@@ -47,18 +47,6 @@ Presentation layer without Compose dependencies: state, intents, and background 
     - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/RemoteConnectorFactoryJvm.kt`
     - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/BroCloudRemoteConnectorAdapter.kt`
 
-### `bro-cloud/` (private backend integration)
-
-Remote OAuth + WebSocket integration packaged as a separate Gradle build and distributed as an obfuscated jar.
-The module is standalone and does not depend on the main broxy modules.
-
-- Remote controller + OAuth:
-    - `bro-cloud/src/main/kotlin/io/qent/broxy/ui/adapter/remote/RemoteConnectorImpl.kt`
-    - `bro-cloud/src/main/kotlin/io/qent/broxy/ui/adapter/remote/auth/LoopbackCallbackServer.kt`
-- WebSocket transport:
-    - `bro-cloud/src/main/kotlin/io/qent/broxy/ui/adapter/remote/ws/RemoteWsClient.kt`
-    - `bro-cloud/src/main/kotlin/io/qent/broxy/ui/adapter/remote/ws/ProxyWebSocketTransport.kt`
-
 ### `ui/` (Compose Desktop, thin UI)
 
 UI renders `UIState` and calls intents, with no direct dependency on `core`.
@@ -116,8 +104,3 @@ sequenceDiagram
 - `preset_*.json` change -> `onPresetChanged(...)` -> `ProxyLifecycle.applyPreset(...)`.
 
 Inbound does not restart; the SDK server is re-synced with the new filtered capabilities.
-
-### 4) Remote mode (UI): OAuth + WebSocket
-
-UI adapter performs OAuth and registers a `serverIdentifier` on `broxy.run`, then opens a WebSocket
-connection that carries MCP JSON-RPC sessions (see `docs/remote_auth_and_websocket.md`).

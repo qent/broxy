@@ -317,14 +317,6 @@ class CapabilitiesCache {
 - `cli` is built via the `shadowJar` fat-jar task, producing `broxy-cli` output.
 - `./gradlew build` runs module tests and produces artifacts.
 
-## bro-cloud build modes
-
-- Default repo state: backend integration disabled (`broCloudEnabled=false`).
-- No backend integration: `-PbroCloudEnabled=false` (no remote auth/WebSocket features).
-- Local source integration: `-PbroCloudEnabled=true -PbroCloudUseLocal=true` (composite build from `bro-cloud/`).
-- Obfuscated jar integration: `-PbroCloudEnabled=true -PbroCloudUseLocal=false` (loads
-  `bro-cloud/libs/bro-cloud-obfuscated.jar`).
-
 ## Testing
 
 - Tests live in `core/src/jvmTest` and `ui-adapter/src/jvmTest`.

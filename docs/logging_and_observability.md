@@ -93,21 +93,6 @@ File:
 
 These help diagnose missing or stale capabilities.
 
-### Remote WebSocket: JSON-RPC summaries
-
-File:
-
-- `bro-cloud/src/main/kotlin/io/qent/broxy/ui/adapter/remote/ws/ProxyWebSocketTransport.kt`
-
-`describeJsonRpcPayload(...)` logs:
-
-- message type (request/response/notification/error)
-- id/method
-- params keys (name/uri, argument/meta keys)
-- capability counts and schema field previews
-
-See also: `docs/websocket_preset_capabilities.md`.
-
 ## Tracing guidance
 
 1) For tool call diagnostics, look for:

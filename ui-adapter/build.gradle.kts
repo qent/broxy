@@ -55,7 +55,7 @@ kotlin {
                     }
                 } else {
                     val broCloudJar =
-                        rootProject.layout.projectDirectory.file("bro-cloud/libs/bro-cloud-obfuscated.jar").asFile
+                        rootProject.layout.projectDirectory.file("lib/bro-cloud-obfuscated.jar").asFile
                     if (!broCloudJar.exists()) {
                         throw GradleException(
                             "bro-cloud obfuscated jar not found at ${broCloudJar.path}. " +
