@@ -9,6 +9,7 @@ Required rules for any agent:
    files and the link list if needed.
 3. Before finishing any task, run all required checks and fix every finding. Generated code must meet the
    highest quality standards for this project (formatting, static analysis, tests, and coverage).
+4. All documentation files under `docs/` must use lowercase filenames (rename legacy uppercase files as needed).
 
 Key documents:
 
@@ -313,8 +314,16 @@ class CapabilitiesCache {
 - Modules: `core`, `ui-adapter`, `ui`, `cli` (see `settings.gradle.kts`).
 - Key dependencies: MCP Kotlin SDK (`io.modelcontextprotocol:kotlin-sdk`), Ktor server/client,
   Compose Multiplatform `material3`, Clikt CLI. Versions are centralized in `gradle.properties`.
-- `cli` is built via ShadowJar, producing `broxy-cli` fat jar.
+- `cli` is built via the `shadowJar` fat-jar task, producing `broxy-cli` output.
 - `./gradlew build` runs module tests and produces artifacts.
+
+## bro-cloud build modes
+
+- Default repo state: backend integration disabled (`broCloudEnabled=false`).
+- No backend integration: `-PbroCloudEnabled=false` (no remote auth/WebSocket features).
+- Local source integration: `-PbroCloudEnabled=true -PbroCloudUseLocal=true` (composite build from `bro-cloud/`).
+- Obfuscated jar integration: `-PbroCloudEnabled=true -PbroCloudUseLocal=false` (loads
+  `bro-cloud/libs/bro-cloud-obfuscated.jar`).
 
 ## Testing
 

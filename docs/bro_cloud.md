@@ -15,7 +15,7 @@ This public repo integrates it in two ways:
 
 The integration is controlled by Gradle properties (see `gradle.properties`):
 
-- `broCloudEnabled` (default `true`) - enable/disable backend integration.
+- `broCloudEnabled` (default `false`) - enable/disable backend integration.
 - `broCloudUseLocal` (default `false`) - use local `bro-cloud/` sources via composite build.
 
 When `broCloudEnabled=false`, the UI hides remote actions and runtime uses a no-op connector.

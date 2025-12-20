@@ -1,9 +1,10 @@
-import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import org.gradle.api.tasks.SourceSetContainer
+import org.gradle.jvm.tasks.Jar
+import java.io.File
+import java.util.jar.JarFile
 
 plugins {
     kotlin("jvm")
-    application
-    id("com.github.johnrengelman.shadow")
 }
 
 kotlin {
@@ -19,34 +20,130 @@ dependencies {
     testImplementation(kotlin("test"))
 }
 
-application {
-    mainClass.set("io.qent.broxy.cli.MainKt")
-}
+val mainClassName = "io.qent.broxy.cli.MainKt"
+val sourceSets = extensions.getByType(SourceSetContainer::class.java)
+val mainSourceSet = sourceSets["main"]
+val mergedServicesDir = layout.buildDirectory.dir("generated/merged-services")
 
-tasks.withType<ShadowJar>().configureEach {
-    archiveBaseName.set("broxy-cli")
-    archiveClassifier.set("")
-    mergeServiceFiles()
-    manifest {
-        attributes["Main-Class"] = application.mainClass.get()
+val mergeServiceFiles =
+    tasks.register("mergeServiceFiles") {
+        inputs.files(configurations.runtimeClasspath)
+        inputs.files(mainSourceSet.output)
+        outputs.dir(mergedServicesDir)
+
+        doLast {
+            val outputRoot = mergedServicesDir.get().asFile
+            if (outputRoot.exists()) {
+                outputRoot.deleteRecursively()
+            }
+            outputRoot.mkdirs()
+
+            val merged = linkedMapOf<String, LinkedHashSet<String>>()
+
+            fun addLines(
+                path: String,
+                lines: List<String>,
+            ) {
+                val filtered =
+                    lines
+                        .map { it.trim() }
+                        .filter { it.isNotEmpty() && !it.startsWith("#") }
+                if (filtered.isEmpty()) {
+                    return
+                }
+                val target = merged.getOrPut(path) { LinkedHashSet() }
+                filtered.forEach { target.add(it) }
+            }
+
+            fun scanDirectory(root: File) {
+                val servicesRoot = root.resolve("META-INF/services")
+                if (!servicesRoot.exists()) {
+                    return
+                }
+                servicesRoot
+                    .walkTopDown()
+                    .filter { it.isFile }
+                    .forEach { file ->
+                        val relative =
+                            servicesRoot.toPath().relativize(file.toPath()).toString()
+                                .replace(File.separatorChar, '/')
+                        addLines("META-INF/services/$relative", file.readLines())
+                    }
+            }
+
+            fun scanJar(jar: File) {
+                JarFile(jar).use { jarFile ->
+                    jarFile.entries().asSequence()
+                        .filter { !it.isDirectory && it.name.startsWith("META-INF/services/") }
+                        .forEach { entry ->
+                            val lines = jarFile.getInputStream(entry).bufferedReader().readLines()
+                            addLines(entry.name, lines)
+                        }
+                }
+            }
+
+            val inputsToScan = mutableListOf<File>()
+            inputsToScan.addAll(mainSourceSet.output.files)
+            inputsToScan.addAll(configurations.runtimeClasspath.get().files)
+
+            inputsToScan.forEach { file ->
+                when {
+                    file.isDirectory -> scanDirectory(file)
+                    file.isFile && file.extension == "jar" -> scanJar(file)
+                }
+            }
+
+            merged.forEach { (path, providers) ->
+                val outFile = File(outputRoot, path)
+                outFile.parentFile.mkdirs()
+                outFile.writeText(providers.joinToString("\n", postfix = "\n"))
+            }
+        }
     }
-}
+
+val shadowJarTask =
+    tasks.register<Jar>("shadowJar") {
+        archiveBaseName.set("broxy-cli")
+        archiveClassifier.set("")
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+        manifest {
+            attributes["Main-Class"] = mainClassName
+        }
+
+        from(mainSourceSet.output) {
+            exclude("META-INF/services/**")
+        }
+        from({
+            configurations.runtimeClasspath.get().map { dependency ->
+                if (dependency.isDirectory) {
+                    dependency
+                } else {
+                    zipTree(dependency)
+                }
+            }
+        }) {
+            exclude("META-INF/services/**")
+            exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA")
+        }
+
+        dependsOn(mergeServiceFiles)
+        from(mergedServicesDir) {
+            include("META-INF/services/**")
+        }
+    }
 
 tasks.named("build") {
-    dependsOn(tasks.named("shadowJar"))
+    dependsOn(shadowJarTask)
 }
 
-val sourceSets = extensions.getByType(SourceSetContainer::class.java)
 val integrationTestSourceSet =
     sourceSets.create("integrationTest") {
-        compileClasspath += sourceSets["main"].output + configurations["testRuntimeClasspath"]
+        compileClasspath += mainSourceSet.output + configurations["testRuntimeClasspath"]
         runtimeClasspath += output + compileClasspath
     }
 
 configurations["integrationTestImplementation"].extendsFrom(configurations["testImplementation"])
 configurations["integrationTestRuntimeOnly"].extendsFrom(configurations["testRuntimeOnly"])
-
-val shadowJarTask = tasks.named<ShadowJar>("shadowJar")
 
 val testServerProject = project(":test-mcp-server")
 val testServerHome = testServerProject.layout.buildDirectory.dir("install/test-mcp-server")

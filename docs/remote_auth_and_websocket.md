@@ -15,7 +15,7 @@ Key idea:
 Remote backend integration is implemented in the private `bro-cloud` build. It is wired via a JVM adapter in
 `ui-adapter` and controlled by Gradle properties:
 
-- `broCloudEnabled` (default `true`) - enables/disables remote auth + WebSocket integration.
+- `broCloudEnabled` (default `false`) - enables/disables remote auth + WebSocket integration.
 - `broCloudUseLocal` (default `false`) - use local `bro-cloud/` sources via composite build; otherwise load
   the obfuscated jar from `bro-cloud/libs/bro-cloud-obfuscated.jar`.
 

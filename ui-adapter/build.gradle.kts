@@ -6,7 +6,7 @@ plugins {
     kotlin("plugin.serialization")
 }
 
-val broCloudEnabled = providers.gradleProperty("broCloudEnabled").orNull?.toBoolean() ?: true
+val broCloudEnabled = providers.gradleProperty("broCloudEnabled").orNull?.toBoolean() ?: false
 val broCloudUseLocal = providers.gradleProperty("broCloudUseLocal").orNull?.toBoolean() ?: false
 val projectVersion: String by project
 

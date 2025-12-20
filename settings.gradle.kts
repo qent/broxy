@@ -6,7 +6,6 @@ pluginManagement {
     }
     val kotlinVersion: String by settings
     val composePluginVersion: String by settings
-    val shadowVersion: String by settings
     val detektVersion: String by settings
     val ktlintVersion: String by settings
     val koverVersion: String by settings
@@ -16,7 +15,6 @@ pluginManagement {
         kotlin("plugin.serialization") version kotlinVersion
         id("org.jetbrains.kotlin.plugin.compose") version kotlinVersion
         id("org.jetbrains.compose") version composePluginVersion
-        id("com.github.johnrengelman.shadow") version shadowVersion
         id("io.gitlab.arturbosch.detekt") version detektVersion
         id("org.jlleitschuh.gradle.ktlint") version ktlintVersion
         id("org.jetbrains.kotlinx.kover") version koverVersion
@@ -33,7 +31,7 @@ include(
     "test-mcp-server"
 )
 
-val broCloudEnabled = providers.gradleProperty("broCloudEnabled").orNull?.toBoolean() ?: true
+val broCloudEnabled = providers.gradleProperty("broCloudEnabled").orNull?.toBoolean() ?: false
 val broCloudUseLocal = providers.gradleProperty("broCloudUseLocal").orNull?.toBoolean() ?: false
 
 if (broCloudEnabled && broCloudUseLocal) {
