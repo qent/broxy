@@ -1,0 +1,7 @@
+<svg width="140" height="36" viewBox="0 0 140 36" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Broxy">
+  <rect x="0" y="0" width="36" height="36" rx="10" fill="#0b7285" />
+  <rect x="10" y="8" width="6" height="20" rx="3" fill="#ffffff" />
+  <path d="M16 8h10a6 6 0 0 1 0 12H16z" fill="#ffffff" />
+  <path d="M16 18h12a6 6 0 0 1 0 12H16z" fill="#bfe8f0" />
+  <text x="48" y="24" font-family="'Space Grotesk', Arial, sans-serif" font-size="18" font-weight="700" fill="#0b0f14">broxy</text>
+</svg>
