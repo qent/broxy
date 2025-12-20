@@ -33,6 +33,7 @@ internal class BroCloudRemoteConnectorAdapter(
 
     private val _state = MutableStateFlow(cloudConnector.state.value.toUiState())
     override val state: StateFlow<UiRemoteConnectionState> = _state
+    override val isEnabled: Boolean = true
 
     init {
         scope.launch {

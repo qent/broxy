@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.StateFlow
 
 interface RemoteConnector {
     val state: StateFlow<UiRemoteConnectionState>
+    val isEnabled: Boolean
 
     fun start()
 
@@ -25,6 +26,7 @@ class NoOpRemoteConnector(
 ) : RemoteConnector {
     private val _state = MutableStateFlow(initial)
     override val state: StateFlow<UiRemoteConnectionState> = _state
+    override val isEnabled: Boolean = false
 
     override fun start() {}
 

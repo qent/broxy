@@ -64,7 +64,7 @@ class AppStore(
     private val _state = MutableStateFlow<UIState>(UIState.Loading)
     val state: StateFlow<UIState> = _state
 
-    private var snapshot = StoreSnapshot()
+    private var snapshot = StoreSnapshot(remoteEnabled = remoteConnector.isEnabled)
 
     private val stateAccess =
         StoreStateAccess(

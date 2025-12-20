@@ -46,6 +46,7 @@ Presentation layer without Compose dependencies: state, intents, and background 
     - `ui-adapter/src/commonMain/kotlin/io/qent/broxy/ui/adapter/remote/RemoteConnector.kt`
     - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/RemoteConnectorFactoryJvm.kt`
     - `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/BroCloudRemoteConnectorAdapter.kt`
+    - UI hides remote controls when the remote connector is unavailable.
 
 ### `ui/` (Compose Desktop, thin UI)
 
