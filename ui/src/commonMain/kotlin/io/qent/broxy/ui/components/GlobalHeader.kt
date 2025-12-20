@@ -8,18 +8,28 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.ExpandMore
+import androidx.compose.material.icons.outlined.Link
+import androidx.compose.material.icons.outlined.LinkOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import io.qent.broxy.ui.adapter.models.UiRemoteConnectionState
+import io.qent.broxy.ui.adapter.models.UiRemoteStatus
+import io.qent.broxy.ui.adapter.store.Intents
 import io.qent.broxy.ui.adapter.store.UIState
 import io.qent.broxy.ui.theme.AppTheme
 
@@ -40,7 +50,121 @@ fun GlobalHeader(
         title = {
             PresetDropdown(ui = ui, notify = notify, width = PRESET_SELECTOR_WIDTH)
         },
-        actions = {},
+        actions = {
+            if (ui is UIState.Ready) {
+                RemoteHeaderActions(remote = ui.remote, intents = ui.intents)
+            }
+        },
+    )
+}
+
+@Composable
+private fun RemoteHeaderActions(
+    remote: UiRemoteConnectionState,
+    intents: Intents,
+    modifier: Modifier = Modifier,
+) {
+    val isAuthorized = remote.hasCredentials
+    val isBusy = remote.status in setOf(UiRemoteStatus.Authorizing, UiRemoteStatus.Registering)
+    val isConnected = remote.status == UiRemoteStatus.WsOnline || remote.status == UiRemoteStatus.WsConnecting
+
+    if (!isAuthorized) {
+        GradientAuthButton(
+            onClick = { intents.startRemoteAuthorization() },
+            enabled = !isBusy,
+            modifier = modifier.padding(end = AppTheme.spacing.sm),
+        )
+        return
+    }
+
+    Row(
+        modifier = modifier.padding(end = AppTheme.spacing.xs),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.xs),
+    ) {
+        ConnectionStatusDot(status = remote.status)
+        IconButton(
+            onClick = { if (isConnected) intents.disconnectRemote() else intents.connectRemote() },
+            enabled = !isBusy,
+        ) {
+            Icon(
+                imageVector = if (isConnected) Icons.Outlined.LinkOff else Icons.Outlined.Link,
+                contentDescription = if (isConnected) "Disconnect remote" else "Connect remote",
+            )
+        }
+        IconButton(
+            onClick = { intents.logoutRemote() },
+            enabled = !isBusy,
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Outlined.Logout,
+                contentDescription = "Logout remote",
+            )
+        }
+    }
+}
+
+@Composable
+private fun GradientAuthButton(
+    onClick: () -> Unit,
+    enabled: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val gradient =
+        Brush.horizontalGradient(
+            listOf(
+                Color(0xFF38BDF8),
+                Color(0xFF22D3EE),
+                Color(0xFF34D399),
+            ),
+        )
+    val shape = AppTheme.shapes.pill
+    val alpha = if (enabled) 1f else 0.6f
+
+    Surface(
+        onClick = onClick,
+        enabled = enabled,
+        shape = shape,
+        color = Color.Transparent,
+        contentColor = Color.White,
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp,
+        modifier = modifier.height(32.dp),
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .alpha(alpha)
+                    .background(brush = gradient, shape = shape)
+                    .padding(horizontal = AppTheme.spacing.md, vertical = AppTheme.spacing.xs),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text("Authorize", style = MaterialTheme.typography.labelSmall)
+        }
+    }
+}
+
+@Composable
+private fun ConnectionStatusDot(
+    status: UiRemoteStatus,
+    modifier: Modifier = Modifier,
+) {
+    val color =
+        when (status) {
+            UiRemoteStatus.WsOnline -> AppTheme.extendedColors.success
+            UiRemoteStatus.WsConnecting -> Color(0xFFF59E0B)
+            UiRemoteStatus.WsOffline, UiRemoteStatus.Error -> MaterialTheme.colorScheme.error
+            UiRemoteStatus.Registered -> MaterialTheme.colorScheme.onSurfaceVariant
+            UiRemoteStatus.NotAuthorized, UiRemoteStatus.Authorizing, UiRemoteStatus.Registering ->
+                MaterialTheme.colorScheme.outline
+        }
+
+    Box(
+        modifier =
+            modifier
+                .size(10.dp)
+                .background(color, CircleShape)
+                .border(AppTheme.strokeWidths.hairline, MaterialTheme.colorScheme.outline, CircleShape),
     )
 }
 

@@ -9,8 +9,6 @@ interface RemoteConnector {
 
     fun start()
 
-    fun updateServerIdentifier(value: String)
-
     fun beginAuthorization()
 
     fun connect()
@@ -29,10 +27,6 @@ class NoOpRemoteConnector(
     override val state: StateFlow<UiRemoteConnectionState> = _state
 
     override fun start() {}
-
-    override fun updateServerIdentifier(value: String) {
-        _state.value = _state.value.copy(serverIdentifier = value)
-    }
 
     override fun beginAuthorization() {}
 

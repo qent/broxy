@@ -488,10 +488,6 @@ internal class AppStoreIntents(
         }
     }
 
-    override fun updateRemoteServerIdentifier(value: String) {
-        remoteConnector.updateServerIdentifier(value)
-    }
-
     override fun startRemoteAuthorization() {
         remoteConnector.beginAuthorization()
     }

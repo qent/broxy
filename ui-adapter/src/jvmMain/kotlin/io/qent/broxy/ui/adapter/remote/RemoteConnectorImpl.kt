@@ -46,7 +46,6 @@ import java.nio.file.Paths
 import java.time.Instant
 import java.time.format.DateTimeParseException
 import java.util.Base64
-import java.util.Locale
 import kotlin.coroutines.CoroutineContext
 
 private const val BASE_URL = "https://broxy.run"
@@ -74,7 +73,8 @@ class RemoteConnectorImpl(
     private val wsFactory: RemoteWsClientFactory = RemoteWsClientFactory(),
 ) : RemoteConnector {
     private val jsonParser = Json { ignoreUnknownKeys = true }
-    private val _state = MutableStateFlow(defaultRemoteState())
+    private val initialState = defaultRemoteState()
+    private val _state = MutableStateFlow(initialState)
     override val state: StateFlow<UiRemoteConnectionState> = _state
 
     private var cachedConfig: LoadedRemoteConfig? = null
@@ -95,10 +95,18 @@ class RemoteConnectorImpl(
                         "accessExp=${loaded.accessTokenExpiresAt}, wsExp=${loaded.wsTokenExpiresAt}",
                 )
                 logTokenSnapshot("Loaded cached tokens", loaded.accessToken, loaded.wsToken)
-                if (!hasValidAccessToken(loaded) && !hasValidWsToken(loaded)) {
+                if (hasCredentials(loaded) && !hasValidAccessToken(loaded) && !hasValidWsToken(loaded)) {
                     logger.warn("[RemoteAuth] Cached credentials are expired; clearing and waiting for authorization")
                     cachedConfig = null
                     configStore.clear()
+                    persistConfig(
+                        serverIdentifier = loaded.serverIdentifier,
+                        email = null,
+                        accessToken = null,
+                        accessTokenExpiresAt = null,
+                        wsToken = null,
+                        wsTokenExpiresAt = null,
+                    )
                     _state.value = defaultRemoteState().copy(serverIdentifier = loaded.serverIdentifier)
                     return@launch
                 }
@@ -114,35 +122,24 @@ class RemoteConnectorImpl(
                     logger.info("[RemoteAuth] Cached credentials found; waiting for MCP proxy to start before connecting")
                 }
             } else {
-                logger.debug("[RemoteAuth] No cached remote config found; awaiting manual authorization")
+                val serverIdentifier = _state.value.serverIdentifier
+                logger.info("[RemoteAuth] No cached remote config found; generated server identifier=$serverIdentifier")
+                persistConfig(
+                    serverIdentifier = serverIdentifier,
+                    email = null,
+                    accessToken = null,
+                    accessTokenExpiresAt = null,
+                    wsToken = null,
+                    wsTokenExpiresAt = null,
+                )
+                _state.value =
+                    _state.value.copy(
+                        status = UiRemoteStatus.NotAuthorized,
+                        hasCredentials = false,
+                        message = null,
+                        email = null,
+                    )
             }
-        }
-    }
-
-    override fun updateServerIdentifier(value: String) {
-        val normalized = normalizeIdentifier(value)
-        logger.info("[RemoteAuth] Updating server identifier to '$normalized'")
-        _state.value =
-            _state.value.copy(
-                serverIdentifier = normalized,
-                status = UiRemoteStatus.NotAuthorized,
-                hasCredentials = false,
-                message = null,
-                email = null,
-            )
-        scope.launch(ioContext) {
-            disconnectInternal(clearCredentials = false, reason = null)
-            cachedConfig = null
-            val current = _state.value
-            configStore.clear()
-            configStore.save(
-                serverIdentifier = current.serverIdentifier,
-                email = null,
-                accessToken = null,
-                accessTokenExpiresAt = null,
-                wsToken = null,
-                wsTokenExpiresAt = null,
-            )
         }
     }
 
@@ -378,11 +375,20 @@ class RemoteConnectorImpl(
         wsClient = null
         val hasCreds = _state.value.hasCredentials
         if (clearCredentials || !hasCreds) {
+            val serverIdentifier = _state.value.serverIdentifier
             cachedConfig = null
             configStore.clear()
+            persistConfig(
+                serverIdentifier = serverIdentifier,
+                email = null,
+                accessToken = null,
+                accessTokenExpiresAt = null,
+                wsToken = null,
+                wsTokenExpiresAt = null,
+            )
             _state.value =
                 defaultRemoteState().copy(
-                    serverIdentifier = _state.value.serverIdentifier,
+                    serverIdentifier = serverIdentifier,
                     message = reason,
                 )
             return
@@ -533,22 +539,6 @@ class RemoteConnectorImpl(
         } catch (_: DateTimeParseException) {
             null
         }
-
-    private fun normalizeIdentifier(value: String): String {
-        val normalized =
-            value.lowercase(Locale.getDefault())
-                .map { ch ->
-                    when {
-                        ch.isLetterOrDigit() -> ch
-                        ch == '-' || ch == '_' || ch == '.' -> '-'
-                        else -> '-'
-                    }
-                }
-                .joinToString("")
-                .replace(Regex("-+"), "-")
-                .trim('-')
-        return normalized.ifBlank { defaultRemoteServerIdentifier() }.take(64)
-    }
 
     private fun extractEmail(token: String): String? =
         runCatching {

@@ -68,8 +68,6 @@ interface Intents {
 
     fun openLogsFolder()
 
-    fun updateRemoteServerIdentifier(value: String)
-
     fun startRemoteAuthorization()
 
     fun connectRemote()

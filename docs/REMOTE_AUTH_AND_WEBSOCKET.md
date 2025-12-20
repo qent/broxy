@@ -41,23 +41,13 @@ UI state:
 
 ### serverIdentifier
 
-Default is computed in `defaultRemoteServerIdentifier()`:
+Default is generated in `defaultRemoteServerIdentifier()`:
 
-- format: `broxy-<host>-<os>` -> normalized to lowercase, non-alnum replaced by `-`;
-- truncated to 48 characters.
+- format: `broxy-<uuid>`;
+- lowercased and capped at 64 characters;
+- persisted to `remote.json` on first startup so it stays stable across restarts.
 
 File: `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/remote/RemoteDefaultsJvm.kt`
-
-User override:
-
-- `RemoteConnectorImpl.updateServerIdentifier(value)`:
-    - normalizes to lowercase; letters/digits are preserved, `-`/`_`/`.` are normalized to `-`, all other
-      characters become `-`;
-    - collapses multiple `-` and trims;
-    - max length 64;
-    - resets UI to `NotAuthorized`, disconnects WS, and clears stored tokens.
-
-Changing the identifier is equivalent to registering a new device.
 
 ## OAuth flow (beginAuthorization)
 

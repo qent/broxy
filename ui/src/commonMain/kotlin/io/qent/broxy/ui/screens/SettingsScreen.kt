@@ -17,8 +17,6 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import io.qent.broxy.ui.adapter.models.UiRemoteConnectionState
-import io.qent.broxy.ui.adapter.models.UiRemoteStatus
 import io.qent.broxy.ui.adapter.store.UIState
 import io.qent.broxy.ui.theme.AppTheme
 import io.qent.broxy.ui.theme.ThemeStyle
@@ -68,12 +66,6 @@ fun SettingsScreen(
                         ui.intents.openLogsFolder()
                         notify("Opening logs folder…")
                     },
-                    remote = ui.remote,
-                    onRemoteServerIdChange = { ui.intents.updateRemoteServerIdentifier(it) },
-                    onRemoteAuthorize = { ui.intents.startRemoteAuthorization() },
-                    onRemoteConnect = { ui.intents.connectRemote() },
-                    onRemoteDisconnect = { ui.intents.disconnectRemote() },
-                    onRemoteLogout = { ui.intents.logoutRemote() },
                 )
         }
     }
@@ -95,12 +87,6 @@ private fun SettingsContent(
     onCapabilitiesRefreshIntervalSave: (Int) -> Unit,
     onToggleTrayIcon: (Boolean) -> Unit,
     onOpenLogsFolder: () -> Unit,
-    remote: UiRemoteConnectionState,
-    onRemoteServerIdChange: (String) -> Unit,
-    onRemoteAuthorize: () -> Unit,
-    onRemoteConnect: () -> Unit,
-    onRemoteDisconnect: () -> Unit,
-    onRemoteLogout: () -> Unit,
 ) {
     var requestTimeoutInput by rememberSaveable(requestTimeoutSeconds) { mutableStateOf(requestTimeoutSeconds.toString()) }
     var capabilitiesTimeoutInput by rememberSaveable(capabilitiesTimeoutSeconds) {
@@ -114,7 +100,6 @@ private fun SettingsContent(
         )
     }
     var inboundSsePortInput by rememberSaveable(inboundSsePort) { mutableStateOf(inboundSsePort.toString()) }
-    var remoteServerId by rememberSaveable(remote.serverIdentifier) { mutableStateOf(remote.serverIdentifier) }
 
     LaunchedEffect(requestTimeoutSeconds) {
         requestTimeoutInput = requestTimeoutSeconds.toString()
@@ -130,10 +115,6 @@ private fun SettingsContent(
 
     LaunchedEffect(inboundSsePort) {
         inboundSsePortInput = inboundSsePort.toString()
-    }
-
-    LaunchedEffect(remote.serverIdentifier) {
-        remoteServerId = remote.serverIdentifier
     }
 
     val parsedRequest = requestTimeoutInput.toLongOrNull()
@@ -174,20 +155,6 @@ private fun SettingsContent(
             )
             TrayIconSetting(checked = showTrayIcon, onToggle = onToggleTrayIcon)
             LogsSetting(onOpenFolder = onOpenLogsFolder)
-            RemoteConnectorSetting(
-                remote = remote,
-                serverId = remoteServerId,
-                onServerIdChange = { value ->
-                    if (value.all { it.isLetterOrDigit() || it in "-._" }) {
-                        remoteServerId = value
-                        onRemoteServerIdChange(value)
-                    }
-                },
-                onAuthorize = onRemoteAuthorize,
-                onConnect = onRemoteConnect,
-                onDisconnect = onRemoteDisconnect,
-                onLogout = onRemoteLogout,
-            )
             TimeoutSetting(
                 title = "HTTP port",
                 description = "Port for the local HTTP-streamable MCP endpoint.",
@@ -531,79 +498,4 @@ private fun SettingControlBox(content: @Composable BoxScope.() -> Unit) {
         contentAlignment = Alignment.CenterEnd,
         content = content,
     )
-}
-
-@Composable
-private fun RemoteConnectorSetting(
-    remote: UiRemoteConnectionState,
-    serverId: String,
-    onServerIdChange: (String) -> Unit,
-    onAuthorize: () -> Unit,
-    onConnect: () -> Unit,
-    onDisconnect: () -> Unit,
-    onLogout: () -> Unit,
-) {
-    val statusLabel =
-        when (remote.status) {
-            UiRemoteStatus.NotAuthorized -> "Not authorized"
-            UiRemoteStatus.Authorizing -> "Authorizing..."
-            UiRemoteStatus.Registering -> "Registering..."
-            UiRemoteStatus.Registered -> "Registered"
-            UiRemoteStatus.WsConnecting -> "Connecting..."
-            UiRemoteStatus.WsOnline -> "WS online"
-            UiRemoteStatus.WsOffline -> "WS offline"
-            UiRemoteStatus.Error -> "Error"
-        }
-    val statusDetail = remote.message ?: remote.email ?: ""
-    val isAuthorized = remote.hasCredentials
-    val isBusy = remote.status in setOf(UiRemoteStatus.Authorizing, UiRemoteStatus.Registering)
-    val isConnected = remote.status == UiRemoteStatus.WsOnline || remote.status == UiRemoteStatus.WsConnecting
-
-    SettingItem(
-        title = "Remote MCP proxy",
-        description = "Proxy connection status.",
-        supportingContent = {
-            Text(
-                if (statusDetail.isNotBlank()) "$statusLabel — $statusDetail" else statusLabel,
-                style = MaterialTheme.typography.bodySmall,
-                color = if (isConnected) AppTheme.extendedColors.success else MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        },
-    ) {
-        if (isAuthorized) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.xs),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                CompactTextField(
-                    value = serverId,
-                    onValueChange = onServerIdChange,
-                    modifier = Modifier.width(SettingControlWidth),
-                    label = "Server ID",
-                )
-                AppPrimaryButton(
-                    onClick = if (isConnected) onDisconnect else onConnect,
-                    enabled = !isBusy,
-                    modifier = Modifier.width(SettingControlWidth).height(32.dp),
-                ) {
-                    Text(if (isConnected) "Disconnect" else "Connect", style = MaterialTheme.typography.labelSmall)
-                }
-                AppPrimaryButton(
-                    onClick = onLogout,
-                    enabled = !isBusy,
-                    modifier = Modifier.width(SettingControlWidth).height(32.dp),
-                ) {
-                    Text("Logout", style = MaterialTheme.typography.labelSmall)
-                }
-            }
-        } else {
-            AppPrimaryButton(
-                onClick = onAuthorize,
-                enabled = !isBusy,
-                modifier = Modifier.width(SettingControlWidth).height(32.dp),
-            ) {
-                Text("Authorize", style = MaterialTheme.typography.labelSmall)
-            }
-        }
-    }
 }
