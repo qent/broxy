@@ -1,6 +1,6 @@
 package io.qent.broxy.core.mcp.clients
 
-import io.modelcontextprotocol.kotlin.sdk.CallToolResult
+import io.modelcontextprotocol.kotlin.sdk.types.CallToolResult
 import io.qent.broxy.core.mcp.PromptDescriptor
 import io.qent.broxy.core.mcp.ResourceDescriptor
 import io.qent.broxy.core.mcp.ServerCapabilities

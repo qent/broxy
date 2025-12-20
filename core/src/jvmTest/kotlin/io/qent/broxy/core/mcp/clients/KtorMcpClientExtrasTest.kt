@@ -1,7 +1,7 @@
 package io.qent.broxy.core.mcp.clients
 
-import io.modelcontextprotocol.kotlin.sdk.GetPromptResult
-import io.modelcontextprotocol.kotlin.sdk.ReadResourceResult
+import io.modelcontextprotocol.kotlin.sdk.types.GetPromptResult
+import io.modelcontextprotocol.kotlin.sdk.types.ReadResourceResult
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonObject
 import org.mockito.kotlin.mock

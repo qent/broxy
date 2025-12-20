@@ -1,8 +1,10 @@
+@file:OptIn(kotlin.time.ExperimentalTime::class)
+
 package io.qent.broxy.core.utils
 
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.datetime.Clock
+import kotlin.time.Clock
 
 data class LogEvent(
     val timestampMillis: Long = Clock.System.now().toEpochMilliseconds(),

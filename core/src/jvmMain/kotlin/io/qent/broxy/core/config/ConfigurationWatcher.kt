@@ -16,7 +16,6 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.nio.file.StandardWatchEventKinds
-import java.nio.file.WatchEvent
 import java.nio.file.WatchService
 import kotlin.io.path.exists
 
@@ -92,8 +91,7 @@ class ConfigurationWatcher(
                         for (event in key.pollEvents()) {
                             val kind = event.kind()
                             if (kind == StandardWatchEventKinds.OVERFLOW) continue
-                            val ev = event as WatchEvent<Path>
-                            val fileName = ev.context()
+                            val fileName = event.context() as? Path ?: continue
                             val nameStr = fileName.fileName.toString()
                             if (nameStr == "mcp.json") {
                                 markConfigDirtyAndSchedule()
