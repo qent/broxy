@@ -1,7 +1,5 @@
 package io.qent.broxy.ui.screens
 
-import AppPrimaryButton
-import AppSecondaryButton
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -18,8 +16,8 @@ import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.adapter.models.UiPreset
 import io.qent.broxy.ui.adapter.store.AppStore
 import io.qent.broxy.ui.adapter.store.UIState
-import io.qent.broxy.ui.components.AppDialog
 import io.qent.broxy.ui.components.CapabilitiesInlineSummary
+import io.qent.broxy.ui.components.DeleteConfirmationDialog
 import io.qent.broxy.ui.components.SettingsLikeItem
 import io.qent.broxy.ui.theme.AppTheme
 import io.qent.broxy.ui.viewmodels.AppState
@@ -105,8 +103,12 @@ fun PresetsScreen(
         val readyUi = ui as? UIState.Ready
         val toDelete = pendingDeletion
         if (readyUi != null && toDelete != null) {
-            DeletePresetDialog(
-                preset = toDelete,
+            DeleteConfirmationDialog(
+                title = "Delete preset",
+                prompt = "Remove \"${toDelete.name}\"?",
+                description =
+                    "This preset will disappear from broxy, including the CLI shortcuts that rely on it. " +
+                        "This action cannot be undone.",
                 onConfirm = {
                     readyUi.intents.removePreset(toDelete.id)
                     pendingDeletion = null
@@ -152,32 +154,6 @@ private fun PresetCard(
                 Icons.Outlined.Delete,
                 contentDescription = "Delete preset",
                 tint = MaterialTheme.colorScheme.secondary,
-            )
-        }
-    }
-}
-
-@Composable
-private fun DeletePresetDialog(
-    preset: UiPreset,
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    AppDialog(
-        title = "Delete preset",
-        onDismissRequest = onDismiss,
-        dismissButton = { AppSecondaryButton(onClick = onDismiss) { Text("Cancel") } },
-        confirmButton = { AppPrimaryButton(onClick = onConfirm) { Text("Delete") } },
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)) {
-            Text(
-                text = "Remove \"${preset.name}\"?",
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Text(
-                text = "This preset will disappear from broxy, including the CLI shortcuts that rely on it. This action cannot be undone.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }

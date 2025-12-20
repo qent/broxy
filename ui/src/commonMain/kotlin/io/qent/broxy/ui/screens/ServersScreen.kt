@@ -1,7 +1,5 @@
 package io.qent.broxy.ui.screens
 
-import AppPrimaryButton
-import AppSecondaryButton
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -20,8 +18,8 @@ import io.qent.broxy.ui.adapter.models.UiServer
 import io.qent.broxy.ui.adapter.models.UiServerConnStatus
 import io.qent.broxy.ui.adapter.store.AppStore
 import io.qent.broxy.ui.adapter.store.UIState
-import io.qent.broxy.ui.components.AppDialog
 import io.qent.broxy.ui.components.CapabilitiesInlineSummary
+import io.qent.broxy.ui.components.DeleteConfirmationDialog
 import io.qent.broxy.ui.components.SettingsLikeItem
 import io.qent.broxy.ui.theme.AppTheme
 import io.qent.broxy.ui.viewmodels.AppState
@@ -128,8 +126,12 @@ fun ServersScreen(
         val readyUi = ui as? UIState.Ready
         val toDelete = pendingDeletion
         if (readyUi != null && toDelete != null) {
-            DeleteServerDialog(
-                server = toDelete,
+            DeleteConfirmationDialog(
+                title = "Delete server",
+                prompt = "Remove \"${toDelete.name}\"?",
+                description =
+                    "This removes the server configuration and presets that referenced it " +
+                        "will lose access to its capabilities. This action cannot be undone.",
                 onConfirm = {
                     readyUi.intents.removeServer(toDelete.id)
                     pendingDeletion = null
@@ -260,34 +262,6 @@ private fun rememberConnectingSeconds(
             delay(1_000L)
         }
     }
-
-@Composable
-private fun DeleteServerDialog(
-    server: UiServer,
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    AppDialog(
-        title = "Delete server",
-        onDismissRequest = onDismiss,
-        dismissButton = { AppSecondaryButton(onClick = onDismiss) { Text("Cancel") } },
-        confirmButton = { AppPrimaryButton(onClick = onConfirm) { Text("Delete") } },
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)) {
-            Text(
-                text = "Remove \"${server.name}\"?",
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Text(
-                text =
-                    "This removes the server configuration and presets that referenced it " +
-                        "will lose access to its capabilities. This action cannot be undone.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
 
 @Composable
 private fun EmptyState(

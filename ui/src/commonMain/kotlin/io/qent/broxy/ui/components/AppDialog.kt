@@ -15,6 +15,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -26,7 +28,9 @@ import io.qent.broxy.ui.theme.AppTheme
  * @param title Title rendered at the top of the dialog.
  * @param onDismissRequest Callback invoked when the dialog should be dismissed.
  * @param modifier Additional modifiers for the surface container.
- * @param contentPadding Padding applied around the scrollable content area.
+ * @param minWidth Minimum width for the dialog surface.
+ * @param maxWidth Maximum width for the dialog surface.
+ * @param titleStyle Typography style for the title text.
  * @param dismissButton Optional secondary action shown before the confirm button.
  * @param confirmButton Primary action placed at the end of the action row.
  * @param content Dialog body that becomes scrollable when it exceeds the max height.
@@ -36,6 +40,9 @@ fun AppDialog(
     title: String,
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
+    minWidth: Dp = AppTheme.layout.dialogMinWidth,
+    maxWidth: Dp = 640.dp,
+    titleStyle: TextStyle = MaterialTheme.typography.headlineSmall,
     dismissButton: (@Composable () -> Unit)? = null,
     confirmButton: @Composable () -> Unit,
     content: @Composable ColumnScope.() -> Unit,
@@ -55,8 +62,8 @@ fun AppDialog(
                 modifier
                     .padding(horizontal = AppTheme.spacing.xl, vertical = AppTheme.spacing.lg)
                     .widthIn(
-                        min = AppTheme.layout.dialogMinWidth,
-                        max = 640.dp,
+                        min = minWidth,
+                        max = maxWidth,
                     ),
             shape = AppTheme.shapes.dialog,
             tonalElevation = AppTheme.elevation.level3,
@@ -85,34 +92,27 @@ fun AppDialog(
                             ),
                     verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
                 ) {
-                    Text(title, style = MaterialTheme.typography.headlineSmall)
-                    Box(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .heightIn(max = AppTheme.layout.dialogMaxHeight),
+                    Text(title, style = titleStyle)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.Top,
                     ) {
-                        Row(
-                            modifier = Modifier.fillMaxSize(),
-                            verticalAlignment = Alignment.Top,
-                        ) {
-                            Column(
-                                modifier =
-                                    Modifier
-                                        .weight(1f, fill = true)
-                                        .fillMaxHeight()
-                                        .verticalScroll(scrollState),
-                                verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
-                                content = content,
+                        Column(
+                            modifier =
+                                Modifier
+                                    .weight(1f, fill = true)
+                                    .heightIn(max = AppTheme.layout.dialogMaxHeight)
+                                    .verticalScroll(scrollState),
+                            verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
+                            content = content,
+                        )
+                        if (showScrollbar) {
+                            AppVerticalScrollbar(
+                                adapter = scrollbarAdapter,
+                                modifier = Modifier.heightIn(max = AppTheme.layout.dialogMaxHeight),
+                                canScroll = showScrollbar,
+                                isScrollInProgress = scrollState.isScrollInProgress,
                             )
-                            if (showScrollbar) {
-                                AppVerticalScrollbar(
-                                    adapter = scrollbarAdapter,
-                                    modifier = Modifier.fillMaxHeight(),
-                                    canScroll = showScrollbar,
-                                    isScrollInProgress = scrollState.isScrollInProgress,
-                                )
-                            }
                         }
                     }
                 }
