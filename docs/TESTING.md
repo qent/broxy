@@ -32,7 +32,7 @@ Running tests:
 - `./gradlew testAll` runs all tests across modules (unit + integration).
 - `./gradlew allTests` is an alias for `testAll`.
 - `./gradlew :cli:integrationTest` runs CLI integration tests (STDIO + Streamable HTTP).
-- `./gradlew :test-mcp-server:selfCheck` runs the test MCP server self-check.
+- `./gradlew :test-mcp-server:selfCheck` runs the test MCP server self-check (STDIO, Streamable HTTP, HTTP SSE, WebSocket).
 
 Static analysis and coverage:
 
