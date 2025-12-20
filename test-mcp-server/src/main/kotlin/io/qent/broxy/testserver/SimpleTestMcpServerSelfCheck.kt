@@ -26,12 +26,6 @@ import kotlin.concurrent.thread
 
 private const val HTTP_PATH = "/mcp"
 private const val CLIENT_TIMEOUT_MILLIS = 15_000L
-private const val ADD_INPUT_A = 2
-private const val ADD_INPUT_B = 3
-private const val SUBTRACT_INPUT_A = 10
-private const val SUBTRACT_INPUT_B = 4
-private const val ADD_EXPECTED_RESULT = 5.0
-private const val SUBTRACT_EXPECTED_RESULT = 6.0
 private const val SERVER_START_ATTEMPTS = 100
 private const val SERVER_START_DELAY_MILLIS = 100L
 private const val SOCKET_CONNECT_TIMEOUT_MILLIS = 100
@@ -58,6 +52,12 @@ class SimpleTestMcpServerSelfCheck(
         if (!options.skipHttp) {
             verifyHttpStreamable(serverHome)
         }
+        if (!options.skipSse) {
+            verifyHttpSse(serverHome)
+        }
+        if (!options.skipWs) {
+            verifyWebSocket(serverHome)
+        }
         println("All SimpleTestMcpServer checks passed")
     }
 
@@ -69,10 +69,11 @@ class SimpleTestMcpServerSelfCheck(
                 args = listOf("--mode", "stdio"),
                 env = emptyMap(),
             )
+        val profile = TestServerProfiles.STDIO
         client.updateTimeouts(CLIENT_TIMEOUT_MILLIS, CLIENT_TIMEOUT_MILLIS)
         try {
             client.connect().getOrThrow("STDIO connect")
-            verifyCapabilitiesAndOperations(client)
+            verifyCapabilitiesAndOperations(client, profile)
             println("[SelfCheck] STDIO mode passed")
         } finally {
             client.disconnect()
@@ -82,17 +83,18 @@ class SimpleTestMcpServerSelfCheck(
     private suspend fun verifyHttpStreamable(serverHome: Path) {
         println("[SelfCheck] Verifying HTTP Streamable mode...")
         val port = nextFreePort()
-        startHttpServerProcess(serverHome, port).use { server ->
+        startHttpServerProcess(serverHome, port, "streamable-http").use { server ->
             waitForHttpServer(port, server)
             val client =
                 KtorMcpClient(
                     mode = KtorMcpClient.Mode.StreamableHttp,
                     url = "http://127.0.0.1:$port$HTTP_PATH",
                 )
+            val profile = TestServerProfiles.STREAMABLE_HTTP
             client.updateTimeouts(CLIENT_TIMEOUT_MILLIS, CLIENT_TIMEOUT_MILLIS)
             try {
                 client.connect().getOrThrow("HTTP Streamable connect")
-                verifyCapabilitiesAndOperations(client)
+                verifyCapabilitiesAndOperations(client, profile)
                 println("[SelfCheck] HTTP Streamable mode passed")
             } finally {
                 client.disconnect()
@@ -100,64 +102,113 @@ class SimpleTestMcpServerSelfCheck(
         }
     }
 
-    private suspend fun verifyCapabilitiesAndOperations(client: McpClient) {
-        val caps = client.fetchCapabilities().getOrThrow("fetch capabilities")
-        assertCapabilities(caps)
-        verifyToolCalls(client)
-        verifyPrompts(client)
-        verifyResources(client)
+    private suspend fun verifyHttpSse(serverHome: Path) {
+        println("[SelfCheck] Verifying HTTP SSE mode...")
+        val port = nextFreePort()
+        startHttpSseServerProcess(serverHome, port).use { server ->
+            waitForHttpServer(port, server)
+            val client =
+                KtorMcpClient(
+                    mode = KtorMcpClient.Mode.Sse,
+                    url = "http://127.0.0.1:$port$HTTP_PATH",
+                )
+            val profile = TestServerProfiles.HTTP_SSE
+            client.updateTimeouts(CLIENT_TIMEOUT_MILLIS, CLIENT_TIMEOUT_MILLIS)
+            try {
+                client.connect().getOrThrow("HTTP SSE connect")
+                verifyCapabilitiesAndOperations(client, profile)
+                println("[SelfCheck] HTTP SSE mode passed")
+            } finally {
+                client.disconnect()
+            }
+        }
     }
 
-    private fun assertCapabilities(caps: ServerCapabilities) {
-        require(caps.tools.map { it.name }.toSet() == setOf("add", "subtract")) {
+    private suspend fun verifyWebSocket(serverHome: Path) {
+        println("[SelfCheck] Verifying WebSocket mode...")
+        val port = nextFreePort()
+        startWebSocketServerProcess(serverHome, port).use { server ->
+            waitForHttpServer(port, server)
+            val client =
+                KtorMcpClient(
+                    mode = KtorMcpClient.Mode.WebSocket,
+                    url = "ws://127.0.0.1:$port$HTTP_PATH",
+                )
+            val profile = TestServerProfiles.WS
+            client.updateTimeouts(CLIENT_TIMEOUT_MILLIS, CLIENT_TIMEOUT_MILLIS)
+            try {
+                client.connect().getOrThrow("WebSocket connect")
+                verifyCapabilitiesAndOperations(client, profile)
+                println("[SelfCheck] WebSocket mode passed")
+            } finally {
+                client.disconnect()
+            }
+        }
+    }
+
+    private suspend fun verifyCapabilitiesAndOperations(
+        client: McpClient,
+        profile: ModeProfile,
+    ) {
+        val caps = client.fetchCapabilities().getOrThrow("fetch capabilities")
+        assertCapabilities(caps, profile)
+        verifyToolCalls(client, profile)
+        verifyPrompts(client, profile)
+        verifyResources(client, profile)
+    }
+
+    private fun assertCapabilities(
+        caps: ServerCapabilities,
+        profile: ModeProfile,
+    ) {
+        require(caps.tools.map { it.name }.toSet() == setOf(profile.toolName)) {
             "Tool capabilities mismatch: ${caps.tools}"
         }
         require(
-            caps.resources.map { it.uri ?: it.name }.toSet() ==
-                setOf(
-                    "test://resource/alpha",
-                    "test://resource/beta",
-                ),
+            caps.resources.map { it.uri ?: it.name }.toSet() == setOf(profile.resourceUri),
         ) {
             "Resource capabilities mismatch: ${caps.resources}"
         }
-        require(caps.prompts.map { it.name }.toSet() == setOf("hello", "bye")) {
+        require(caps.prompts.map { it.name }.toSet() == setOf(profile.promptName)) {
             "Prompt capabilities mismatch: ${caps.prompts}"
         }
     }
 
-    private suspend fun verifyToolCalls(client: McpClient) {
-        val addResult =
-            client.callTool("add", arithmeticArgs(ADD_INPUT_A, ADD_INPUT_B)).getOrThrow("add tool").jsonObject
-        val subtractResult =
-            client.callTool("subtract", arithmeticArgs(SUBTRACT_INPUT_A, SUBTRACT_INPUT_B))
-                .getOrThrow("subtract tool")
+    private suspend fun verifyToolCalls(
+        client: McpClient,
+        profile: ModeProfile,
+    ) {
+        val args = TestServerProfiles.TOOL_TEST_ARGS
+        val payload =
+            client.callTool(profile.toolName, arithmeticArgs(args)).getOrThrow("tool ${profile.toolName}")
                 .jsonObject
-        assertStructuredResult(addResult, "addition", ADD_EXPECTED_RESULT)
-        assertStructuredResult(subtractResult, "subtraction", SUBTRACT_EXPECTED_RESULT)
+        val expectedResult = profile.toolOperation.apply(args.a, args.b)
+        assertStructuredResult(payload, profile.toolOperation.label, expectedResult)
     }
 
-    private suspend fun verifyPrompts(client: McpClient) {
-        val hello = client.getPrompt("hello", mapOf("name" to "Tester")).getOrThrow("hello prompt")
-        val bye = client.getPrompt("bye", mapOf("name" to "Tester")).getOrThrow("bye prompt")
-        assertPromptContains(hello, "Hello Tester!")
-        assertPromptContains(bye, "Bye Tester!")
+    private suspend fun verifyPrompts(
+        client: McpClient,
+        profile: ModeProfile,
+    ) {
+        val name = "Tester"
+        val response =
+            client.getPrompt(profile.promptName, mapOf(TestServerProfiles.PROMPT_ARGUMENT_NAME to name))
+                .getOrThrow("prompt ${profile.promptName}")
+        assertPromptContains(response, "${profile.promptPrefix} $name!")
     }
 
-    private suspend fun verifyResources(client: McpClient) {
-        val alpha = client.readResource("test://resource/alpha").getOrThrow("alpha resource")
-        val beta = client.readResource("test://resource/beta").getOrThrow("beta resource")
-        assertResourceContents(alpha, "Alpha resource content")
-        assertResourceContents(beta, "Beta resource content")
+    private suspend fun verifyResources(
+        client: McpClient,
+        profile: ModeProfile,
+    ) {
+        val payload = client.readResource(profile.resourceUri).getOrThrow("resource ${profile.resourceUri}")
+        assertResourceContents(payload, profile.resourceText)
     }
 
-    private fun arithmeticArgs(
-        a: Int,
-        b: Int,
-    ): JsonObject =
+    private fun arithmeticArgs(args: ToolTestArgs): JsonObject =
         buildJsonObject {
-            put("a", JsonPrimitive(a))
-            put("b", JsonPrimitive(b))
+            put("a", JsonPrimitive(args.a))
+            put("b", JsonPrimitive(args.b))
         }
 
     private fun assertStructuredResult(
@@ -221,12 +272,13 @@ class SimpleTestMcpServerSelfCheck(
     private fun startHttpServerProcess(
         serverHome: Path,
         port: Int,
+        mode: String,
     ): ManagedProcess {
         val command =
             listOf(
                 serverExecutable(serverHome),
                 "--mode",
-                "streamable-http",
+                mode,
                 "--host",
                 "127.0.0.1",
                 "--port",
@@ -241,18 +293,28 @@ class SimpleTestMcpServerSelfCheck(
         return ManagedProcess(process)
     }
 
+    private fun startHttpSseServerProcess(
+        serverHome: Path,
+        port: Int,
+    ): ManagedProcess = startHttpServerProcess(serverHome, port, "http-sse")
+
+    private fun startWebSocketServerProcess(
+        serverHome: Path,
+        port: Int,
+    ): ManagedProcess = startHttpServerProcess(serverHome, port, "ws")
+
     private suspend fun waitForHttpServer(
         port: Int,
         process: ManagedProcess,
     ) {
         repeat(SERVER_START_ATTEMPTS) {
             if (!process.isAlive()) {
-                error("HTTP Streamable test server exited early: ${process.logs()}")
+                error("Test server exited early: ${process.logs()}")
             }
             if (isPortOpen(port)) return
             delay(SERVER_START_DELAY_MILLIS)
         }
-        error("HTTP Streamable server failed to start on port $port\n${process.logs()}")
+        error("Test server failed to start on port $port\n${process.logs()}")
     }
 
     private fun isPortOpen(port: Int): Boolean =
@@ -310,11 +372,15 @@ private fun isWindows(): Boolean = System.getProperty("os.name").lowercase().con
 data class SelfCheckOptions(
     val serverHome: Path,
     val skipHttp: Boolean,
+    val skipSse: Boolean,
+    val skipWs: Boolean,
 ) {
     companion object {
         fun parse(args: Array<String>): SelfCheckOptions {
             var serverHome: Path? = System.getProperty("test.mcpServerHome")?.let { Paths.get(it) }
             var skipHttp = false
+            var skipSse = false
+            var skipWs = false
             var index = 0
             while (index < args.size) {
                 when (val arg = args[index]) {
@@ -323,12 +389,19 @@ data class SelfCheckOptions(
                             Paths.get(args.getOrNull(++index) ?: error("Missing value for --server-home"))
 
                     "--skip-http" -> skipHttp = true
+                    "--skip-sse" -> skipSse = true
+                    "--skip-ws" -> skipWs = true
                     else -> error("Unknown argument '$arg'")
                 }
                 index++
             }
             val resolvedHome = serverHome ?: Paths.get("build/install/test-mcp-server").toAbsolutePath()
-            return SelfCheckOptions(serverHome = resolvedHome, skipHttp = skipHttp)
+            return SelfCheckOptions(
+                serverHome = resolvedHome,
+                skipHttp = skipHttp,
+                skipSse = skipSse,
+                skipWs = skipWs,
+            )
         }
     }
 }

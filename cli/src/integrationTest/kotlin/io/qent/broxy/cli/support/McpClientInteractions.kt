@@ -90,12 +90,7 @@ internal class McpClientInteractions(
     suspend fun callExpectedTools(client: McpClient) {
         config.EXPECTED_TOOLS.forEach { tool ->
             config.log("Invoking tool $tool")
-            val args =
-                when (tool) {
-                    "${config.STDIO_SERVER_ID}:${config.ADD_TOOL_NAME}" -> buildArithmeticArguments()
-                    "${config.HTTP_SERVER_ID}:${config.SUBTRACT_TOOL_NAME}" -> buildArithmeticArguments(a = 5, b = 2)
-                    else -> JsonObject(emptyMap())
-                }
+            val args = buildArithmeticArguments()
             val payload = client.callTool(tool, args).getOrFail("callTool $tool").asJsonObject("callTool $tool")
             val isError = payload["isError"]?.jsonPrimitive?.booleanOrNull ?: false
             assertTrue(!isError, "Tool $tool returned error payload: $payload")
@@ -132,45 +127,32 @@ internal class McpClientInteractions(
     }
 
     suspend fun assertExpectedToolResults(client: McpClient) {
-        val addTool = "${config.STDIO_SERVER_ID}:${config.ADD_TOOL_NAME}"
-        val subtractTool = "${config.HTTP_SERVER_ID}:${config.SUBTRACT_TOOL_NAME}"
-        val addPayload =
-            client.callTool(addTool, buildArithmeticArguments(a = 2, b = 3))
-                .getOrFail("callTool $addTool")
-                .asJsonObject("callTool $addTool")
-        val subtractPayload =
-            client.callTool(subtractTool, buildArithmeticArguments(a = 5, b = 2))
-                .getOrFail("callTool $subtractTool")
-                .asJsonObject("callTool $subtractTool")
-
-        assertStructuredResult(addPayload, expectedOperation = "addition", expectedResult = 5.0)
-        assertStructuredResult(subtractPayload, expectedOperation = "subtraction", expectedResult = 3.0)
+        config.TOOL_EXPECTATIONS.forEach { (tool, expectation) ->
+            val payload =
+                client.callTool(tool, buildArithmeticArguments())
+                    .getOrFail("callTool $tool")
+                    .asJsonObject("callTool $tool")
+            assertStructuredResult(
+                payload,
+                expectedOperation = expectation.operation,
+                expectedResult = expectation.expectedResult,
+            )
+        }
     }
 
     suspend fun assertPromptPersonalizedResponses(client: McpClient) {
-        val name = config.PROMPT_ARGUMENT_PLACEHOLDER
-        val expectations =
-            mapOf(
-                config.HELLO_PROMPT to "Hello $name!",
-                config.BYE_PROMPT to "Bye $name!",
-            )
-
-        expectations.forEach { (prompt, expectedText) ->
+        config.PROMPT_EXPECTATIONS.forEach { (prompt, expectedText) ->
             config.log("Validating prompt payload for $prompt")
-            val payload = client.getPrompt(prompt, mapOf("name" to name)).getOrFail("getPrompt $prompt")
+            val payload =
+                client.getPrompt(prompt, mapOf("name" to config.PROMPT_ARGUMENT_PLACEHOLDER))
+                    .getOrFail("getPrompt $prompt")
             val actualText = extractPromptText(payload)
             assertEquals(expectedText, actualText, "Prompt $prompt should render expected text")
         }
     }
 
     suspend fun assertResourceContentsMatch(client: McpClient) {
-        val expectations =
-            mapOf(
-                config.RESOURCE_ALPHA to "Alpha resource content",
-                config.RESOURCE_BETA to "Beta resource content",
-            )
-
-        expectations.forEach { (uri, expectedText) ->
+        config.RESOURCE_EXPECTATIONS.forEach { (uri, expectedText) ->
             config.log("Validating resource payload for $uri")
             val payload = client.readResource(uri).getOrFail("readResource $uri")
             val text = extractResourceText(payload)
@@ -197,8 +179,8 @@ internal class McpClientInteractions(
     }
 
     private fun buildArithmeticArguments(
-        a: Int = 2,
-        b: Int = 3,
+        a: Int = config.TOOL_INPUT_A,
+        b: Int = config.TOOL_INPUT_B,
     ): JsonObject =
         buildJsonObject {
             put("a", JsonPrimitive(a))

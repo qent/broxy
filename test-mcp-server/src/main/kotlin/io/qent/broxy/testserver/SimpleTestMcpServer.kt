@@ -17,9 +17,13 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
+import io.ktor.server.sse.SSE
+import io.ktor.server.sse.sse
 import io.modelcontextprotocol.kotlin.sdk.server.Server
 import io.modelcontextprotocol.kotlin.sdk.server.ServerOptions
+import io.modelcontextprotocol.kotlin.sdk.server.SseServerTransport
 import io.modelcontextprotocol.kotlin.sdk.server.StdioServerTransport
+import io.modelcontextprotocol.kotlin.sdk.server.mcpWebSocket
 import io.modelcontextprotocol.kotlin.sdk.shared.AbstractTransport
 import io.modelcontextprotocol.kotlin.sdk.shared.TransportSendOptions
 import io.modelcontextprotocol.kotlin.sdk.types.CallToolResult
@@ -41,6 +45,7 @@ import io.modelcontextprotocol.kotlin.sdk.types.TextResourceContents
 import io.modelcontextprotocol.kotlin.sdk.types.ToolSchema
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import kotlinx.io.asSink
@@ -56,18 +61,22 @@ fun main(args: Array<String>) {
     SimpleTestMcpServer(ServerCliOptions.parse(args)).start()
 }
 
+@Suppress("TooManyFunctions")
 class SimpleTestMcpServer(
     private val options: ServerCliOptions = ServerCliOptions(),
 ) {
     fun start() {
+        val profile = TestServerProfiles.forMode(options.mode)
         when (options.mode) {
-            ServerCliOptions.Mode.STDIO -> runBlocking { startStdio() }
-            ServerCliOptions.Mode.HTTP_STREAMABLE -> startHttpStreamable()
+            ServerCliOptions.Mode.STDIO -> runBlocking { startStdio(profile) }
+            ServerCliOptions.Mode.HTTP_STREAMABLE -> startHttpStreamable(profile)
+            ServerCliOptions.Mode.HTTP_SSE -> startHttpSse(profile)
+            ServerCliOptions.Mode.WS -> startWebSocket(profile)
         }
     }
 
-    private suspend fun startStdio() {
-        val server = buildServer()
+    private suspend fun startStdio(profile: ModeProfile) {
+        val server = buildServer(profile)
         val transport =
             StdioServerTransport(
                 System.`in`.asSource().buffered(),
@@ -95,11 +104,11 @@ class SimpleTestMcpServer(
         }
     }
 
-    private fun startHttpStreamable() {
+    private fun startHttpStreamable(profile: ModeProfile) {
         val normalizedPath = normalizePath(options.path)
         val displayUrl = "http://${options.host}:${options.port}${normalizedPath.display}"
         println("Starting HTTP Streamable test server on $displayUrl")
-        val server = buildServer()
+        val server = buildServer(profile)
         val sessions = StreamableHttpSessionRegistry(server)
         embeddedServer(
             Netty,
@@ -115,6 +124,55 @@ class SimpleTestMcpServer(
                         mountStreamableHttpRoute(sessions)
                     }
                 }
+            }
+        }.start(wait = true)
+    }
+
+    private fun startHttpSse(profile: ModeProfile) {
+        val normalizedPath = normalizePath(options.path)
+        val ssePath = normalizedPath.display
+        val messagePath = buildSseMessagePath(normalizedPath.display)
+        val displayUrl = "http://${options.host}:${options.port}$ssePath"
+        println("Starting HTTP SSE test server on $displayUrl")
+        val server = buildServer(profile)
+        val sessions = SseSessionRegistry(server)
+        embeddedServer(
+            Netty,
+            host = options.host,
+            port = options.port,
+        ) {
+            install(CallLogging)
+            install(SSE)
+            routing {
+                sse(ssePath) {
+                    sessions.register(messagePath, this)
+                    awaitCancellation()
+                }
+                post(messagePath) {
+                    val sessionId = call.request.queryParameters[SSE_SESSION_ID_PARAM]
+                    val transport = sessions.getTransport(sessionId)
+                    if (transport == null) {
+                        call.respond(HttpStatusCode.BadRequest, "Unknown SSE session: $sessionId")
+                        return@post
+                    }
+                    transport.handlePostMessage(call)
+                }
+            }
+        }.start(wait = true)
+    }
+
+    private fun startWebSocket(profile: ModeProfile) {
+        val normalizedPath = normalizePath(options.path)
+        val displayUrl = "ws://${options.host}:${options.port}${normalizedPath.display}"
+        println("Starting WebSocket test server on $displayUrl")
+        embeddedServer(
+            Netty,
+            host = options.host,
+            port = options.port,
+        ) {
+            install(CallLogging)
+            mcpWebSocket(normalizedPath.display) {
+                buildServer(profile)
             }
         }.start(wait = true)
     }
@@ -184,10 +242,14 @@ class SimpleTestMcpServer(
         }
     }
 
-    private fun buildServer(): Server {
+    private fun buildServer(profile: ModeProfile): Server {
         val server =
             Server(
-                serverInfo = Implementation(name = SERVER_NAME, version = SERVER_VERSION),
+                serverInfo =
+                    Implementation(
+                        name = "${SERVER_NAME_PREFIX}-${profile.displayName}",
+                        version = SERVER_VERSION,
+                    ),
                 options =
                     ServerOptions(
                         capabilities =
@@ -199,17 +261,21 @@ class SimpleTestMcpServer(
                             ),
                     ),
             )
-        registerTools(server)
-        registerResources(server)
-        registerPrompts(server)
+        registerTools(server, profile)
+        registerResources(server, profile)
+        registerPrompts(server, profile)
         return server
     }
 
-    private fun registerTools(server: Server) {
+    private fun registerTools(
+        server: Server,
+        profile: ModeProfile,
+    ) {
+        val operation = profile.toolOperation
         server.addTool(
-            name = ADD_TOOL_NAME,
-            title = "Add Numbers",
-            description = "Adds two numbers together",
+            name = profile.toolName,
+            title = "${profile.displayName} tool",
+            description = profile.toolDescription,
             inputSchema = ToolSchema(),
             outputSchema = null,
             toolAnnotations = null,
@@ -217,44 +283,18 @@ class SimpleTestMcpServer(
             val args = req.arguments ?: JsonObject(emptyMap())
             val a = args.value("a")
             val b = args.value("b")
+            val result = operation.apply(a, b)
             CallToolResult(
                 content =
                     listOf(
-                        TextContent("$a + $b = ${a + b}"),
+                        TextContent("${operation.label} result: $result"),
                     ),
                 structuredContent =
                     JsonObject(
                         mapOf(
-                            "operation" to JsonPrimitive("addition"),
-                            "result" to JsonPrimitive(a + b),
-                        ),
-                    ),
-                isError = false,
-                meta = JsonObject(emptyMap()),
-            )
-        }
-
-        server.addTool(
-            name = SUBTRACT_TOOL_NAME,
-            title = "Subtract Numbers",
-            description = "Subtracts the second number from the first",
-            inputSchema = ToolSchema(),
-            outputSchema = null,
-            toolAnnotations = null,
-        ) { req ->
-            val args = req.arguments ?: JsonObject(emptyMap())
-            val a = args.value("a")
-            val b = args.value("b")
-            CallToolResult(
-                content =
-                    listOf(
-                        TextContent("$a - $b = ${a - b}"),
-                    ),
-                structuredContent =
-                    JsonObject(
-                        mapOf(
-                            "operation" to JsonPrimitive("subtraction"),
-                            "result" to JsonPrimitive(a - b),
+                            "operation" to JsonPrimitive(operation.label),
+                            "result" to JsonPrimitive(result),
+                            "mode" to JsonPrimitive(profile.displayName),
                         ),
                     ),
                 isError = false,
@@ -263,38 +303,22 @@ class SimpleTestMcpServer(
         }
     }
 
-    private fun registerResources(server: Server) {
+    private fun registerResources(
+        server: Server,
+        profile: ModeProfile,
+    ) {
         server.addResource(
-            uri = RESOURCE_ALPHA_URI,
-            name = "alpha",
-            description = "Alpha sample text",
+            uri = profile.resourceUri,
+            name = profile.resourceName,
+            description = profile.resourceDescription,
             mimeType = "text/plain",
         ) {
             ReadResourceResult(
                 contents =
                     listOf(
                         TextResourceContents(
-                            text = "Alpha resource content",
-                            uri = RESOURCE_ALPHA_URI,
-                            mimeType = "text/plain",
-                        ),
-                    ),
-                meta = JsonObject(emptyMap()),
-            )
-        }
-
-        server.addResource(
-            uri = RESOURCE_BETA_URI,
-            name = "beta",
-            description = "Beta sample text",
-            mimeType = "text/plain",
-        ) {
-            ReadResourceResult(
-                contents =
-                    listOf(
-                        TextResourceContents(
-                            text = "Beta resource content",
-                            uri = RESOURCE_BETA_URI,
+                            text = profile.resourceText,
+                            uri = profile.resourceUri,
                             mimeType = "text/plain",
                         ),
                     ),
@@ -303,48 +327,32 @@ class SimpleTestMcpServer(
         }
     }
 
-    private fun registerPrompts(server: Server) {
+    private fun registerPrompts(
+        server: Server,
+        profile: ModeProfile,
+    ) {
         val argument =
             PromptArgument(
-                name = "name",
+                name = TestServerProfiles.PROMPT_ARGUMENT_NAME,
                 description = "Name to include in the response",
                 required = true,
             )
 
         server.addPrompt(
             Prompt(
-                name = HELLO_PROMPT,
-                description = "Says hello",
+                name = profile.promptName,
+                description = profile.promptDescription,
                 arguments = listOf(argument),
             ),
         ) { req ->
+            val name = req.arguments?.get(TestServerProfiles.PROMPT_ARGUMENT_NAME) ?: "friend"
             GetPromptResult(
-                description = "Friendly hello",
+                description = profile.promptDescription,
                 messages =
                     listOf(
                         PromptMessage(
                             role = Role.Assistant,
-                            content = TextContent("Hello ${req.arguments?.get("name") ?: "friend"}!"),
-                        ),
-                    ),
-                meta = JsonObject(emptyMap()),
-            )
-        }
-
-        server.addPrompt(
-            Prompt(
-                name = BYE_PROMPT,
-                description = "Says goodbye",
-                arguments = listOf(argument),
-            ),
-        ) { req ->
-            GetPromptResult(
-                description = "Friendly goodbye",
-                messages =
-                    listOf(
-                        PromptMessage(
-                            role = Role.Assistant,
-                            content = TextContent("Bye ${req.arguments?.get("name") ?: "friend"}!"),
+                            content = TextContent("${profile.promptPrefix} $name!"),
                         ),
                     ),
                 meta = JsonObject(emptyMap()),
@@ -365,16 +373,18 @@ class SimpleTestMcpServer(
         return NormalizedPath(display = display, routeSegments = routeSegments)
     }
 
+    private fun buildSseMessagePath(basePath: String): String =
+        if (basePath == "/") {
+            "/message"
+        } else {
+            "$basePath/message"
+        }
+
     companion object {
-        private const val SERVER_NAME = "broxy-test-mcp"
+        private const val SERVER_NAME_PREFIX = "broxy-test-mcp"
         private const val SERVER_VERSION = "0.0.1"
-        private const val ADD_TOOL_NAME = "add"
-        private const val SUBTRACT_TOOL_NAME = "subtract"
-        private const val RESOURCE_ALPHA_URI = "test://resource/alpha"
-        private const val RESOURCE_BETA_URI = "test://resource/beta"
-        private const val HELLO_PROMPT = "hello"
-        private const val BYE_PROMPT = "bye"
         private const val MCP_SESSION_ID_HEADER = "mcp-session-id"
+        private const val SSE_SESSION_ID_PARAM = "sessionId"
     }
 }
 
@@ -411,6 +421,34 @@ private class StreamableHttpSessionRegistry(
 
 private data class StreamableHttpSession(
     val transport: StreamableHttpServerTransport,
+    val session: io.modelcontextprotocol.kotlin.sdk.server.ServerSession,
+)
+
+private class SseSessionRegistry(
+    private val server: Server,
+) {
+    private val sessions = ConcurrentHashMap<String, SseSession>()
+
+    suspend fun register(
+        messagePath: String,
+        sseSession: io.ktor.server.sse.ServerSSESession,
+    ) {
+        val transport = SseServerTransport(messagePath, sseSession)
+        val session = server.createSession(transport)
+        sessions[transport.sessionId] = SseSession(transport, session)
+        session.onClose {
+            sessions.remove(transport.sessionId)
+        }
+    }
+
+    fun getTransport(sessionId: String?): SseServerTransport? {
+        if (sessionId.isNullOrBlank()) return null
+        return sessions[sessionId]?.transport
+    }
+}
+
+private data class SseSession(
+    val transport: SseServerTransport,
     val session: io.modelcontextprotocol.kotlin.sdk.server.ServerSession,
 )
 
@@ -473,6 +511,8 @@ data class ServerCliOptions(
     enum class Mode {
         STDIO,
         HTTP_STREAMABLE,
+        HTTP_SSE,
+        WS,
     }
 
     companion object {
@@ -536,9 +576,9 @@ data class ServerCliOptions(
             when (value.lowercase()) {
                 "stdio" -> Mode.STDIO
                 "http", "http-streamable", "streamable-http" -> Mode.HTTP_STREAMABLE
-                // Backward compatibility for older scripts
-                "http-sse" -> Mode.HTTP_STREAMABLE
-                else -> error("Unsupported mode '$value'. Use 'stdio' or 'streamable-http'.")
+                "http-sse", "sse" -> Mode.HTTP_SSE
+                "ws", "websocket", "web-socket" -> Mode.WS
+                else -> error("Unsupported mode '$value'. Use 'stdio', 'streamable-http', 'http-sse', or 'ws'.")
             }
     }
 }

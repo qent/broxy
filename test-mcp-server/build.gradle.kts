@@ -18,6 +18,8 @@ dependencies {
     implementation("io.ktor:ktor-server-core-jvm:${property("ktorVersion")}")
     implementation("io.ktor:ktor-server-call-logging-jvm:${property("ktorVersion")}")
     implementation("io.ktor:ktor-server-netty-jvm:${property("ktorVersion")}")
+    implementation("io.ktor:ktor-server-sse-jvm:${property("ktorVersion")}")
+    implementation("io.ktor:ktor-server-websockets-jvm:${property("ktorVersion")}")
 
     testImplementation(kotlin("test"))
     testImplementation(project(":core"))
@@ -38,7 +40,7 @@ tasks.test {
 tasks.register<JavaExec>("selfCheck") {
     dependsOn(tasks.named("installDist"))
     group = "verification"
-    description = "Runs STDIO and HTTP Streamable self-checks against the test MCP server"
+    description = "Runs STDIO, Streamable HTTP, HTTP SSE, and WebSocket self-checks against the test MCP server"
     mainClass.set("io.qent.broxy.testserver.SimpleTestMcpServerSelfCheckKt")
     classpath = sourceSets.main.get().runtimeClasspath
     systemProperty("test.mcpServerHome", testServerHome.get().asFile.absolutePath)

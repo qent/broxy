@@ -15,23 +15,28 @@ import kotlin.test.fail
 
 internal object BroxyCliTestEnvironment {
     suspend fun startScenario(inboundScenario: InboundScenario): ScenarioHandle {
-        val server = startTestServer()
-        val configDir = BroxyCliIntegrationFiles.prepareConfigDir(server.url)
+        val servers = startTestServers()
+        val configDir =
+            BroxyCliIntegrationFiles.prepareConfigDir(
+                servers.streamable.url,
+                servers.sse.url,
+                servers.ws.url,
+            )
         return try {
             when (inboundScenario) {
-                InboundScenario.STDIO -> createStdioHandle(configDir, server)
-                InboundScenario.HTTP_STREAMABLE -> createHttpStreamableHandle(configDir, server)
+                InboundScenario.STDIO -> createStdioHandle(configDir, servers)
+                InboundScenario.HTTP_STREAMABLE -> createHttpStreamableHandle(configDir, servers)
             }
         } catch (error: Throwable) {
             configDir.toFile().deleteRecursively()
-            server.close()
+            servers.close()
             throw error
         }
     }
 
     private suspend fun createStdioHandle(
         configDir: Path,
-        server: TestServerInstance,
+        servers: TestServers,
     ): ScenarioHandle {
         val command =
             BroxyCliIntegrationFiles.buildCliCommand(configDir, listOf("--inbound", "stdio"))
@@ -53,7 +58,7 @@ internal object BroxyCliTestEnvironment {
                 client = client,
                 configDir = configDir,
                 cliProcess = null,
-                testServerProcess = server.process,
+                testServers = servers,
             )
         } catch (error: Throwable) {
             client.disconnect()
@@ -63,7 +68,7 @@ internal object BroxyCliTestEnvironment {
 
     private suspend fun createHttpStreamableHandle(
         configDir: Path,
-        server: TestServerInstance,
+        servers: TestServers,
     ): ScenarioHandle {
         var lastError: Throwable? = null
         repeat(BroxyCliIntegrationConfig.HTTP_INBOUND_ATTEMPTS) loop@{ attempt ->
@@ -92,7 +97,7 @@ internal object BroxyCliTestEnvironment {
                     client = client,
                     configDir = configDir,
                     cliProcess = cliProcess,
-                    testServerProcess = server.process,
+                    testServers = servers,
                 )
             } catch (error: Throwable) {
                 lastError = error
@@ -114,15 +119,35 @@ internal object BroxyCliTestEnvironment {
         throw lastError ?: IllegalStateException("Failed to launch HTTP Streamable scenario after retries")
     }
 
-    private suspend fun startTestServer(): TestServerInstance {
+    private suspend fun startTestServers(): TestServers {
+        val started = mutableListOf<TestServerEndpoint>()
+        return try {
+            val streamable = startTestServer("streamable-http", "http")
+            started.add(streamable)
+            val sse = startTestServer("http-sse", "http")
+            started.add(sse)
+            val ws = startTestServer("ws", "ws")
+            started.add(ws)
+            TestServers(streamable = streamable, sse = sse, ws = ws)
+        } catch (error: Throwable) {
+            started.forEach { it.process.close() }
+            throw error
+        }
+    }
+
+    private suspend fun startTestServer(
+        mode: String,
+        scheme: String,
+    ): TestServerEndpoint {
         val port = nextFreePort()
         val url =
-            "http://${BroxyCliIntegrationConfig.TEST_SERVER_HTTP_HOST}:$port${BroxyCliIntegrationConfig.TEST_SERVER_HTTP_PATH}"
+            "$scheme://${BroxyCliIntegrationConfig.TEST_SERVER_HTTP_HOST}:$port" +
+                BroxyCliIntegrationConfig.TEST_SERVER_HTTP_PATH
         val command =
             buildList {
                 add(BroxyCliIntegrationFiles.resolveTestServerCommand())
                 add("--mode")
-                add("streamable-http")
+                add(mode)
                 add("--host")
                 add(BroxyCliIntegrationConfig.TEST_SERVER_HTTP_HOST)
                 add("--port")
@@ -130,13 +155,13 @@ internal object BroxyCliTestEnvironment {
                 add("--path")
                 add(BroxyCliIntegrationConfig.TEST_SERVER_HTTP_PATH)
             }
-        BroxyCliIntegrationConfig.log("Launching test MCP server (HTTP Streamable) at $url")
+        BroxyCliIntegrationConfig.log("Launching test MCP server ($mode) at $url")
         val process = BroxyCliProcesses.startTestServerProcess(command)
         return try {
             waitForHttpServer(BroxyCliIntegrationConfig.TEST_SERVER_HTTP_HOST, port)
-            TestServerInstance(url, process)
+            TestServerEndpoint(url, process)
         } catch (error: Throwable) {
-            BroxyCliIntegrationConfig.log("Test MCP server failed to start. Logs:\n${process.logs()}")
+            BroxyCliIntegrationConfig.log("Test MCP server ($mode) failed to start. Logs:\n${process.logs()}")
             process.close()
             throw error
         }
@@ -228,7 +253,7 @@ internal class ScenarioHandle(
     private val client: McpClient,
     private val configDir: Path,
     private val cliProcess: RunningProcess?,
-    private val testServerProcess: RunningProcess,
+    private val testServers: TestServers,
 ) : AutoCloseable {
     suspend fun run(
         description: String,
@@ -241,17 +266,25 @@ internal class ScenarioHandle(
     override fun close() {
         runBlocking { client.disconnect() }
         cliProcess?.close()
-        testServerProcess.close()
+        testServers.close()
         configDir.toFile().deleteRecursively()
         BroxyCliIntegrationConfig.log("${inboundScenario.description} scenario cleanup complete")
     }
 }
 
-private data class TestServerInstance(
+internal data class TestServerEndpoint(
     val url: String,
     val process: RunningProcess,
+)
+
+internal data class TestServers(
+    val streamable: TestServerEndpoint,
+    val sse: TestServerEndpoint,
+    val ws: TestServerEndpoint,
 ) : AutoCloseable {
     override fun close() {
-        process.close()
+        streamable.process.close()
+        sse.process.close()
+        ws.process.close()
     }
 }

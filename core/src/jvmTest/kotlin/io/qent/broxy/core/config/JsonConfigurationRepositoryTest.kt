@@ -35,7 +35,11 @@ class JsonConfigurationRepositoryTest {
         val repo =
             JsonConfigurationRepository(
                 baseDir = dir,
-                json = Json { ignoreUnknownKeys = true; prettyPrint = true },
+                json =
+                    Json {
+                        ignoreUnknownKeys = true
+                        prettyPrint = true
+                    },
                 logger = ConfigTestLogger,
             )
 

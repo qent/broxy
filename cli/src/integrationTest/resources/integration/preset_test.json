@@ -3,32 +3,56 @@
   "name": "test",
   "tools": [
     {
-      "serverId": "test-arithmetic",
-      "toolName": "add"
+      "serverId": "test-stdio",
+      "toolName": "add_stdio"
     },
     {
-      "serverId": "test-arithmetic-http",
-      "toolName": "subtract"
+      "serverId": "test-http",
+      "toolName": "subtract_http"
+    },
+    {
+      "serverId": "test-sse",
+      "toolName": "multiply_sse"
+    },
+    {
+      "serverId": "test-ws",
+      "toolName": "divide_ws"
     }
   ],
   "prompts": [
     {
-      "serverId": "test-arithmetic",
-      "promptName": "hello"
+      "serverId": "test-stdio",
+      "promptName": "hello_stdio"
     },
     {
-      "serverId": "test-arithmetic-http",
-      "promptName": "bye"
+      "serverId": "test-http",
+      "promptName": "hello_http"
+    },
+    {
+      "serverId": "test-sse",
+      "promptName": "hello_sse"
+    },
+    {
+      "serverId": "test-ws",
+      "promptName": "hello_ws"
     }
   ],
   "resources": [
     {
-      "serverId": "test-arithmetic",
-      "resourceKey": "test://resource/alpha"
+      "serverId": "test-stdio",
+      "resourceKey": "test://resource/stdio"
     },
     {
-      "serverId": "test-arithmetic-http",
-      "resourceKey": "test://resource/beta"
+      "serverId": "test-http",
+      "resourceKey": "test://resource/http"
+    },
+    {
+      "serverId": "test-sse",
+      "resourceKey": "test://resource/sse"
+    },
+    {
+      "serverId": "test-ws",
+      "resourceKey": "test://resource/ws"
     }
   ]
 }

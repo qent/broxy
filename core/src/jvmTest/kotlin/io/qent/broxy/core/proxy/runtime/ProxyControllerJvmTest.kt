@@ -15,13 +15,14 @@ class ProxyControllerJvmTest {
         val inbound = TransportConfig.StreamableHttpTransport(url = "http://127.0.0.1:0/mcp")
         val preset = Preset.empty()
 
-        val startResult = controller.start(
-            servers = emptyList(),
-            preset = preset,
-            inbound = inbound,
-            callTimeoutSeconds = 1,
-            capabilitiesTimeoutSeconds = 1,
-        )
+        val startResult =
+            controller.start(
+                servers = emptyList(),
+                preset = preset,
+                inbound = inbound,
+                callTimeoutSeconds = 1,
+                capabilitiesTimeoutSeconds = 1,
+            )
 
         try {
             assertTrue(startResult.isSuccess)
@@ -36,11 +37,12 @@ class ProxyControllerJvmTest {
     @Test
     fun updateServers_fails_when_not_running() {
         val controller = createProxyController(CollectingLogger(delegate = NoopLogger))
-        val result = controller.updateServers(
-            servers = listOf(testServer("s1")),
-            callTimeoutSeconds = 1,
-            capabilitiesTimeoutSeconds = 1,
-        )
+        val result =
+            controller.updateServers(
+                servers = listOf(testServer("s1")),
+                callTimeoutSeconds = 1,
+                capabilitiesTimeoutSeconds = 1,
+            )
 
         assertTrue(result.isFailure)
     }

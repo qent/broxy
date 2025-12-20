@@ -53,6 +53,7 @@ class SimpleTestMcpServerIntegrationTest {
                     args = listOf("--mode", "stdio"),
                     env = emptyMap(),
                 )
+            val profile = TestServerProfiles.STDIO
             client.updateTimeouts(15_000, 15_000)
             try {
                 val connectResult = client.connect()
@@ -61,7 +62,7 @@ class SimpleTestMcpServerIntegrationTest {
                     connectResult.isSuccess,
                     "STDIO client should connect to SimpleTestMcpServer (${connectResult.exceptionOrNull()?.message})",
                 )
-                verifyCapabilitiesAndOperations(client)
+                verifyCapabilitiesAndOperations(client, profile)
             } finally {
                 client.disconnect()
             }
@@ -72,13 +73,14 @@ class SimpleTestMcpServerIntegrationTest {
         runBlocking {
             assumeLocalNetworkingAllowed()
             val port = nextFreePort()
-            startHttpServerProcess(port).use { server ->
+            startHttpServerProcess(port, "streamable-http").use { server ->
                 waitForHttpServer(port, server)
                 val client =
                     KtorMcpClient(
                         mode = KtorMcpClient.Mode.StreamableHttp,
                         url = "http://127.0.0.1:$port$HTTP_PATH",
                     )
+                val profile = TestServerProfiles.STREAMABLE_HTTP
                 client.updateTimeouts(15_000, 15_000)
                 try {
                     val connectResult = client.connect()
@@ -98,7 +100,65 @@ class SimpleTestMcpServerIntegrationTest {
                         "HTTP Streamable client should connect to SimpleTestMcpServer " +
                             "(${connectResult.exceptionOrNull()?.message})",
                     )
-                    verifyCapabilitiesAndOperations(client)
+                    verifyCapabilitiesAndOperations(client, profile)
+                } finally {
+                    client.disconnect()
+                }
+            }
+        }
+
+    @Test
+    fun httpSseMode_exposesToolsPromptsAndResources() =
+        runBlocking {
+            assumeLocalNetworkingAllowed()
+            val port = nextFreePort()
+            startHttpServerProcess(port, "http-sse").use { server ->
+                waitForHttpServer(port, server)
+                val client =
+                    KtorMcpClient(
+                        mode = KtorMcpClient.Mode.Sse,
+                        url = "http://127.0.0.1:$port$HTTP_PATH",
+                    )
+                val profile = TestServerProfiles.HTTP_SSE
+                client.updateTimeouts(15_000, 15_000)
+                try {
+                    val connectResult = client.connect()
+                    connectResult.exceptionOrNull()?.printStackTrace()
+                    assertTrue(
+                        connectResult.isSuccess,
+                        "HTTP SSE client should connect to SimpleTestMcpServer " +
+                            "(${connectResult.exceptionOrNull()?.message})",
+                    )
+                    verifyCapabilitiesAndOperations(client, profile)
+                } finally {
+                    client.disconnect()
+                }
+            }
+        }
+
+    @Test
+    fun webSocketMode_exposesToolsPromptsAndResources() =
+        runBlocking {
+            assumeLocalNetworkingAllowed()
+            val port = nextFreePort()
+            startHttpServerProcess(port, "ws").use { server ->
+                waitForHttpServer(port, server)
+                val client =
+                    KtorMcpClient(
+                        mode = KtorMcpClient.Mode.WebSocket,
+                        url = "ws://127.0.0.1:$port$HTTP_PATH",
+                    )
+                val profile = TestServerProfiles.WS
+                client.updateTimeouts(15_000, 15_000)
+                try {
+                    val connectResult = client.connect()
+                    connectResult.exceptionOrNull()?.printStackTrace()
+                    assertTrue(
+                        connectResult.isSuccess,
+                        "WebSocket client should connect to SimpleTestMcpServer " +
+                            "(${connectResult.exceptionOrNull()?.message})",
+                    )
+                    verifyCapabilitiesAndOperations(client, profile)
                 } finally {
                     client.disconnect()
                 }
@@ -116,63 +176,75 @@ class SimpleTestMcpServerIntegrationTest {
         )
     }
 
-    private suspend fun verifyCapabilitiesAndOperations(client: McpClient) {
+    private suspend fun verifyCapabilitiesAndOperations(
+        client: McpClient,
+        profile: ModeProfile,
+    ) {
         val caps =
             client.fetchCapabilities().getOrElse { error ->
                 fail("Failed to fetch capabilities: ${error.message ?: error::class.simpleName}")
             }
-        assertCapabilities(caps)
-        verifyToolCalls(client)
-        verifyPrompts(client)
-        verifyResources(client)
+        assertCapabilities(caps, profile)
+        verifyToolCalls(client, profile)
+        verifyPrompts(client, profile)
+        verifyResources(client, profile)
     }
 
-    private fun assertCapabilities(caps: ServerCapabilities) {
+    private fun assertCapabilities(
+        caps: ServerCapabilities,
+        profile: ModeProfile,
+    ) {
         assertEquals(
-            setOf("add", "subtract"),
+            setOf(profile.toolName),
             caps.tools.map { it.name }.toSet(),
             "Tool capabilities should match test server definition",
         )
         assertEquals(
-            setOf("test://resource/alpha", "test://resource/beta"),
+            setOf(profile.resourceUri),
             caps.resources.map { it.uri ?: it.name }.toSet(),
             "Resource capabilities should match test server definition",
         )
         assertEquals(
-            setOf("hello", "bye"),
+            setOf(profile.promptName),
             caps.prompts.map { it.name }.toSet(),
             "Prompt capabilities should match test server definition",
         )
     }
 
-    private suspend fun verifyToolCalls(client: McpClient) {
-        val addResult = client.callTool("add", arithmeticArgs(2, 3)).getOrFail("add tool").jsonObject
-        val subtractResult = client.callTool("subtract", arithmeticArgs(10, 4)).getOrFail("subtract tool").jsonObject
-        assertStructuredResult(addResult, "addition", 5.0)
-        assertStructuredResult(subtractResult, "subtraction", 6.0)
+    private suspend fun verifyToolCalls(
+        client: McpClient,
+        profile: ModeProfile,
+    ) {
+        val args = TestServerProfiles.TOOL_TEST_ARGS
+        val payload =
+            client.callTool(profile.toolName, arithmeticArgs(args)).getOrFail("tool ${profile.toolName}").jsonObject
+        val expectedResult = profile.toolOperation.apply(args.a, args.b)
+        assertStructuredResult(payload, profile.toolOperation.label, expectedResult)
     }
 
-    private suspend fun verifyPrompts(client: McpClient) {
-        val hello = client.getPrompt("hello", mapOf("name" to "Tester")).getOrFail("hello prompt")
-        val bye = client.getPrompt("bye", mapOf("name" to "Tester")).getOrFail("bye prompt")
-        assertPromptContains(hello, "Hello Tester!")
-        assertPromptContains(bye, "Bye Tester!")
+    private suspend fun verifyPrompts(
+        client: McpClient,
+        profile: ModeProfile,
+    ) {
+        val name = "Tester"
+        val response =
+            client.getPrompt(profile.promptName, mapOf(TestServerProfiles.PROMPT_ARGUMENT_NAME to name))
+                .getOrFail("prompt ${profile.promptName}")
+        assertPromptContains(response, "${profile.promptPrefix} $name!")
     }
 
-    private suspend fun verifyResources(client: McpClient) {
-        val alpha = client.readResource("test://resource/alpha").getOrFail("alpha resource")
-        val beta = client.readResource("test://resource/beta").getOrFail("beta resource")
-        assertResourceContents(alpha, "Alpha resource content")
-        assertResourceContents(beta, "Beta resource content")
+    private suspend fun verifyResources(
+        client: McpClient,
+        profile: ModeProfile,
+    ) {
+        val payload = client.readResource(profile.resourceUri).getOrFail("resource ${profile.resourceUri}")
+        assertResourceContents(payload, profile.resourceText)
     }
 
-    private fun arithmeticArgs(
-        a: Int,
-        b: Int,
-    ): JsonObject =
+    private fun arithmeticArgs(args: ToolTestArgs): JsonObject =
         buildJsonObject {
-            put("a", JsonPrimitive(a))
-            put("b", JsonPrimitive(b))
+            put("a", JsonPrimitive(args.a))
+            put("b", JsonPrimitive(args.b))
         }
 
     private fun assertStructuredResult(
@@ -225,12 +297,15 @@ class SimpleTestMcpServerIntegrationTest {
 
     private fun nextFreePort(): Int = ServerSocket(0).use { it.localPort }
 
-    private fun startHttpServerProcess(port: Int): ManagedProcess {
+    private fun startHttpServerProcess(
+        port: Int,
+        mode: String,
+    ): ManagedProcess {
         val command =
             listOf(
                 serverExecutable,
                 "--mode",
-                "streamable-http",
+                mode,
                 "--host",
                 "127.0.0.1",
                 "--port",
@@ -251,7 +326,7 @@ class SimpleTestMcpServerIntegrationTest {
     ) {
         repeat(100) {
             if (!process.isAlive()) {
-                assumeTrue(false, "HTTP Streamable test server exited early: ${process.logs()}")
+                assumeTrue(false, "Test server exited early: ${process.logs()}")
             }
             if (isPortOpen(port)) return
             delay(100)
@@ -260,10 +335,10 @@ class SimpleTestMcpServerIntegrationTest {
         if (logSnapshot.contains("Operation not permitted")) {
             assumeTrue(
                 false,
-                "HTTP Streamable server cannot bind sockets in this environment; skipping test. Logs: $logSnapshot",
+                "Test server cannot bind sockets in this environment; skipping test. Logs: $logSnapshot",
             )
         }
-        fail("HTTP Streamable server failed to start on port $port\n$logSnapshot")
+        fail("Test server failed to start on port $port\n$logSnapshot")
     }
 
     private fun isPortOpen(port: Int): Boolean =

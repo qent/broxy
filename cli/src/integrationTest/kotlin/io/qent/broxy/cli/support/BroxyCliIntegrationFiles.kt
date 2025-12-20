@@ -10,9 +10,13 @@ import kotlin.io.path.pathString
 import kotlin.test.fail
 
 internal object BroxyCliIntegrationFiles {
-    fun prepareConfigDir(httpServerUrl: String): Path {
+    fun prepareConfigDir(
+        httpServerUrl: String,
+        sseServerUrl: String,
+        wsServerUrl: String,
+    ): Path {
         val dir = Files.createTempDirectory("broxy-cli-it-")
-        writeTestServerConfig(dir.resolve("mcp.json"), httpServerUrl)
+        writeTestServerConfig(dir.resolve("mcp.json"), httpServerUrl, sseServerUrl, wsServerUrl)
         copyResource("/integration/preset_test.json", dir.resolve("preset_test.json"))
         BroxyCliIntegrationConfig.log("Wrote integration config to ${dir.pathString}")
         return dir
@@ -54,6 +58,8 @@ internal object BroxyCliIntegrationFiles {
     private fun writeTestServerConfig(
         destination: Path,
         httpServerUrl: String,
+        sseServerUrl: String,
+        wsServerUrl: String,
     ) {
         val template = readResource("/integration/mcp.json")
         val command = jsonEscape(resolveTestServerCommand())
@@ -61,6 +67,8 @@ internal object BroxyCliIntegrationFiles {
             template
                 .replace(BroxyCliIntegrationConfig.TEST_SERVER_COMMAND_PLACEHOLDER, command)
                 .replace(BroxyCliIntegrationConfig.TEST_SERVER_HTTP_URL_PLACEHOLDER, jsonEscape(httpServerUrl))
+                .replace(BroxyCliIntegrationConfig.TEST_SERVER_SSE_URL_PLACEHOLDER, jsonEscape(sseServerUrl))
+                .replace(BroxyCliIntegrationConfig.TEST_SERVER_WS_URL_PLACEHOLDER, jsonEscape(wsServerUrl))
         Files.writeString(destination, resolved)
     }
 
