@@ -27,14 +27,19 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.supervisorScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import java.nio.file.Path
 import java.nio.file.Paths
+import kotlin.math.min
 
 private data class ManagedDownstream(
     val connection: DefaultMcpServerConnection,
@@ -71,6 +76,9 @@ private class JvmProxyController(
     private var inboundServer: InboundServer? = null
     private val refreshScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var refreshJob: Job? = null
+    private var periodicRefreshJob: Job? = null
+    private var refreshLimiter = Semaphore(DEFAULT_REFRESH_PARALLELISM)
+    private var capabilitiesRefreshIntervalMillis: Long = DEFAULT_REFRESH_INTERVAL_MILLIS
     private val _capabilityUpdates = MutableSharedFlow<List<ServerCapsSnapshot>>(replay = 1)
 
     @Volatile
@@ -88,11 +96,13 @@ private class JvmProxyController(
         inbound: TransportConfig,
         callTimeoutSeconds: Int,
         capabilitiesTimeoutSeconds: Int,
+        capabilitiesRefreshIntervalSeconds: Int,
     ): Result<Unit> =
         runCatching {
             runCatching { stop() }
             callTimeoutMillis = callTimeoutSeconds.toLong() * 1_000L
             capabilitiesTimeoutMillis = capabilitiesTimeoutSeconds.toLong() * 1_000L
+            capabilitiesRefreshIntervalMillis = refreshIntervalMillis(capabilitiesRefreshIntervalSeconds)
 
             val enabledConfigs = servers.filter { it.enabled }
             val managed =
@@ -100,6 +110,7 @@ private class JvmProxyController(
                     cfg.id to createManagedDownstream(cfg)
                 }
             val downstreams = enabledConfigs.mapNotNull { managed[it.id]?.isolated }
+            resetRefreshLimiter(downstreams.size)
             try {
                 val proxy =
                     ProxyMcpServer(
@@ -121,6 +132,7 @@ private class JvmProxyController(
                 managedDownstreams = managed
                 this.downstreams = downstreams
                 startInitialRefresh(proxy, downstreams)
+                startPeriodicRefresh(proxy, downstreams)
             } catch (t: Throwable) {
                 runBlocking { managed.values.map { async { it.shutdown() } }.awaitAll() }
                 throw t
@@ -131,6 +143,8 @@ private class JvmProxyController(
         runCatching {
             refreshJob?.cancel()
             refreshJob = null
+            periodicRefreshJob?.cancel()
+            periodicRefreshJob = null
             inboundServer?.stop()
             inboundServer = null
             val managed = managedDownstreams.values
@@ -151,16 +165,20 @@ private class JvmProxyController(
         servers: List<McpServerConfig>,
         callTimeoutSeconds: Int,
         capabilitiesTimeoutSeconds: Int,
+        capabilitiesRefreshIntervalSeconds: Int,
     ): Result<Unit> =
         runCatching {
             val proxy = this.proxy ?: error("Proxy is not running")
             refreshJob?.cancel()
             refreshJob = null
+            periodicRefreshJob?.cancel()
+            periodicRefreshJob = null
 
             val previousCallTimeoutMillis = callTimeoutMillis
             val previousCapabilitiesTimeoutMillis = capabilitiesTimeoutMillis
             callTimeoutMillis = callTimeoutSeconds.toLong() * 1_000L
             capabilitiesTimeoutMillis = capabilitiesTimeoutSeconds.toLong() * 1_000L
+            capabilitiesRefreshIntervalMillis = refreshIntervalMillis(capabilitiesRefreshIntervalSeconds)
 
             val enabledConfigs = servers.filter { it.enabled }
             val nextById = enabledConfigs.associateBy { it.id }
@@ -191,6 +209,7 @@ private class JvmProxyController(
 
             managedDownstreams = updated
             downstreams = enabledConfigs.mapNotNull { updated[it.id]?.isolated }
+            resetRefreshLimiter(downstreams.size)
 
             val callTimeoutChanged = previousCallTimeoutMillis != callTimeoutMillis
             val capabilitiesTimeoutChanged = previousCapabilitiesTimeoutMillis != capabilitiesTimeoutMillis
@@ -207,7 +226,7 @@ private class JvmProxyController(
                 val removedIds = toDisconnect.map { it.serverId }.toSet()
                 removedIds.forEach { proxy.removeServerCapabilities(it) }
                 if (changedIds.isNotEmpty()) {
-                    changedIds.map { id -> async { proxy.refreshServerCapabilities(id) } }.awaitAll()
+                    refreshServers(proxy, changedIds, "Updated")
                 }
             }
             inboundServer?.refreshCapabilities()?.getOrThrow()
@@ -215,6 +234,7 @@ private class JvmProxyController(
             runBlocking {
                 toDisconnect.distinctBy { it.serverId }.map { async { it.shutdown() } }.awaitAll()
             }
+            startPeriodicRefresh(proxy, downstreams)
         }
 
     override fun updateCallTimeout(seconds: Int) {
@@ -280,30 +300,80 @@ private class JvmProxyController(
             else -> null
         }
 
+    private fun resetRefreshLimiter(serverCount: Int) {
+        refreshLimiter = Semaphore(computeRefreshParallelism(serverCount))
+    }
+
+    private fun startPeriodicRefresh(
+        proxy: ProxyMcpServer,
+        downstreams: List<McpServerConnection>,
+    ) {
+        periodicRefreshJob?.cancel()
+        periodicRefreshJob = null
+        if (capabilitiesRefreshIntervalMillis <= 0L || downstreams.isEmpty()) return
+        val serverIds = downstreams.map { it.serverId }
+        periodicRefreshJob =
+            refreshScope.launch {
+                refreshJob?.join()
+                while (isActive) {
+                    delay(capabilitiesRefreshIntervalMillis)
+                    refreshServers(proxy, serverIds, "Background")
+                }
+            }
+    }
+
+    private suspend fun refreshServers(
+        proxy: ProxyMcpServer,
+        serverIds: Collection<String>,
+        label: String,
+    ) {
+        if (serverIds.isEmpty()) return
+        supervisorScope {
+            serverIds.map { serverId ->
+                launch {
+                    try {
+                        refreshLimiter.withPermit {
+                            proxy.refreshServerCapabilities(serverId)
+                        }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (t: Throwable) {
+                        logger.warn("$label capabilities refresh failed for '$serverId'", t)
+                    }
+                }
+            }.joinAll()
+        }
+    }
+
+    private fun refreshIntervalMillis(seconds: Int): Long =
+        when {
+            seconds <= 0 -> 0L
+            else -> seconds.coerceAtLeast(MIN_REFRESH_INTERVAL_SECONDS).toLong() * 1_000L
+        }
+
+    private fun computeRefreshParallelism(serverCount: Int): Int {
+        val cpu = Runtime.getRuntime().availableProcessors().coerceAtLeast(1)
+        val maxParallel = min(MAX_REFRESH_PARALLELISM, cpu)
+        return serverCount.coerceAtLeast(1).coerceAtMost(maxParallel)
+    }
+
     private fun startInitialRefresh(
         proxy: ProxyMcpServer,
         downstreams: List<McpServerConnection>,
     ) {
         refreshJob?.cancel()
+        val serverIds = downstreams.map { it.serverId }
         refreshJob =
             refreshScope.launch {
-                supervisorScope {
-                    downstreams.map { server ->
-                        launch {
-                            try {
-                                proxy.refreshServerCapabilities(server.serverId)
-                            } catch (e: CancellationException) {
-                                throw e
-                            } catch (t: Throwable) {
-                                logger.warn(
-                                    "Initial capabilities refresh failed for '${server.serverId}'",
-                                    t,
-                                )
-                            }
-                        }
-                    }.joinAll()
-                }
+                refreshServers(proxy, serverIds, "Initial")
             }
+    }
+
+    private companion object {
+        private const val MIN_REFRESH_INTERVAL_SECONDS = 30
+        private const val MAX_REFRESH_PARALLELISM = 4
+        private const val DEFAULT_REFRESH_INTERVAL_MILLIS = 300_000L
+        private const val DEFAULT_REFRESH_PARALLELISM = 1
     }
 }
 

@@ -189,6 +189,7 @@ class AppStoreTest {
             assertIs<TransportConfig.StreamableHttpTransport>(params.inbound)
             assertEquals(config.requestTimeoutSeconds, params.callTimeoutSeconds)
             assertEquals(config.capabilitiesTimeoutSeconds, params.capabilitiesTimeoutSeconds)
+            assertEquals(config.capabilitiesRefreshIntervalSeconds, params.capabilitiesRefreshIntervalSeconds)
 
             val updatedState = store.state.value
             assertTrue(updatedState is UIState.Ready, "Expected Ready state, got $updatedState")
@@ -629,6 +630,7 @@ class AppStoreTest {
             val inbound: UiTransportConfig,
             val callTimeoutSeconds: Int,
             val capabilitiesTimeoutSeconds: Int,
+            val capabilitiesRefreshIntervalSeconds: Int,
             val logsSubscriptionActive: Boolean,
         )
 
@@ -645,6 +647,7 @@ class AppStoreTest {
             inbound: UiTransportConfig,
             callTimeoutSeconds: Int,
             capabilitiesTimeoutSeconds: Int,
+            capabilitiesRefreshIntervalSeconds: Int,
         ): Result<Unit> {
             startCalls +=
                 StartParams(
@@ -653,6 +656,7 @@ class AppStoreTest {
                     inbound = inbound,
                     callTimeoutSeconds = callTimeoutSeconds,
                     capabilitiesTimeoutSeconds = capabilitiesTimeoutSeconds,
+                    capabilitiesRefreshIntervalSeconds = capabilitiesRefreshIntervalSeconds,
                     logsSubscriptionActive = true,
                 )
             return startResult
@@ -669,6 +673,7 @@ class AppStoreTest {
             servers: List<UiMcpServerConfig>,
             callTimeoutSeconds: Int,
             capabilitiesTimeoutSeconds: Int,
+            capabilitiesRefreshIntervalSeconds: Int,
         ): Result<Unit> {
             updateServersCalls += servers
             return Result.success(Unit)

@@ -13,6 +13,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -217,6 +218,62 @@ class CapabilityRefresherTest {
             refreshJob.join()
             assertEquals(ServerConnectionStatus.Disabled, statusTracker.statusFor("s1"))
             assertEquals(ServerConnectionStatus.Available, statusTracker.statusFor("s2"))
+        }
+
+    @Test
+    fun applyProxySnapshots_keeps_existing_entries_for_missing_servers() =
+        runTest {
+            val configs =
+                listOf(
+                    McpServerConfig(
+                        id = "s1",
+                        name = "Server 1",
+                        transport = TransportConfig.StdioTransport(command = "noop"),
+                        enabled = true,
+                    ),
+                    McpServerConfig(
+                        id = "s2",
+                        name = "Server 2",
+                        transport = TransportConfig.StdioTransport(command = "noop"),
+                        enabled = true,
+                    ),
+                    McpServerConfig(
+                        id = "s3",
+                        name = "Server 3",
+                        transport = TransportConfig.StdioTransport(command = "noop"),
+                        enabled = false,
+                    ),
+                )
+            val cache = CapabilityCache { 0L }
+            val statusTracker = ServerStatusTracker { 0L }
+            cache.put("s2", ServerCapsSnapshot(serverId = "s2", name = "Server 2"))
+            cache.put("s3", ServerCapsSnapshot(serverId = "s3", name = "Server 3"))
+            statusTracker.set("s2", ServerConnectionStatus.Available)
+            statusTracker.set("s3", ServerConnectionStatus.Available)
+            val published = mutableListOf<Unit>()
+            val refresher =
+                CapabilityRefresher(
+                    scope = this,
+                    capabilityFetcher = { _, _ -> Result.success(ServerCapabilities()) },
+                    capabilityCache = cache,
+                    statusTracker = statusTracker,
+                    logger = NoopLogger,
+                    serversProvider = { configs },
+                    capabilitiesTimeoutProvider = { 5 },
+                    publishUpdate = { published += Unit },
+                    refreshIntervalMillis = { 0L },
+                )
+
+            refresher.applyProxySnapshots(
+                listOf(ServerCapsSnapshot(serverId = "s1", name = "Server 1")),
+            )
+
+            assertNotNull(cache.snapshot("s2"))
+            assertNull(cache.snapshot("s3"))
+            assertEquals(ServerConnectionStatus.Available, statusTracker.statusFor("s1"))
+            assertEquals(ServerConnectionStatus.Available, statusTracker.statusFor("s2"))
+            assertEquals(ServerConnectionStatus.Disabled, statusTracker.statusFor("s3"))
+            assertEquals(1, published.size)
         }
 }
 

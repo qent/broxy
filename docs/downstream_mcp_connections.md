@@ -118,8 +118,10 @@ To keep server lifecycles independent, the JVM proxy runtime wraps each downstre
 - each server gets its own single-thread dispatcher;
 - connect/disconnect/edit/capability fetch calls run on that dedicated thread;
 - operations on one server do not block or restart other servers.
-- initial parallel capability refresh runs under a supervisor scope so one server failure/cancellation
-  does not cancel other servers' refresh jobs.
+- initial capability refresh is concurrency-limited (max 4 or CPU count, whichever is smaller) and
+  runs under a supervisor scope so one server failure/cancellation does not cancel other servers' jobs.
+- a periodic refresh loop uses `capabilitiesRefreshIntervalSeconds` to retry missing/failed servers and
+  keep cached capabilities up to date.
 
 This wrapper is applied by `ProxyControllerJvm` when building downstreams, and also in the
 STDIO headless entrypoint. It preserves per-server caches while allowing dynamic add/remove

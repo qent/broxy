@@ -40,6 +40,9 @@ Loader:
     - `inboundSsePort` (default 3335; historical name, used for local Streamable HTTP)
     - `defaultPresetId` (optional)
 
+`capabilitiesRefreshIntervalSeconds` drives both the proxy background refresh loop and
+the UI refresh cadence (minimum 30 seconds for each).
+
 ### mcp.json example
 
 ```json

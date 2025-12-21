@@ -33,6 +33,7 @@ class ProxyLifecycle(
                 inbound = inbound,
                 callTimeoutSeconds = config.requestTimeoutSeconds,
                 capabilitiesTimeoutSeconds = config.capabilitiesTimeoutSeconds,
+                capabilitiesRefreshIntervalSeconds = config.capabilitiesRefreshIntervalSeconds,
             )
         if (result.isSuccess) {
             currentConfig = config
@@ -88,6 +89,7 @@ class ProxyLifecycle(
                 servers = config.servers,
                 callTimeoutSeconds = config.requestTimeoutSeconds,
                 capabilitiesTimeoutSeconds = config.capabilitiesTimeoutSeconds,
+                capabilitiesRefreshIntervalSeconds = config.capabilitiesRefreshIntervalSeconds,
             )
         if (result.isSuccess) {
             currentConfig = config

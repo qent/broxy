@@ -22,11 +22,12 @@ class ProxyControllerJvmTest {
                 inbound = inbound,
                 callTimeoutSeconds = 1,
                 capabilitiesTimeoutSeconds = 1,
+                capabilitiesRefreshIntervalSeconds = 30,
             )
 
         try {
             assertTrue(startResult.isSuccess)
-            assertTrue(controller.updateServers(emptyList(), 1, 1).isSuccess)
+            assertTrue(controller.updateServers(emptyList(), 1, 1, 30).isSuccess)
             controller.updateCallTimeout(2)
             controller.updateCapabilitiesTimeout(2)
         } finally {
@@ -42,6 +43,7 @@ class ProxyControllerJvmTest {
                 servers = listOf(testServer("s1")),
                 callTimeoutSeconds = 1,
                 capabilitiesTimeoutSeconds = 1,
+                capabilitiesRefreshIntervalSeconds = 30,
             )
 
         assertTrue(result.isFailure)

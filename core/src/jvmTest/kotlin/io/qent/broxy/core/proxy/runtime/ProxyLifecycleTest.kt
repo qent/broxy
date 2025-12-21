@@ -85,6 +85,7 @@ private class FakeProxyController : ProxyController {
         val inbound: TransportConfig,
         val callTimeoutSeconds: Int,
         val capabilitiesTimeoutSeconds: Int,
+        val capabilitiesRefreshIntervalSeconds: Int,
     )
 
     override val logs: Flow<LogEvent> = emptyFlow()
@@ -98,8 +99,17 @@ private class FakeProxyController : ProxyController {
         inbound: TransportConfig,
         callTimeoutSeconds: Int,
         capabilitiesTimeoutSeconds: Int,
+        capabilitiesRefreshIntervalSeconds: Int,
     ): Result<Unit> {
-        startCalls += StartCall(servers, preset, inbound, callTimeoutSeconds, capabilitiesTimeoutSeconds)
+        startCalls +=
+            StartCall(
+                servers,
+                preset,
+                inbound,
+                callTimeoutSeconds,
+                capabilitiesTimeoutSeconds,
+                capabilitiesRefreshIntervalSeconds,
+            )
         return Result.success(Unit)
     }
 
@@ -111,6 +121,7 @@ private class FakeProxyController : ProxyController {
         servers: List<McpServerConfig>,
         callTimeoutSeconds: Int,
         capabilitiesTimeoutSeconds: Int,
+        capabilitiesRefreshIntervalSeconds: Int,
     ): Result<Unit> = Result.success(Unit)
 
     override fun updateCallTimeout(seconds: Int) {}

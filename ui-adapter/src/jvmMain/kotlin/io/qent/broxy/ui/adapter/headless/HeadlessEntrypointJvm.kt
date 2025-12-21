@@ -25,14 +25,19 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.supervisorScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.io.asSink
 import kotlinx.io.asSource
 import kotlinx.io.buffered
 import java.nio.file.Paths
+import kotlin.math.min
 
 /**
  * Starts the proxy in STDIO inbound mode and blocks until the STDIO session ends.
@@ -81,6 +86,8 @@ fun runStdioProxy(
 
         val callTimeoutMillis = cfg.requestTimeoutSeconds.toLong() * 1_000L
         val capabilitiesTimeoutMillis = cfg.capabilitiesTimeoutSeconds.toLong() * 1_000L
+        val capabilitiesRefreshIntervalMillis =
+            cfg.capabilitiesRefreshIntervalSeconds.coerceAtLeast(30).toLong() * 1_000L
         val authStateStore = OAuthStateStore(baseDir = baseDir, logger = sink)
 
         val downstreams: List<IsolatedMcpServerConnection> =
@@ -143,24 +150,44 @@ fun runStdioProxy(
         )
 
         val refreshScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-        val refreshJob =
-            refreshScope.launch {
-                supervisorScope {
-                    downstreams.map { serverConn ->
-                        launch {
-                            try {
-                                proxy.refreshServerCapabilities(serverConn.serverId)
-                            } catch (e: CancellationException) {
-                                throw e
-                            } catch (t: Throwable) {
-                                logger.warn(
-                                    "Initial capabilities refresh failed for '${serverConn.serverId}'",
-                                    t,
-                                )
+        val refreshParallelism = computeRefreshParallelism(downstreams.size)
+        val refreshLimiter = Semaphore(refreshParallelism)
+        val refreshServerIds = downstreams.map { it.serverId }
+
+        suspend fun refreshServers(label: String) {
+            if (refreshServerIds.isEmpty()) return
+            supervisorScope {
+                refreshServerIds.map { serverId ->
+                    launch {
+                        try {
+                            refreshLimiter.withPermit {
+                                proxy.refreshServerCapabilities(serverId)
                             }
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (t: Throwable) {
+                            logger.warn("$label capabilities refresh failed for '$serverId'", t)
                         }
-                    }.joinAll()
+                    }
+                }.joinAll()
+            }
+        }
+
+        val initialRefreshJob =
+            refreshScope.launch {
+                refreshServers("Initial")
+            }
+        val periodicRefreshJob =
+            if (capabilitiesRefreshIntervalMillis > 0 && refreshServerIds.isNotEmpty()) {
+                refreshScope.launch {
+                    initialRefreshJob.join()
+                    while (isActive) {
+                        delay(capabilitiesRefreshIntervalMillis)
+                        refreshServers("Background")
+                    }
                 }
+            } else {
+                null
             }
 
         try {
@@ -169,7 +196,8 @@ fun runStdioProxy(
                 shutdownSignal.await()
             }
         } finally {
-            refreshJob.cancel()
+            periodicRefreshJob?.cancel()
+            initialRefreshJob.cancel()
             refreshScope.cancel()
             runBlocking { runCatching { transport.close() } }
             runCatching { proxy.stop() }
@@ -190,3 +218,9 @@ private fun resolveAuthResourceUrl(config: io.qent.broxy.core.models.McpServerCo
         is TransportConfig.WebSocketTransport -> resolveOAuthResourceUrl(transport.url)
         else -> null
     }
+
+private fun computeRefreshParallelism(serverCount: Int): Int {
+    val cpu = Runtime.getRuntime().availableProcessors().coerceAtLeast(1)
+    val maxParallel = min(4, cpu)
+    return serverCount.coerceAtLeast(1).coerceAtMost(maxParallel)
+}

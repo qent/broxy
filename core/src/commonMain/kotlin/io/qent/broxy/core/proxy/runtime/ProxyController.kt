@@ -23,6 +23,7 @@ interface ProxyController {
         inbound: TransportConfig,
         callTimeoutSeconds: Int,
         capabilitiesTimeoutSeconds: Int,
+        capabilitiesRefreshIntervalSeconds: Int,
     ): Result<Unit>
 
     fun stop(): Result<Unit>
@@ -37,6 +38,7 @@ interface ProxyController {
         servers: List<McpServerConfig>,
         callTimeoutSeconds: Int,
         capabilitiesTimeoutSeconds: Int,
+        capabilitiesRefreshIntervalSeconds: Int,
     ): Result<Unit>
 
     fun updateCallTimeout(seconds: Int)
