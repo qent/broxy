@@ -86,15 +86,15 @@ Add an `auth` block to a server to enable OAuth:
 - When OAuth is required, broxy extends the connect timeout to allow the user to complete the
   browser consent flow and only connects to the MCP endpoint after authorization succeeds.
 
-## OAuth cache
+## OAuth secure storage
 
-broxy caches OAuth tokens and dynamic client registration data in `oauth_cache.json` inside the
-config directory. On restart, cached tokens are reused when still valid, and refresh tokens are
-used when available to avoid interactive login. If the cached resource URL does not match the
-current server URL, the cached entry is ignored.
+broxy stores OAuth tokens and dynamic client registration data in the system secure storage
+(Keychain on macOS, Secret Service on Linux). On restart, cached tokens are reused when still
+valid, and refresh tokens are used when available to avoid interactive login. If the cached
+resource URL does not match the current server URL, the cached entry is ignored.
 
-Treat `oauth_cache.json` as sensitive data: it can contain access tokens, refresh tokens, and
-client secrets.
+If secure storage is unavailable, broxy keeps OAuth state in memory for the current session only
+and requires re-authorization after restart.
 
 ## WebSocket notes
 

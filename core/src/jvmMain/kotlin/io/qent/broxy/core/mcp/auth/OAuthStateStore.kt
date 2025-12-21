@@ -2,40 +2,73 @@ package io.qent.broxy.core.mcp.auth
 
 import io.qent.broxy.core.utils.ConsoleLogger
 import io.qent.broxy.core.utils.Logger
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import java.io.IOException
+import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
-import java.nio.file.StandardOpenOption
-import kotlin.io.path.exists
+import java.security.MessageDigest
 
-class OAuthStateStore(
-    baseDir: Path = Paths.get(System.getProperty("user.home"), ".config", "broxy"),
-    private val logger: Logger = ConsoleLogger,
-    private val json: Json =
-        Json {
-            ignoreUnknownKeys = true
-            prettyPrint = true
-        },
+class OAuthStateStore private constructor(
+    baseDir: Path,
+    private val logger: Logger,
+    private val json: Json,
+    private val secureStorage: SecureStorage,
 ) {
-    @Serializable
-    private data class CacheFile(
-        val servers: Map<String, OAuthStateSnapshot> = emptyMap(),
+    constructor(
+        baseDir: Path = Paths.get(System.getProperty("user.home"), ".config", "broxy"),
+        logger: Logger = ConsoleLogger,
+        json: Json =
+            Json {
+                ignoreUnknownKeys = true
+                prettyPrint = true
+            },
+    ) : this(
+        baseDir = baseDir,
+        logger = logger,
+        json = json,
+        secureStorage = SecureStorageFactory.create(buildServiceName(baseDir), logger),
     )
 
-    private val file: Path = baseDir.resolve("oauth_cache.json")
+    companion object {
+        internal fun forTesting(
+            baseDir: Path = Paths.get(System.getProperty("user.home"), ".config", "broxy"),
+            logger: Logger = ConsoleLogger,
+            json: Json =
+                Json {
+                    ignoreUnknownKeys = true
+                    prettyPrint = true
+                },
+            secureStorage: SecureStorage,
+        ): OAuthStateStore =
+            OAuthStateStore(
+                baseDir = baseDir,
+                logger = logger,
+                json = json,
+                secureStorage = secureStorage,
+            )
+    }
+
     private val lock = Any()
-    private var cached: MutableMap<String, OAuthStateSnapshot>? = null
+    private val cached = mutableMapOf<String, OAuthStateSnapshot>()
+    private val missing = mutableSetOf<String>()
+    private val legacyFile: Path = baseDir.resolve("oauth_cache.json")
+
+    init {
+        if (Files.exists(legacyFile)) {
+            logger.warn(
+                "Legacy OAuth cache file found at ${legacyFile.toAbsolutePath()}. " +
+                    "broxy now stores OAuth data in the system secure storage.",
+            )
+        }
+    }
 
     fun load(
         serverId: String,
         resourceUrl: String?,
     ): OAuthStateSnapshot? =
         synchronized(lock) {
-            val cache = loadCacheLocked()
-            val snapshot = cache[serverId] ?: return null
+            val snapshot = loadSnapshot(serverId) ?: return null
             if (!matchesResource(snapshot, resourceUrl)) return null
             snapshot
         }
@@ -48,57 +81,41 @@ class OAuthStateStore(
             remove(serverId)
             return@synchronized
         }
-        val cache = loadCacheLocked()
-        val existing = cache[serverId]
+        val existing = cached[serverId] ?: loadSnapshot(serverId)
         if (existing == snapshot) return@synchronized
-        cache[serverId] = snapshot
-        persistLocked(cache)
+        val serialized = json.encodeToString(OAuthStateSnapshot.serializer(), snapshot)
+        secureStorage.write(keyFor(serverId), serialized)
+        cached[serverId] = snapshot
+        missing.remove(serverId)
     }
 
     fun remove(serverId: String) {
         synchronized(lock) {
-            val cache = loadCacheLocked()
-            if (cache.remove(serverId) != null) {
-                persistLocked(cache)
-            }
+            secureStorage.delete(keyFor(serverId))
+            cached.remove(serverId)
+            missing.remove(serverId)
         }
     }
 
-    private fun loadCacheLocked(): MutableMap<String, OAuthStateSnapshot> {
-        val existing = cached
-        if (existing != null) return existing
-        val loaded =
-            if (!file.exists()) {
-                mutableMapOf()
-            } else {
-                try {
-                    val text = Files.readString(file)
-                    json.decodeFromString(CacheFile.serializer(), text).servers.toMutableMap()
-                } catch (ex: Exception) {
-                    logger.warn("Failed to load OAuth cache at ${file.toAbsolutePath()}: ${ex.message}", ex)
-                    mutableMapOf()
-                }
+    private fun loadSnapshot(serverId: String): OAuthStateSnapshot? {
+        cached[serverId]?.let { return it }
+        if (missing.contains(serverId)) return null
+        val serialized =
+            secureStorage.read(keyFor(serverId)) ?: run {
+                missing.add(serverId)
+                return null
             }
-        cached = loaded
-        return loaded
-    }
-
-    private fun persistLocked(cache: Map<String, OAuthStateSnapshot>) {
-        try {
-            val parent = file.parent
-            if (parent != null && !Files.exists(parent)) {
-                Files.createDirectories(parent)
+        val snapshot =
+            try {
+                json.decodeFromString(OAuthStateSnapshot.serializer(), serialized)
+            } catch (ex: Exception) {
+                logger.warn("Failed to decode OAuth cache entry for '$serverId': ${ex.message}", ex)
+                missing.add(serverId)
+                return null
             }
-            val content = json.encodeToString(CacheFile.serializer(), CacheFile(servers = cache))
-            Files.writeString(
-                file,
-                content,
-                StandardOpenOption.CREATE,
-                StandardOpenOption.TRUNCATE_EXISTING,
-            )
-        } catch (ex: IOException) {
-            logger.warn("Failed to persist OAuth cache to ${file.toAbsolutePath()}: ${ex.message}", ex)
-        }
+        cached[serverId] = snapshot
+        missing.remove(serverId)
+        return snapshot
     }
 
     private fun matchesResource(
@@ -119,4 +136,13 @@ class OAuthStateStore(
         if (!snapshot.lastRequestedScope.isNullOrBlank()) return true
         return false
     }
+
+    private fun keyFor(serverId: String): String = serverId
+}
+
+private fun buildServiceName(baseDir: Path): String {
+    val normalized = baseDir.toAbsolutePath().normalize().toString()
+    val digest = MessageDigest.getInstance("SHA-256").digest(normalized.toByteArray(StandardCharsets.UTF_8))
+    val hex = digest.joinToString(separator = "") { "%02x".format(it) }
+    return "broxy.oauth.$hex"
 }

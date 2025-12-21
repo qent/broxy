@@ -14,7 +14,7 @@ Key files:
 
 - `mcp.json` - downstream server list and global settings.
 - `preset_<id>.json` - presets for filtering.
-- `oauth_cache.json` - cached OAuth tokens/metadata for HTTP/WS servers (managed by broxy).
+- OAuth cache for HTTP/WS servers is stored in system secure storage.
 
 Loader:
 
