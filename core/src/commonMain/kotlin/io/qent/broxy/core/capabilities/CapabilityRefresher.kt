@@ -47,6 +47,11 @@ class CapabilityRefresher(
         statusTracker.set(serverId, ServerConnectionStatus.Disabled)
     }
 
+    fun markServerConnecting(serverId: String) {
+        statusTracker.set(serverId, ServerConnectionStatus.Connecting)
+        publishUpdate()
+    }
+
     fun markServerRemoved(serverId: String) {
         cancelRefresh(serverId)
         capabilityCache.remove(serverId)

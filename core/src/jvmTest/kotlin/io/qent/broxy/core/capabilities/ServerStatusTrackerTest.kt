@@ -13,6 +13,10 @@ class ServerStatusTrackerTest {
         tracker.set("s1", ServerConnectionStatus.Connecting)
         assertEquals(100L, tracker.connectingSince("s1"))
 
+        nowMillis = 150L
+        tracker.set("s1", ServerConnectionStatus.Connecting)
+        assertEquals(100L, tracker.connectingSince("s1"))
+
         nowMillis = 200L
         tracker.set("s1", ServerConnectionStatus.Available)
         assertNull(tracker.connectingSince("s1"))
@@ -31,5 +35,20 @@ class ServerStatusTrackerTest {
         assertNull(tracker.statusFor("a"))
         assertNull(tracker.connectingSince("a"))
         assertEquals(ServerConnectionStatus.Connecting, tracker.statusFor("b"))
+    }
+
+    @Test
+    fun setAll_preserves_existing_connecting_timestamp() {
+        var nowMillis = 100L
+        val tracker = ServerStatusTracker { nowMillis }
+
+        tracker.set("a", ServerConnectionStatus.Connecting)
+        assertEquals(100L, tracker.connectingSince("a"))
+
+        nowMillis = 200L
+        tracker.setAll(listOf("a", "b"), ServerConnectionStatus.Connecting)
+
+        assertEquals(100L, tracker.connectingSince("a"))
+        assertEquals(200L, tracker.connectingSince("b"))
     }
 }

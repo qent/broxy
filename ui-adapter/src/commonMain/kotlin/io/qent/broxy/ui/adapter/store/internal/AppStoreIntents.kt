@@ -216,12 +216,22 @@ internal class AppStoreIntents(
     ) {
         scope.launch {
             val previousServers = state.snapshot.servers
+            val previousPendingToggles = state.snapshot.pendingServerToggles
             val previousConfig = state.snapshotConfig()
             val idx = previousServers.indexOfFirst { it.id == id }
             if (idx < 0) return@launch
             val updated = previousServers.toMutableList()
             updated[idx] = updated[idx].copy(enabled = enabled)
-            state.updateSnapshot { copy(servers = updated) }
+            val updatedPending =
+                if (!enabled) {
+                    previousPendingToggles + id
+                } else {
+                    previousPendingToggles - id
+                }
+            state.updateSnapshot { copy(servers = updated, pendingServerToggles = updatedPending) }
+            if (enabled) {
+                capabilityRefresher.markServerConnecting(id)
+            }
             val result = configurationManager.toggleServer(previousConfig, id, enabled)
             if (result.isFailure) {
                 revertServersOnFailure(
@@ -229,6 +239,7 @@ internal class AppStoreIntents(
                     previousServers,
                     result.exceptionOrNull(),
                     "Failed to save server state",
+                    previousPendingToggles,
                 )
             } else {
                 val savedConfig = result.getOrNull()
@@ -242,6 +253,9 @@ internal class AppStoreIntents(
                     if (updateResult.isFailure) {
                         logger.info("[AppStore] toggleServer updateServers failed: ${updateResult.exceptionOrNull()?.message}")
                     }
+                }
+                if (!enabled) {
+                    state.updateSnapshot { copy(pendingServerToggles = pendingServerToggles - id) }
                 }
             }
             publishReady()
@@ -517,10 +531,16 @@ internal class AppStoreIntents(
         previousServers: List<UiMcpServerConfig>,
         failure: Throwable?,
         defaultMessage: String,
+        previousPendingToggles: Set<String>? = null,
     ) {
         val message = failure?.message ?: defaultMessage
         logger.info("[AppStore] $operation failed: $message")
-        state.updateSnapshot { copy(servers = previousServers) }
+        state.updateSnapshot {
+            copy(
+                servers = previousServers,
+                pendingServerToggles = previousPendingToggles ?: pendingServerToggles,
+            )
+        }
         state.setError(message)
     }
 

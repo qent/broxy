@@ -94,6 +94,18 @@ As each server finishes:
 UI status derivation treats `Connecting` from `ServerStatusTracker` as higher priority than cached
 snapshots so refresh-in-progress still shows the timer even if an older snapshot exists.
 
+## UI toggle flow (enable/disable)
+
+When a server is toggled from the UI:
+
+- Enable: the switch flips on immediately, the status becomes `Connecting`, and the timer starts at
+  the moment of the toggle. The switch is disabled while the server is connecting, and the timer
+  keeps running (without reset) until capabilities arrive. Once capabilities are available, the
+  status becomes `Available` and the switch is re-enabled.
+- Disable: the switch flips off immediately and the card is rendered as disabled. The switch stays
+  disabled while the disconnect/update is in flight, then becomes interactive again once the
+  server is fully stopped.
+
 ## Snapshot conversion details
 
 File: `core/src/commonMain/kotlin/io/qent/broxy/core/capabilities/CapabilitySnapshots.kt`

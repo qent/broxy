@@ -21,7 +21,9 @@ class ServerStatusTracker(
         synchronized(lock) {
             statuses[serverId] = status
             if (status == ServerConnectionStatus.Connecting) {
-                connectingSince[serverId] = now()
+                if (connectingSince[serverId] == null) {
+                    connectingSince[serverId] = now()
+                }
             } else {
                 connectingSince.remove(serverId)
             }
@@ -38,7 +40,9 @@ class ServerStatusTracker(
             serverIds.forEach { serverId ->
                 statuses[serverId] = status
                 if (status == ServerConnectionStatus.Connecting) {
-                    connectingSince[serverId] = timestamp ?: now()
+                    if (connectingSince[serverId] == null) {
+                        connectingSince[serverId] = timestamp ?: now()
+                    }
                 } else {
                     connectingSince.remove(serverId)
                 }

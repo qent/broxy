@@ -34,6 +34,7 @@ internal data class StoreSnapshot(
     val showTrayIcon: Boolean = true,
     val remote: UiRemoteConnectionState = defaultRemoteState(),
     val remoteEnabled: Boolean = isRemoteIntegrationEnabled(),
+    val pendingServerToggles: Set<String> = emptySet(),
 )
 
 internal fun StoreSnapshot.withPresets(newPresets: List<UiPreset>): StoreSnapshot {
@@ -76,11 +77,15 @@ internal fun StoreSnapshot.toUiState(
                 } else {
                     null
                 }
+            val isInitialConnecting =
+                server.enabled && derivedStatus == UiServerConnStatus.Connecting && snapshot == null
+            val canToggle = server.id !in pendingServerToggles && !isInitialConnecting
             UiServer(
                 id = server.id,
                 name = server.name,
                 transportLabel = server.transport.transportLabel(),
                 enabled = server.enabled,
+                canToggle = canToggle,
                 status = derivedStatus,
                 connectingSinceEpochMillis = connectingSince,
                 toolsCount = snapshot?.tools?.size,

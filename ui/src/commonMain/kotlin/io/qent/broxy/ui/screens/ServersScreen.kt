@@ -226,6 +226,7 @@ private fun ServerCard(
         Switch(
             checked = cfg.enabled,
             onCheckedChange = { enabled -> onToggle(cfg.id, enabled) },
+            enabled = cfg.canToggle,
             modifier = Modifier.scale(0.7f),
             colors =
                 SwitchDefaults.colors(

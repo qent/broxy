@@ -5,6 +5,7 @@ data class UiServer(
     val name: String,
     val transportLabel: String,
     val enabled: Boolean,
+    val canToggle: Boolean = true,
     val status: UiServerConnStatus,
     val connectingSinceEpochMillis: Long? = null,
     val toolsCount: Int? = null,
