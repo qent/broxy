@@ -97,7 +97,7 @@ class JsonConfigurationRepository(
                             val url =
                                 e.url?.takeIf { it.isNotBlank() }
                                     ?: fail("Server '$id' (websocket): 'url' is required")
-                            TransportConfig.WebSocketTransport(url = url)
+                            TransportConfig.WebSocketTransport(url = url, headers = e.headers ?: emptyMap())
                         }
 
                         else -> fail("Server '$id': unsupported transport '${e.transport}'")
@@ -204,6 +204,7 @@ class JsonConfigurationRepository(
                                         enabled = s.enabled,
                                         transport = "websocket",
                                         url = t.url,
+                                        headers = t.headers,
                                         env = s.env,
                                         auth = s.auth,
                                     )

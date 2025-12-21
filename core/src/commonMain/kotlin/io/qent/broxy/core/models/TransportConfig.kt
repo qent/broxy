@@ -30,5 +30,6 @@ sealed class TransportConfig {
     @SerialName("websocket")
     data class WebSocketTransport(
         val url: String,
+        val headers: Map<String, String> = emptyMap(),
     ) : TransportConfig()
 }

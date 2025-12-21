@@ -61,5 +61,5 @@ internal fun UiTransportDraft.toTransportConfig(): UiTransportConfig =
         is UiStdioDraft -> UiStdioTransport(command = command, args = args)
         is UiHttpDraft -> UiHttpTransport(url = url, headers = headers)
         is UiStreamableHttpDraft -> UiStreamableHttpTransport(url = url, headers = headers)
-        is UiWebSocketDraft -> UiWebSocketTransport(url = url)
+        is UiWebSocketDraft -> UiWebSocketTransport(url = url, headers = headers)
     }

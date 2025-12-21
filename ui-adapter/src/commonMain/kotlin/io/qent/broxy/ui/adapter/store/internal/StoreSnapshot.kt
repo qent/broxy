@@ -112,7 +112,7 @@ internal fun StoreSnapshot.toUiState(
 private fun UiTransportConfig.transportLabel(): String =
     when (this) {
         is UiStdioTransport -> "STDIO"
-        is UiHttpTransport -> "HTTP"
-        is UiStreamableHttpTransport -> "HTTP (Streamable)"
+        is UiHttpTransport -> "SSE"
+        is UiStreamableHttpTransport -> "HTTP"
         is UiWebSocketTransport -> "WebSocket"
     }

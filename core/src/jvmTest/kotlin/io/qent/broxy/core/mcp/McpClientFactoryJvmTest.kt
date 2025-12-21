@@ -36,7 +36,13 @@ class McpClientFactoryJvmTest {
             )
         assertTrue(stream is KtorMcpClient)
 
-        val ws = factory.create(TransportConfig.WebSocketTransport(url = "ws://localhost:1235/mcp"))
+        val ws =
+            factory.create(
+                TransportConfig.WebSocketTransport(
+                    url = "ws://localhost:1235/mcp",
+                    headers = mapOf("h" to "v"),
+                ),
+            )
         assertTrue(ws is KtorMcpClient)
     }
 }

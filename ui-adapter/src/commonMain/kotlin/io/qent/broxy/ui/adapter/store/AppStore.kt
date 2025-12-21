@@ -155,7 +155,7 @@ class AppStore(
                 is UiStdioTransport -> UiStdioDraft(command = transport.command, args = transport.args)
                 is UiHttpTransport -> UiHttpDraft(url = transport.url, headers = transport.headers)
                 is UiStreamableHttpTransport -> UiStreamableHttpDraft(url = transport.url, headers = transport.headers)
-                is UiWebSocketTransport -> UiWebSocketDraft(url = transport.url)
+                is UiWebSocketTransport -> UiWebSocketDraft(url = transport.url, headers = transport.headers)
             }
         return UiServerDraft(
             id = cfg.id,

@@ -33,7 +33,7 @@ suspend fun validateServerConnection(
             is UiStdioDraft -> UiStdioTransport(command = t.command, args = t.args)
             is UiHttpDraft -> UiHttpTransport(url = t.url, headers = t.headers)
             is UiStreamableHttpDraft -> UiStreamableHttpTransport(url = t.url, headers = t.headers)
-            is UiWebSocketDraft -> UiWebSocketTransport(url = t.url)
+            is UiWebSocketDraft -> UiWebSocketTransport(url = t.url, headers = t.headers)
         }
     val cfg =
         UiMcpServerConfig(

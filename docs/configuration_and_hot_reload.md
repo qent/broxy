@@ -78,7 +78,10 @@ Loader:
     "realtime": {
       "name": "Realtime MCP",
       "transport": "websocket",
-      "url": "ws://localhost:8080/ws"
+      "url": "ws://localhost:8080/ws",
+      "headers": {
+        "X-Client": "broxy"
+      }
     }
   }
 }
@@ -98,11 +101,11 @@ Parsing `transport` (string) into `TransportConfig`:
 - `"stdio"` -> `TransportConfig.StdioTransport(command, args)`
 - `"http"` -> `TransportConfig.HttpTransport(url, headers)`
 - `"streamable-http"` (and aliases) -> `TransportConfig.StreamableHttpTransport(url, headers)`
-- `"ws"`/`"websocket"` -> `TransportConfig.WebSocketTransport(url)`
+- `"ws"`/`"websocket"` -> `TransportConfig.WebSocketTransport(url, headers)`
 
 Notes:
 
-- `headers` are supported only for HTTP/SSE and Streamable HTTP.
+- `headers` are supported for HTTP/SSE, Streamable HTTP, and WebSocket.
 - `env` is used only for STDIO processes; for HTTP/WS it is stored but not consumed by transports.
 
 ## OAuth auth block

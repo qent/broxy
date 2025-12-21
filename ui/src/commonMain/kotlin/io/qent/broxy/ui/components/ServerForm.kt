@@ -31,6 +31,16 @@ fun ServerFormState.toDraft(
     name: String,
     originalId: String?,
 ): UiServerDraft {
+    fun parseHeaders(raw: String): Map<String, String> =
+        raw.lines().mapNotNull { line ->
+            val idx = line.indexOf(':')
+            if (idx <= 0) {
+                null
+            } else {
+                line.substring(0, idx).trim() to line.substring(idx + 1).trim()
+            }
+        }.toMap()
+
     val envMap =
         env.lines().mapNotNull { line ->
             val trimmed = line.trim()
@@ -52,36 +62,20 @@ fun ServerFormState.toDraft(
             "HTTP" ->
                 UiHttpDraft(
                     url = url.trim(),
-                    headers =
-                        headers.lines().mapNotNull { line ->
-                            val idx = line.indexOf(':')
-                            if (idx <= 0) {
-                                null
-                            } else {
-                                (
-                                    line.substring(0, idx).trim() to line.substring(idx + 1).trim()
-                                )
-                            }
-                        }.toMap(),
+                    headers = parseHeaders(headers),
                 )
 
             "STREAMABLE_HTTP" ->
                 UiStreamableHttpDraft(
                     url = url.trim(),
-                    headers =
-                        headers.lines().mapNotNull { line ->
-                            val idx = line.indexOf(':')
-                            if (idx <= 0) {
-                                null
-                            } else {
-                                (
-                                    line.substring(0, idx).trim() to line.substring(idx + 1).trim()
-                                )
-                            }
-                        }.toMap(),
+                    headers = parseHeaders(headers),
                 )
 
-            else -> UiWebSocketDraft(url = url.trim())
+            else ->
+                UiWebSocketDraft(
+                    url = url.trim(),
+                    headers = parseHeaders(headers),
+                )
         }
     return UiServerDraft(
         id = id.trim(),
@@ -108,7 +102,14 @@ object ServerFormStateFactory {
                         t.headers.entries.joinToString("\n") { (k, v) -> "$k:$v" },
                     )
 
-                is UiWebSocketDraft -> arrayOf("WS", "", "", t.url, "")
+                is UiWebSocketDraft ->
+                    arrayOf(
+                        "WS",
+                        "",
+                        "",
+                        t.url,
+                        t.headers.entries.joinToString("\n") { (k, v) -> "$k:$v" },
+                    )
             }
         return ServerFormState(
             name = initial.name,
@@ -213,13 +214,22 @@ private fun WebSocketFields(
     state: ServerFormState,
     onStateChange: (ServerFormState) -> Unit,
 ) {
-    TransportTextField(
-        value = state.url,
-        onValueChange = { onStateChange(state.copy(url = it)) },
-        label = "WebSocket URL",
-        modifier = Modifier.fillMaxWidth(),
-        singleLine = true,
-    )
+    Column(verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)) {
+        TransportTextField(
+            value = state.url,
+            onValueChange = { onStateChange(state.copy(url = it)) },
+            label = "WebSocket URL",
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+        )
+        TransportTextField(
+            value = state.headers,
+            onValueChange = { onStateChange(state.copy(headers = it)) },
+            label = "Headers (key:value per line)",
+            modifier = Modifier.fillMaxWidth(),
+            minLines = 3,
+        )
+    }
 }
 
 @Composable

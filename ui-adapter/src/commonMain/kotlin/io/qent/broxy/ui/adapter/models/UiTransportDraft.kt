@@ -8,4 +8,4 @@ data class UiHttpDraft(val url: String, val headers: Map<String, String> = empty
 
 data class UiStreamableHttpDraft(val url: String, val headers: Map<String, String> = emptyMap()) : UiTransportDraft
 
-data class UiWebSocketDraft(val url: String) : UiTransportDraft
+data class UiWebSocketDraft(val url: String, val headers: Map<String, String> = emptyMap()) : UiTransportDraft

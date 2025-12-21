@@ -48,6 +48,7 @@ private object DefaultJvmMcpClientProvider : McpClientProvider {
                 KtorMcpClient(
                     mode = KtorMcpClient.Mode.WebSocket,
                     url = config.url,
+                    headersMap = config.headers,
                     logger = logger,
                     authConfig = auth,
                     authState = authState,
