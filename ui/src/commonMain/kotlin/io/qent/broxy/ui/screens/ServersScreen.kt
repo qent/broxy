@@ -49,7 +49,6 @@ fun ServersScreen(
                     onClose = { state.serverEditor.value = null },
                     notify = notify,
                 )
-                Spacer(Modifier.height(AppTheme.spacing.md))
             }
             return@Box
         }
@@ -62,7 +61,6 @@ fun ServersScreen(
                     serverId = viewing!!.id,
                     onClose = { viewing = null },
                 )
-                Spacer(Modifier.height(AppTheme.spacing.md))
             }
             return@Box
         }

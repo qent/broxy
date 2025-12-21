@@ -204,6 +204,7 @@ fun PresetEditorScreen(
             items = resourceItems,
             icon = Icons.Outlined.Description,
         )
+        Spacer(Modifier.height(AppTheme.spacing.md))
     }
 }
 

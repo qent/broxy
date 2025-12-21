@@ -43,7 +43,6 @@ fun PresetsScreen(
                     editor = editor,
                     onClose = { state.presetEditor.value = null },
                 )
-                Spacer(Modifier.height(AppTheme.spacing.md))
             }
             return@Box
         }

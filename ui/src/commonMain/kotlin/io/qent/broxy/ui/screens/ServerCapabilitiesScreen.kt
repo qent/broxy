@@ -144,8 +144,8 @@ private fun CapabilitiesContent(
                 showServerName = false,
             )
         }
-        Spacer(Modifier.height(AppTheme.spacing.xl))
-    }
+
+        Spacer(Modifier.height(AppTheme.spacing.md))    }
 }
 
 @Composable

@@ -200,6 +200,8 @@ fun ServerEditorScreen(
                 }
             },
         )
+
+        Spacer(Modifier.height(AppTheme.spacing.md))
     }
 }
 
