@@ -13,6 +13,7 @@ import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.onPointerEvent
 import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.adapter.models.*
+import io.qent.broxy.ui.strings.LocalStrings
 import io.qent.broxy.ui.theme.AppTheme
 
 data class ServerFormState(
@@ -165,6 +166,7 @@ private fun StdIoFields(
     commandWarning: String?,
     onCommandBlur: ((String) -> Unit)?,
 ) {
+    val strings = LocalStrings.current
     var wasFocused by remember { mutableStateOf(false) }
     val warningContent: (@Composable () -> Unit)? =
         commandWarning?.let { warning ->
@@ -183,7 +185,7 @@ private fun StdIoFields(
         TransportTextField(
             value = state.command,
             onValueChange = { onStateChange(state.copy(command = it)) },
-            label = "Command",
+            label = strings.commandLabel,
             modifier = commandModifier,
             singleLine = true,
             isError = commandWarning != null,
@@ -192,14 +194,14 @@ private fun StdIoFields(
         TransportTextField(
             value = state.args,
             onValueChange = { onStateChange(state.copy(args = it)) },
-            label = "Args (comma-separated)",
+            label = strings.argsLabel,
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
         )
         TransportTextField(
             value = state.env,
             onValueChange = { onStateChange(state.copy(env = it)) },
-            label = "Env (key:value per line, values may use {ENV_VAR})",
+            label = strings.envLabel,
             modifier = Modifier.fillMaxWidth(),
             minLines = 4,
         )
@@ -212,18 +214,19 @@ private fun HttpFields(
     onStateChange: (ServerFormState) -> Unit,
     isStreamable: Boolean,
 ) {
+    val strings = LocalStrings.current
     Column(verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)) {
         TransportTextField(
             value = state.url,
             onValueChange = { onStateChange(state.copy(url = it)) },
-            label = if (isStreamable) "HTTP Streamable URL" else "HTTP SSE URL",
+            label = if (isStreamable) strings.httpStreamableUrlLabel else strings.httpSseUrlLabel,
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
         )
         TransportTextField(
             value = state.headers,
             onValueChange = { onStateChange(state.copy(headers = it)) },
-            label = "Headers (key:value per line)",
+            label = strings.headersLabel,
             modifier = Modifier.fillMaxWidth(),
             minLines = 3,
         )
@@ -235,18 +238,19 @@ private fun WebSocketFields(
     state: ServerFormState,
     onStateChange: (ServerFormState) -> Unit,
 ) {
+    val strings = LocalStrings.current
     Column(verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)) {
         TransportTextField(
             value = state.url,
             onValueChange = { onStateChange(state.copy(url = it)) },
-            label = "WebSocket URL",
+            label = strings.webSocketUrlLabel,
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
         )
         TransportTextField(
             value = state.headers,
             onValueChange = { onStateChange(state.copy(headers = it)) },
-            label = "Headers (key:value per line)",
+            label = strings.headersLabel,
             modifier = Modifier.fillMaxWidth(),
             minLines = 3,
         )
@@ -258,12 +262,13 @@ private fun TransportSelector(
     selected: String,
     onSelected: (String) -> Unit,
 ) {
+    val strings = LocalStrings.current
     val options =
         listOf(
-            TransportOption("STDIO", "STDIO"),
-            TransportOption("STREAMABLE_HTTP", "HTTP Streamable"),
-            TransportOption("HTTP", "HTTP SSE"),
-            TransportOption("WS", "WebSocket"),
+            TransportOption("STDIO", strings.transportStdioLabel),
+            TransportOption("STREAMABLE_HTTP", strings.transportStreamableHttpLabel),
+            TransportOption("HTTP", strings.transportHttpSseLabel),
+            TransportOption("WS", strings.transportWebSocketLabel),
         )
     Row(
         modifier = Modifier.fillMaxWidth(),

@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import io.qent.broxy.ui.strings.LocalStrings
 import io.qent.broxy.ui.theme.AppTheme
 
 @Composable
@@ -24,9 +25,12 @@ fun DeleteConfirmationDialog(
     description: String,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
-    confirmLabel: String = "Delete",
-    dismissLabel: String = "Cancel",
+    confirmLabel: String? = null,
+    dismissLabel: String? = null,
 ) {
+    val strings = LocalStrings.current
+    val resolvedConfirmLabel = confirmLabel ?: strings.delete
+    val resolvedDismissLabel = dismissLabel ?: strings.cancel
     val dangerColor = Color(0xFFDC2626)
 
     AppDialog(
@@ -35,10 +39,10 @@ fun DeleteConfirmationDialog(
         minWidth = AppTheme.layout.dialogMinWidth,
         maxWidth = 520.dp,
         onDismissRequest = onDismiss,
-        dismissButton = { AppSecondaryButton(onClick = onDismiss) { Text(dismissLabel) } },
+        dismissButton = { AppSecondaryButton(onClick = onDismiss) { Text(resolvedDismissLabel) } },
         maxContentHeight = null,
         enableScroll = false,
-        confirmButton = { AppDangerButton(onClick = onConfirm) { Text(confirmLabel) } },
+        confirmButton = { AppDangerButton(onClick = onConfirm) { Text(resolvedConfirmLabel) } },
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(top = AppTheme.spacing.xs, bottom = AppTheme.spacing.xl),

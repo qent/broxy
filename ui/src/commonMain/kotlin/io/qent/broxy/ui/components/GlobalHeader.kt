@@ -31,6 +31,7 @@ import io.qent.broxy.ui.adapter.models.UiRemoteConnectionState
 import io.qent.broxy.ui.adapter.models.UiRemoteStatus
 import io.qent.broxy.ui.adapter.store.Intents
 import io.qent.broxy.ui.adapter.store.UIState
+import io.qent.broxy.ui.strings.LocalStrings
 import io.qent.broxy.ui.theme.AppTheme
 
 private val GLOBAL_HEADER_HEIGHT = 40.dp
@@ -69,6 +70,7 @@ private fun RemoteHeaderActions(
     intents: Intents,
     modifier: Modifier = Modifier,
 ) {
+    val strings = LocalStrings.current
     val isAuthorized = remote.hasCredentials
     val isBusy = remote.status in setOf(UiRemoteStatus.Authorizing, UiRemoteStatus.Registering)
     val isConnected = remote.status == UiRemoteStatus.WsOnline || remote.status == UiRemoteStatus.WsConnecting
@@ -94,7 +96,7 @@ private fun RemoteHeaderActions(
         ) {
             Icon(
                 imageVector = if (isConnected) Icons.Outlined.LinkOff else Icons.Outlined.Link,
-                contentDescription = if (isConnected) "Disconnect remote" else "Connect remote",
+                contentDescription = if (isConnected) strings.remoteDisconnect else strings.remoteConnect,
             )
         }
         IconButton(
@@ -103,7 +105,7 @@ private fun RemoteHeaderActions(
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Outlined.Logout,
-                contentDescription = "Logout remote",
+                contentDescription = strings.remoteLogout,
             )
         }
     }
@@ -115,6 +117,7 @@ private fun GradientAuthButton(
     enabled: Boolean,
     modifier: Modifier = Modifier,
 ) {
+    val strings = LocalStrings.current
     val gradient =
         Brush.horizontalGradient(
             listOf(
@@ -144,7 +147,7 @@ private fun GradientAuthButton(
                     .padding(horizontal = AppTheme.spacing.md, vertical = AppTheme.spacing.xs),
             contentAlignment = Alignment.Center,
         ) {
-            Text("Authorize", style = MaterialTheme.typography.labelSmall)
+            Text(strings.authorize, style = MaterialTheme.typography.labelSmall)
         }
     }
 }
@@ -180,6 +183,7 @@ private fun PresetDropdown(
     width: Dp,
     modifier: Modifier = Modifier,
 ) {
+    val strings = LocalStrings.current
     var expanded by remember { mutableStateOf(false) }
     val arrowRotation by animateFloatAsState(targetValue = if (expanded) 180f else 0f, label = "arrowRotation")
 
@@ -197,15 +201,15 @@ private fun PresetDropdown(
     // Let's try standard first, but with the specific shapes it should look connected.
 
     when (ui) {
-        UIState.Loading -> HeaderField(text = "Loading…", modifier = modifier.width(width))
+        UIState.Loading -> HeaderField(text = strings.loadingInline, modifier = modifier.width(width))
 
-        is UIState.Error -> HeaderField(text = "Unavailable", modifier = modifier.width(width))
+        is UIState.Error -> HeaderField(text = strings.unavailable, modifier = modifier.width(width))
 
         is UIState.Ready -> {
             val selectedPresetId = ui.selectedPresetId
             val currentName =
                 ui.presets.firstOrNull { it.id == selectedPresetId }?.name
-                    ?: if (selectedPresetId == null) "No preset" else selectedPresetId
+                    ?: if (selectedPresetId == null) strings.noPreset else selectedPresetId
 
             ExposedDropdownMenuBox(
                 expanded = expanded,
@@ -222,7 +226,7 @@ private fun PresetDropdown(
                     trailing = {
                         Icon(
                             imageVector = Icons.Outlined.ExpandMore,
-                            contentDescription = "Open preset menu",
+                            contentDescription = strings.openPresetMenu,
                             modifier =
                                 Modifier
                                     .size(18.dp)
@@ -241,7 +245,7 @@ private fun PresetDropdown(
                     DropdownMenuItem(
                         text = {
                             Text(
-                                "No preset",
+                                strings.noPreset,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = AppTheme.colors.onSurface,
                             )
@@ -255,7 +259,7 @@ private fun PresetDropdown(
                             expanded = false
                             if (ui.selectedPresetId != null) {
                                 ui.intents.selectProxyPreset(null)
-                                notify("Preset cleared")
+                                notify(strings.presetCleared)
                             }
                         },
                     )
@@ -279,7 +283,7 @@ private fun PresetDropdown(
                                 expanded = false
                                 if (!isSelected) {
                                     ui.intents.selectProxyPreset(p.id)
-                                    notify("Preset selected: ${p.name}")
+                                    notify(strings.presetSelected(p.name))
                                 }
                             },
                         )

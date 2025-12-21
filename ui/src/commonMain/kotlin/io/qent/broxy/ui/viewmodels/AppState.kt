@@ -23,10 +23,10 @@ class AppState(
     val presetEditor: MutableState<PresetEditorState?> = mutableStateOf(null)
 }
 
-enum class Screen(val title: String) {
-    Servers("Servers"),
-    Presets("Presets"),
-    Settings("Settings"),
+enum class Screen {
+    Servers,
+    Presets,
+    Settings,
 }
 
 sealed interface PresetEditorState {

@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.qent.broxy.ui.adapter.models.UiProxyStatus
+import io.qent.broxy.ui.strings.LocalStrings
 import io.qent.broxy.ui.theme.AppTheme
 import io.qent.broxy.ui.viewmodels.Screen
 
@@ -27,13 +28,6 @@ data class NavItem(
     val icon: ImageVector,
 )
 
-private val navItems =
-    listOf(
-        NavItem(Screen.Servers, "MCP", Icons.Outlined.Storage),
-        NavItem(Screen.Presets, "Presets", Icons.Outlined.Tune),
-        NavItem(Screen.Settings, "Settings", Icons.Outlined.Settings),
-    )
-
 @Composable
 fun AppNavigationRail(
     selected: Screen,
@@ -42,6 +36,13 @@ fun AppNavigationRail(
     modifier: Modifier = Modifier,
 ) {
     val colors = MaterialTheme.colorScheme
+    val strings = LocalStrings.current
+    val navItems =
+        listOf(
+            NavItem(Screen.Servers, strings.navMcp, Icons.Outlined.Storage),
+            NavItem(Screen.Presets, strings.navPresets, Icons.Outlined.Tune),
+            NavItem(Screen.Settings, strings.navSettings, Icons.Outlined.Settings),
+        )
 
     Column(
         modifier =

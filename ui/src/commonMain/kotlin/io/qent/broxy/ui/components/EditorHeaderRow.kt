@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
+import io.qent.broxy.ui.strings.LocalStrings
 import io.qent.broxy.ui.theme.AppTheme
 
 @Composable
@@ -22,6 +23,7 @@ fun EditorHeaderRow(
     onBack: () -> Unit,
     actions: (@Composable RowScope.() -> Unit)? = null,
 ) {
+    val strings = LocalStrings.current
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -33,7 +35,7 @@ fun EditorHeaderRow(
             horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm),
         ) {
             IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back")
+                Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = strings.back)
             }
             Text(
                 text = title,

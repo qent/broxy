@@ -17,6 +17,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import io.qent.broxy.ui.strings.LocalStrings
 
 @Composable
 fun CapabilitiesInlineSummary(
@@ -28,6 +29,7 @@ fun CapabilitiesInlineSummary(
     iconSize: Dp = 14.dp,
     textStyle: TextStyle = MaterialTheme.typography.bodySmall,
 ) {
+    val strings = LocalStrings.current
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
@@ -35,7 +37,7 @@ fun CapabilitiesInlineSummary(
     ) {
         CapabilitiesInlineItem(
             icon = Icons.Outlined.Construction,
-            contentDescription = "Tools",
+            contentDescription = strings.toolsLabel,
             count = toolsCount,
             tint = tint,
             iconSize = iconSize,
@@ -43,7 +45,7 @@ fun CapabilitiesInlineSummary(
         )
         CapabilitiesInlineItem(
             icon = Icons.Outlined.ChatBubbleOutline,
-            contentDescription = "Prompts",
+            contentDescription = strings.promptsLabel,
             count = promptsCount,
             tint = tint,
             iconSize = iconSize,
@@ -51,7 +53,7 @@ fun CapabilitiesInlineSummary(
         )
         CapabilitiesInlineItem(
             icon = Icons.Outlined.Description,
-            contentDescription = "Resources",
+            contentDescription = strings.resourcesLabel,
             count = resourcesCount,
             tint = tint,
             iconSize = iconSize,

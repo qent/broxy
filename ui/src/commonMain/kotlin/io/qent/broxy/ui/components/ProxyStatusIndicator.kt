@@ -12,6 +12,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.adapter.models.UiProxyStatus
+import io.qent.broxy.ui.strings.AppTextTokens
+import io.qent.broxy.ui.strings.LocalStrings
 import io.qent.broxy.ui.theme.AppTheme
 
 @Composable
@@ -19,18 +21,20 @@ fun ProxyStatusIndicator(
     status: UiProxyStatus?,
     modifier: Modifier = Modifier,
 ) {
+    val strings = LocalStrings.current
     val (dotColor, statusText) =
         when (status) {
-            UiProxyStatus.Running -> AppTheme.extendedColors.success to "Running"
-            UiProxyStatus.Starting -> MaterialTheme.colorScheme.secondary to "Starting"
-            UiProxyStatus.Stopping -> MaterialTheme.colorScheme.secondary to "Stopping"
-            UiProxyStatus.Stopped, null -> MaterialTheme.colorScheme.outline to "Stopped"
+            UiProxyStatus.Running -> AppTheme.extendedColors.success to strings.statusRunning
+            UiProxyStatus.Starting -> MaterialTheme.colorScheme.secondary to strings.statusStarting
+            UiProxyStatus.Stopping -> MaterialTheme.colorScheme.secondary to strings.statusStopping
+            UiProxyStatus.Stopped, null -> MaterialTheme.colorScheme.outline to strings.statusStopped
             is UiProxyStatus.Error -> {
-                val message = status.message.ifBlank { "Error" }
+                val message = status.message.ifBlank { strings.errorLabel }
                 val portBusy =
-                    message.contains("already in use", ignoreCase = true) ||
-                        message.contains("Address already in use", ignoreCase = true)
-                MaterialTheme.colorScheme.error to (if (portBusy) "Port already in use" else message)
+                    AppTextTokens.portBusyNeedles.any { needle ->
+                        message.contains(needle, ignoreCase = true)
+                    }
+                MaterialTheme.colorScheme.error to (if (portBusy) strings.portAlreadyInUse else message)
             }
         }
 

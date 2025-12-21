@@ -18,6 +18,7 @@ import io.qent.broxy.ui.adapter.models.UiResourceRef
 import io.qent.broxy.ui.adapter.models.UiServerCapsSnapshot
 import io.qent.broxy.ui.adapter.models.UiToolRef
 import io.qent.broxy.ui.adapter.store.AppStore
+import io.qent.broxy.ui.strings.LocalStrings
 import io.qent.broxy.ui.theme.AppTheme
 
 @Composable
@@ -36,6 +37,7 @@ fun PresetSelector(
     onPromptsConfiguredChange: (Boolean) -> Unit = {},
     onResourcesConfiguredChange: (Boolean) -> Unit = {},
 ) {
+    val strings = LocalStrings.current
     var loading by remember { mutableStateOf(true) }
     val snaps = remember { mutableStateOf<List<UiServerCapsSnapshot>>(emptyList()) }
     val serverNames = remember { mutableStateMapOf<String, String>() }
@@ -134,11 +136,11 @@ fun PresetSelector(
         verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm),
     ) {
         if (loading) {
-            Text("Loading server capabilities...", style = MaterialTheme.typography.bodyMedium)
+            Text(strings.loadingServerCapabilities, style = MaterialTheme.typography.bodyMedium)
             return@Column
         }
         if (snaps.value.isEmpty()) {
-            Text("No connected servers available", style = MaterialTheme.typography.bodyMedium)
+            Text(strings.noConnectedServersAvailable, style = MaterialTheme.typography.bodyMedium)
             return@Column
         }
 
@@ -246,7 +248,7 @@ fun PresetSelector(
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.ExpandMore,
-                                contentDescription = if (isExpanded) "Hide details" else "Show details",
+                                contentDescription = if (isExpanded) strings.hideDetails else strings.showDetails,
                                 tint = contentColor,
                                 modifier = Modifier.rotate(arrowRotation),
                             )
@@ -254,15 +256,15 @@ fun PresetSelector(
                     }
                     if (isExpanded) {
                         CapabilitySection(
-                            label = "Tools",
+                            label = strings.toolsLabel,
                             isEmpty = snap.tools.isEmpty(),
-                            emptyMessage = "No tools available",
+                            emptyMessage = strings.noToolsAvailable,
                         ) {
                             snap.tools.forEachIndexed { index, tool ->
                                 val checked = selectedTools[serverId]?.contains(tool.name) == true
                                 val description =
                                     tool.description?.takeIf { it.isNotBlank() }
-                                        ?: "No description provided"
+                                        ?: strings.noDescriptionProvided
                                 CapabilitySelectionRow(
                                     title = tool.name,
                                     description = description,
@@ -286,15 +288,15 @@ fun PresetSelector(
                             }
                         }
                         CapabilitySection(
-                            label = "Prompts",
+                            label = strings.promptsLabel,
                             isEmpty = snap.prompts.isEmpty(),
-                            emptyMessage = "No prompts available",
+                            emptyMessage = strings.noPromptsAvailable,
                         ) {
                             snap.prompts.forEachIndexed { index, prompt ->
                                 val checked = selectedPrompts[serverId]?.contains(prompt.name) == true
                                 val description =
                                     prompt.description?.takeIf { it.isNotBlank() }
-                                        ?: "No description provided"
+                                        ?: strings.noDescriptionProvided
                                 CapabilitySelectionRow(
                                     title = prompt.name,
                                     description = description,
@@ -319,9 +321,9 @@ fun PresetSelector(
                             }
                         }
                         CapabilitySection(
-                            label = "Resources",
+                            label = strings.resourcesLabel,
                             isEmpty = snap.resources.isEmpty(),
-                            emptyMessage = "No resources available",
+                            emptyMessage = strings.noResourcesAvailable,
                         ) {
                             snap.resources.forEachIndexed { index, resource ->
                                 val checked = selectedResources[serverId]?.contains(resource.key) == true

@@ -20,6 +20,7 @@ import io.qent.broxy.ui.adapter.store.AppStore
 import io.qent.broxy.ui.adapter.store.UIState
 import io.qent.broxy.ui.components.AppNavigationRail
 import io.qent.broxy.ui.components.GlobalHeader
+import io.qent.broxy.ui.strings.LocalStrings
 import io.qent.broxy.ui.theme.AppTheme
 import io.qent.broxy.ui.viewmodels.AppState
 import io.qent.broxy.ui.viewmodels.PresetEditorState
@@ -36,6 +37,7 @@ fun MainWindow(
     useTransparentTitleBar: Boolean = false,
 ) {
     AppTheme(themeStyle = state.themeStyle.value) {
+        val strings = LocalStrings.current
         val screen = state.currentScreen.value
         val snackbarHostState = remember { SnackbarHostState() }
         val scope = rememberCoroutineScope()
@@ -45,7 +47,7 @@ fun MainWindow(
         // Basic mapping: show snackbar on adapter Error state
         if (ui is UIState.Error) {
             LaunchedEffect(ui.message) {
-                snackbarHostState.showSnackbar("Error: ${ui.message}")
+                snackbarHostState.showSnackbar(strings.errorMessage(ui.message))
             }
         }
 
@@ -92,7 +94,7 @@ fun MainWindow(
                     Screen.Servers -> {
                         if (state.serverEditor.value == null && state.serverDetailsId.value == null) {
                             FloatingActionButton(onClick = { state.serverEditor.value = ServerEditorState.Create }) {
-                                Icon(Icons.Outlined.Add, contentDescription = "Add server")
+                                Icon(Icons.Outlined.Add, contentDescription = strings.addServerContentDescription)
                             }
                         }
                     }
@@ -100,7 +102,7 @@ fun MainWindow(
                     Screen.Presets -> {
                         if (state.presetEditor.value == null) {
                             FloatingActionButton(onClick = { state.presetEditor.value = PresetEditorState.Create }) {
-                                Icon(Icons.Outlined.Add, contentDescription = "Add preset")
+                                Icon(Icons.Outlined.Add, contentDescription = strings.addPresetContentDescription)
                             }
                         }
                     }
@@ -116,7 +118,7 @@ fun MainWindow(
                                 },
                                 modifier = Modifier.alpha(if (fabState.enabled) 1f else 0.5f),
                             ) {
-                                Icon(Icons.Outlined.Save, contentDescription = "Save settings")
+                                Icon(Icons.Outlined.Save, contentDescription = strings.saveSettingsContentDescription)
                             }
                         }
                     }

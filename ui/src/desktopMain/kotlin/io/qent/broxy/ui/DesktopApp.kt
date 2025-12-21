@@ -13,12 +13,17 @@ import io.qent.broxy.ui.icons.createApplicationIconImage
 import io.qent.broxy.ui.icons.createTrayIconImage
 import io.qent.broxy.ui.icons.rememberApplicationIconPainter
 import io.qent.broxy.ui.screens.MainWindow
+import io.qent.broxy.ui.strings.AppLanguage
+import io.qent.broxy.ui.strings.AppStrings
+import io.qent.broxy.ui.strings.AppStringsProvider
+import io.qent.broxy.ui.strings.ProvideAppStrings
 import io.qent.broxy.ui.theme.ThemeStyle
 import io.qent.broxy.ui.viewmodels.AppState
 import java.awt.*
 import java.awt.event.ActionEvent
 import java.awt.event.ActionListener
 import java.io.PushbackInputStream
+import java.util.Locale
 import java.awt.Color as AwtColor
 
 fun main(args: Array<String>) {
@@ -47,6 +52,8 @@ fun main(args: Array<String>) {
         val traySupported = remember { runCatching { SystemTray.isSupported() }.getOrDefault(false) }
         val trayPreference = (uiState as? UIState.Ready)?.showTrayIcon ?: true
         val trayActive = traySupported && trayPreference
+        val language = remember { AppLanguage.fromTag(Locale.getDefault().toLanguageTag()) }
+        val strings = remember(language) { AppStringsProvider.forLanguage(language) }
         val isMacOs = remember { System.getProperty("os.name")?.contains("Mac", ignoreCase = true) == true }
         val isDarkTheme = appState.themeStyle.value == ThemeStyle.Dark
         val windowIconPainter = rememberApplicationIconPainter()
@@ -65,65 +72,67 @@ fun main(args: Array<String>) {
             }
         }
 
-        Window(
-            state = windowState,
-            visible = isWindowVisible,
-            onCloseRequest = {
-                if (trayActive) {
-                    isWindowVisible = false
-                } else {
-                    exitApplication()
-                }
-            },
-            title = "broxy",
-            icon = windowIconPainter,
-        ) {
-            val window = this.window
-            // Set minimum window height (in pixels). Width left unconstrained.
-            SideEffect {
-                window.minimumSize = Dimension(780, 640)
-                (window as? Frame)?.iconImage = applicationIconImage
-                updateTaskbarIcon(applicationIconImage)
-            }
-
-            LaunchedEffect(isWindowVisible) {
-                if (isWindowVisible) {
-                    window.isVisible = true
-                    (window as? java.awt.Frame)?.state = java.awt.Frame.NORMAL
-                    window.toFront()
-                    window.requestFocus()
-                }
-            }
-
-            if (isMacOs) {
+        ProvideAppStrings(language = language) {
+            Window(
+                state = windowState,
+                visible = isWindowVisible,
+                onCloseRequest = {
+                    if (trayActive) {
+                        isWindowVisible = false
+                    } else {
+                        exitApplication()
+                    }
+                },
+                title = strings.appName,
+                icon = windowIconPainter,
+            ) {
+                val window = this.window
+                // Set minimum window height (in pixels). Width left unconstrained.
                 SideEffect {
-                    val appearance = if (isDarkTheme) "NSAppearanceNameDarkAqua" else "NSAppearanceNameAqua"
-                    window.rootPane.putClientProperty("apple.awt.windowAppearance", appearance)
-                    window.rootPane.putClientProperty("apple.awt.application.appearance", appearance)
-                    System.setProperty("apple.awt.application.appearance", appearance)
-                    window.rootPane.putClientProperty("apple.awt.fullWindowContent", true)
-                    window.rootPane.putClientProperty("apple.awt.transparentTitleBar", true)
-                    window.rootPane.putClientProperty("apple.awt.windowTitleVisible", false)
-                    val chromeColor =
-                        if (isDarkTheme) {
-                            AwtColor(0x31, 0x46, 0x74)
-                        } else {
-                            AwtColor(0xF9, 0xFA, 0xFB)
-                        }
-                    window.background = chromeColor
-                    window.rootPane.background = chromeColor
-                    window.contentPane.background = chromeColor
-                    window.rootPane.repaint()
-                    window.repaint()
+                    window.minimumSize = Dimension(780, 640)
+                    (window as? Frame)?.iconImage = applicationIconImage
+                    updateTaskbarIcon(applicationIconImage)
                 }
-            }
 
-            MainWindow(
-                state = appState,
-                ui = uiState,
-                store = store,
-                useTransparentTitleBar = isMacOs,
-            )
+                LaunchedEffect(isWindowVisible) {
+                    if (isWindowVisible) {
+                        window.isVisible = true
+                        (window as? java.awt.Frame)?.state = java.awt.Frame.NORMAL
+                        window.toFront()
+                        window.requestFocus()
+                    }
+                }
+
+                if (isMacOs) {
+                    SideEffect {
+                        val appearance = if (isDarkTheme) "NSAppearanceNameDarkAqua" else "NSAppearanceNameAqua"
+                        window.rootPane.putClientProperty("apple.awt.windowAppearance", appearance)
+                        window.rootPane.putClientProperty("apple.awt.application.appearance", appearance)
+                        System.setProperty("apple.awt.application.appearance", appearance)
+                        window.rootPane.putClientProperty("apple.awt.fullWindowContent", true)
+                        window.rootPane.putClientProperty("apple.awt.transparentTitleBar", true)
+                        window.rootPane.putClientProperty("apple.awt.windowTitleVisible", false)
+                        val chromeColor =
+                            if (isDarkTheme) {
+                                AwtColor(0x31, 0x46, 0x74)
+                            } else {
+                                AwtColor(0xF9, 0xFA, 0xFB)
+                            }
+                        window.background = chromeColor
+                        window.rootPane.background = chromeColor
+                        window.contentPane.background = chromeColor
+                        window.rootPane.repaint()
+                        window.repaint()
+                    }
+                }
+
+                MainWindow(
+                    state = appState,
+                    ui = uiState,
+                    store = store,
+                    useTransparentTitleBar = isMacOs,
+                )
+            }
         }
 
         if (trayActive && traySupported) {
@@ -132,6 +141,7 @@ fun main(args: Array<String>) {
                 createTrayModel(
                     uiState = uiState,
                     trayIconImage = trayIconImage,
+                    strings = strings,
                     onShowWindow = { isWindowVisible = true },
                     onExit = {
                         isWindowVisible = false
@@ -193,13 +203,14 @@ private fun updateTaskbarIcon(image: Image) {
 private fun createTrayModel(
     uiState: UIState,
     trayIconImage: Image,
+    strings: AppStrings,
     onShowWindow: () -> Unit,
     onExit: () -> Unit,
 ): TrayModel {
     val content: TrayMenuContent =
         when (uiState) {
             UIState.Loading -> TrayMenuContent.Loading
-            is UIState.Error -> TrayMenuContent.Error(uiState.message.ifBlank { "Failed to load presets" })
+            is UIState.Error -> TrayMenuContent.Error(uiState.message.ifBlank { strings.trayFailedToLoadPresets })
             is UIState.Ready -> {
                 val presets =
                     uiState.presets.map { preset ->
@@ -218,8 +229,9 @@ private fun createTrayModel(
         }
 
     return TrayModel(
-        tooltip = "broxy",
+        tooltip = strings.appName,
         icon = trayIconImage,
+        strings = strings,
         content = content,
         onShow = onShowWindow,
         onExit = onExit,
@@ -229,6 +241,7 @@ private fun createTrayModel(
 private data class TrayModel(
     val tooltip: String,
     val icon: Image,
+    val strings: AppStrings,
     val content: TrayMenuContent,
     val onShow: () -> Unit,
     val onExit: () -> Unit,
@@ -326,54 +339,61 @@ private class DesktopTrayController {
         icon: TrayIcon,
         model: TrayModel,
     ) {
+        val strings = model.strings
         val menu = icon.popupMenu ?: PopupMenu().also { icon.popupMenu = it }
         menu.removeAll()
         when (val content = model.content) {
             TrayMenuContent.Loading -> {
-                menu.add(disabledItem("Loading presets..."))
+                menu.add(disabledItem(strings.loadingPresets))
                 menu.addSeparator()
-                menu.add(disabledItem("Server status: unknown"))
+                menu.add(disabledItem(strings.trayServerStatusUnknown))
             }
 
             is TrayMenuContent.Error -> {
                 menu.add(disabledItem(content.message))
                 menu.addSeparator()
-                menu.add(disabledItem("Server status: unavailable"))
+                menu.add(disabledItem(strings.trayServerStatusUnavailable))
             }
 
             is TrayMenuContent.Ready -> {
                 if (content.presets.isEmpty()) {
-                    menu.add(disabledItem("No presets available"))
+                    menu.add(disabledItem(strings.trayNoPresetsAvailable))
                 } else {
                     content.presets.forEach { preset ->
                         menu.add(
-                            menuItem(labelForPreset(preset)) {
+                            menuItem(labelForPreset(preset, strings)) {
                                 content.onPresetSelected(preset.id)
                             },
                         )
                     }
                 }
                 menu.addSeparator()
-                menu.add(disabledItem("SSE server: ${statusText(content.proxyStatus)}"))
+                menu.add(disabledItem(strings.trayServerStatus(statusText(content.proxyStatus, strings))))
             }
         }
         menu.addSeparator()
-        menu.add(menuItem("Show broxy") { model.onShow() })
+        menu.add(menuItem(strings.trayShowApp) { model.onShow() })
         menu.addSeparator()
-        menu.add(menuItem("Exit") { model.onExit() })
+        menu.add(menuItem(strings.trayExit) { model.onExit() })
     }
 
-    private fun statusText(status: UiProxyStatus): String =
+    private fun statusText(
+        status: UiProxyStatus,
+        strings: AppStrings,
+    ): String =
         when (status) {
-            UiProxyStatus.Starting -> "starting"
-            UiProxyStatus.Running -> "on"
-            UiProxyStatus.Stopping -> "stopping"
-            UiProxyStatus.Stopped -> "off"
-            is UiProxyStatus.Error -> "error"
+            UiProxyStatus.Starting -> strings.trayStatusStarting
+            UiProxyStatus.Running -> strings.trayStatusOn
+            UiProxyStatus.Stopping -> strings.trayStatusStopping
+            UiProxyStatus.Stopped -> strings.trayStatusOff
+            is UiProxyStatus.Error -> strings.trayStatusError
         }
 
-    private fun labelForPreset(preset: TrayPresetItem): String {
-        return if (preset.isActive) "${preset.name} \u2713" else preset.name
+    private fun labelForPreset(
+        preset: TrayPresetItem,
+        strings: AppStrings,
+    ): String {
+        return if (preset.isActive) preset.name + strings.trayActivePresetMarker else preset.name
     }
 
     private fun menuItem(

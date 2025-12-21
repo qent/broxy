@@ -19,6 +19,7 @@ import io.qent.broxy.ui.adapter.store.UIState
 import io.qent.broxy.ui.components.CapabilitiesInlineSummary
 import io.qent.broxy.ui.components.DeleteConfirmationDialog
 import io.qent.broxy.ui.components.SettingsLikeItem
+import io.qent.broxy.ui.strings.LocalStrings
 import io.qent.broxy.ui.theme.AppTheme
 import io.qent.broxy.ui.viewmodels.AppState
 import io.qent.broxy.ui.viewmodels.PresetEditorState
@@ -29,6 +30,7 @@ fun PresetsScreen(
     state: AppState,
     store: AppStore,
 ) {
+    val strings = LocalStrings.current
     var query by rememberSaveable { mutableStateOf("") }
     var pendingDeletion: UiPreset? by remember { mutableStateOf<UiPreset?>(null) }
     val editor = state.presetEditor.value
@@ -56,20 +58,20 @@ fun PresetsScreen(
             OutlinedTextField(
                 value = query,
                 onValueChange = { query = it },
-                label = { Text("Search presets") },
+                label = { Text(strings.searchPresets) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
             )
 
             when (ui) {
-                is UIState.Loading -> Text("Loading...", style = MaterialTheme.typography.bodyMedium)
-                is UIState.Error -> Text("Error: ${ui.message}", style = MaterialTheme.typography.bodyMedium)
+                is UIState.Loading -> Text(strings.loading, style = MaterialTheme.typography.bodyMedium)
+                is UIState.Error -> Text(strings.errorMessage(ui.message), style = MaterialTheme.typography.bodyMedium)
                 is UIState.Ready -> {
                     val presets = ui.presets
                     if (presets.isEmpty()) {
                         EmptyState(
-                            title = "No presets yet",
-                            subtitle = "Use the + button to add your first preset",
+                            title = strings.presetsEmptyTitle,
+                            subtitle = strings.presetsEmptySubtitle,
                         )
                     } else {
                         val filtered =
@@ -103,16 +105,16 @@ fun PresetsScreen(
         val toDelete = pendingDeletion
         if (readyUi != null && toDelete != null) {
             DeleteConfirmationDialog(
-                title = "Delete preset",
-                prompt = "Remove \"${toDelete.name}\"?",
-                description =
-                    "This preset will disappear from broxy, including the CLI shortcuts that rely on it. " +
-                        "This action cannot be undone.",
+                title = strings.deletePresetTitle,
+                prompt = strings.deletePresetPrompt(toDelete.name),
+                description = strings.deletePresetDescription,
                 onConfirm = {
                     readyUi.intents.removePreset(toDelete.id)
                     pendingDeletion = null
                 },
                 onDismiss = { pendingDeletion = null },
+                confirmLabel = strings.delete,
+                dismissLabel = strings.cancel,
             )
         }
     }
@@ -125,6 +127,7 @@ private fun PresetCard(
     onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
+    val strings = LocalStrings.current
     val border =
         if (isActive) {
             BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
@@ -146,12 +149,16 @@ private fun PresetCard(
         border = border,
     ) {
         IconButton(onClick = onEdit) {
-            Icon(Icons.Outlined.Edit, contentDescription = "Edit preset", tint = MaterialTheme.colorScheme.secondary)
+            Icon(
+                Icons.Outlined.Edit,
+                contentDescription = strings.editPresetContentDescription,
+                tint = MaterialTheme.colorScheme.secondary,
+            )
         }
         IconButton(onClick = onDelete) {
             Icon(
                 Icons.Outlined.Delete,
-                contentDescription = "Delete preset",
+                contentDescription = strings.deletePresetContentDescription,
                 tint = MaterialTheme.colorScheme.secondary,
             )
         }

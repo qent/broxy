@@ -13,6 +13,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.adapter.models.UiCapabilityArgument
+import io.qent.broxy.ui.strings.LocalStrings
 import io.qent.broxy.ui.theme.AppTheme
 
 data class CapabilityDisplayItem(
@@ -51,6 +52,7 @@ fun CapabilityRow(
     icon: ImageVector,
     showServerName: Boolean = true,
 ) {
+    val strings = LocalStrings.current
     Column(verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.xs)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -68,7 +70,7 @@ fun CapabilityRow(
                     if (showServerName) {
                         buildAnnotatedString {
                             append(item.capabilityName)
-                            append(" · ")
+                            append(strings.capabilitySeparator)
                             withStyle(SpanStyle(color = MaterialTheme.colorScheme.primary)) {
                                 append(item.serverName)
                             }

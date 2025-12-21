@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.adapter.store.UIState
+import io.qent.broxy.ui.strings.LocalStrings
 import io.qent.broxy.ui.theme.AppTheme
 import io.qent.broxy.ui.theme.ThemeStyle
 
@@ -35,17 +36,18 @@ fun SettingsScreen(
     onFabStateChange: (SettingsFabState) -> Unit,
     notify: (String) -> Unit = {},
 ) {
+    val strings = LocalStrings.current
     Box(modifier = Modifier.fillMaxSize()) {
         when (ui) {
             UIState.Loading ->
                 Text(
-                    "Loading...",
+                    strings.loading,
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.padding(horizontal = AppTheme.spacing.md),
                 )
             is UIState.Error ->
                 Text(
-                    "Error: ${ui.message}",
+                    strings.errorMessage(ui.message),
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.padding(horizontal = AppTheme.spacing.md),
                 )
@@ -63,27 +65,27 @@ fun SettingsScreen(
                     showTrayIcon = ui.showTrayIcon,
                     onInboundSsePortSave = { port ->
                         ui.intents.updateInboundSsePort(port)
-                        notify("HTTP port saved: $port")
+                        notify(strings.httpPortSaved(port))
                     },
                     onRequestTimeoutSave = { seconds ->
                         ui.intents.updateRequestTimeout(seconds)
-                        notify("Timeout saved: ${seconds}s")
+                        notify(strings.requestTimeoutSaved(seconds))
                     },
                     onCapabilitiesTimeoutSave = { seconds ->
                         ui.intents.updateCapabilitiesTimeout(seconds)
-                        notify("Capabilities timeout saved: ${seconds}s")
+                        notify(strings.capabilitiesTimeoutSaved(seconds))
                     },
                     onCapabilitiesRefreshIntervalSave = { seconds ->
                         ui.intents.updateCapabilitiesRefreshInterval(seconds)
-                        notify("Refresh interval saved: ${seconds}s")
+                        notify(strings.refreshIntervalSaved(seconds))
                     },
                     onToggleTrayIcon = { enabled ->
                         ui.intents.updateTrayIconVisibility(enabled)
-                        notify(if (enabled) "Tray icon enabled" else "Tray icon disabled")
+                        notify(strings.trayIconToggle(enabled))
                     },
                     onOpenLogsFolder = {
                         ui.intents.openLogsFolder()
-                        notify("Opening logs folder…")
+                        notify(strings.openingLogsFolder)
                     },
                 )
         }
@@ -109,6 +111,7 @@ private fun SettingsContent(
     onToggleTrayIcon: (Boolean) -> Unit,
     onOpenLogsFolder: () -> Unit,
 ) {
+    val strings = LocalStrings.current
     var requestTimeoutInput by rememberSaveable(requestTimeoutSeconds) { mutableStateOf(requestTimeoutSeconds.toString()) }
     var capabilitiesTimeoutInput by rememberSaveable(capabilitiesTimeoutSeconds) {
         mutableStateOf(
@@ -201,8 +204,8 @@ private fun SettingsContent(
             TrayIconSetting(checked = showTrayIcon, onToggle = onToggleTrayIcon)
             LogsSetting(onOpenFolder = onOpenLogsFolder)
             TimeoutSetting(
-                title = "HTTP port",
-                description = "Port for the local HTTP-streamable MCP endpoint.",
+                title = strings.httpPortTitle,
+                description = strings.httpPortDescription,
                 value = inboundSsePortInput,
                 onValueChange = { value ->
                     if (value.isEmpty() || value.all { it.isDigit() }) {
@@ -211,8 +214,8 @@ private fun SettingsContent(
                 },
             )
             TimeoutSetting(
-                title = "Request timeout",
-                description = "Max time to wait for downstream calls (seconds).",
+                title = strings.requestTimeoutTitle,
+                description = strings.requestTimeoutDescription,
                 value = requestTimeoutInput,
                 onValueChange = { value ->
                     if (value.isEmpty() || value.all { it.isDigit() }) {
@@ -221,8 +224,8 @@ private fun SettingsContent(
                 },
             )
             TimeoutSetting(
-                title = "Capabilities timeout",
-                description = "Max time to wait for server listings (seconds).",
+                title = strings.capabilitiesTimeoutTitle,
+                description = strings.capabilitiesTimeoutDescription,
                 value = capabilitiesTimeoutInput,
                 onValueChange = { value ->
                     if (value.isEmpty() || value.all { it.isDigit() }) {
@@ -231,8 +234,8 @@ private fun SettingsContent(
                 },
             )
             TimeoutSetting(
-                title = "Capabilities refresh",
-                description = "Background refresh interval (seconds).",
+                title = strings.capabilitiesRefreshTitle,
+                description = strings.capabilitiesRefreshDescription,
                 value = capabilitiesRefreshInput,
                 onValueChange = { value ->
                     if (value.isEmpty() || value.all { it.isDigit() }) {
@@ -249,9 +252,10 @@ private fun TrayIconSetting(
     checked: Boolean,
     onToggle: (Boolean) -> Unit,
 ) {
+    val strings = LocalStrings.current
     SettingItem(
-        title = "Show tray icon",
-        description = "Display the broxy icon in the system tray.",
+        title = strings.showTrayIconTitle,
+        description = strings.showTrayIconDescription,
     ) {
         SettingControlBox {
             Switch(
@@ -273,15 +277,16 @@ private fun TrayIconSetting(
 
 @Composable
 private fun LogsSetting(onOpenFolder: () -> Unit) {
+    val strings = LocalStrings.current
     SettingItem(
-        title = "Logs",
-        description = "Application logs are stored in the logs/ folder next to the configuration files.",
+        title = strings.logsTitle,
+        description = strings.logsDescription,
     ) {
         AppPrimaryButton(
             onClick = onOpenFolder,
             modifier = Modifier.width(SettingControlWidth).height(32.dp),
         ) {
-            Text("Open folder", style = MaterialTheme.typography.labelSmall)
+            Text(strings.openFolder, style = MaterialTheme.typography.labelSmall)
         }
     }
 }
@@ -353,11 +358,12 @@ private fun ThemeSetting(
     themeStyle: ThemeStyle,
     onThemeStyleChange: (ThemeStyle) -> Unit,
 ) {
+    val strings = LocalStrings.current
     var expanded by remember { mutableStateOf(false) }
     val label =
         when (themeStyle) {
-            ThemeStyle.Dark -> "Dark"
-            ThemeStyle.Light -> "Light"
+            ThemeStyle.Dark -> strings.themeDark
+            ThemeStyle.Light -> strings.themeLight
         }
 
     val fieldShape =
@@ -374,8 +380,8 @@ private fun ThemeSetting(
         }
 
     SettingItem(
-        title = "Theme",
-        description = "Choose light or dark appearance.",
+        title = strings.themeTitle,
+        description = strings.themeDescription,
     ) {
         ExposedDropdownMenuBox(
             expanded = expanded,
@@ -400,14 +406,14 @@ private fun ThemeSetting(
                         .border(BorderStroke(AppTheme.strokeWidths.thin, MaterialTheme.colorScheme.outline), dropdownShape),
             ) {
                 ThemeDropdownItem(
-                    text = "Dark",
+                    text = strings.themeDark,
                     onClick = {
                         expanded = false
                         if (themeStyle != ThemeStyle.Dark) onThemeStyleChange(ThemeStyle.Dark)
                     },
                 )
                 ThemeDropdownItem(
-                    text = "Light",
+                    text = strings.themeLight,
                     onClick = {
                         expanded = false
                         if (themeStyle != ThemeStyle.Light) onThemeStyleChange(ThemeStyle.Light)

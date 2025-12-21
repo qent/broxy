@@ -17,3 +17,4 @@ Recommended reading order:
 9. `docs/logging_and_observability.md` - log formats, key events, and tracing guidance.
 10. `docs/testing.md` - testing practices and test entry points.
 11. `docs/test_mcp_server_status.md` - self-check for the test MCP server.
+12. `docs/localization.md` - UI localization strings and language wiring.

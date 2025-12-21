@@ -21,6 +21,7 @@ import io.qent.broxy.ui.adapter.store.UIState
 import io.qent.broxy.ui.components.CapabilitiesInlineSummary
 import io.qent.broxy.ui.components.DeleteConfirmationDialog
 import io.qent.broxy.ui.components.SettingsLikeItem
+import io.qent.broxy.ui.strings.LocalStrings
 import io.qent.broxy.ui.theme.AppTheme
 import io.qent.broxy.ui.viewmodels.AppState
 import io.qent.broxy.ui.viewmodels.ServerEditorState
@@ -33,6 +34,7 @@ fun ServersScreen(
     store: AppStore,
     notify: (String) -> Unit = {},
 ) {
+    val strings = LocalStrings.current
     var query by rememberSaveable { mutableStateOf("") }
     var pendingDeletion: UiServer? by remember { mutableStateOf<UiServer?>(null) }
     val editor = state.serverEditor.value
@@ -74,20 +76,20 @@ fun ServersScreen(
             OutlinedTextField(
                 value = query,
                 onValueChange = { query = it },
-                label = { Text("Search servers") },
+                label = { Text(strings.searchServers) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
             )
 
             when (ui) {
-                is UIState.Loading -> Text("Loading...", style = MaterialTheme.typography.bodyMedium)
-                is UIState.Error -> Text("Error: ${ui.message}", style = MaterialTheme.typography.bodyMedium)
+                is UIState.Loading -> Text(strings.loading, style = MaterialTheme.typography.bodyMedium)
+                is UIState.Error -> Text(strings.errorMessage(ui.message), style = MaterialTheme.typography.bodyMedium)
                 is UIState.Ready -> {
                     val servers = ui.servers
                     if (servers.isEmpty()) {
                         EmptyState(
-                            title = "No servers yet",
-                            subtitle = "Use the + button to add your first MCP server",
+                            title = strings.serversEmptyTitle,
+                            subtitle = strings.serversEmptySubtitle,
                         )
                     } else {
                         val filtered =
@@ -129,16 +131,16 @@ fun ServersScreen(
         val toDelete = pendingDeletion
         if (readyUi != null && toDelete != null) {
             DeleteConfirmationDialog(
-                title = "Delete server",
-                prompt = "Remove \"${toDelete.name}\"?",
-                description =
-                    "This removes the server configuration and presets that referenced it " +
-                        "will lose access to its capabilities. This action cannot be undone.",
+                title = strings.deleteServerTitle,
+                prompt = strings.deleteServerPrompt(toDelete.name),
+                description = strings.deleteServerDescription,
                 onConfirm = {
                     readyUi.intents.removeServer(toDelete.id)
                     pendingDeletion = null
                 },
                 onDismiss = { pendingDeletion = null },
+                confirmLabel = strings.delete,
+                dismissLabel = strings.cancel,
             )
         }
     }
@@ -152,6 +154,7 @@ private fun ServerCard(
     onDelete: () -> Unit,
     onEdit: () -> Unit,
 ) {
+    val strings = LocalStrings.current
     val statusColor =
         when (cfg.status) {
             UiServerConnStatus.Available -> AppTheme.extendedColors.success
@@ -179,8 +182,8 @@ private fun ServerCard(
     val showStatusText = isConnecting || showErrorStatus
     val statusText =
         when {
-            isConnecting -> "Connecting: $connectingSeconds s"
-            showErrorStatus -> UiServerConnStatus.Error.name
+            isConnecting -> strings.connecting(connectingSeconds)
+            showErrorStatus -> strings.errorLabel
             else -> null
         }
 
@@ -202,7 +205,7 @@ private fun ServerCard(
                 )
 
                 if (showCapabilitiesSummary) {
-                    Text(" • ", style = MaterialTheme.typography.bodySmall, color = separatorColor)
+                    Text(strings.separatorDot, style = MaterialTheme.typography.bodySmall, color = separatorColor)
                     CapabilitiesInlineSummary(
                         toolsCount = cfg.toolsCount ?: 0,
                         promptsCount = cfg.promptsCount ?: 0,
@@ -211,7 +214,7 @@ private fun ServerCard(
                         textStyle = MaterialTheme.typography.bodySmall,
                     )
                 } else if (showStatusText && statusText != null) {
-                    Text(" • ", style = MaterialTheme.typography.bodySmall, color = separatorColor)
+                    Text(strings.separatorDot, style = MaterialTheme.typography.bodySmall, color = separatorColor)
                     Text(
                         text = statusText,
                         style = MaterialTheme.typography.bodySmall,
@@ -240,10 +243,18 @@ private fun ServerCard(
                 ),
         )
         IconButton(onClick = onEdit) {
-            Icon(Icons.Outlined.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.secondary)
+            Icon(
+                Icons.Outlined.Edit,
+                contentDescription = strings.editContentDescription,
+                tint = MaterialTheme.colorScheme.secondary,
+            )
         }
         IconButton(onClick = onDelete) {
-            Icon(Icons.Outlined.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.secondary)
+            Icon(
+                Icons.Outlined.Delete,
+                contentDescription = strings.deleteContentDescription,
+                tint = MaterialTheme.colorScheme.secondary,
+            )
         }
     }
 }

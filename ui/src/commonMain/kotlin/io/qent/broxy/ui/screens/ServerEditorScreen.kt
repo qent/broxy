@@ -19,6 +19,7 @@ import io.qent.broxy.ui.components.EditorHeaderRow
 import io.qent.broxy.ui.components.ServerForm
 import io.qent.broxy.ui.components.ServerFormStateFactory
 import io.qent.broxy.ui.components.toDraft
+import io.qent.broxy.ui.strings.LocalStrings
 import io.qent.broxy.ui.theme.AppTheme
 import io.qent.broxy.ui.viewmodels.ServerEditorState
 import kotlinx.coroutines.launch
@@ -31,6 +32,7 @@ fun ServerEditorScreen(
     onClose: () -> Unit,
     notify: (String) -> Unit = {},
 ) {
+    val strings = LocalStrings.current
     val initialDraft =
         remember(editor) {
             when (editor) {
@@ -54,11 +56,11 @@ fun ServerEditorScreen(
             verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
         ) {
             EditorHeaderRow(
-                title = "Edit server",
+                title = strings.editServer,
                 onBack = onClose,
             )
             Text(
-                text = "Server not found.",
+                text = strings.serverNotFound,
                 style = MaterialTheme.typography.bodyMedium,
             )
         }
@@ -66,8 +68,8 @@ fun ServerEditorScreen(
     }
 
     val isCreate = editor is ServerEditorState.Create
-    val title = if (isCreate) "Add server" else "Edit server"
-    val primaryActionLabel = if (isCreate) "Add" else "Save"
+    val title = if (isCreate) strings.addServer else strings.editServer
+    val primaryActionLabel = if (isCreate) strings.add else strings.save
 
     var form by remember(editor) { mutableStateOf(ServerFormStateFactory.from(initialDraft)) }
 
@@ -114,7 +116,7 @@ fun ServerEditorScreen(
                 onClick = onClose,
                 modifier = Modifier.height(actionRowHeight),
             ) {
-                Text("Cancel", style = MaterialTheme.typography.labelSmall)
+                Text(strings.cancel, style = MaterialTheme.typography.labelSmall)
             }
             AppPrimaryButton(
                 onClick = {
@@ -135,11 +137,10 @@ fun ServerEditorScreen(
                                 val e = result.exceptionOrNull()
                                 val isTimeout = e?.message?.contains("timed out", ignoreCase = true) == true
                                 if (isTimeout) {
-                                    notify("Connection timed out. Saved as disabled.")
+                                    notify(strings.connectionTimedOutSavedDisabled)
                                 } else {
                                     val errMsg = e?.message?.takeIf { it.isNotBlank() }
-                                    val details = errMsg?.let { ": $it" } ?: ""
-                                    notify("Connection failed$details. Saved as disabled.")
+                                    notify(strings.connectionFailedSavedDisabled(errMsg))
                                 }
                                 toSave = draft.copy(enabled = false)
                             }
@@ -147,7 +148,7 @@ fun ServerEditorScreen(
 
                         readyUi.intents.upsertServer(toSave)
                         onClose()
-                        notify("Saved ${toSave.name}")
+                        notify(strings.savedName(toSave.name))
                     }
                 },
                 enabled = canSubmit,
@@ -160,7 +161,7 @@ fun ServerEditorScreen(
         OutlinedTextField(
             value = form.name,
             onValueChange = { form = form.copy(name = it) },
-            label = { Text("Name") },
+            label = { Text(strings.nameLabel) },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
         )
@@ -195,7 +196,7 @@ fun ServerEditorScreen(
                         if (availability == null || availability.isAvailable) {
                             null
                         } else {
-                            "Command not found on PATH."
+                            strings.commandNotFound
                         }
                 }
             },

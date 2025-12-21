@@ -21,6 +21,8 @@ import io.qent.broxy.ui.components.CapabilityDisplayItem
 import io.qent.broxy.ui.components.EditorHeaderRow
 import io.qent.broxy.ui.components.FormCard
 import io.qent.broxy.ui.components.PresetSelector
+import io.qent.broxy.ui.strings.AppStrings
+import io.qent.broxy.ui.strings.LocalStrings
 import io.qent.broxy.ui.theme.AppTheme
 import io.qent.broxy.ui.viewmodels.PresetEditorState
 
@@ -31,6 +33,7 @@ fun PresetEditorScreen(
     editor: PresetEditorState,
     onClose: () -> Unit,
 ) {
+    val strings = LocalStrings.current
     val initialDraft =
         remember(editor) {
             when (editor) {
@@ -56,11 +59,11 @@ fun PresetEditorScreen(
             verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
         ) {
             EditorHeaderRow(
-                title = "Edit preset",
+                title = strings.editPreset,
                 onBack = onClose,
             )
             Text(
-                text = "Preset not found.",
+                text = strings.presetNotFound,
                 style = MaterialTheme.typography.bodyMedium,
             )
         }
@@ -68,8 +71,8 @@ fun PresetEditorScreen(
     }
 
     val isCreate = editor is PresetEditorState.Create
-    val title = if (isCreate) "Create preset" else "Edit preset"
-    val primaryActionLabel = if (isCreate) "Add" else "Save"
+    val title = if (isCreate) strings.createPreset else strings.editPreset
+    val primaryActionLabel = if (isCreate) strings.add else strings.save
 
     var name by remember(editor) { mutableStateOf(initialDraft.name) }
     var selectedTools by remember(editor) { mutableStateOf<List<UiToolRef>>(initialDraft.tools) }
@@ -103,12 +106,12 @@ fun PresetEditorScreen(
             serverCapsSnapshots.value.associateBy { it.serverId }
         }
     val toolItems =
-        remember(selectedTools, serverCapsById, serverNamesById) {
-            buildToolCapabilityItems(selectedTools, serverNamesById, serverCapsById)
+        remember(selectedTools, serverCapsById, serverNamesById, strings) {
+            buildToolCapabilityItems(selectedTools, serverNamesById, serverCapsById, strings)
         }
     val promptItems =
-        remember(selectedPrompts, serverCapsById, serverNamesById) {
-            buildPromptCapabilityItems(selectedPrompts, serverNamesById, serverCapsById)
+        remember(selectedPrompts, serverCapsById, serverNamesById, strings) {
+            buildPromptCapabilityItems(selectedPrompts, serverNamesById, serverCapsById, strings)
         }
     val resourceItems =
         remember(selectedResources, serverCapsById, serverNamesById) {
@@ -132,7 +135,7 @@ fun PresetEditorScreen(
                     onClick = onClose,
                     modifier = Modifier.height(actionRowHeight),
                 ) {
-                    Text("Cancel", style = MaterialTheme.typography.labelSmall)
+                    Text(strings.cancel, style = MaterialTheme.typography.labelSmall)
                 }
                 AppPrimaryButton(
                     onClick = {
@@ -165,9 +168,9 @@ fun PresetEditorScreen(
             resolvedId = resolvedId,
         )
 
-        FormCard(title = "MCP servers") {
+        FormCard(title = strings.mcpServersTitle) {
             Text(
-                "Select tools/prompts/resources from connected servers",
+                strings.selectCapabilitiesHint,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -190,17 +193,17 @@ fun PresetEditorScreen(
         }
 
         CapabilitiesCard(
-            title = "Tools",
+            title = strings.toolsLabel,
             items = toolItems,
             icon = Icons.Outlined.Construction,
         )
         CapabilitiesCard(
-            title = "Prompts",
+            title = strings.promptsLabel,
             items = promptItems,
             icon = Icons.Outlined.ChatBubbleOutline,
         )
         CapabilitiesCard(
-            title = "Resources",
+            title = strings.resourcesLabel,
             items = resourceItems,
             icon = Icons.Outlined.Description,
         )
@@ -214,10 +217,11 @@ private fun PresetIdentityCard(
     onNameChange: (String) -> Unit,
     resolvedId: String,
 ) {
+    val strings = LocalStrings.current
     OutlinedTextField(
         value = name,
         onValueChange = onNameChange,
-        label = { Text("Name") },
+        label = { Text(strings.nameLabel) },
         modifier = Modifier.fillMaxWidth(),
         singleLine = true,
     )
@@ -227,12 +231,13 @@ private fun buildToolCapabilityItems(
     tools: List<UiToolRef>,
     serverNames: Map<String, String>,
     serverCapsById: Map<String, UiServerCapsSnapshot>,
+    strings: AppStrings,
 ): List<CapabilityDisplayItem> {
     return tools.filter { it.enabled }.map { ref ->
         val summary = serverCapsById[ref.serverId]?.tools?.firstOrNull { it.name == ref.toolName }
         val serverName = serverNames[ref.serverId] ?: ref.serverId
         val capabilityName = summary?.name ?: ref.toolName
-        val description = summary?.description?.takeIf { it.isNotBlank() } ?: "No description provided"
+        val description = summary?.description?.takeIf { it.isNotBlank() } ?: strings.noDescriptionProvided
         CapabilityDisplayItem(serverName, capabilityName, description, summary?.arguments.orEmpty())
     }
 }
@@ -241,12 +246,13 @@ private fun buildPromptCapabilityItems(
     prompts: List<UiPromptRef>,
     serverNames: Map<String, String>,
     serverCapsById: Map<String, UiServerCapsSnapshot>,
+    strings: AppStrings,
 ): List<CapabilityDisplayItem> {
     return prompts.filter { it.enabled }.map { ref ->
         val summary = serverCapsById[ref.serverId]?.prompts?.firstOrNull { it.name == ref.promptName }
         val serverName = serverNames[ref.serverId] ?: ref.serverId
         val capabilityName = summary?.name ?: ref.promptName
-        val description = summary?.description?.takeIf { it.isNotBlank() } ?: "No description provided"
+        val description = summary?.description?.takeIf { it.isNotBlank() } ?: strings.noDescriptionProvided
         CapabilityDisplayItem(serverName, capabilityName, description, summary?.arguments.orEmpty())
     }
 }
