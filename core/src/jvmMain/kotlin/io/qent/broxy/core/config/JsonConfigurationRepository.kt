@@ -1,5 +1,6 @@
 package io.qent.broxy.core.config
 
+import io.qent.broxy.core.models.AuthConfig
 import io.qent.broxy.core.models.McpServerConfig
 import io.qent.broxy.core.models.McpServersConfig
 import io.qent.broxy.core.models.Preset
@@ -11,6 +12,7 @@ import io.qent.broxy.core.utils.Logger
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.io.IOException
+import java.net.URI
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -117,6 +119,7 @@ class JsonConfigurationRepository(
                         throw ex
                     }
                 envResolver.logResolvedEnv("Loaded server '$id'", envResolved)
+                val authResolved = resolveAuthConfig(e.auth, id)
 
                 McpServerConfig(
                     id = id,
@@ -124,6 +127,7 @@ class JsonConfigurationRepository(
                     transport = transport,
                     env = envResolved,
                     enabled = e.enabled ?: true,
+                    auth = authResolved,
                 )
             }
 
@@ -169,6 +173,7 @@ class JsonConfigurationRepository(
                                         command = t.command,
                                         args = t.args,
                                         env = s.env,
+                                        auth = s.auth,
                                     )
 
                                 is TransportConfig.HttpTransport ->
@@ -179,6 +184,7 @@ class JsonConfigurationRepository(
                                         url = t.url,
                                         headers = t.headers,
                                         env = s.env,
+                                        auth = s.auth,
                                     )
 
                                 is TransportConfig.StreamableHttpTransport ->
@@ -189,6 +195,7 @@ class JsonConfigurationRepository(
                                         url = t.url,
                                         headers = t.headers,
                                         env = s.env,
+                                        auth = s.auth,
                                     )
 
                                 is TransportConfig.WebSocketTransport ->
@@ -198,6 +205,7 @@ class JsonConfigurationRepository(
                                         transport = "websocket",
                                         url = t.url,
                                         env = s.env,
+                                        auth = s.auth,
                                     )
                             }
                     },
@@ -299,6 +307,110 @@ class JsonConfigurationRepository(
                     }
                 is TransportConfig.WebSocketTransport -> if (t.url.isBlank()) fail("Server '${s.id}': ws.url cannot be blank")
             }
+            if (s.auth != null) {
+                if (s.transport is TransportConfig.StdioTransport) {
+                    fail("Server '${s.id}': auth is not supported for stdio transport")
+                }
+                validateAuthConfig(s.id, s.auth)
+            }
+        }
+    }
+
+    private fun resolveAuthConfig(
+        auth: AuthConfig?,
+        serverId: String,
+    ): AuthConfig? {
+        if (auth == null) return null
+        return when (auth) {
+            is AuthConfig.OAuth ->
+                auth.copy(
+                    clientId = resolveAuthValue(auth.clientId, serverId, "auth.clientId"),
+                    clientSecret = resolveAuthValue(auth.clientSecret, serverId, "auth.clientSecret"),
+                    clientIdMetadataUrl = resolveAuthValue(auth.clientIdMetadataUrl, serverId, "auth.clientIdMetadataUrl"),
+                    redirectUri = resolveAuthValue(auth.redirectUri, serverId, "auth.redirectUri"),
+                    clientName = auth.clientName?.takeIf { it.isNotBlank() },
+                    tokenEndpointAuthMethod = auth.tokenEndpointAuthMethod?.takeIf { it.isNotBlank() },
+                    authorizationServer = resolveAuthValue(auth.authorizationServer, serverId, "auth.authorizationServer"),
+                    scopes = auth.scopes?.filter { it.isNotBlank() },
+                )
+        }
+    }
+
+    private fun resolveAuthValue(
+        value: String?,
+        serverId: String,
+        label: String,
+    ): String? {
+        val trimmed = value?.takeIf { it.isNotBlank() } ?: return null
+        val missing = envResolver.missingVars(trimmed)
+        if (missing.isNotEmpty()) {
+            fail("Server '$serverId': missing env vars for $label: ${missing.joinToString()}")
+        }
+        return envResolver.resolveString(trimmed)
+    }
+
+    private fun validateAuthConfig(
+        serverId: String,
+        auth: AuthConfig,
+    ) {
+        when (auth) {
+            is AuthConfig.OAuth -> validateOAuthConfig(serverId, auth)
+        }
+    }
+
+    private fun validateOAuthConfig(
+        serverId: String,
+        auth: AuthConfig.OAuth,
+    ) {
+        auth.redirectUri?.let {
+            val uri = parseUri(serverId, "auth.redirectUri", it)
+            val scheme = uri.scheme?.lowercase() ?: fail("Server '$serverId': auth.redirectUri missing scheme")
+            val host = uri.host ?: fail("Server '$serverId': auth.redirectUri missing host")
+            val isLoopback = host == "localhost" || host == "127.0.0.1"
+            if (scheme != "http" || !isLoopback) {
+                fail("Server '$serverId': auth.redirectUri must use http://localhost or http://127.0.0.1")
+            }
+            if (uri.port == -1) {
+                fail("Server '$serverId': auth.redirectUri must include an explicit port")
+            }
+        }
+        auth.clientIdMetadataUrl?.let {
+            val uri = parseUri(serverId, "auth.clientIdMetadataUrl", it)
+            val scheme = uri.scheme?.lowercase() ?: fail("Server '$serverId': auth.clientIdMetadataUrl missing scheme")
+            if (scheme != "https") {
+                fail("Server '$serverId': auth.clientIdMetadataUrl must use https")
+            }
+            if (uri.path.isNullOrBlank() || uri.path == "/") {
+                fail("Server '$serverId': auth.clientIdMetadataUrl must include a path")
+            }
+        }
+        auth.authorizationServer?.let {
+            val uri = parseUri(serverId, "auth.authorizationServer", it)
+            val scheme = uri.scheme?.lowercase() ?: fail("Server '$serverId': auth.authorizationServer missing scheme")
+            val host = uri.host ?: fail("Server '$serverId': auth.authorizationServer missing host")
+            val isLoopback = host == "localhost" || host == "127.0.0.1"
+            if (scheme != "https" && !(scheme == "http" && isLoopback)) {
+                fail("Server '$serverId': auth.authorizationServer must use https or localhost http")
+            }
+        }
+        auth.tokenEndpointAuthMethod?.let {
+            val normalized = it.lowercase()
+            val allowed = setOf("none", "client_secret_basic", "client_secret_post")
+            if (normalized !in allowed) {
+                fail("Server '$serverId': auth.tokenEndpointAuthMethod must be one of ${allowed.joinToString()}")
+            }
+        }
+    }
+
+    private fun parseUri(
+        serverId: String,
+        label: String,
+        value: String,
+    ): URI {
+        return try {
+            URI(value)
+        } catch (e: Exception) {
+            fail("Server '$serverId': $label is not a valid URI")
         }
     }
 
@@ -323,5 +435,6 @@ class JsonConfigurationRepository(
         val url: String? = null,
         val headers: Map<String, String>? = null,
         val env: Map<String, String>? = null,
+        val auth: AuthConfig? = null,
     )
 }

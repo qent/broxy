@@ -36,6 +36,7 @@ kotlin {
         val jvmTest by getting {
             dependencies {
                 implementation(kotlin("test"))
+                implementation("io.ktor:ktor-client-mock:${property("ktorVersion")}")
                 implementation("io.ktor:ktor-server-test-host:${property("ktorVersion")}")
                 implementation("org.mockito:mockito-core:5.21.0")
                 implementation("org.mockito.kotlin:mockito-kotlin:6.1.0")

@@ -9,4 +9,5 @@ data class McpServerConfig(
     val transport: TransportConfig,
     val env: Map<String, String> = emptyMap(),
     val enabled: Boolean = true,
+    val auth: AuthConfig? = null,
 )

@@ -121,6 +121,19 @@ Timeout behavior:
 - If a list operation times out or fails, the client returns an empty list for that category and
   continues. The overall `fetchCapabilities()` call still succeeds unless the client is not connected.
 
+### OAuth for remote HTTP/WS servers
+
+`KtorMcpClient` supports OAuth for HTTP-based downstream transports (SSE, Streamable HTTP, WebSocket):
+
+- Uses `WWW-Authenticate` + `resource_metadata` when present, otherwise probes `.well-known`.
+- Discovers authorization server metadata via OAuth 2.0 and OpenID Connect well-known endpoints.
+- Requires PKCE (`S256`) support and sends the `resource` parameter on auth/token requests.
+- Handles step-up authorization on `insufficient_scope` and refresh tokens when available.
+
+If the server supports dynamic client registration, broxy can auto-discover OAuth parameters via
+`/.well-known` endpoints. Use the `auth` block in `mcp.json` only for pre-registered credentials
+or servers without dynamic registration (see `docs/remote_auth_and_websocket.md`).
+
 ## StdioMcpClient (process + STDIO transport)
 
 File: `core/src/jvmMain/kotlin/io/qent/broxy/core/mcp/clients/StdioMcpClient.kt`

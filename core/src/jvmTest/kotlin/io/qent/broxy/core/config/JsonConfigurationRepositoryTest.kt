@@ -150,4 +150,44 @@ class JsonConfigurationRepositoryTest {
 
         assertEquals(McpServersConfig(emptyList()), config.copy(defaultPresetId = null))
     }
+
+    @Test
+    fun loadMcpConfig_parses_oauth_auth_and_resolves_env() {
+        val dir = Files.createTempDirectory("broxy-config")
+        val json =
+            """
+            {
+              "mcpServers": {
+                "alpha": {
+                  "transport": "http",
+                  "url": "http://localhost:9999/mcp",
+                  "auth": {
+                    "type": "oauth",
+                    "clientId": "client",
+                    "clientSecret": "${'$'}{TOKEN}",
+                    "redirectUri": "http://localhost:8080/callback",
+                    "tokenEndpointAuthMethod": "client_secret_post",
+                    "authorizationServer": "https://auth.example.com"
+                  }
+                }
+              }
+            }
+            """.trimIndent()
+        Files.writeString(dir.resolve("mcp.json"), json)
+
+        val repo =
+            JsonConfigurationRepository(
+                baseDir = dir,
+                logger = ConfigTestLogger,
+                envResolver = EnvironmentVariableResolver(envProvider = { mapOf("TOKEN" to "secret") }, logger = ConfigTestLogger),
+            )
+
+        val config = repo.loadMcpConfig()
+        val server = config.servers.single()
+        val auth = server.auth as io.qent.broxy.core.models.AuthConfig.OAuth
+        assertEquals("client", auth.clientId)
+        assertEquals("secret", auth.clientSecret)
+        assertEquals("client_secret_post", auth.tokenEndpointAuthMethod)
+        assertEquals("https://auth.example.com", auth.authorizationServer)
+    }
 }

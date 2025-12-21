@@ -59,6 +59,27 @@ class ModelsSerializationTest {
     }
 
     @Test
+    fun authConfig_roundtrip_for_oauth() {
+        val cfg =
+            McpServerConfig(
+                id = "s3",
+                name = "Server 3",
+                transport = TransportConfig.HttpTransport(url = "http://localhost:1234/mcp"),
+                enabled = true,
+                auth =
+                    AuthConfig.OAuth(
+                        clientId = "client",
+                        redirectUri = "http://localhost:8080/callback",
+                        tokenEndpointAuthMethod = "client_secret_basic",
+                    ),
+            )
+        val encoded = json.encodeToString(McpServerConfig.serializer(), cfg)
+        val decoded = json.decodeFromString(McpServerConfig.serializer(), encoded)
+        assertEquals(cfg, decoded)
+        assertTrue(encoded.contains("\"type\":\"oauth\""))
+    }
+
+    @Test
     fun preset_and_toolReference_roundtrip() {
         val preset =
             Preset(

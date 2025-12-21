@@ -65,8 +65,13 @@ Loader:
       "name": "Slack MCP",
       "transport": "http",
       "url": "https://slack-mcp.example.com",
-      "headers": {
-        "Authorization": "Bearer token-value"
+      "auth": {
+        "type": "oauth",
+        "clientId": "slack-client-id",
+        "clientSecret": "${SLACK_CLIENT_SECRET}",
+        "redirectUri": "http://localhost:8080/callback",
+        "authorizationServer": "https://auth.slack.com",
+        "tokenEndpointAuthMethod": "client_secret_post"
       }
     },
     "realtime": {
@@ -98,6 +103,27 @@ Notes:
 
 - `headers` are supported only for HTTP/SSE and Streamable HTTP.
 - `env` is used only for STDIO processes; for HTTP/WS it is stored but not consumed by transports.
+
+## OAuth auth block
+
+Downstream HTTP/SSE, Streamable HTTP, and WebSocket servers can include an `auth` block for OAuth.
+If the server supports dynamic client registration, broxy can auto-discover OAuth parameters via
+`/.well-known` endpoints and no `auth` block is required.
+
+- `type`: `"oauth"`
+- `clientId`: pre-registered client id (preferred when present)
+- `clientSecret`: optional secret for confidential clients
+- `clientIdMetadataUrl`: HTTPS URL for Client ID Metadata Documents
+- `redirectUri`: loopback callback (`http://localhost:<port>/...`)
+- `redirectUri` requires an explicit port; only loopback HTTP is supported.
+- `authorizationServer`: issuer override if resource metadata is unavailable
+- `tokenEndpointAuthMethod`: `none`, `client_secret_basic`, `client_secret_post`
+- `scopes`: fallback scopes when discovery provides none
+- `allowDynamicRegistration`: toggle dynamic registration support
+
+Use `auth` only when the server does **not** support dynamic client registration or when you need
+pre-registered client credentials. `auth` is ignored for STDIO transports; use environment variables
+instead.
 
 ## Environment placeholders
 

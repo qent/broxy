@@ -1,7 +1,9 @@
 package io.qent.broxy.core.mcp
 
+import io.qent.broxy.core.mcp.auth.OAuthState
 import io.qent.broxy.core.mcp.clients.KtorMcpClient
 import io.qent.broxy.core.mcp.clients.StdioMcpClient
+import io.qent.broxy.core.models.AuthConfig
 import io.qent.broxy.core.models.TransportConfig
 import io.qent.broxy.core.utils.Logger
 
@@ -10,6 +12,8 @@ private object DefaultJvmMcpClientProvider : McpClientProvider {
         config: TransportConfig,
         env: Map<String, String>,
         logger: Logger,
+        auth: AuthConfig?,
+        authState: OAuthState?,
     ): McpClient =
         when (config) {
             is TransportConfig.StdioTransport ->
@@ -26,6 +30,8 @@ private object DefaultJvmMcpClientProvider : McpClientProvider {
                     url = config.url,
                     headersMap = config.headers,
                     logger = logger,
+                    authConfig = auth,
+                    authState = authState,
                 )
 
             is TransportConfig.StreamableHttpTransport ->
@@ -34,6 +40,8 @@ private object DefaultJvmMcpClientProvider : McpClientProvider {
                     url = config.url,
                     headersMap = config.headers,
                     logger = logger,
+                    authConfig = auth,
+                    authState = authState,
                 )
 
             is TransportConfig.WebSocketTransport ->
@@ -41,6 +49,8 @@ private object DefaultJvmMcpClientProvider : McpClientProvider {
                     mode = KtorMcpClient.Mode.WebSocket,
                     url = config.url,
                     logger = logger,
+                    authConfig = auth,
+                    authState = authState,
                 )
         }
 }

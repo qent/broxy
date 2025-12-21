@@ -113,6 +113,9 @@
             "type": "string"
           },
           "default": {}
+        },
+        "auth": {
+          "$ref": "#/definitions/AuthConfig"
         }
       },
       "allOf": [
@@ -196,6 +199,68 @@
           }
         }
       ]
+    },
+    "AuthConfig": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/OAuthConfig"
+        }
+      ]
+    },
+    "OAuthConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "const": "oauth"
+        },
+        "clientId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "clientSecret": {
+          "type": "string",
+          "minLength": 1
+        },
+        "clientIdMetadataUrl": {
+          "type": "string",
+          "minLength": 1
+        },
+        "redirectUri": {
+          "type": "string",
+          "minLength": 1
+        },
+        "clientName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tokenEndpointAuthMethod": {
+          "type": "string",
+          "enum": [
+            "none",
+            "client_secret_basic",
+            "client_secret_post"
+          ]
+        },
+        "authorizationServer": {
+          "type": "string",
+          "minLength": 1
+        },
+        "scopes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "allowDynamicRegistration": {
+          "type": "boolean",
+          "default": true
+        }
+      }
     }
   }
 }

@@ -1,7 +1,10 @@
 package io.qent.broxy.core.mcp
 
+import io.qent.broxy.core.mcp.auth.OAuthState
 import io.qent.broxy.core.mcp.errors.McpError
+import io.qent.broxy.core.models.AuthConfig
 import io.qent.broxy.core.models.McpServerConfig
+import io.qent.broxy.core.models.TransportConfig
 import io.qent.broxy.core.utils.ConsoleLogger
 import io.qent.broxy.core.utils.ExponentialBackoff
 import io.qent.broxy.core.utils.Logger
@@ -16,11 +19,21 @@ class DefaultMcpServerConnection(
     private val logger: Logger = ConsoleLogger,
     private val cacheTtlMs: Long = 5 * 60 * 1000,
     private val maxRetries: Int = 5,
+    private val authState: OAuthState? =
+        when {
+            config.auth is AuthConfig.OAuth -> OAuthState()
+            config.auth == null && config.transport is TransportConfig.HttpTransport -> OAuthState()
+            config.auth == null && config.transport is TransportConfig.StreamableHttpTransport -> OAuthState()
+            config.auth == null && config.transport is TransportConfig.WebSocketTransport -> OAuthState()
+            else -> null
+        },
     private val clientFactory: () -> McpClient = {
         McpClientFactory(defaultMcpClientProvider()).create(
             config.transport,
             config.env,
             logger,
+            config.auth,
+            authState,
         )
     },
     private val cache: CapabilitiesCache = CapabilitiesCache(ttlMillis = cacheTtlMs),
@@ -133,7 +146,11 @@ class DefaultMcpServerConnection(
     private fun newClient(): McpClient = clientFactory().also { configureClientTimeouts(it) }
 
     private fun configureClientTimeouts(client: McpClient) {
-        (client as? TimeoutConfigurableMcpClient)?.updateTimeouts(connectTimeoutMillis, capabilitiesTimeoutMillis)
+        val effectiveConnectTimeout =
+            (client as? AuthInteractiveMcpClient)?.authorizationTimeoutMillis
+                ?.let { maxOf(connectTimeoutMillis, it) }
+                ?: connectTimeoutMillis
+        (client as? TimeoutConfigurableMcpClient)?.updateTimeouts(effectiveConnectTimeout, capabilitiesTimeoutMillis)
     }
 
     private suspend fun <T> withSession(block: suspend (McpClient) -> Result<T>): Result<T> {
@@ -169,11 +186,15 @@ class DefaultMcpServerConnection(
         val backoff = ExponentialBackoff()
         var lastError: Throwable? = null
         for (attempt in 1..maxRetries) {
+            val timeoutMillis =
+                (client as? AuthInteractiveMcpClient)?.authorizationTimeoutMillis
+                    ?.let { maxOf(connectTimeoutMillis, it) }
+                    ?: connectTimeoutMillis
             val result =
                 try {
-                    withTimeout(connectTimeoutMillis) { client.connect() }
+                    withTimeout(timeoutMillis) { client.connect() }
                 } catch (t: TimeoutCancellationException) {
-                    Result.failure(McpError.TimeoutError("Connect timed out after ${connectTimeoutMillis}ms", t))
+                    Result.failure(McpError.TimeoutError("Connect timed out after ${timeoutMillis}ms", t))
                 }
             if (result.isSuccess) {
                 return Result.success(Unit)
