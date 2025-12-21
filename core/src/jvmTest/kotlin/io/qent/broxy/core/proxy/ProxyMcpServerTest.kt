@@ -202,6 +202,51 @@ class ProxyMcpServerTest {
             assertTrue(proxy.callTool("beta:translate").isFailure)
         }
 
+    @org.junit.Test
+    fun refreshServerCapabilities_updates_filtered_view_without_touching_other_servers() =
+        runTest {
+            val serverA =
+                FakeServerConnection(
+                    serverId = "alpha",
+                    capabilities =
+                        ServerCapabilities(
+                            tools = listOf(ToolDescriptor(name = "search")),
+                        ),
+                )
+            val serverB =
+                FakeServerConnection(
+                    serverId = "beta",
+                    capabilities =
+                        ServerCapabilities(
+                            tools = listOf(ToolDescriptor(name = "translate")),
+                        ),
+                )
+
+            val proxy = ProxyMcpServer(listOf(serverA), logger = noopLogger)
+            val preset =
+                Preset(
+                    id = "preset",
+                    name = "Preset",
+                    tools =
+                        listOf(
+                            ToolReference(serverId = "alpha", toolName = "search", enabled = true),
+                            ToolReference(serverId = "beta", toolName = "translate", enabled = true),
+                        ),
+                )
+            proxy.start(preset, TransportConfig.StdioTransport(command = "noop"))
+
+            assertEquals(listOf("alpha:search"), proxy.getCapabilities().tools.map { it.name })
+
+            proxy.updateDownstreams(listOf(serverA, serverB))
+            proxy.refreshServerCapabilities("beta")
+
+            assertEquals(listOf("alpha:search", "beta:translate"), proxy.getCapabilities().tools.map { it.name })
+
+            proxy.removeServerCapabilities("beta")
+
+            assertEquals(listOf("alpha:search"), proxy.getCapabilities().tools.map { it.name })
+        }
+
     private class FakeServerConnection(
         override val serverId: String,
         private var capabilities: ServerCapabilities,

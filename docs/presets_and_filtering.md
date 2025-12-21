@@ -119,17 +119,14 @@ File: `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/ProxyMcpServer.kt`
 Runtime fields:
 
 - `currentPreset`
-- `filteredCaps`
-- `allowedTools`
-- `promptServerByName`
-- `resourceServerByUri`
+- filtered view state (capabilities + allow list + routing maps)
 
 Key methods:
 
 - `refreshFilteredCapabilities()`:
     1) fetches downstream caps in parallel;
     2) applies `presetEngine.apply(all, preset)` -> `FilterResult`;
-    3) updates `filteredCaps/allowedTools/...`;
+    3) updates the filtered view state (capabilities + allow list + routing maps);
     4) logs missing tools.
 
 - `applyPreset(preset)`:

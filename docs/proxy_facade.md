@@ -85,7 +85,7 @@ File: `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/SdkServerFactory
 
 When `ProxyController.applyPreset(...)` is called broxy:
 
-1) recomputes `filteredCaps/allowedTools/...` in `ProxyMcpServer`;
+1) recomputes the filtered view (capabilities + allow list + routing maps) in `ProxyMcpServer`;
 2) re-syncs the running SDK `Server` via `syncSdkServer(...)`.
 
 Inbound (STDIO or Streamable HTTP) does not restart; `tools/list`, `prompts/list`, and `resources/list`
@@ -95,10 +95,12 @@ reflect the new preset within the same session.
 
 When the downstream set changes, `ProxyController.updateServers(...)`:
 
-1) updates downstream connections in `ProxyMcpServer` (without recreating inbound);
-2) recomputes filtered capabilities for the current preset;
-3) re-syncs the SDK `Server` via `syncSdkServer(...)`.
+1) diffs enabled servers and reuses existing per-server runtimes;
+2) updates downstream connections in `ProxyMcpServer` (without recreating inbound);
+3) removes capabilities for disabled servers and refreshes capabilities only for added/edited servers;
+4) re-syncs the SDK `Server` via `syncSdkServer(...)`.
 
+Each downstream server runs on its own single-thread dispatcher so lifecycle work is isolated.
 The inbound facade stays up, but published capabilities change.
 
 ## Layer 3: ProxyMcpServer -> RequestDispatcher -> downstream
@@ -107,8 +109,8 @@ The inbound facade stays up, but published capabilities change.
 
 `ProxyMcpServer` maintains:
 
-- current preset and filtered view;
-- `filteredCaps`, `allowedTools`, `promptServerByName`, `resourceServerByUri`;
+- current preset and filtered view (capabilities + allow list + routing maps);
+- prompt/resource routing maps derived from the filtered view;
 - delegation of inbound requests to `RequestDispatcher`.
 
 File: `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/ProxyMcpServer.kt`

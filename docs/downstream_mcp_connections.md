@@ -110,6 +110,19 @@ Behavior:
 
 This keeps the proxy running even when a downstream server is temporarily unavailable.
 
+## Per-server isolation (JVM runtime)
+
+To keep server lifecycles independent, the JVM proxy runtime wraps each downstream connection with
+`core/src/jvmMain/kotlin/io/qent/broxy/core/mcp/IsolatedMcpServerConnection.kt`:
+
+- each server gets its own single-thread dispatcher;
+- connect/disconnect/edit/capability fetch calls run on that dedicated thread;
+- operations on one server do not block or restart other servers.
+
+This wrapper is applied by `ProxyControllerJvm` when building downstreams, and also in the
+STDIO headless entrypoint. It preserves per-server caches while allowing dynamic add/remove
+of servers without affecting others.
+
 ## KtorMcpClient (HTTP SSE / Streamable HTTP / WebSocket)
 
 File: `core/src/jvmMain/kotlin/io/qent/broxy/core/mcp/clients/KtorMcpClient.kt`

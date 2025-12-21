@@ -3,7 +3,7 @@ package io.qent.broxy.ui.adapter.headless
 import io.modelcontextprotocol.kotlin.sdk.server.StdioServerTransport
 import io.qent.broxy.core.config.JsonConfigurationRepository
 import io.qent.broxy.core.mcp.DefaultMcpServerConnection
-import io.qent.broxy.core.mcp.McpServerConnection
+import io.qent.broxy.core.mcp.IsolatedMcpServerConnection
 import io.qent.broxy.core.models.Preset
 import io.qent.broxy.core.models.TransportConfig
 import io.qent.broxy.core.proxy.ProxyMcpServer
@@ -67,16 +67,18 @@ fun runStdioProxy(
         val callTimeoutMillis = cfg.requestTimeoutSeconds.toLong() * 1_000L
         val capabilitiesTimeoutMillis = cfg.capabilitiesTimeoutSeconds.toLong() * 1_000L
 
-        val downstreams: List<McpServerConnection> =
+        val downstreams: List<IsolatedMcpServerConnection> =
             cfg.servers
                 .filter { it.enabled }
                 .map { serverCfg ->
-                    DefaultMcpServerConnection(
-                        config = serverCfg,
-                        logger = logger,
-                        initialCallTimeoutMillis = callTimeoutMillis,
-                        initialCapabilitiesTimeoutMillis = capabilitiesTimeoutMillis,
-                    )
+                    val connection =
+                        DefaultMcpServerConnection(
+                            config = serverCfg,
+                            logger = logger,
+                            initialCallTimeoutMillis = callTimeoutMillis,
+                            initialCapabilitiesTimeoutMillis = capabilitiesTimeoutMillis,
+                        )
+                    IsolatedMcpServerConnection(connection)
                 }
 
         val proxy = ProxyMcpServer(downstreams = downstreams, logger = logger)
@@ -105,6 +107,7 @@ fun runStdioProxy(
             runBlocking { runCatching { transport.close() } }
             runCatching { proxy.stop() }
             runBlocking { downstreams.forEach { runCatching { it.disconnect() } } }
+            downstreams.forEach { runCatching { it.close() } }
             sink.info("broxy STDIO proxy stopped")
         }
     }

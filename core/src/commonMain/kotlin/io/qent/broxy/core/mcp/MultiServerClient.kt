@@ -14,7 +14,9 @@ class MultiServerClient(
         coroutineScope {
             servers.map { server ->
                 async {
-                    val caps = server.getCapabilities()
+                    val caps =
+                        runCatching { server.getCapabilities() }
+                            .getOrElse { Result.failure(it) }
                     if (caps.isSuccess) server.serverId to caps.getOrThrow() else null
                 }
             }.awaitAll().filterNotNull().toMap()

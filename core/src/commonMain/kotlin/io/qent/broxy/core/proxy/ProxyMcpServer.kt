@@ -10,6 +10,8 @@ import io.qent.broxy.core.utils.Logger
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 
@@ -28,11 +30,21 @@ class ProxyMcpServer(
     @Volatile
     private var downstreams: List<McpServerConnection> = downstreams
 
+    @Volatile
     private var currentPreset: Preset? = null
-    private var filteredCaps: ServerCapabilities = ServerCapabilities()
-    private var allowedTools: Set<String> = emptySet()
-    private var promptServerByName: Map<String, String> = emptyMap()
-    private var resourceServerByUri: Map<String, String> = emptyMap()
+
+    private data class FilteredState(
+        val capabilities: ServerCapabilities = ServerCapabilities(),
+        val allowedTools: Set<String> = emptySet(),
+        val promptServerByName: Map<String, String> = emptyMap(),
+        val resourceServerByUri: Map<String, String> = emptyMap(),
+    )
+
+    @Volatile
+    private var filteredState: FilteredState = FilteredState()
+
+    private val refreshMutex = Mutex()
+    private var allCapabilities: Map<String, ServerCapabilities> = emptyMap()
 
     private val namespace: NamespaceManager = DefaultNamespaceManager()
     private val presetEngine: PresetEngine = DefaultPresetEngine(toolFilter)
@@ -75,7 +87,7 @@ class ProxyMcpServer(
     override fun getStatus(): ServerStatus = status
 
     /** Returns the current filtered capabilities view. */
-    fun getCapabilities(): ServerCapabilities = filteredCaps
+    fun getCapabilities(): ServerCapabilities = filteredState.capabilities
 
     /** Applies a new preset at runtime and refreshes the filtered view. */
     fun applyPreset(preset: Preset) {
@@ -99,17 +111,39 @@ class ProxyMcpServer(
 
     /** Forces re-fetch and re-filter of downstream capabilities according to the current preset. */
     suspend fun refreshFilteredCapabilities() {
-        val preset = currentPreset ?: return
         val all = fetchAllDownstreamCapabilities()
-        val result = presetEngine.apply(all, preset)
-        filteredCaps = result.capabilities
-        allowedTools = result.allowedPrefixedTools
-        promptServerByName = result.promptServerByName
-        resourceServerByUri = result.resourceServerByUri
+        refreshMutex.withLock {
+            val preset = currentPreset ?: return@withLock
+            allCapabilities = all
+            updateFilteredState(all, preset)
+        }
+    }
 
-        // Log missing tools once on refresh
-        result.missingTools.forEach {
-            logger.warn("Missing tool in downstream: server='${it.serverId}', tool='${it.toolName}'")
+    /** Refreshes a single server capabilities snapshot without touching other servers. */
+    internal suspend fun refreshServerCapabilities(serverId: String) {
+        val server = downstreams.firstOrNull { it.serverId == serverId } ?: return
+        val result =
+            runCatching { server.getCapabilities() }
+                .getOrElse { Result.failure(it) }
+        if (result.isFailure) {
+            logger.warn("Failed to refresh capabilities for '$serverId': ${result.exceptionOrNull()?.message}")
+            return
+        }
+        val caps = result.getOrThrow()
+        refreshMutex.withLock {
+            val updated = allCapabilities + (serverId to caps)
+            allCapabilities = updated
+            val preset = currentPreset ?: return@withLock
+            updateFilteredState(updated, preset)
+        }
+    }
+
+    /** Removes a server capabilities snapshot and recomputes the filtered view. */
+    internal suspend fun removeServerCapabilities(serverId: String) {
+        refreshMutex.withLock {
+            allCapabilities = allCapabilities - serverId
+            val preset = currentPreset ?: return@withLock
+            updateFilteredState(allCapabilities, preset)
         }
     }
 
@@ -134,7 +168,7 @@ class ProxyMcpServer(
         name: String,
         arguments: Map<String, String>? = null,
     ): Result<JsonObject> {
-        if (filteredCaps.prompts.none { it.name == name }) {
+        if (filteredState.capabilities.prompts.none { it.name == name }) {
             return Result.failure(IllegalArgumentException("Unknown prompt: $name"))
         }
         val result = dispatcher.dispatchPrompt(name, arguments)
@@ -148,7 +182,7 @@ class ProxyMcpServer(
 
     /** Reads a resource from the appropriate downstream based on mapping computed during filtering. */
     suspend fun readResource(uri: String): Result<JsonObject> {
-        if (filteredCaps.resources.none { (it.uri ?: it.name) == uri }) {
+        if (filteredState.capabilities.resources.none { (it.uri ?: it.name) == uri }) {
             return Result.failure(IllegalArgumentException("Unknown resource: $uri"))
         }
         val result = dispatcher.dispatchResource(uri)
@@ -166,19 +200,38 @@ class ProxyMcpServer(
             val servers = downstreams
             servers.map { s ->
                 async {
-                    val caps = s.getCapabilities()
+                    val caps =
+                        runCatching { s.getCapabilities() }
+                            .getOrElse { Result.failure(it) }
                     if (caps.isSuccess) s.serverId to caps.getOrThrow() else null
                 }
             }.awaitAll().filterNotNull().toMap()
         }
 
+    private fun updateFilteredState(
+        all: Map<String, ServerCapabilities>,
+        preset: Preset,
+    ) {
+        val result = presetEngine.apply(all, preset)
+        filteredState =
+            FilteredState(
+                capabilities = result.capabilities,
+                allowedTools = result.allowedPrefixedTools,
+                promptServerByName = result.promptServerByName,
+                resourceServerByUri = result.resourceServerByUri,
+            )
+        result.missingTools.forEach {
+            logger.warn("Missing tool in downstream: server='${it.serverId}', tool='${it.toolName}'")
+        }
+    }
+
     private fun buildDispatcher(servers: List<McpServerConnection>): RequestDispatcher =
         DefaultRequestDispatcher(
             servers = servers,
-            allowedPrefixedTools = { allowedTools },
+            allowedPrefixedTools = { filteredState.allowedTools },
             allowAllWhenNoAllowedTools = false,
-            promptServerResolver = { name -> promptServerByName[name] },
-            resourceServerResolver = { uri -> resourceServerByUri[uri] },
+            promptServerResolver = { name -> filteredState.promptServerByName[name] },
+            resourceServerResolver = { uri -> filteredState.resourceServerByUri[uri] },
             namespace = namespace,
             logger = logger,
         )
