@@ -26,3 +26,4 @@ Notes:
 
 - ProGuard rules live in `ui/proguard-release.pro` to suppress optional dependency warnings.
 - Release builds disable ProGuard optimization to avoid incomplete class hierarchy errors while still shrinking.
+- The macOS app bundle name is `Broxy` (capitalized) via the UI native distribution package name.

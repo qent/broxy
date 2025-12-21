@@ -48,7 +48,7 @@ compose.desktop {
 
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
-            packageName = "broxy"
+            packageName = "Broxy"
             vendor = "Qent"
             description = "Broxy: manage and route MCP servers, tools and presets across clients."
             includeAllModules = false
