@@ -61,11 +61,14 @@ internal fun StoreSnapshot.toUiState(
     val uiServers =
         servers.map { server ->
             val snapshot = cache.snapshot(server.id)
+            val trackedStatus = statuses.statusFor(server.id)?.toUiStatus()
             val derivedStatus =
                 when {
                     !server.enabled -> UiServerConnStatus.Disabled
+                    trackedStatus == UiServerConnStatus.Connecting -> UiServerConnStatus.Connecting
                     snapshot != null -> UiServerConnStatus.Available
-                    else -> statuses.statusFor(server.id)?.toUiStatus() ?: UiServerConnStatus.Connecting
+                    trackedStatus != null -> trackedStatus
+                    else -> UiServerConnStatus.Connecting
                 }
             val connectingSince =
                 if (derivedStatus == UiServerConnStatus.Connecting) {

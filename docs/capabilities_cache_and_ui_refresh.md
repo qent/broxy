@@ -91,6 +91,9 @@ As each server finishes:
 
 `connectingSince(...)` is used by the UI to show a running timer while a server is connecting.
 
+UI status derivation treats `Connecting` from `ServerStatusTracker` as higher priority than cached
+snapshots so refresh-in-progress still shows the timer even if an older snapshot exists.
+
 ## Snapshot conversion details
 
 File: `core/src/commonMain/kotlin/io/qent/broxy/core/capabilities/CapabilitySnapshots.kt`
