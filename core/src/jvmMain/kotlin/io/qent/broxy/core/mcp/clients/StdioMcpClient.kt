@@ -25,6 +25,7 @@ import io.qent.broxy.core.mcp.errors.McpError
 import io.qent.broxy.core.utils.ConfigurationException
 import io.qent.broxy.core.utils.ConsoleLogger
 import io.qent.broxy.core.utils.Logger
+import io.qent.broxy.core.utils.UserPathResolver
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
@@ -86,6 +87,11 @@ class StdioMcpClient(
                 val pb = ProcessBuilder(listOf(command) + args)
                 val envMap = pb.environment()
                 resolvedEnv.forEach { (k, v) -> envMap[k] = v }
+                if (resolvedEnv.keys.none { it.equals("PATH", ignoreCase = true) }) {
+                    UserPathResolver.resolve(logger)?.let { path ->
+                        envMap[UserPathResolver.resolvePathKey(envMap)] = path
+                    }
+                }
                 envResolver.logResolvedEnv("Launching stdio MCP process '$command'", resolvedEnv)
                 val proc =
                     runCatching { pb.start() }

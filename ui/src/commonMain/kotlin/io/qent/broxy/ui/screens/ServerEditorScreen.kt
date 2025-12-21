@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.adapter.models.UiServerDraft
 import io.qent.broxy.ui.adapter.models.UiStdioDraft
+import io.qent.broxy.ui.adapter.services.checkStdioCommandAvailability
 import io.qent.broxy.ui.adapter.services.validateServerConnection
 import io.qent.broxy.ui.adapter.store.AppStore
 import io.qent.broxy.ui.adapter.store.UIState
@@ -90,6 +91,8 @@ fun ServerEditorScreen(
             hasValidTransportFields
 
     val scope = rememberCoroutineScope()
+    var commandWarning by remember(editor) { mutableStateOf<String?>(null) }
+    var commandCheckToken by remember(editor) { mutableStateOf(0) }
 
     val scrollState = rememberScrollState()
     val actionRowHeight = 40.dp
@@ -164,7 +167,38 @@ fun ServerEditorScreen(
 
         ServerForm(
             state = form,
-            onStateChange = { form = it },
+            onStateChange = { next ->
+                if (next.command != form.command) {
+                    commandWarning = null
+                }
+                if (next.transportType != "STDIO") {
+                    commandWarning = null
+                }
+                form = next
+            },
+            commandWarning = commandWarning,
+            onCommandBlur = { command ->
+                if (form.transportType != "STDIO") return@ServerForm
+                val trimmed = command.trim()
+                if (trimmed.isBlank()) {
+                    commandWarning = null
+                    return@ServerForm
+                }
+                val token = commandCheckToken + 1
+                commandCheckToken = token
+                val envMap = parseEnvMap(form.env)
+                scope.launch {
+                    val result = checkStdioCommandAvailability(trimmed, envMap)
+                    if (commandCheckToken != token) return@launch
+                    val availability = result.getOrNull()
+                    commandWarning =
+                        if (availability == null || availability.isAvailable) {
+                            null
+                        } else {
+                            "Command not found on PATH."
+                        }
+                }
+            },
         )
     }
 }
@@ -203,3 +237,14 @@ private fun generateUniqueServerId(
         suffix++
     }
 }
+
+private fun parseEnvMap(raw: String): Map<String, String> =
+    raw.lines().mapNotNull { line ->
+        val trimmed = line.trim()
+        if (trimmed.isEmpty()) return@mapNotNull null
+        val idx = trimmed.indexOf(':')
+        if (idx <= 0) return@mapNotNull null
+        val key = trimmed.substring(0, idx).trim()
+        val value = trimmed.substring(idx + 1).trim()
+        if (key.isEmpty()) null else key to value
+    }.toMap()

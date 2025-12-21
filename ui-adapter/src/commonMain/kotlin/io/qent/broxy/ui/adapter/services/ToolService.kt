@@ -13,6 +13,11 @@ import io.qent.broxy.ui.adapter.models.UiStreamableHttpTransport
 import io.qent.broxy.ui.adapter.models.UiWebSocketDraft
 import io.qent.broxy.ui.adapter.models.UiWebSocketTransport
 
+data class CommandAvailability(
+    val isAvailable: Boolean,
+    val resolvedPath: String?,
+)
+
 /**
  * Provides access to server tools/capabilities for UI components.
  * Implementations live per-platform.
@@ -22,6 +27,12 @@ expect suspend fun fetchServerCapabilities(
     timeoutSeconds: Int,
     logger: Logger? = null,
 ): Result<UiServerCapabilities>
+
+expect suspend fun checkStdioCommandAvailability(
+    command: String,
+    env: Map<String, String> = emptyMap(),
+    logger: Logger? = null,
+): Result<CommandAvailability>
 
 /** Validates connectivity by attempting to fetch capabilities for a draft config. */
 suspend fun validateServerConnection(

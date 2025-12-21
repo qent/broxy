@@ -1,11 +1,13 @@
 package io.qent.broxy.ui.adapter.services
 
+import io.qent.broxy.core.config.EnvironmentVariableResolver
 import io.qent.broxy.core.mcp.DefaultMcpServerConnection
 import io.qent.broxy.core.mcp.auth.OAuthState
 import io.qent.broxy.core.mcp.auth.OAuthStateStore
 import io.qent.broxy.core.mcp.auth.resolveOAuthResourceUrl
 import io.qent.broxy.core.mcp.auth.restoreFrom
 import io.qent.broxy.core.mcp.auth.toSnapshot
+import io.qent.broxy.core.utils.CommandLocator
 import io.qent.broxy.core.utils.ConsoleLogger
 import io.qent.broxy.core.utils.Logger
 import io.qent.broxy.ui.adapter.models.UiHttpTransport
@@ -52,6 +54,27 @@ actual suspend fun fetchServerCapabilities(
         runCatching { conn.disconnect() }
     }
 }
+
+actual suspend fun checkStdioCommandAvailability(
+    command: String,
+    env: Map<String, String>,
+    logger: Logger?,
+): Result<CommandAvailability> =
+    runCatching {
+        val trimmed = command.trim()
+        if (trimmed.isBlank()) {
+            return@runCatching CommandAvailability(isAvailable = false, resolvedPath = null)
+        }
+        val resolver = EnvironmentVariableResolver(logger = logger)
+        val pathOverride =
+            env.entries.firstOrNull { it.key.equals("PATH", ignoreCase = true) }?.value
+                ?.takeIf { it.isNotBlank() }
+                ?.let { raw ->
+                    runCatching { resolver.resolveString(raw) }.getOrNull()
+                }
+        val resolvedPath = CommandLocator.resolveCommand(trimmed, pathOverride = pathOverride, logger = logger)
+        CommandAvailability(isAvailable = resolvedPath != null, resolvedPath = resolvedPath)
+    }
 
 private fun resolveAuthResourceUrl(config: UiMcpServerConfig): String? =
     when (val transport = config.transport) {

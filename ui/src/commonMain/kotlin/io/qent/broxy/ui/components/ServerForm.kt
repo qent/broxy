@@ -8,6 +8,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.onPointerEvent
 import androidx.compose.ui.unit.dp
@@ -128,6 +129,8 @@ object ServerFormStateFactory {
 fun ServerForm(
     state: ServerFormState,
     onStateChange: (ServerFormState) -> Unit,
+    commandWarning: String? = null,
+    onCommandBlur: ((String) -> Unit)? = null,
 ) {
     Column(
         Modifier.fillMaxWidth(),
@@ -139,7 +142,7 @@ fun ServerForm(
         )
 
         when (state.transportType) {
-            "STDIO" -> StdIoFields(state, onStateChange)
+            "STDIO" -> StdIoFields(state, onStateChange, commandWarning, onCommandBlur)
             "HTTP", "STREAMABLE_HTTP" ->
                 HttpFields(
                     state,
@@ -159,14 +162,32 @@ fun ServerForm(
 private fun StdIoFields(
     state: ServerFormState,
     onStateChange: (ServerFormState) -> Unit,
+    commandWarning: String?,
+    onCommandBlur: ((String) -> Unit)?,
 ) {
+    var wasFocused by remember { mutableStateOf(false) }
+    val warningContent: (@Composable () -> Unit)? =
+        commandWarning?.let { warning ->
+            { Text(warning, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall) }
+        }
+    val commandModifier =
+        Modifier
+            .fillMaxWidth()
+            .onFocusChanged { focusState ->
+                if (wasFocused && !focusState.isFocused) {
+                    onCommandBlur?.invoke(state.command)
+                }
+                wasFocused = focusState.isFocused
+            }
     Column(verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)) {
         TransportTextField(
             value = state.command,
             onValueChange = { onStateChange(state.copy(command = it)) },
             label = "Command",
-            modifier = Modifier.fillMaxWidth(),
+            modifier = commandModifier,
             singleLine = true,
+            isError = commandWarning != null,
+            supportingText = warningContent,
         )
         TransportTextField(
             value = state.args,
@@ -322,6 +343,8 @@ private fun TransportTextField(
     modifier: Modifier = Modifier,
     singleLine: Boolean = false,
     minLines: Int = 1,
+    isError: Boolean = false,
+    supportingText: (@Composable () -> Unit)? = null,
 ) {
     OutlinedTextField(
         value = value,
@@ -331,6 +354,8 @@ private fun TransportTextField(
         singleLine = singleLine,
         minLines = minLines,
         textStyle = MaterialTheme.typography.bodySmall,
+        isError = isError,
+        supportingText = supportingText,
     )
 }
 

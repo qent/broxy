@@ -164,6 +164,9 @@ File: `core/src/jvmMain/kotlin/io/qent/broxy/core/mcp/clients/StdioMcpClient.kt`
 
 - `ProcessBuilder(listOf(command) + args)` with environment populated from `env`.
 - `env` is resolved via `EnvironmentVariableResolver.resolveMap(...)`.
+- If `env` does not specify `PATH`, the JVM resolves the user's login shell `PATH` (fallback to the
+  current process `PATH`) and injects it before launching, so commands like `npx` or `node` work
+  without full paths.
 - Logs are sanitized via `EnvironmentVariableResolver.logResolvedEnv(...)`.
 
 File: `core/src/jvmMain/kotlin/io/qent/broxy/core/config/EnvironmentVariableResolver.kt`
