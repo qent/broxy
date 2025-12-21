@@ -1,6 +1,8 @@
 package io.qent.broxy.ui.components
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ExpandMore
@@ -175,17 +177,19 @@ fun PresetSelector(
                 targetValue = if (isExpanded) 180f else 0f,
                 label = "serverCapabilitiesArrow",
             )
-            androidx.compose.material3.Card(
+            val toggleExpanded = { expandedServerId = if (isExpanded) null else serverId }
+            Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = AppTheme.shapes.item,
-                colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = cardColor),
-                border = androidx.compose.foundation.BorderStroke(1.dp, borderColor),
+                colors = CardDefaults.cardColors(containerColor = cardColor),
+                border = BorderStroke(1.dp, borderColor),
             ) {
                 Column(Modifier.fillMaxWidth()) {
                     Row(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
+                                .clickable(onClick = toggleExpanded)
                                 .padding(
                                     horizontal = AppTheme.spacing.md,
                                     vertical = AppTheme.spacing.sm,
@@ -213,7 +217,7 @@ fun PresetSelector(
                             modifier =
                                 Modifier
                                     .weight(1f)
-                                    .padding(start = AppTheme.spacing.sm),
+                                    .padding(start = AppTheme.spacing.sm)
                         ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -238,7 +242,7 @@ fun PresetSelector(
                             }
                         }
                         IconButton(
-                            onClick = { expandedServerId = if (isExpanded) null else serverId },
+                            onClick = toggleExpanded,
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.ExpandMore,
