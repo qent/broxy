@@ -27,6 +27,11 @@ class CapabilityRefresher(
     private val refreshJobs = mutableMapOf<String, Job>()
     private val refreshLock = Any()
 
+    private data class FetchResult(
+        val snapshot: ServerCapsSnapshot?,
+        val error: Throwable?,
+    )
+
     fun syncWithServers(servers: List<McpServerConfig>) {
         val ids = servers.map { it.id }.toSet()
         capabilityCache.retain(ids)
@@ -91,15 +96,17 @@ class CapabilityRefresher(
                 return cached
             }
         }
-        val fetched =
-            runCatching { fetchAndCacheCapabilities(cfg) }
-                .onFailure { error ->
-                    logger.info("CapabilityRefresher getServerCaps('$serverId') failed: ${error.message}")
-                }
-                .getOrNull()
-        val finalSnapshot = fetched ?: capabilityCache.snapshot(serverId)
+        val fetched = fetchAndCacheCapabilities(cfg)
+        fetched.error?.let { error ->
+            logger.info("CapabilityRefresher getServerCaps('$serverId') failed: ${error.message}")
+        }
+        val finalSnapshot = fetched.snapshot ?: capabilityCache.snapshot(serverId)
         val status = if (finalSnapshot != null) ServerConnectionStatus.Available else ServerConnectionStatus.Error
-        statusTracker.set(serverId, status)
+        if (status == ServerConnectionStatus.Error) {
+            statusTracker.setError(serverId, fetched.error?.message)
+        } else {
+            statusTracker.set(serverId, status)
+        }
         publishUpdate()
         return finalSnapshot
     }
@@ -157,13 +164,12 @@ class CapabilityRefresher(
                             publishUpdate()
                             return@launch
                         }
-                        val snapshot =
-                            runCatching { fetchAndCacheCapabilities(cfg) }
-                                .onFailure { error ->
-                                    error.rethrowIfCancelled()
-                                    logger.info("CapabilityRefresher refresh server '${cfg.id}' failed: ${error.message}")
-                                }
-                                .getOrNull()
+                        val fetched = fetchAndCacheCapabilities(cfg)
+                        fetched.error?.let { error ->
+                            error.rethrowIfCancelled()
+                            logger.info("CapabilityRefresher refresh server '${cfg.id}' failed: ${error.message}")
+                        }
+                        val snapshot = fetched.snapshot
                         if (snapshot == null && !capabilityCache.has(cfg.id)) {
                             capabilityCache.remove(cfg.id)
                         }
@@ -176,7 +182,11 @@ class CapabilityRefresher(
                                 capsSnapshot != null -> ServerConnectionStatus.Available
                                 else -> ServerConnectionStatus.Error
                             }
-                        statusTracker.set(cfg.id, status)
+                        if (status == ServerConnectionStatus.Error) {
+                            statusTracker.setError(cfg.id, fetched.error?.message)
+                        } else {
+                            statusTracker.set(cfg.id, status)
+                        }
                         publishUpdate()
                     }
                 trackRefreshJob(cfg.id, job)
@@ -185,15 +195,15 @@ class CapabilityRefresher(
         }
     }
 
-    private suspend fun fetchAndCacheCapabilities(cfg: McpServerConfig): ServerCapsSnapshot? {
+    private suspend fun fetchAndCacheCapabilities(cfg: McpServerConfig): FetchResult {
         val timeoutSeconds = capabilitiesTimeoutProvider()
         val result = capabilityFetcher(cfg, timeoutSeconds)
         return if (result.isSuccess) {
             val snapshot = result.getOrThrow().toSnapshot(cfg)
             capabilityCache.put(cfg.id, snapshot)
-            snapshot
+            FetchResult(snapshot = snapshot, error = null)
         } else {
-            null
+            FetchResult(snapshot = null, error = result.exceptionOrNull())
         }
     }
 

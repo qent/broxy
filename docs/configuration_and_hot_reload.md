@@ -97,7 +97,8 @@ the UI refresh cadence (minimum 30 seconds for each).
 - When renaming a server, `ConfigurationManager.renameServer(...)` updates `mcp.json` and rewrites all
   `preset_*.json` references from the old id to the new id (best-effort; errors are logged).
 - While editing a STDIO server, the Desktop UI checks command availability against the resolved user `PATH`
-  when the command field loses focus and shows a warning if the command cannot be found.
+  (login + interactive shell, plus standard Homebrew paths on macOS) when the command field loses focus and
+  shows a warning if the command cannot be found.
 
 ## Supported downstream transports
 

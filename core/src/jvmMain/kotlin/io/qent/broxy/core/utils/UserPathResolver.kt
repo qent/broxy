@@ -1,5 +1,6 @@
 package io.qent.broxy.core.utils
 
+import java.io.File
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.Locale
@@ -28,25 +29,29 @@ object UserPathResolver {
 
     private fun resolveInternal(logger: Logger?): String? {
         val systemPath = readSystemPath()
-        val shellPath = resolveLoginShellPath(logger)
-        return when {
-            !shellPath.isNullOrBlank() -> shellPath
-            !systemPath.isNullOrBlank() -> systemPath
-            else -> null
-        }
+        val loginShellPath = resolveShellPath(logger, isLogin = true)
+        val interactiveShellPath = resolveShellPath(logger, isLogin = false)
+        val merged = mergePaths(listOf(loginShellPath, interactiveShellPath, systemPath))
+        val withDefaults = if (isMac()) appendMacDefaults(merged) else merged
+        return withDefaults
     }
 
     private fun readSystemPath(): String? = System.getenv("PATH") ?: System.getenv("Path")
 
-    private fun resolveLoginShellPath(logger: Logger?): String? {
+    private fun resolveShellPath(
+        logger: Logger?,
+        isLogin: Boolean,
+    ): String? {
         if (isWindows()) return null
-        val shell = resolveShellPath() ?: return null
+        val shell = resolveShellExecutable() ?: return null
         val markerStart = "__BROXY_PATH_START__"
         val markerEnd = "__BROXY_PATH_END__"
         val command = "printf '%s' \"${markerStart}${'$'}{PATH}${markerEnd}\""
-        val result = runCommand(listOf(shell, "-lc", command), RESOLVE_TIMEOUT_SECONDS)
+        val flag = if (isLogin) "-lc" else "-ic"
+        val result = runCommand(listOf(shell, flag, command), RESOLVE_TIMEOUT_SECONDS)
         if (result.exitCode != 0) {
-            logger?.warn("Failed to resolve login shell PATH (exit ${result.exitCode}).")
+            val mode = if (isLogin) "login" else "interactive"
+            logger?.warn("Failed to resolve $mode shell PATH (exit ${result.exitCode}).")
             return null
         }
         val marked = extractBetweenMarkers(result.output, markerStart, markerEnd)
@@ -56,7 +61,7 @@ object UserPathResolver {
         return candidate
     }
 
-    private fun resolveShellPath(): String? {
+    private fun resolveShellExecutable(): String? {
         val envShell = System.getenv("SHELL")?.takeIf { it.isNotBlank() }
         val shell = envShell ?: defaultShell()
         return shell?.takeIf { Files.isExecutable(Paths.get(it)) }
@@ -68,6 +73,31 @@ object UserPathResolver {
     }
 
     private fun isWindows(): Boolean = System.getProperty("os.name")?.lowercase(Locale.ROOT)?.contains("win") == true
+
+    private fun isMac(): Boolean = System.getProperty("os.name")?.lowercase(Locale.ROOT)?.contains("mac") == true
+
+    private fun mergePaths(paths: List<String?>): String? {
+        val separator = File.pathSeparator
+        val entries = LinkedHashSet<String>()
+        paths.filterNotNull()
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .forEach { path ->
+                path.split(separator).map { it.trim().trim('"') }.filter { it.isNotBlank() }.forEach { entry ->
+                    entries.add(entry)
+                }
+            }
+        return if (entries.isEmpty()) null else entries.joinToString(separator)
+    }
+
+    private fun appendMacDefaults(path: String?): String? {
+        val defaults = listOf("/opt/homebrew/bin", "/opt/homebrew/sbin", "/usr/local/bin", "/usr/local/sbin")
+        val separator = File.pathSeparator
+        val entries = LinkedHashSet<String>()
+        path?.split(separator)?.map { it.trim().trim('"') }?.filter { it.isNotBlank() }?.forEach { entries.add(it) }
+        defaults.forEach { entries.add(it) }
+        return if (entries.isEmpty()) null else entries.joinToString(separator)
+    }
 
     private fun extractBetweenMarkers(
         output: String,

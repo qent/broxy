@@ -22,6 +22,7 @@ import io.qent.broxy.core.mcp.McpClient
 import io.qent.broxy.core.mcp.ServerCapabilities
 import io.qent.broxy.core.mcp.TimeoutConfigurableMcpClient
 import io.qent.broxy.core.mcp.errors.McpError
+import io.qent.broxy.core.utils.CommandLocator
 import io.qent.broxy.core.utils.ConfigurationException
 import io.qent.broxy.core.utils.ConsoleLogger
 import io.qent.broxy.core.utils.Logger
@@ -84,11 +85,21 @@ class StdioMcpClient(
                         logger.error("Failed to resolve environment for stdio client '$command'", ex)
                         throw ex
                     }
-                val pb = ProcessBuilder(listOf(command) + args)
+                val pathKey = UserPathResolver.resolvePathKey(resolvedEnv)
+                val pathOverride = resolvedEnv[pathKey]?.takeIf { it.isNotBlank() }
+                val resolvedPath = pathOverride ?: UserPathResolver.resolve(logger)
+                val resolvedCommand =
+                    CommandLocator.resolveCommand(command, pathOverride = resolvedPath, logger = logger)
+                        ?: throw ConfigurationException(
+                            "STDIO command '$command' was not found in PATH. " +
+                                "Provide a full path or set PATH in the server environment.",
+                        )
+
+                val pb = ProcessBuilder(listOf(resolvedCommand) + args)
                 val envMap = pb.environment()
                 resolvedEnv.forEach { (k, v) -> envMap[k] = v }
-                if (resolvedEnv.keys.none { it.equals("PATH", ignoreCase = true) }) {
-                    UserPathResolver.resolve(logger)?.let { path ->
+                if (pathOverride == null) {
+                    resolvedPath?.let { path ->
                         envMap[UserPathResolver.resolvePathKey(envMap)] = path
                     }
                 }
@@ -130,7 +141,7 @@ class StdioMcpClient(
                     val timeoutMillis = resolveConnectTimeout()
                     val facade = withTimeout(timeoutMillis) { handshake.await() }
                     client = facade
-                    logger.info("Connected stdio MCP process: $command ${args.joinToString(" ")}")
+                    logger.info("Connected stdio MCP process: $resolvedCommand ${args.joinToString(" ")}")
                 } catch (t: TimeoutCancellationException) {
                     handshake.cancel(CancellationException("Handshake timed out", t))
                     handleConnectFailure(proc)

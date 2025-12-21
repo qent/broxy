@@ -77,6 +77,7 @@ class CapabilityRefresherTest {
             refresher.refreshServersById(setOf("s1"), force = true)
 
             assertEquals(UiServerConnStatus.Error, tracker.statusFor("s1")?.toUiStatus())
+            assertEquals("boom", tracker.errorMessageFor("s1"))
             assertTrue(cache.snapshot("s1") == null)
             assertEquals(2, publishes.size)
         }

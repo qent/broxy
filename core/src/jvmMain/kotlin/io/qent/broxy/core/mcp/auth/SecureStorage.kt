@@ -1,7 +1,11 @@
 package io.qent.broxy.core.mcp.auth
 
 import io.qent.broxy.core.utils.Logger
+import java.io.File
 import java.nio.charset.StandardCharsets
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.Paths
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
@@ -103,10 +107,30 @@ private fun runCommand(
     }
 }
 
-private fun commandExists(command: String): Boolean {
-    val result = runCommand(listOf("which", command))
-    return result.exitCode == 0 && result.output.isNotBlank()
+private fun resolveCommandPath(
+    command: String,
+    fallbacks: List<String> = emptyList(),
+): String? {
+    if (command.contains('/') || command.contains('\\')) {
+        val path = Paths.get(command)
+        return if (isExecutable(path)) path.toAbsolutePath().toString() else null
+    }
+    val fromPath = findInPath(command)
+    if (fromPath != null) return fromPath
+    return fallbacks.firstOrNull { isExecutable(Paths.get(it)) }
 }
+
+private fun findInPath(command: String): String? {
+    val pathValue = System.getenv("PATH")?.takeIf { it.isNotBlank() } ?: return null
+    return pathValue.split(File.pathSeparatorChar)
+        .asSequence()
+        .map { Paths.get(it, command) }
+        .firstOrNull { isExecutable(it) }
+        ?.toAbsolutePath()
+        ?.toString()
+}
+
+private fun isExecutable(path: Path): Boolean = Files.isRegularFile(path) && Files.isExecutable(path)
 
 private class UnavailableSecureStorage(
     private val logger: Logger,
@@ -142,14 +166,15 @@ private class MacKeychainStorage(
     private val serviceName: String,
     private val logger: Logger,
 ) : SecureStorage {
-    override val isAvailable: Boolean = commandExists("security")
+    private val securityPath: String? = resolveCommandPath("security", fallbacks = listOf("/usr/bin/security"))
+    override val isAvailable: Boolean = securityPath != null
 
     override fun read(key: String): String? {
-        if (!isAvailable) return null
+        val command = securityPath ?: return null
         val result =
             runCommand(
                 listOf(
-                    "security",
+                    command,
                     "find-generic-password",
                     "-a",
                     key,
@@ -172,11 +197,11 @@ private class MacKeychainStorage(
         key: String,
         value: String,
     ) {
-        if (!isAvailable) return
+        val command = securityPath ?: return
         val result =
             runCommand(
                 listOf(
-                    "security",
+                    command,
                     "add-generic-password",
                     "-a",
                     key,
@@ -193,11 +218,11 @@ private class MacKeychainStorage(
     }
 
     override fun delete(key: String) {
-        if (!isAvailable) return
+        val command = securityPath ?: return
         val result =
             runCommand(
                 listOf(
-                    "security",
+                    command,
                     "delete-generic-password",
                     "-a",
                     key,
@@ -219,14 +244,19 @@ private class SecretToolStorage(
     private val serviceName: String,
     private val logger: Logger,
 ) : SecureStorage {
-    override val isAvailable: Boolean = commandExists("secret-tool")
+    private val secretToolPath: String? =
+        resolveCommandPath(
+            "secret-tool",
+            fallbacks = listOf("/usr/bin/secret-tool", "/usr/local/bin/secret-tool"),
+        )
+    override val isAvailable: Boolean = secretToolPath != null
 
     override fun read(key: String): String? {
-        if (!isAvailable) return null
+        val command = secretToolPath ?: return null
         val result =
             runCommand(
                 listOf(
-                    "secret-tool",
+                    command,
                     "lookup",
                     "service",
                     serviceName,
@@ -248,11 +278,11 @@ private class SecretToolStorage(
         key: String,
         value: String,
     ) {
-        if (!isAvailable) return
+        val command = secretToolPath ?: return
         val result =
             runCommand(
                 listOf(
-                    "secret-tool",
+                    command,
                     "store",
                     "--label=broxy oauth $key",
                     "service",
@@ -268,11 +298,11 @@ private class SecretToolStorage(
     }
 
     override fun delete(key: String) {
-        if (!isAvailable) return
+        val command = secretToolPath ?: return
         val result =
             runCommand(
                 listOf(
-                    "secret-tool",
+                    command,
                     "clear",
                     "service",
                     serviceName,

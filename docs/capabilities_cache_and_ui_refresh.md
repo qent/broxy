@@ -88,7 +88,7 @@ As each server finishes:
 
 - disabled -> `Disabled`
 - snapshot exists -> `Available`
-- no snapshot -> `Error`
+- no snapshot -> `Error` (stores the latest error message for UI display)
 
 `connectingSince(...)` is used by the UI to show a running timer while a server is connecting.
 

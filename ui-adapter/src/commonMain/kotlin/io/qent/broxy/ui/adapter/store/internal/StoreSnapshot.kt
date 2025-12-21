@@ -80,6 +80,12 @@ internal fun StoreSnapshot.toUiState(
             val isInitialConnecting =
                 server.enabled && derivedStatus == UiServerConnStatus.Connecting && snapshot == null
             val canToggle = server.id !in pendingServerToggles && !isInitialConnecting
+            val errorMessage =
+                if (derivedStatus == UiServerConnStatus.Error) {
+                    statuses.errorMessageFor(server.id)
+                } else {
+                    null
+                }
             UiServer(
                 id = server.id,
                 name = server.name,
@@ -87,6 +93,7 @@ internal fun StoreSnapshot.toUiState(
                 enabled = server.enabled,
                 canToggle = canToggle,
                 status = derivedStatus,
+                errorMessage = errorMessage,
                 connectingSinceEpochMillis = connectingSince,
                 toolsCount = snapshot?.tools?.size,
                 promptsCount = snapshot?.prompts?.size,

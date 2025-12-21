@@ -96,6 +96,9 @@ resource URL does not match the current server URL, the cached entry is ignored.
 If secure storage is unavailable, Broxy keeps OAuth state in memory for the current session only
 and requires re-authorization after restart.
 
+On macOS, Broxy resolves the Keychain `security` tool from standard system paths so Keychain
+storage works even when PATH is minimal.
+
 ## WebSocket notes
 
 WebSocket transports include the OAuth Bearer token during the HTTP handshake. If scopes

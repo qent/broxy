@@ -8,11 +8,29 @@ class ServerStatusTracker(
 ) {
     private val statuses = mutableMapOf<String, ServerConnectionStatus>()
     private val connectingSince = mutableMapOf<String, Long>()
+    private val errors = mutableMapOf<String, String>()
     private val lock = Any()
 
     fun statusFor(serverId: String): ServerConnectionStatus? = synchronized(lock) { statuses[serverId] }
 
     fun connectingSince(serverId: String): Long? = synchronized(lock) { connectingSince[serverId] }
+
+    fun errorMessageFor(serverId: String): String? = synchronized(lock) { errors[serverId] }
+
+    fun setError(
+        serverId: String,
+        message: String?,
+    ) {
+        synchronized(lock) {
+            statuses[serverId] = ServerConnectionStatus.Error
+            if (!message.isNullOrBlank()) {
+                errors[serverId] = message
+            } else {
+                errors.remove(serverId)
+            }
+            connectingSince.remove(serverId)
+        }
+    }
 
     fun set(
         serverId: String,
@@ -26,6 +44,9 @@ class ServerStatusTracker(
                 }
             } else {
                 connectingSince.remove(serverId)
+            }
+            if (status != ServerConnectionStatus.Error) {
+                errors.remove(serverId)
             }
         }
     }
@@ -46,6 +67,9 @@ class ServerStatusTracker(
                 } else {
                     connectingSince.remove(serverId)
                 }
+                if (status != ServerConnectionStatus.Error) {
+                    errors.remove(serverId)
+                }
             }
         }
     }
@@ -54,6 +78,7 @@ class ServerStatusTracker(
         synchronized(lock) {
             statuses.remove(serverId)
             connectingSince.remove(serverId)
+            errors.remove(serverId)
         }
     }
 
@@ -61,6 +86,7 @@ class ServerStatusTracker(
         synchronized(lock) {
             statuses.keys.retainAll(validIds)
             connectingSince.keys.retainAll(validIds)
+            errors.keys.retainAll(validIds)
         }
     }
 }

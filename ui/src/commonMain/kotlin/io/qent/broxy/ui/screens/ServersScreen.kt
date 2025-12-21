@@ -173,6 +173,7 @@ private fun ServerCard(
     val statusTextColor = if (isDisabled) MaterialTheme.colorScheme.onSurfaceVariant else statusColor
     val connectingSeconds by rememberConnectingSeconds(isConnecting, cfg.connectingSinceEpochMillis)
     val showErrorStatus = cfg.enabled && cfg.status == UiServerConnStatus.Error
+    val errorMessage = cfg.errorMessage?.takeIf { it.isNotBlank() }
     val showCapabilitiesSummary =
         cfg.enabled &&
             cfg.status == UiServerConnStatus.Available &&
@@ -183,7 +184,7 @@ private fun ServerCard(
     val statusText =
         when {
             isConnecting -> strings.connecting(connectingSeconds)
-            showErrorStatus -> strings.errorLabel
+            showErrorStatus -> errorMessage?.let { strings.errorMessage(it) } ?: strings.errorLabel
             else -> null
         }
 
