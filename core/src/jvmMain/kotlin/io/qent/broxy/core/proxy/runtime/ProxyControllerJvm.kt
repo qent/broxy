@@ -12,9 +12,15 @@ import io.qent.broxy.core.proxy.inbound.InboundServer
 import io.qent.broxy.core.proxy.inbound.InboundServerFactory
 import io.qent.broxy.core.utils.CollectingLogger
 import io.qent.broxy.core.utils.LogEvent
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
 private data class ManagedDownstream(
@@ -48,6 +54,8 @@ private class JvmProxyController(
     private var managedDownstreams: Map<String, ManagedDownstream> = emptyMap()
     private var proxy: ProxyMcpServer? = null
     private var inboundServer: InboundServer? = null
+    private val refreshScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private var refreshJob: Job? = null
 
     @Volatile
     private var callTimeoutMillis: Long = 60_000
@@ -76,7 +84,14 @@ private class JvmProxyController(
                 }
             val downstreams = enabledConfigs.mapNotNull { managed[it.id]?.isolated }
             try {
-                val proxy = ProxyMcpServer(downstreams, logger = logger)
+                val proxy =
+                    ProxyMcpServer(
+                        downstreams,
+                        logger = logger,
+                        onCapabilitiesUpdated = {
+                            inboundServer?.refreshCapabilities()
+                        },
+                    )
                 proxy.start(preset, inbound)
                 val inboundServer = InboundServerFactory.create(inbound, proxy, logger)
                 val status = inboundServer.start()
@@ -87,6 +102,7 @@ private class JvmProxyController(
                 this.inboundServer = inboundServer
                 managedDownstreams = managed
                 this.downstreams = downstreams
+                startInitialRefresh(proxy, downstreams)
             } catch (t: Throwable) {
                 runBlocking { managed.values.map { async { it.shutdown() } }.awaitAll() }
                 throw t
@@ -95,6 +111,8 @@ private class JvmProxyController(
 
     override fun stop(): Result<Unit> =
         runCatching {
+            refreshJob?.cancel()
+            refreshJob = null
             inboundServer?.stop()
             inboundServer = null
             val managed = managedDownstreams.values
@@ -118,6 +136,8 @@ private class JvmProxyController(
     ): Result<Unit> =
         runCatching {
             val proxy = this.proxy ?: error("Proxy is not running")
+            refreshJob?.cancel()
+            refreshJob = null
 
             val previousCallTimeoutMillis = callTimeoutMillis
             val previousCapabilitiesTimeoutMillis = capabilitiesTimeoutMillis
@@ -200,6 +220,19 @@ private class JvmProxyController(
                 initialCapabilitiesTimeoutMillis = capabilitiesTimeoutMillis,
             )
         return ManagedDownstream(connection, IsolatedMcpServerConnection(connection))
+    }
+
+    private fun startInitialRefresh(
+        proxy: ProxyMcpServer,
+        downstreams: List<McpServerConnection>,
+    ) {
+        refreshJob?.cancel()
+        refreshJob =
+            refreshScope.launch {
+                downstreams.map { server ->
+                    launch { proxy.refreshServerCapabilities(server.serverId) }
+                }.joinAll()
+            }
     }
 }
 

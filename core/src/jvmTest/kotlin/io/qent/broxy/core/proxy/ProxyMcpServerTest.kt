@@ -77,6 +77,7 @@ class ProxyMcpServerTest {
                 )
 
             proxy.start(preset, TransportConfig.StdioTransport(command = "noop"))
+            proxy.refreshFilteredCapabilities()
 
             val caps = proxy.getCapabilities()
             assertEquals(listOf("alpha:search"), caps.tools.map { it.name })
@@ -128,6 +129,7 @@ class ProxyMcpServerTest {
                     tools = listOf(ToolReference(serverId = "alpha", toolName = "search", enabled = true)),
                 )
             proxy.start(initialPreset, TransportConfig.StdioTransport(command = "noop"))
+            proxy.refreshFilteredCapabilities()
 
             val newPreset =
                 Preset(
@@ -186,6 +188,7 @@ class ProxyMcpServerTest {
                         ),
                 )
             proxy.start(preset, TransportConfig.StdioTransport(command = "noop"))
+            proxy.refreshFilteredCapabilities()
 
             assertEquals(listOf("alpha:search"), proxy.getCapabilities().tools.map { it.name })
 
@@ -234,6 +237,7 @@ class ProxyMcpServerTest {
                         ),
                 )
             proxy.start(preset, TransportConfig.StdioTransport(command = "noop"))
+            proxy.refreshFilteredCapabilities()
 
             assertEquals(listOf("alpha:search"), proxy.getCapabilities().tools.map { it.name })
 

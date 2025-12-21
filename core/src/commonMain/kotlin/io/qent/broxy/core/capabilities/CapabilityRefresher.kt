@@ -4,11 +4,10 @@ import io.qent.broxy.core.models.McpServerConfig
 import io.qent.broxy.core.utils.Logger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 
 class CapabilityRefresher(
@@ -120,36 +119,32 @@ class CapabilityRefresher(
         statusTracker.setAll(targetIds, ServerConnectionStatus.Connecting)
         publishUpdate()
 
-        val results =
-            coroutineScope {
-                targets.map { cfg ->
-                    async {
-                        val snapshot =
-                            runCatching { fetchAndCacheCapabilities(cfg) }
-                                .onFailure { error ->
-                                    logger.info("CapabilityRefresher refresh server '${cfg.id}' failed: ${error.message}")
-                                }
-                                .getOrNull()
-                        if (snapshot == null && !capabilityCache.has(cfg.id)) {
-                            capabilityCache.remove(cfg.id)
-                        }
-                        cfg.id to (snapshot ?: capabilityCache.snapshot(cfg.id))
+        coroutineScope {
+            targets.map { cfg ->
+                launch {
+                    val snapshot =
+                        runCatching { fetchAndCacheCapabilities(cfg) }
+                            .onFailure { error ->
+                                logger.info("CapabilityRefresher refresh server '${cfg.id}' failed: ${error.message}")
+                            }
+                            .getOrNull()
+                    if (snapshot == null && !capabilityCache.has(cfg.id)) {
+                        capabilityCache.remove(cfg.id)
                     }
-                }.awaitAll()
-            }
-
-        val currentServers = serversProvider().associateBy { it.id }
-        results.forEach { (serverId, capsSnapshot) ->
-            val enabled = currentServers[serverId]?.enabled == true
-            val status =
-                when {
-                    !enabled -> ServerConnectionStatus.Disabled
-                    capsSnapshot != null -> ServerConnectionStatus.Available
-                    else -> ServerConnectionStatus.Error
+                    val capsSnapshot = snapshot ?: capabilityCache.snapshot(cfg.id)
+                    val currentServers = serversProvider().associateBy { it.id }
+                    val enabled = currentServers[cfg.id]?.enabled == true
+                    val status =
+                        when {
+                            !enabled -> ServerConnectionStatus.Disabled
+                            capsSnapshot != null -> ServerConnectionStatus.Available
+                            else -> ServerConnectionStatus.Error
+                        }
+                    statusTracker.set(cfg.id, status)
+                    publishUpdate()
                 }
-            statusTracker.set(serverId, status)
+            }.joinAll()
         }
-        publishUpdate()
     }
 
     private suspend fun fetchAndCacheCapabilities(cfg: McpServerConfig): ServerCapsSnapshot? {

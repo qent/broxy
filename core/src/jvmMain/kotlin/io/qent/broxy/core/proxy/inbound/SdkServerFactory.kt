@@ -73,7 +73,7 @@ internal data class ProxyBackend(
     val readResource: suspend (uri: String) -> Result<JsonObject>,
 )
 
-internal fun syncSdkServer(
+fun syncSdkServer(
     server: Server,
     proxy: ProxyMcpServer,
     logger: Logger = ConsoleLogger,

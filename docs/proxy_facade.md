@@ -117,8 +117,8 @@ File: `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/ProxyMcpServer.kt`
 
 Key methods:
 
-- `start(preset, transport)` - stores the preset and performs a best-effort
-  `refreshFilteredCapabilities()`.
+- `start(preset, transport)` - stores the preset and marks the proxy running; capability
+  refresh happens asynchronously as servers connect.
 - `refreshFilteredCapabilities()` - fetches downstream capabilities and applies the preset filter.
 - `callTool(toolName, arguments)` - delegates to `dispatcher.dispatchToolCall(...)`.
 - `getPrompt(name, arguments)` - delegates to `dispatcher.dispatchPrompt(...)`.

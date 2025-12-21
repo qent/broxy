@@ -82,7 +82,7 @@ Before a refresh:
 
 - `statusTracker.setAll(targetIds, Connecting)`
 
-After results:
+As each server finishes:
 
 - disabled -> `Disabled`
 - snapshot exists -> `Available`

@@ -23,6 +23,7 @@ class ProxyMcpServer(
     downstreams: List<McpServerConnection>,
     private val logger: Logger = ConsoleLogger,
     private val toolFilter: ToolFilter = DefaultToolFilter(),
+    private val onCapabilitiesUpdated: (() -> Unit)? = null,
 ) : ProxyServer {
     @Volatile
     private var status: ServerStatus = ServerStatus.Stopped
@@ -59,19 +60,8 @@ class ProxyMcpServer(
         // Store preset and bootstrap filtered view; inbound server wiring will be platform-specific.
         currentPreset = preset
         status = ServerStatus.Starting
-
-        // Fire-and-forget; block-free bootstrap since interface here is sync.
-        // Callers on JVM may wrap in coroutines for actual async startup.
-        // We compute filtered caps lazily on first demand via refresh call below.
-        runCatching {
-            // Best-effort eager refresh
-            kotlinx.coroutines.runBlocking { refreshFilteredCapabilities() }
-            status = ServerStatus.Running
-            logger.info("broxy server started with preset '${preset.name}'")
-        }.onFailure {
-            status = ServerStatus.Error(it.message)
-            logger.error("Failed to start broxy server", it)
-        }
+        status = ServerStatus.Running
+        logger.info("broxy server started with preset '${preset.name}'")
 
         // NOTE: Inbound transport (STDIO/HTTP/WS) bindings are provided by JVM-specific adapters.
         // This commonMain class focuses on filtering/routing logic.
@@ -112,15 +102,20 @@ class ProxyMcpServer(
     /** Forces re-fetch and re-filter of downstream capabilities according to the current preset. */
     suspend fun refreshFilteredCapabilities() {
         val all = fetchAllDownstreamCapabilities()
-        refreshMutex.withLock {
-            val preset = currentPreset ?: return@withLock
-            allCapabilities = all
-            updateFilteredState(all, preset)
+        val updated =
+            refreshMutex.withLock {
+                val preset = currentPreset ?: return@withLock false
+                allCapabilities = all
+                updateFilteredState(all, preset)
+                true
+            }
+        if (updated) {
+            notifyCapabilitiesUpdated()
         }
     }
 
     /** Refreshes a single server capabilities snapshot without touching other servers. */
-    internal suspend fun refreshServerCapabilities(serverId: String) {
+    suspend fun refreshServerCapabilities(serverId: String) {
         val server = downstreams.firstOrNull { it.serverId == serverId } ?: return
         val result =
             runCatching { server.getCapabilities() }
@@ -130,20 +125,30 @@ class ProxyMcpServer(
             return
         }
         val caps = result.getOrThrow()
-        refreshMutex.withLock {
-            val updated = allCapabilities + (serverId to caps)
-            allCapabilities = updated
-            val preset = currentPreset ?: return@withLock
-            updateFilteredState(updated, preset)
+        val updated =
+            refreshMutex.withLock {
+                val next = allCapabilities + (serverId to caps)
+                allCapabilities = next
+                val preset = currentPreset ?: return@withLock false
+                updateFilteredState(next, preset)
+                true
+            }
+        if (updated) {
+            notifyCapabilitiesUpdated()
         }
     }
 
     /** Removes a server capabilities snapshot and recomputes the filtered view. */
-    internal suspend fun removeServerCapabilities(serverId: String) {
-        refreshMutex.withLock {
-            allCapabilities = allCapabilities - serverId
-            val preset = currentPreset ?: return@withLock
-            updateFilteredState(allCapabilities, preset)
+    suspend fun removeServerCapabilities(serverId: String) {
+        val updated =
+            refreshMutex.withLock {
+                allCapabilities = allCapabilities - serverId
+                val preset = currentPreset ?: return@withLock false
+                updateFilteredState(allCapabilities, preset)
+                true
+            }
+        if (updated) {
+            notifyCapabilitiesUpdated()
         }
     }
 
@@ -223,6 +228,12 @@ class ProxyMcpServer(
         result.missingTools.forEach {
             logger.warn("Missing tool in downstream: server='${it.serverId}', tool='${it.toolName}'")
         }
+    }
+
+    private fun notifyCapabilitiesUpdated() {
+        val callback = onCapabilitiesUpdated ?: return
+        runCatching { callback() }
+            .onFailure { logger.warn("Failed to sync inbound capabilities", it) }
     }
 
     private fun buildDispatcher(servers: List<McpServerConnection>): RequestDispatcher =

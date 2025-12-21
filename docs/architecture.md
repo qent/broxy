@@ -68,8 +68,8 @@ CLI starts the proxy and the configuration watcher:
     - downstream connections: `DefaultMcpServerConnection` for each enabled server;
     - proxy core: `ProxyMcpServer`;
     - inbound server: STDIO or Streamable HTTP (`InboundServerFactory`).
-3. `ProxyMcpServer.start(...)` computes filtered capabilities (best-effort) using
-   `refreshFilteredCapabilities()`.
+3. `ProxyMcpServer.start(...)` stores the preset and returns immediately; downstream
+   capabilities are refreshed asynchronously per server.
 4. The inbound adapter builds an MCP SDK `Server` via `buildSdkServer(proxy)` and exposes
    `tools/list`, `prompts/list`, `resources/list`, and handlers for `callTool/getPrompt/readResource`.
 

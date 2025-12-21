@@ -1,5 +1,6 @@
 package io.qent.broxy.ui.adapter.headless
 
+import io.modelcontextprotocol.kotlin.sdk.server.Server
 import io.modelcontextprotocol.kotlin.sdk.server.StdioServerTransport
 import io.qent.broxy.core.config.JsonConfigurationRepository
 import io.qent.broxy.core.mcp.DefaultMcpServerConnection
@@ -8,11 +9,18 @@ import io.qent.broxy.core.models.Preset
 import io.qent.broxy.core.models.TransportConfig
 import io.qent.broxy.core.proxy.ProxyMcpServer
 import io.qent.broxy.core.proxy.inbound.buildSdkServer
+import io.qent.broxy.core.proxy.inbound.syncSdkServer
 import io.qent.broxy.core.utils.CollectingLogger
 import io.qent.broxy.core.utils.CompositeLogger
 import io.qent.broxy.core.utils.DailyFileLogger
 import io.qent.broxy.core.utils.StdErrLogger
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.io.asSink
 import kotlinx.io.asSource
@@ -81,10 +89,25 @@ fun runStdioProxy(
                     IsolatedMcpServerConnection(connection)
                 }
 
-        val proxy = ProxyMcpServer(downstreams = downstreams, logger = logger)
+        var sdkServer: Server? = null
+        var proxyRef: ProxyMcpServer? = null
+        val proxy =
+            ProxyMcpServer(
+                downstreams = downstreams,
+                logger = logger,
+                onCapabilitiesUpdated = {
+                    val server = sdkServer
+                    val activeProxy = proxyRef
+                    if (server != null && activeProxy != null) {
+                        runCatching { syncSdkServer(server, activeProxy, logger) }
+                    }
+                },
+            )
+        proxyRef = proxy
         proxy.start(preset, inbound)
 
         val server = buildSdkServer(proxy, logger)
+        sdkServer = server
         val transport =
             StdioServerTransport(
                 System.`in`.asSource().buffered(),
@@ -98,12 +121,22 @@ fun runStdioProxy(
             "Starting broxy STDIO proxy (presetId='${effectivePresetId ?: "none"}', configDir='${configDir ?: "~/.config/broxy"}')",
         )
 
+        val refreshScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        val refreshJob =
+            refreshScope.launch {
+                downstreams.map { serverConn ->
+                    launch { proxy.refreshServerCapabilities(serverConn.serverId) }
+                }.joinAll()
+            }
+
         try {
             runBlocking {
                 server.createSession(transport)
                 shutdownSignal.await()
             }
         } finally {
+            refreshJob.cancel()
+            refreshScope.cancel()
             runBlocking { runCatching { transport.close() } }
             runCatching { proxy.stop() }
             runBlocking { downstreams.forEach { runCatching { it.disconnect() } } }

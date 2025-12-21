@@ -65,6 +65,7 @@ class ProxyMcpServerMockitoTest {
         val proxy = ProxyMcpServer(listOf(s1))
         val preset = Preset(id = "p", name = "name", tools = listOf(ToolReference("s1", "any", true)))
         proxy.start(preset, TransportConfig.HttpTransport("http://0.0.0.0:0/mcp"))
+        runBlocking { proxy.refreshFilteredCapabilities() }
 
         val pr = kotlinx.coroutines.runBlocking { proxy.getPrompt("p1") }
         assertTrue(pr.isSuccess)
@@ -95,6 +96,7 @@ class ProxyMcpServerMockitoTest {
         val proxy = ProxyMcpServer(listOf(s1))
         val preset = Preset(id = "p", name = "name", tools = listOf(ToolReference("s1", "any", true)))
         proxy.start(preset, TransportConfig.HttpTransport("http://0.0.0.0:0/mcp"))
+        runBlocking { proxy.refreshFilteredCapabilities() }
 
         val pr = kotlinx.coroutines.runBlocking { proxy.getPrompt("unknown") }
         assertTrue(pr.isFailure)
