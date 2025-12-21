@@ -12,13 +12,16 @@ STDIO transports do **not** use OAuth; use environment variables for credentials
 
 ## Discovery flow (resource server)
 
-broxy follows the MCP OAuth specification:
+broxy follows the MCP OAuth specification with a pre-authorization step:
 
-1. Attempt an unauthenticated request and parse `WWW-Authenticate` if present.
-2. If `resource_metadata` is provided, fetch the Protected Resource Metadata document.
-3. Otherwise, probe well-known URIs:
-   - `/.well-known/oauth-protected-resource/<mcp-path>`
-   - `/.well-known/oauth-protected-resource`
+1. Probe well-known Protected Resource Metadata endpoints before connecting to the MCP URL.
+2. If metadata is found, complete OAuth (including dynamic registration when enabled) before opening the MCP session.
+3. If metadata is not available, fall back to an unauthenticated MCP request and parse `WWW-Authenticate`
+   (including `resource_metadata` and `scope`) for step-up authorization.
+
+Well-known probe targets:
+- `/.well-known/oauth-protected-resource/<mcp-path>`
+- `/.well-known/oauth-protected-resource`
 
 The resource metadata **must** include `authorization_servers`.
 
@@ -81,7 +84,7 @@ Add an `auth` block to a server to enable OAuth:
 - Performs step-up authorization on `insufficient_scope` challenges.
 - Uses refresh tokens when provided.
 - When OAuth is required, broxy extends the connect timeout to allow the user to complete the
-  browser consent flow.
+  browser consent flow and only connects to the MCP endpoint after authorization succeeds.
 
 ## WebSocket notes
 

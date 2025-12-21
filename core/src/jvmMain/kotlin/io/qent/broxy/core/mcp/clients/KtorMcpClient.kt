@@ -22,6 +22,7 @@ import io.qent.broxy.core.mcp.AuthInteractiveMcpClient
 import io.qent.broxy.core.mcp.McpClient
 import io.qent.broxy.core.mcp.ServerCapabilities
 import io.qent.broxy.core.mcp.TimeoutConfigurableMcpClient
+import io.qent.broxy.core.mcp.auth.OAuthAuthorizer
 import io.qent.broxy.core.mcp.auth.OAuthChallenge
 import io.qent.broxy.core.mcp.auth.OAuthChallengeRecorder
 import io.qent.broxy.core.mcp.auth.OAuthManager
@@ -48,6 +49,9 @@ class KtorMcpClient(
     private val authConfig: AuthConfig? = null,
     private val authState: OAuthState? = null,
     private val connector: SdkConnector? = null,
+    private val oauthAuthorizerFactory: (AuthConfig.OAuth, OAuthState, String, Logger) -> OAuthAuthorizer =
+        { cfg, state, resourceUrl, log -> OAuthManager(cfg, state, resourceUrl, log) },
+    private val preauthorizeWithConnector: Boolean = false,
 ) : McpClient, TimeoutConfigurableMcpClient, AuthInteractiveMcpClient {
     enum class Mode { Sse, StreamableHttp, WebSocket }
 
@@ -57,9 +61,9 @@ class KtorMcpClient(
     private val authChallengeRecorder = OAuthChallengeRecorder()
     private val oauthState: OAuthState = authState ?: OAuthState()
     private val autoOauthEnabled = authConfig == null
-    private var oauthManager: OAuthManager? =
+    private var oauthManager: OAuthAuthorizer? =
         (authConfig as? AuthConfig.OAuth)?.let { cfg ->
-            OAuthManager(cfg, oauthState, resolveOAuthResourceUrl(), logger)
+            oauthAuthorizerFactory(cfg, oauthState, resolveOAuthResourceUrl(), logger)
         }
 
     @Volatile
@@ -90,6 +94,14 @@ class KtorMcpClient(
     private suspend fun connectInternal(allowAuthRetry: Boolean): Result<Unit> =
         runCatching {
             if (client != null) return@runCatching
+            val allowPreauth = connector == null || preauthorizeWithConnector
+            val authManager =
+                if (allowPreauth) {
+                    resolveAuthManager()
+                } else {
+                    null
+                }
+            authManager?.ensureAuthorized()?.getOrThrow()
             // Tests can inject a fake connector
             connector?.let {
                 client = it.connect()
@@ -106,7 +118,6 @@ class KtorMcpClient(
             var lastError: Throwable? = null
             repeat(maxAttempts) { attempt ->
                 authChallengeRecorder.reset()
-                oauthManager?.ensureAuthorized()?.getOrThrow()
                 try {
                     connectOnce()
                     logger.info("Connected Ktor MCP client ($mode) to $url")
@@ -310,10 +321,16 @@ class KtorMcpClient(
         return URI(scheme, uri.userInfo, uri.host, uri.port, uri.path, uri.query, null).toString()
     }
 
-    private fun getOrCreateOAuthManager(): OAuthManager? {
+    private fun resolveAuthManager(): OAuthAuthorizer? {
         oauthManager?.let { return it }
         if (!autoOauthEnabled) return null
-        val manager = OAuthManager(AuthConfig.OAuth(), oauthState, resolveOAuthResourceUrl(), logger)
+        return getOrCreateOAuthManager()
+    }
+
+    private fun getOrCreateOAuthManager(): OAuthAuthorizer? {
+        oauthManager?.let { return it }
+        if (!autoOauthEnabled) return null
+        val manager = oauthAuthorizerFactory(AuthConfig.OAuth(), oauthState, resolveOAuthResourceUrl(), logger)
         oauthManager = manager
         return manager
     }

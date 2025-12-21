@@ -46,7 +46,7 @@ class OAuthManager(
     },
     private val browserLauncher: BrowserLauncher = DesktopBrowserLauncher(logger),
     private val clockMillis: () -> Long = { System.currentTimeMillis() },
-) {
+) : OAuthAuthorizer {
     private data class DiscoveryResult(
         val resourceMetadata: ProtectedResourceMetadata?,
         val authorizationMetadata: AuthorizationServerMetadata,
@@ -70,9 +70,9 @@ class OAuthManager(
     private val random = SecureRandom()
     private var httpClient: HttpClient? = null
 
-    fun currentAccessToken(): String? = state.token?.accessToken
+    override fun currentAccessToken(): String? = state.token?.accessToken
 
-    suspend fun ensureAuthorized(challenge: OAuthChallenge? = null): Result<String?> =
+    override suspend fun ensureAuthorized(challenge: OAuthChallenge?): Result<String?> =
         runCatching {
             state.mutex.withLock {
                 val requiredScope = challenge?.scope ?: state.lastRequestedScope
@@ -135,7 +135,7 @@ class OAuthManager(
             }
         }
 
-    fun close() {
+    override fun close() {
         runCatching { httpClient?.close() }
         httpClient = null
     }

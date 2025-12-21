@@ -129,6 +129,8 @@ Timeout behavior:
 - Discovers authorization server metadata via OAuth 2.0 and OpenID Connect well-known endpoints.
 - Requires PKCE (`S256`) support and sends the `resource` parameter on auth/token requests.
 - Handles step-up authorization on `insufficient_scope` and refresh tokens when available.
+- When metadata is available, completes OAuth before connecting to the MCP endpoint; otherwise falls
+  back to an unauthenticated probe and step-up authorization.
 
 If the server supports dynamic client registration, broxy can auto-discover OAuth parameters via
 `/.well-known` endpoints. Use the `auth` block in `mcp.json` only for pre-registered credentials
