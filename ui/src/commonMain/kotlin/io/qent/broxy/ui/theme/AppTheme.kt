@@ -128,7 +128,6 @@ data class AppElevation(
 
 data class AppLayout(
     val navigationRailWidth: Dp = 84.dp,
-    val scrollbarThickness: Dp = 12.dp,
     val dialogMinWidth: Dp = 360.dp,
     val dialogMaxHeight: Dp = 420.dp,
 )

@@ -36,6 +36,8 @@ fun DeleteConfirmationDialog(
         maxWidth = 520.dp,
         onDismissRequest = onDismiss,
         dismissButton = { AppSecondaryButton(onClick = onDismiss) { Text(dismissLabel) } },
+        maxContentHeight = null,
+        enableScroll = false,
         confirmButton = { AppDangerButton(onClick = onConfirm) { Text(confirmLabel) } },
     ) {
         Row(

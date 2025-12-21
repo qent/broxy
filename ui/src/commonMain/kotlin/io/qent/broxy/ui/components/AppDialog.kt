@@ -3,15 +3,12 @@ package io.qent.broxy.ui.components
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,6 +29,8 @@ import io.qent.broxy.ui.theme.AppTheme
  * @param maxWidth Maximum width for the dialog surface.
  * @param titleStyle Typography style for the title text.
  * @param dismissButton Optional secondary action shown before the confirm button.
+ * @param maxContentHeight Optional max height for the scrollable content area.
+ * @param enableScroll Enables scrolling for dialog content.
  * @param confirmButton Primary action placed at the end of the action row.
  * @param content Dialog body that becomes scrollable when it exceeds the max height.
  */
@@ -44,14 +43,23 @@ fun AppDialog(
     maxWidth: Dp = 640.dp,
     titleStyle: TextStyle = MaterialTheme.typography.headlineSmall,
     dismissButton: (@Composable () -> Unit)? = null,
+    maxContentHeight: Dp? = AppTheme.layout.dialogMaxHeight,
+    enableScroll: Boolean = true,
     confirmButton: @Composable () -> Unit,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val scrollState = rememberScrollState()
-    val scrollbarAdapter = rememberScrollbarAdapter(scrollState)
-    val showScrollbar by remember {
-        derivedStateOf { scrollState.canScrollForward || scrollState.canScrollBackward }
-    }
+    val contentModifier =
+        remember(enableScroll, maxContentHeight) {
+            var modifier: Modifier = Modifier
+            if (maxContentHeight != null) {
+                modifier = modifier.heightIn(max = maxContentHeight)
+            }
+            if (enableScroll) {
+                modifier = modifier.verticalScroll(scrollState)
+            }
+            modifier
+        }
 
     Dialog(
         onDismissRequest = onDismissRequest,
@@ -81,13 +89,7 @@ fun AppDialog(
                             .fillMaxWidth()
                             .padding(
                                 start = AppTheme.spacing.lg,
-                                end =
-                                    AppTheme.spacing.lg -
-                                        if (showScrollbar) {
-                                            AppTheme.layout.scrollbarThickness
-                                        } else {
-                                            0.dp
-                                        },
+                                end = AppTheme.spacing.lg,
                                 top = AppTheme.spacing.md,
                             ),
                     verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
@@ -98,22 +100,10 @@ fun AppDialog(
                         verticalAlignment = Alignment.Top,
                     ) {
                         Column(
-                            modifier =
-                                Modifier
-                                    .weight(1f, fill = true)
-                                    .heightIn(max = AppTheme.layout.dialogMaxHeight)
-                                    .verticalScroll(scrollState),
+                            modifier = Modifier.weight(1f, fill = true).then(contentModifier),
                             verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
                             content = content,
                         )
-                        if (showScrollbar) {
-                            AppVerticalScrollbar(
-                                adapter = scrollbarAdapter,
-                                modifier = Modifier.heightIn(max = AppTheme.layout.dialogMaxHeight),
-                                canScroll = showScrollbar,
-                                isScrollInProgress = scrollState.isScrollInProgress,
-                            )
-                        }
                     }
                 }
                 HorizontalDivider()

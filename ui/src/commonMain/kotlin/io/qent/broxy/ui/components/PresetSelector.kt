@@ -217,7 +217,7 @@ fun PresetSelector(
                             modifier =
                                 Modifier
                                     .weight(1f)
-                                    .padding(start = AppTheme.spacing.sm)
+                                    .padding(start = AppTheme.spacing.sm),
                         ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
