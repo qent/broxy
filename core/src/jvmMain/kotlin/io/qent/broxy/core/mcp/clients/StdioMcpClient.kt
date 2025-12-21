@@ -159,24 +159,34 @@ class StdioMcpClient(
         runCatching {
             val c = client ?: throw IllegalStateException("Not connected")
             val timeoutMillis = resolveCapabilitiesTimeout()
-            val tools =
-                listWithTimeout(
-                    operation = "listTools",
-                    timeoutMillis = timeoutMillis,
-                    defaultValue = emptyList(),
-                ) { c.getTools() }
-            val resources =
-                listWithTimeout(
-                    operation = "listResources",
-                    timeoutMillis = timeoutMillis,
-                    defaultValue = emptyList(),
-                ) { c.getResources() }
-            val prompts =
-                listWithTimeout(
-                    operation = "listPrompts",
-                    timeoutMillis = timeoutMillis,
-                    defaultValue = emptyList(),
-                ) { c.getPrompts() }
+            val (tools, resources, prompts) =
+                coroutineScope {
+                    val toolsDeferred =
+                        async {
+                            listWithTimeout(
+                                operation = "listTools",
+                                timeoutMillis = timeoutMillis,
+                                defaultValue = emptyList(),
+                            ) { c.getTools() }
+                        }
+                    val resourcesDeferred =
+                        async {
+                            listWithTimeout(
+                                operation = "listResources",
+                                timeoutMillis = timeoutMillis,
+                                defaultValue = emptyList(),
+                            ) { c.getResources() }
+                        }
+                    val promptsDeferred =
+                        async {
+                            listWithTimeout(
+                                operation = "listPrompts",
+                                timeoutMillis = timeoutMillis,
+                                defaultValue = emptyList(),
+                            ) { c.getPrompts() }
+                        }
+                    Triple(toolsDeferred.await(), resourcesDeferred.await(), promptsDeferred.await())
+                }
             ServerCapabilities(tools = tools, resources = resources, prompts = prompts)
         }
 

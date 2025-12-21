@@ -130,9 +130,12 @@ File: `core/src/jvmMain/kotlin/io/qent/broxy/core/mcp/clients/KtorMcpClient.kt`
 Timeout behavior:
 
 - The client uses Ktor `HttpTimeout` for connect/request/socket timeouts.
-- `fetchCapabilities()` calls `getTools()`, `getResources()`, and `getPrompts()` with per-call timeouts.
+- `fetchCapabilities()` calls `getTools()`, `getResources()`, and `getPrompts()` in parallel with per-call
+  timeouts, so the total wait is bounded by the slowest category.
+- `RealSdkClientFacade` skips list calls when the server capabilities (from `initialize`) report
+  that a category is unsupported, and caches the unsupported flag to avoid repeated list attempts.
 - If a list operation times out or fails, the client returns an empty list for that category and
-  continues. The overall `fetchCapabilities()` call still succeeds unless the client is not connected.
+  continues immediately. The overall `fetchCapabilities()` call still succeeds unless the client is not connected.
 
 ### OAuth for remote HTTP/WS servers
 

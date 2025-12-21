@@ -32,6 +32,8 @@ import io.qent.broxy.core.models.AuthConfig
 import io.qent.broxy.core.utils.ConsoleLogger
 import io.qent.broxy.core.utils.Logger
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
@@ -155,9 +157,16 @@ class KtorMcpClient(
             withAuthRetry("fetchCapabilities") {
                 val c = client ?: throw IllegalStateException("Not connected")
                 val timeoutMillis = capabilitiesTimeoutMillis.coerceAtLeast(1)
-                val tools = listWithTimeout("listTools", timeoutMillis, emptyList()) { c.getTools() }
-                val resources = listWithTimeout("listResources", timeoutMillis, emptyList()) { c.getResources() }
-                val prompts = listWithTimeout("listPrompts", timeoutMillis, emptyList()) { c.getPrompts() }
+                val (tools, resources, prompts) =
+                    coroutineScope {
+                        val toolsDeferred =
+                            async { listWithTimeout("listTools", timeoutMillis, emptyList()) { c.getTools() } }
+                        val resourcesDeferred =
+                            async { listWithTimeout("listResources", timeoutMillis, emptyList()) { c.getResources() } }
+                        val promptsDeferred =
+                            async { listWithTimeout("listPrompts", timeoutMillis, emptyList()) { c.getPrompts() } }
+                        Triple(toolsDeferred.await(), resourcesDeferred.await(), promptsDeferred.await())
+                    }
                 ServerCapabilities(tools = tools, resources = resources, prompts = prompts)
             }
         }

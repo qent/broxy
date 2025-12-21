@@ -26,26 +26,53 @@ class RealSdkClientFacade(
     private val client: Client,
     private val logger: Logger = ConsoleLogger,
 ) : SdkClientFacade {
+    private enum class Capability(val label: String, val listOperation: String) {
+        Tools("tools", "listTools"),
+        Resources("resources", "listResources"),
+        Prompts("prompts", "listPrompts"),
+    }
+
+    @Volatile
+    private var toolsSupported: Boolean? = null
+
+    @Volatile
+    private var resourcesSupported: Boolean? = null
+
+    @Volatile
+    private var promptsSupported: Boolean? = null
+
     override suspend fun getTools(): List<ToolDescriptor> =
-        runCatching {
-            client.listTools(ListToolsRequest()).tools.map(::mapTool)
-        }.onFailure { ex ->
-            logger.warn("Failed to list tools: ${ex.message}", ex)
-        }.getOrDefault(emptyList())
+        if (!isCapabilitySupported(Capability.Tools)) {
+            emptyList()
+        } else {
+            runCatching {
+                client.listTools(ListToolsRequest()).tools.map(::mapTool)
+            }.onFailure { ex ->
+                handleListFailure(Capability.Tools, ex)
+            }.getOrDefault(emptyList())
+        }
 
     override suspend fun getResources(): List<ResourceDescriptor> =
-        runCatching {
-            client.listResources(ListResourcesRequest()).resources.map(::mapResource)
-        }.onFailure { ex ->
-            logger.warn("Failed to list resources: ${ex.message}", ex)
-        }.getOrDefault(emptyList())
+        if (!isCapabilitySupported(Capability.Resources)) {
+            emptyList()
+        } else {
+            runCatching {
+                client.listResources(ListResourcesRequest()).resources.map(::mapResource)
+            }.onFailure { ex ->
+                handleListFailure(Capability.Resources, ex)
+            }.getOrDefault(emptyList())
+        }
 
     override suspend fun getPrompts(): List<PromptDescriptor> =
-        runCatching {
-            client.listPrompts(ListPromptsRequest()).prompts.map(::mapPrompt)
-        }.onFailure { ex ->
-            logger.warn("Failed to list prompts: ${ex.message}", ex)
-        }.getOrDefault(emptyList())
+        if (!isCapabilitySupported(Capability.Prompts)) {
+            emptyList()
+        } else {
+            runCatching {
+                client.listPrompts(ListPromptsRequest()).prompts.map(::mapPrompt)
+            }.onFailure { ex ->
+                handleListFailure(Capability.Prompts, ex)
+            }.getOrDefault(emptyList())
+        }
 
     override suspend fun callTool(
         name: String,
@@ -113,4 +140,67 @@ class RealSdkClientFacade(
             description = prompt.description,
             arguments = prompt.arguments,
         )
+
+    private fun isCapabilitySupported(capability: Capability): Boolean {
+        cachedSupport(capability)?.let { return it }
+        val serverCaps = client.serverCapabilities ?: return true
+        val supported =
+            when (capability) {
+                Capability.Tools -> serverCaps.tools != null
+                Capability.Resources -> serverCaps.resources != null
+                Capability.Prompts -> serverCaps.prompts != null
+            }
+        recordSupport(capability, supported)
+        if (!supported) {
+            logger.info("Skipping ${capability.listOperation}: server does not support ${capability.label}.")
+        }
+        return supported
+    }
+
+    private fun handleListFailure(
+        capability: Capability,
+        ex: Throwable,
+    ) {
+        if (recordUnsupportedFromError(capability, ex)) return
+        logger.warn("Failed to list ${capability.label}: ${ex.message}", ex)
+    }
+
+    private fun recordUnsupportedFromError(
+        capability: Capability,
+        ex: Throwable,
+    ): Boolean {
+        val message = ex.message ?: return false
+        if (!message.startsWith("Server does not support ${capability.label}")) return false
+        val changed = recordSupport(capability, false)
+        if (changed) {
+            logger.info("Skipping ${capability.listOperation}: server does not support ${capability.label}.")
+        }
+        return true
+    }
+
+    private fun cachedSupport(capability: Capability): Boolean? =
+        when (capability) {
+            Capability.Tools -> toolsSupported
+            Capability.Resources -> resourcesSupported
+            Capability.Prompts -> promptsSupported
+        }
+
+    private fun recordSupport(
+        capability: Capability,
+        supported: Boolean,
+    ): Boolean {
+        val previous =
+            when (capability) {
+                Capability.Tools -> toolsSupported
+                Capability.Resources -> resourcesSupported
+                Capability.Prompts -> promptsSupported
+            }
+        if (previous == supported) return false
+        when (capability) {
+            Capability.Tools -> toolsSupported = supported
+            Capability.Resources -> resourcesSupported = supported
+            Capability.Prompts -> promptsSupported = supported
+        }
+        return true
+    }
 }
