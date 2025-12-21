@@ -52,6 +52,7 @@ Presentation layer without Compose dependencies: state, intents, and background 
 ### `ui/` (Compose Desktop, thin UI)
 
 UI renders `UIState` and calls intents, with no direct dependency on `core`.
+Navigation keeps server sub-views (list/editor/capabilities) under the MCP entry; selecting MCP always returns to the server list. Preset sub-views return to the preset list when the Presets menu item is selected.
 
 ### `cli/` (CLI mode)
 

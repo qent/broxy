@@ -145,7 +145,8 @@ private fun CapabilitiesContent(
             )
         }
 
-        Spacer(Modifier.height(AppTheme.spacing.md))    }
+        Spacer(Modifier.height(AppTheme.spacing.md))
+    }
 }
 
 @Composable

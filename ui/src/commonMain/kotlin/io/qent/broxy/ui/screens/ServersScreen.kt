@@ -34,9 +34,9 @@ fun ServersScreen(
     notify: (String) -> Unit = {},
 ) {
     var query by rememberSaveable { mutableStateOf("") }
-    var viewing: UiServer? by remember { mutableStateOf<UiServer?>(null) }
     var pendingDeletion: UiServer? by remember { mutableStateOf<UiServer?>(null) }
     val editor = state.serverEditor.value
+    val viewingId = state.serverDetailsId.value
 
     Box(modifier = Modifier.fillMaxSize().padding(horizontal = AppTheme.spacing.md)) {
         if (editor != null) {
@@ -53,13 +53,13 @@ fun ServersScreen(
             return@Box
         }
 
-        if (viewing != null) {
+        if (viewingId != null) {
             Column(modifier = Modifier.fillMaxSize()) {
                 Spacer(Modifier.height(1.dp))
                 ServerCapabilitiesScreen(
                     store = store,
-                    serverId = viewing!!.id,
-                    onClose = { viewing = null },
+                    serverId = viewingId,
+                    onClose = { state.serverDetailsId.value = null },
                 )
             }
             return@Box
@@ -104,12 +104,16 @@ fun ServersScreen(
                             items(filtered, key = { it.id }) { cfg ->
                                 ServerCard(
                                     cfg = cfg,
-                                    onViewDetails = { viewing = cfg },
+                                    onViewDetails = {
+                                        state.serverEditor.value = null
+                                        state.serverDetailsId.value = cfg.id
+                                    },
                                     onToggle = { id, enabled ->
                                         ui.intents.toggleServer(id, enabled)
                                     },
                                     onEdit = {
                                         pendingDeletion = null
+                                        state.serverDetailsId.value = null
                                         state.serverEditor.value = ServerEditorState.Edit(cfg.id)
                                     },
                                     onDelete = { pendingDeletion = cfg },

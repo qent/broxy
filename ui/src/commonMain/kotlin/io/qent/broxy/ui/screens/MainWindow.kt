@@ -90,7 +90,7 @@ fun MainWindow(
             floatingActionButton = {
                 when (screen) {
                     Screen.Servers -> {
-                        if (state.serverEditor.value == null) {
+                        if (state.serverEditor.value == null && state.serverDetailsId.value == null) {
                             FloatingActionButton(onClick = { state.serverEditor.value = ServerEditorState.Create }) {
                                 Icon(Icons.Outlined.Add, contentDescription = "Add server")
                             }
@@ -131,12 +131,9 @@ fun MainWindow(
                 AppNavigationRail(
                     selected = screen,
                     onSelect = {
-                        if (it != Screen.Presets) {
-                            state.presetEditor.value = null
-                        }
-                        if (it != Screen.Servers) {
-                            state.serverEditor.value = null
-                        }
+                        state.presetEditor.value = null
+                        state.serverEditor.value = null
+                        state.serverDetailsId.value = null
                         state.currentScreen.value = it
                     },
                     proxyStatus = (ui as? UIState.Ready)?.proxyStatus,

@@ -17,6 +17,7 @@ class AppState(
 
     // Sub-navigation inside Screens.Servers (keeps the Servers menu item active).
     val serverEditor: MutableState<ServerEditorState?> = mutableStateOf(null)
+    val serverDetailsId: MutableState<String?> = mutableStateOf(null)
 
     // Sub-navigation inside Screens.Presets (keeps the Presets menu item active).
     val presetEditor: MutableState<PresetEditorState?> = mutableStateOf(null)
