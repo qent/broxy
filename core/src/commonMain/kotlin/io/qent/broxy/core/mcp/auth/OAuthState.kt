@@ -1,7 +1,9 @@
 package io.qent.broxy.core.mcp.auth
 
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.serialization.Serializable
 
+@Serializable
 data class OAuthToken(
     val accessToken: String,
     val tokenType: String = "Bearer",
@@ -10,6 +12,7 @@ data class OAuthToken(
     val expiresAtEpochMillis: Long? = null,
 )
 
+@Serializable
 data class OAuthClientRegistration(
     val clientId: String,
     val clientSecret: String? = null,
@@ -32,6 +35,9 @@ class OAuthState {
 
     @Volatile
     var registration: OAuthClientRegistration? = null
+
+    @Volatile
+    var registeredRedirectUri: String? = null
 
     @Volatile
     var resourceMetadata: ProtectedResourceMetadata? = null

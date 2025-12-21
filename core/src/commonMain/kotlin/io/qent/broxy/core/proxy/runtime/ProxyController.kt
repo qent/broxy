@@ -46,9 +46,15 @@ interface ProxyController {
     fun currentProxy(): ProxyMcpServer?
 }
 
-expect fun createProxyController(logger: CollectingLogger): ProxyController
+expect fun createProxyController(
+    logger: CollectingLogger,
+    configDir: String? = null,
+): ProxyController
 
 /**
  * Specialized factory for STDIO inbound where stdout must remain clean for MCP.
  */
-expect fun createStdioProxyController(logger: CollectingLogger): ProxyController
+expect fun createStdioProxyController(
+    logger: CollectingLogger,
+    configDir: String? = null,
+): ProxyController

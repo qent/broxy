@@ -5,6 +5,11 @@ import io.modelcontextprotocol.kotlin.sdk.server.StdioServerTransport
 import io.qent.broxy.core.config.JsonConfigurationRepository
 import io.qent.broxy.core.mcp.DefaultMcpServerConnection
 import io.qent.broxy.core.mcp.IsolatedMcpServerConnection
+import io.qent.broxy.core.mcp.auth.OAuthState
+import io.qent.broxy.core.mcp.auth.OAuthStateStore
+import io.qent.broxy.core.mcp.auth.resolveOAuthResourceUrl
+import io.qent.broxy.core.mcp.auth.restoreFrom
+import io.qent.broxy.core.mcp.auth.toSnapshot
 import io.qent.broxy.core.models.Preset
 import io.qent.broxy.core.models.TransportConfig
 import io.qent.broxy.core.proxy.ProxyMcpServer
@@ -74,15 +79,29 @@ fun runStdioProxy(
 
         val callTimeoutMillis = cfg.requestTimeoutSeconds.toLong() * 1_000L
         val capabilitiesTimeoutMillis = cfg.capabilitiesTimeoutSeconds.toLong() * 1_000L
+        val authStateStore = OAuthStateStore(baseDir = baseDir, logger = sink)
 
         val downstreams: List<IsolatedMcpServerConnection> =
             cfg.servers
                 .filter { it.enabled }
                 .map { serverCfg ->
+                    val resourceUrl = resolveAuthResourceUrl(serverCfg)
+                    val authState =
+                        resourceUrl?.let {
+                            OAuthState().also { state ->
+                                authStateStore.load(serverCfg.id, it)?.let(state::restoreFrom)
+                            }
+                        }
                     val connection =
                         DefaultMcpServerConnection(
                             config = serverCfg,
                             logger = logger,
+                            authState = authState,
+                            authStateObserver = { state ->
+                                if (resourceUrl != null) {
+                                    authStateStore.save(serverCfg.id, state.toSnapshot(resourceUrl))
+                                }
+                            },
                             initialCallTimeoutMillis = callTimeoutMillis,
                             initialCapabilitiesTimeoutMillis = capabilitiesTimeoutMillis,
                         )
@@ -148,3 +167,11 @@ fun runStdioProxy(
 fun logStdioInfo(message: String) {
     StdErrLogger.info(message)
 }
+
+private fun resolveAuthResourceUrl(config: io.qent.broxy.core.models.McpServerConfig): String? =
+    when (val transport = config.transport) {
+        is TransportConfig.HttpTransport -> resolveOAuthResourceUrl(transport.url)
+        is TransportConfig.StreamableHttpTransport -> resolveOAuthResourceUrl(transport.url)
+        is TransportConfig.WebSocketTransport -> resolveOAuthResourceUrl(transport.url)
+        else -> null
+    }

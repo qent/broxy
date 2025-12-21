@@ -276,13 +276,15 @@ class OAuthManager(
             return registration
         }
         if (config.allowDynamicRegistration && !authMeta.registrationEndpoint.isNullOrBlank()) {
-            if (config.redirectUri != null) {
-                state.registration?.let { return it }
+            state.registration?.let { existing ->
+                val registeredRedirect = state.registeredRedirectUri
+                if (registeredRedirect.isNullOrBlank() || registeredRedirect == redirectUri) {
+                    return existing
+                }
             }
             val registration = registerDynamicClient(authMeta.registrationEndpoint, redirectUri)
-            if (config.redirectUri != null) {
-                state.registration = registration
-            }
+            state.registration = registration
+            state.registeredRedirectUri = redirectUri
             return registration
         }
         error("No OAuth client registration available; configure clientId or clientIdMetadataUrl.")
@@ -462,7 +464,7 @@ class OAuthManager(
         requiredScope: String?,
     ): Boolean {
         if (requiredScope.isNullOrBlank()) return true
-        val tokenScope = token.scope ?: return false
+        val tokenScope = token.scope ?: return true
         val required = requiredScope.split(" ").filter { it.isNotBlank() }.toSet()
         val available = tokenScope.split(" ").filter { it.isNotBlank() }.toSet()
         return available.containsAll(required)

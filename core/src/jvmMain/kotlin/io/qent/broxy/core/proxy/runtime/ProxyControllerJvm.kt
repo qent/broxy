@@ -7,6 +7,11 @@ import io.qent.broxy.core.mcp.IsolatedMcpServerConnection
 import io.qent.broxy.core.mcp.McpServerConnection
 import io.qent.broxy.core.mcp.ServerCapabilities
 import io.qent.broxy.core.mcp.ServerStatus
+import io.qent.broxy.core.mcp.auth.OAuthState
+import io.qent.broxy.core.mcp.auth.OAuthStateStore
+import io.qent.broxy.core.mcp.auth.resolveOAuthResourceUrl
+import io.qent.broxy.core.mcp.auth.restoreFrom
+import io.qent.broxy.core.mcp.auth.toSnapshot
 import io.qent.broxy.core.models.McpServerConfig
 import io.qent.broxy.core.models.Preset
 import io.qent.broxy.core.models.TransportConfig
@@ -26,6 +31,8 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import java.nio.file.Path
+import java.nio.file.Paths
 
 private data class ManagedDownstream(
     val connection: DefaultMcpServerConnection,
@@ -53,7 +60,9 @@ private data class ManagedDownstream(
 
 private class JvmProxyController(
     private val logger: CollectingLogger,
+    configDir: String?,
 ) : ProxyController {
+    private val authStateStore = OAuthStateStore(baseDir = resolveConfigDir(configDir), logger = logger)
     private var downstreams: List<McpServerConnection> = emptyList()
     private var managedDownstreams: Map<String, ManagedDownstream> = emptyMap()
     private var proxy: ProxyMcpServer? = null
@@ -231,15 +240,43 @@ private class JvmProxyController(
     }
 
     private fun createManagedDownstream(config: McpServerConfig): ManagedDownstream {
+        val authState = loadAuthState(config)
         val connection =
             DefaultMcpServerConnection(
                 config = config,
                 logger = logger,
+                authState = authState,
+                authStateObserver = { state -> persistAuthState(config, state) },
                 initialCallTimeoutMillis = callTimeoutMillis,
                 initialCapabilitiesTimeoutMillis = capabilitiesTimeoutMillis,
             )
         return ManagedDownstream(connection, IsolatedMcpServerConnection(connection))
     }
+
+    private fun loadAuthState(config: McpServerConfig): OAuthState? {
+        val resourceUrl = resolveAuthResourceUrl(config) ?: return null
+        val state = OAuthState()
+        authStateStore.load(config.id, resourceUrl)?.let { snapshot ->
+            state.restoreFrom(snapshot)
+        }
+        return state
+    }
+
+    private fun persistAuthState(
+        config: McpServerConfig,
+        state: OAuthState,
+    ) {
+        val resourceUrl = resolveAuthResourceUrl(config) ?: return
+        authStateStore.save(config.id, state.toSnapshot(resourceUrl))
+    }
+
+    private fun resolveAuthResourceUrl(config: McpServerConfig): String? =
+        when (val transport = config.transport) {
+            is TransportConfig.HttpTransport -> resolveOAuthResourceUrl(transport.url)
+            is TransportConfig.StreamableHttpTransport -> resolveOAuthResourceUrl(transport.url)
+            is TransportConfig.WebSocketTransport -> resolveOAuthResourceUrl(transport.url)
+            else -> null
+        }
 
     private fun startInitialRefresh(
         proxy: ProxyMcpServer,
@@ -255,6 +292,19 @@ private class JvmProxyController(
     }
 }
 
-actual fun createProxyController(logger: CollectingLogger): ProxyController = JvmProxyController(logger)
+private fun resolveConfigDir(configDir: String?): Path =
+    if (configDir.isNullOrBlank()) {
+        Paths.get(System.getProperty("user.home"), ".config", "broxy")
+    } else {
+        Paths.get(configDir)
+    }
 
-actual fun createStdioProxyController(logger: CollectingLogger): ProxyController = JvmProxyController(logger = logger)
+actual fun createProxyController(
+    logger: CollectingLogger,
+    configDir: String?,
+): ProxyController = JvmProxyController(logger, configDir)
+
+actual fun createStdioProxyController(
+    logger: CollectingLogger,
+    configDir: String?,
+): ProxyController = JvmProxyController(logger = logger, configDir = configDir)

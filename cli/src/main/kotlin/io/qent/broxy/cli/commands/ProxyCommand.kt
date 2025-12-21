@@ -56,7 +56,7 @@ class ProxyCommand : CliktCommand(name = "proxy", help = "Run broxy server") {
         val baseDir = Paths.get(configDir.absolutePath)
         val logger = createLogger(logLevel, baseDir)
         val collectingLogger = CollectingLogger(delegate = logger)
-        val proxyController = createProxyController(collectingLogger)
+        val proxyController = createProxyController(collectingLogger, baseDir.toString())
         val proxyLifecycle = ProxyLifecycle(proxyController, logger)
 
         val repo =

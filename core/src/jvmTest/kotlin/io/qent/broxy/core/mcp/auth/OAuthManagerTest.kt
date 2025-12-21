@@ -100,6 +100,38 @@ class OAuthManagerTest {
     }
 
     @Test
+    fun ensureAuthorized_reuses_token_without_scope_when_requested() {
+        var requests = 0
+        val engine =
+            MockEngine { _ ->
+                requests += 1
+                respondError(HttpStatusCode.NotFound)
+            }
+        val client = HttpClient(engine)
+        val state =
+            OAuthState().apply {
+                token = OAuthToken(accessToken = "token123", expiresAtEpochMillis = 10_000L)
+                lastRequestedScope = "files:read"
+            }
+        val manager =
+            OAuthManager(
+                config = AuthConfig.OAuth(clientId = "client", redirectUri = "http://localhost:3333/callback"),
+                state = state,
+                resourceUrl = "https://mcp.example.com/mcp",
+                logger = ConfigTestLogger,
+                httpClientFactory = { client },
+                authorizationCodeReceiverFactory = { error("Authorization should not be requested") },
+                browserLauncher = CapturingBrowserLauncher(),
+                clockMillis = { 1_000L },
+            )
+
+        val result = runBlocking { manager.ensureAuthorized() }
+        assertTrue(result.isSuccess)
+        assertEquals("token123", result.getOrThrow())
+        assertEquals(0, requests)
+    }
+
+    @Test
     fun ensureAuthorized_falls_back_to_root_well_known() {
         val tokenResponse =
             """{"access_token":"token123","token_type":"Bearer","expires_in":3600}"""

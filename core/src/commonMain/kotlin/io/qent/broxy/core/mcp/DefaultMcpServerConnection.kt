@@ -27,6 +27,7 @@ class DefaultMcpServerConnection(
             config.auth == null && config.transport is TransportConfig.WebSocketTransport -> OAuthState()
             else -> null
         },
+    private val authStateObserver: ((OAuthState) -> Unit)? = null,
     private val clientFactory: () -> McpClient = {
         McpClientFactory(defaultMcpClientProvider()).create(
             config.transport,
@@ -162,6 +163,7 @@ class DefaultMcpServerConnection(
             status = ServerStatus.Error(error?.message)
             runCatching { client.disconnect() }
                 .onFailure { logger.warn("Error while disconnecting from '${config.name}'", it) }
+            persistAuthState()
             return Result.failure(error ?: McpError.ConnectionError("Failed to connect", null))
         }
         status = ServerStatus.Running
@@ -176,6 +178,7 @@ class DefaultMcpServerConnection(
         }
         runCatching { client.disconnect() }
             .onFailure { logger.warn("Error while disconnecting from '${config.name}'", it) }
+        persistAuthState()
         if (status !is ServerStatus.Error) {
             status = ServerStatus.Stopped
         }
@@ -207,5 +210,10 @@ class DefaultMcpServerConnection(
             }
         }
         return Result.failure(McpError.ConnectionError("Failed to connect after $maxRetries attempts", lastError))
+    }
+
+    private fun persistAuthState() {
+        val state = authState ?: return
+        authStateObserver?.invoke(state)
     }
 }

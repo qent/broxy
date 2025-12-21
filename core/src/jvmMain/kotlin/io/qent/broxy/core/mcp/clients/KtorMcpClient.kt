@@ -27,6 +27,7 @@ import io.qent.broxy.core.mcp.auth.OAuthChallenge
 import io.qent.broxy.core.mcp.auth.OAuthChallengeRecorder
 import io.qent.broxy.core.mcp.auth.OAuthManager
 import io.qent.broxy.core.mcp.auth.OAuthState
+import io.qent.broxy.core.mcp.auth.resolveOAuthResourceUrl
 import io.qent.broxy.core.models.AuthConfig
 import io.qent.broxy.core.utils.ConsoleLogger
 import io.qent.broxy.core.utils.Logger
@@ -35,7 +36,6 @@ import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
-import java.net.URI
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -63,7 +63,7 @@ class KtorMcpClient(
     private val autoOauthEnabled = authConfig == null
     private var oauthManager: OAuthAuthorizer? =
         (authConfig as? AuthConfig.OAuth)?.let { cfg ->
-            oauthAuthorizerFactory(cfg, oauthState, resolveOAuthResourceUrl(), logger)
+            oauthAuthorizerFactory(cfg, oauthState, resolveOAuthResourceUrl(url), logger)
         }
 
     @Volatile
@@ -309,18 +309,6 @@ class KtorMcpClient(
         }
     }
 
-    private fun resolveOAuthResourceUrl(): String {
-        val uri = runCatching { URI(url) }.getOrNull() ?: return url
-        val scheme =
-            when (uri.scheme?.lowercase()) {
-                "ws" -> "http"
-                "wss" -> "https"
-                else -> uri.scheme
-            }
-        if (scheme == null || scheme == uri.scheme) return url
-        return URI(scheme, uri.userInfo, uri.host, uri.port, uri.path, uri.query, null).toString()
-    }
-
     private fun resolveAuthManager(): OAuthAuthorizer? {
         oauthManager?.let { return it }
         if (!autoOauthEnabled) return null
@@ -330,7 +318,7 @@ class KtorMcpClient(
     private fun getOrCreateOAuthManager(): OAuthAuthorizer? {
         oauthManager?.let { return it }
         if (!autoOauthEnabled) return null
-        val manager = oauthAuthorizerFactory(AuthConfig.OAuth(), oauthState, resolveOAuthResourceUrl(), logger)
+        val manager = oauthAuthorizerFactory(AuthConfig.OAuth(), oauthState, resolveOAuthResourceUrl(url), logger)
         oauthManager = manager
         return manager
     }
