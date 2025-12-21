@@ -5,11 +5,11 @@ import io.qent.broxy.core.utils.Logger
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.supervisorScope
 
 class CapabilityRefresher(
     private val scope: CoroutineScope,
@@ -155,7 +155,7 @@ class CapabilityRefresher(
         statusTracker.setAll(targetIds, ServerConnectionStatus.Connecting)
         publishUpdate()
 
-        coroutineScope {
+        supervisorScope {
             targets.mapNotNull { cfg ->
                 if (isRefreshActive(cfg.id)) return@mapNotNull null
                 val job =

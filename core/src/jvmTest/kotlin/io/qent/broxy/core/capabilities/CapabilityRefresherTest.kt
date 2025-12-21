@@ -160,6 +160,64 @@ class CapabilityRefresherTest {
             refreshJob.join()
             assertEquals(ServerConnectionStatus.Disabled, statusTracker.statusFor("s1"))
         }
+
+    @Test
+    fun refreshEnabledServers_does_not_cancel_other_servers_on_single_cancel() =
+        runTest {
+            val started = CompletableDeferred<Unit>()
+            val secondCompleted = CompletableDeferred<Unit>()
+            val configs =
+                listOf(
+                    McpServerConfig(
+                        id = "s1",
+                        name = "Server 1",
+                        transport = TransportConfig.StdioTransport(command = "noop"),
+                        enabled = true,
+                    ),
+                    McpServerConfig(
+                        id = "s2",
+                        name = "Server 2",
+                        transport = TransportConfig.StdioTransport(command = "noop"),
+                        enabled = true,
+                    ),
+                )
+            val cache = CapabilityCache { 0L }
+            val statusTracker = ServerStatusTracker { 0L }
+            val refresher =
+                CapabilityRefresher(
+                    scope = this,
+                    capabilityFetcher = { cfg, _ ->
+                        when (cfg.id) {
+                            "s1" -> {
+                                started.complete(Unit)
+                                awaitCancellation()
+                            }
+                            "s2" -> {
+                                secondCompleted.complete(Unit)
+                                Result.success(ServerCapabilities())
+                            }
+                            else -> Result.failure(IllegalStateException("Unexpected server"))
+                        }
+                    },
+                    capabilityCache = cache,
+                    statusTracker = statusTracker,
+                    logger = NoopLogger,
+                    serversProvider = { configs },
+                    capabilitiesTimeoutProvider = { 5 },
+                    publishUpdate = {},
+                    refreshIntervalMillis = { 0L },
+                )
+
+            val refreshJob = launch { refresher.refreshEnabledServers(force = true) }
+            withTimeout(1_000) { started.await() }
+
+            refresher.markServerDisabled("s1")
+
+            withTimeout(1_000) { secondCompleted.await() }
+            refreshJob.join()
+            assertEquals(ServerConnectionStatus.Disabled, statusTracker.statusFor("s1"))
+            assertEquals(ServerConnectionStatus.Available, statusTracker.statusFor("s2"))
+        }
 }
 
 private object NoopLogger : Logger {

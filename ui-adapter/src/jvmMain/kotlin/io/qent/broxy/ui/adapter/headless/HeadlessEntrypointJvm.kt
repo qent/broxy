@@ -19,6 +19,7 @@ import io.qent.broxy.core.utils.CollectingLogger
 import io.qent.broxy.core.utils.CompositeLogger
 import io.qent.broxy.core.utils.DailyFileLogger
 import io.qent.broxy.core.utils.StdErrLogger
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -27,6 +28,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.supervisorScope
 import kotlinx.io.asSink
 import kotlinx.io.asSource
 import kotlinx.io.buffered
@@ -143,9 +145,22 @@ fun runStdioProxy(
         val refreshScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         val refreshJob =
             refreshScope.launch {
-                downstreams.map { serverConn ->
-                    launch { proxy.refreshServerCapabilities(serverConn.serverId) }
-                }.joinAll()
+                supervisorScope {
+                    downstreams.map { serverConn ->
+                        launch {
+                            try {
+                                proxy.refreshServerCapabilities(serverConn.serverId)
+                            } catch (e: CancellationException) {
+                                throw e
+                            } catch (t: Throwable) {
+                                logger.warn(
+                                    "Initial capabilities refresh failed for '${serverConn.serverId}'",
+                                    t,
+                                )
+                            }
+                        }
+                    }.joinAll()
+                }
             }
 
         try {

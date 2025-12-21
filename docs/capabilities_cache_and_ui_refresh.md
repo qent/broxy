@@ -61,6 +61,7 @@ Dependencies:
 - filters to `serversProvider().filter { enabled }`;
 - skips servers that are not due (`CapabilityCache.shouldRefresh(...)`) unless `force=true`;
 - refreshes in parallel via `fetchAndCacheCapabilities(...)`.
+- refresh jobs are supervised so a single server failure/cancellation does not cancel the rest.
 - cancels any in-flight refreshes when a server is disabled or removed to stop further reconnect attempts.
 
 On `AppStore.start()`:

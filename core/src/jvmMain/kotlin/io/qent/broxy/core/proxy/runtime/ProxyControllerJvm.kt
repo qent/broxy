@@ -20,6 +20,7 @@ import io.qent.broxy.core.proxy.inbound.InboundServer
 import io.qent.broxy.core.proxy.inbound.InboundServerFactory
 import io.qent.broxy.core.utils.CollectingLogger
 import io.qent.broxy.core.utils.LogEvent
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -31,6 +32,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.supervisorScope
 import java.nio.file.Path
 import java.nio.file.Paths
 
@@ -285,9 +287,22 @@ private class JvmProxyController(
         refreshJob?.cancel()
         refreshJob =
             refreshScope.launch {
-                downstreams.map { server ->
-                    launch { proxy.refreshServerCapabilities(server.serverId) }
-                }.joinAll()
+                supervisorScope {
+                    downstreams.map { server ->
+                        launch {
+                            try {
+                                proxy.refreshServerCapabilities(server.serverId)
+                            } catch (e: CancellationException) {
+                                throw e
+                            } catch (t: Throwable) {
+                                logger.warn(
+                                    "Initial capabilities refresh failed for '${server.serverId}'",
+                                    t,
+                                )
+                            }
+                        }
+                    }.joinAll()
+                }
             }
     }
 }
