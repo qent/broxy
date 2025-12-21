@@ -105,8 +105,8 @@ internal object BroxyCliTestEnvironment {
                 client.disconnect()
                 cliProcess.close()
                 val isPortInUse =
-                    error.message?.contains("Address already in use") == true ||
-                        cliLogs.contains("Address already in use")
+                    error.message?.contains("already in use", ignoreCase = true) == true ||
+                        cliLogs.contains("already in use", ignoreCase = true)
                 val hasAttemptsRemaining = attempt + 1 < BroxyCliIntegrationConfig.HTTP_INBOUND_ATTEMPTS
                 if (isPortInUse && hasAttemptsRemaining) {
                     BroxyCliIntegrationConfig.log("Inbound port $port unavailable, retrying with a new port")
