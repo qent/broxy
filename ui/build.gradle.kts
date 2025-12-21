@@ -1,4 +1,5 @@
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
+import org.jetbrains.compose.desktop.application.tasks.AbstractJLinkTask
 
 plugins {
     kotlin("multiplatform")
@@ -50,6 +51,8 @@ compose.desktop {
             packageName = "broxy"
             vendor = "Qent"
             description = "broxy: manage and route MCP servers, tools and presets across clients."
+            includeAllModules = false
+            modules("java.instrument", "java.management", "jdk.unsupported")
             // Compose Desktop installers require MAJOR > 0
             val rawVersion = project.version.toString()
             val parts = rawVersion.split('.')
@@ -98,5 +101,20 @@ compose.desktop {
                 }
             }
         }
+
+        buildTypes {
+            release {
+                proguard {
+                    optimize.set(false)
+                    configurationFiles.from(
+                        project.layout.projectDirectory.file("proguard-release.pro"),
+                    )
+                }
+            }
+        }
     }
+}
+
+tasks.withType<AbstractJLinkTask>().configureEach {
+    freeArgs.add("--compress=2")
 }

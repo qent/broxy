@@ -41,16 +41,30 @@ jobs:
         shell: bash
 
       - name: Package DMG
-        run: ./gradlew --no-daemon :ui:packageDistributionForCurrentOS
+        run: ./gradlew --no-daemon :ui:packageReleaseDistributionForCurrentOS
         shell: bash
 
       - name: Locate DMG path
         id: paths_macos
-        run: echo "path=ui/build/compose/binaries/main/dmg" >> $GITHUB_OUTPUT
+        run: echo "path=ui/build/compose/binaries/main-release/dmg" >> $GITHUB_OUTPUT
 
       - name: Show produced files
         run: |
           echo "Artifacts in $ART_PATH" && ls -la "$ART_PATH"
+        env:
+          ART_PATH: ${{ steps.paths_macos.outputs.path }}
+
+      - name: Recompress DMG (max compression)
+        run: |
+          cd "$ART_PATH"
+          shopt -s nullglob
+          for dmg in *.dmg; do
+            [ -f "$dmg" ] || continue
+            base="${dmg%.dmg}"
+            hdiutil convert "$dmg" -format UDZO -imagekey zlib-level=9 -o "${base}-compressed.dmg"
+            rm -f "$dmg"
+            mv "${base}-compressed.dmg" "$dmg"
+          done
         env:
           ART_PATH: ${{ steps.paths_macos.outputs.path }}
 
@@ -84,4 +98,3 @@ jobs:
             ${{ steps.paths_macos.outputs.path }}/CHECKSUMS.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-

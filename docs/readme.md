@@ -18,3 +18,4 @@ Recommended reading order:
 10. `docs/testing.md` - testing practices and test entry points.
 11. `docs/test_mcp_server_status.md` - self-check for the test MCP server.
 12. `docs/localization.md` - UI localization strings and language wiring.
+13. `docs/distribution.md` - minimal DMG packaging and local build commands.
