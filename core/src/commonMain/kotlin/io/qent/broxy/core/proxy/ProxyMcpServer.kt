@@ -61,7 +61,7 @@ class ProxyMcpServer(
         currentPreset = preset
         status = ServerStatus.Starting
         status = ServerStatus.Running
-        logger.info("broxy server started with preset '${preset.name}'")
+        logger.info("Broxy server started with preset '${preset.name}'")
 
         // NOTE: Inbound transport (STDIO/HTTP/WS) bindings are provided by JVM-specific adapters.
         // This commonMain class focuses on filtering/routing logic.
@@ -71,7 +71,7 @@ class ProxyMcpServer(
         status = ServerStatus.Stopping
         // Inbound transport shutdown is handled by platform-specific adapters.
         status = ServerStatus.Stopped
-        logger.info("broxy server stopped")
+        logger.info("Broxy server stopped")
     }
 
     override fun getStatus(): ServerStatus = status

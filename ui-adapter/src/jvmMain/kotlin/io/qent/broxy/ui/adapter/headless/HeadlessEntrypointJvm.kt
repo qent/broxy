@@ -146,7 +146,7 @@ fun runStdioProxy(
         transport.onClose { shutdownSignal.complete(Unit) }
 
         sink.info(
-            "Starting broxy STDIO proxy (presetId='${effectivePresetId ?: "none"}', configDir='${configDir ?: "~/.config/broxy"}')",
+            "Starting Broxy STDIO proxy (presetId='${effectivePresetId ?: "none"}', configDir='${configDir ?: "~/.config/broxy"}')",
         )
 
         val refreshScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -203,7 +203,7 @@ fun runStdioProxy(
             runCatching { proxy.stop() }
             runBlocking { downstreams.forEach { runCatching { it.disconnect() } } }
             downstreams.forEach { runCatching { it.close() } }
-            sink.info("broxy STDIO proxy stopped")
+            sink.info("Broxy STDIO proxy stopped")
         }
     }
 

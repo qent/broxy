@@ -1,8 +1,8 @@
-# broxy architecture (clean architecture + MCP proxy)
+# Broxy architecture (clean architecture + MCP proxy)
 
 ## Goal
 
-broxy is a proxy for Model Context Protocol (MCP) that:
+Broxy is a proxy for Model Context Protocol (MCP) that:
 
 - connects to multiple downstream MCP servers (STDIO, HTTP SSE, Streamable HTTP, WebSocket);
 - aggregates their capabilities (tools, prompts, resources);
@@ -76,7 +76,7 @@ CLI starts the proxy and the configuration watcher:
 4. The inbound adapter builds an MCP SDK `Server` via `buildSdkServer(proxy)` and exposes
    `tools/list`, `prompts/list`, `resources/list`, and handlers for `callTool/getPrompt/readResource`.
 
-### 2) Tool call (LLM -> broxy -> downstream)
+### 2) Tool call (LLM -> Broxy -> downstream)
 
 Key contract: inbound tool names must be prefixed as `serverId:toolName`.
 

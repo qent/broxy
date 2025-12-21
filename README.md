@@ -1,10 +1,10 @@
-# broxy — your single MCP endpoint
+# Broxy — your single MCP endpoint
 
-broxy is the one local endpoint that unifies all your MCP tools and clients. Instead of wiring
-every agent to every server, you connect everything to broxy once and keep your setup clean,
+Broxy is the one local endpoint that unifies all your MCP tools and clients. Instead of wiring
+every agent to every server, you connect everything to Broxy once and keep your setup clean,
 focused, and easy to switch per task.
 
-## Why broxy
+## Why Broxy
 
 - Keep agents focused on the job: expose only the tools that matter.
 - Save money and context tokens: fewer tools, fewer irrelevant descriptions.
@@ -16,15 +16,15 @@ focused, and easy to switch per task.
 
 ## How it works
 
-1. Add MCP servers in broxy.
+1. Add MCP servers in Broxy.
 2. Create task-focused tool sets.
-3. Point clients to broxy and work through one endpoint.
+3. Point clients to Broxy and work through one endpoint.
 
 ## Connection examples
 
 ### STDIO (local connection, for example Claude Desktop)
 
-Pick your tool set in broxy, then connect via STDIO:
+Pick your tool set in Broxy, then connect via STDIO:
 
 ```json
 {
@@ -39,7 +39,7 @@ Pick your tool set in broxy, then connect via STDIO:
 
 ### Streamable HTTP (local HTTP endpoint)
 
-Start broxy and connect over a local HTTP endpoint:
+Start Broxy and connect over a local HTTP endpoint:
 
 ```json
 {

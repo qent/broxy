@@ -150,7 +150,7 @@ val testServerHome = testServerProject.layout.buildDirectory.dir("install/test-m
 
 val integrationTest =
     tasks.register<Test>("integrationTest") {
-        description = "Runs broxy CLI jar integration tests (STDIO + HTTP Streamable)."
+        description = "Runs Broxy CLI jar integration tests (STDIO + HTTP Streamable)."
         group = "verification"
         testClassesDirs = integrationTestSourceSet.output.classesDirs
         classpath = integrationTestSourceSet.runtimeClasspath

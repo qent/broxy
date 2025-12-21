@@ -116,7 +116,7 @@ Notes:
 ## OAuth auth block
 
 Downstream HTTP/SSE, Streamable HTTP, and WebSocket servers can include an `auth` block for OAuth.
-If the server supports dynamic client registration, broxy can auto-discover OAuth parameters via
+If the server supports dynamic client registration, Broxy can auto-discover OAuth parameters via
 `/.well-known` endpoints and no `auth` block is required.
 
 - `type`: `"oauth"`

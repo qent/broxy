@@ -2,7 +2,7 @@
 
 ## What inbound transport means
 
-Inbound is how broxy accepts MCP JSON-RPC requests from clients.
+Inbound is how Broxy accepts MCP JSON-RPC requests from clients.
 
 Supported inbound transports on JVM:
 

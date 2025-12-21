@@ -25,7 +25,7 @@ import kotlinx.serialization.json.Json
 import java.io.File
 import java.nio.file.Paths
 
-class ProxyCommand : CliktCommand(name = "proxy", help = "Run broxy server") {
+class ProxyCommand : CliktCommand(name = "proxy", help = "Run Broxy server") {
     private val configDir: File by option(
         "--config-dir",
         help = "Directory containing mcp.json and preset_*.json. Defaults to ~/.config/broxy.",

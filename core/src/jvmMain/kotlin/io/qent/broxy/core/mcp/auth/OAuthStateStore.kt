@@ -58,7 +58,7 @@ class OAuthStateStore private constructor(
         if (Files.exists(legacyFile)) {
             logger.warn(
                 "Legacy OAuth cache file found at ${legacyFile.toAbsolutePath()}. " +
-                    "broxy now stores OAuth data in the system secure storage.",
+                    "Broxy now stores OAuth data in the system secure storage.",
             )
         }
     }

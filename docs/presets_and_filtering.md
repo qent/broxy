@@ -3,7 +3,7 @@
 ## Terms
 
 - Downstream capabilities: the raw `tools/resources/prompts` exposed by each downstream MCP server.
-- Filtered capabilities: the view published by broxy after preset filtering.
+- Filtered capabilities: the view published by Broxy after preset filtering.
 - Preset: a declarative allow list and scope definition for tools, prompts, and resources.
 
 ## Preset model

@@ -1,4 +1,4 @@
-# agents.md - development guide for broxy
+# agents.md - development guide for Broxy
 
 ## Documentation (mandatory for AI agents)
 

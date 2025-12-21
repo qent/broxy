@@ -50,7 +50,7 @@
     "capabilitiesRefreshIntervalSeconds": {
       "type": "integer",
       "minimum": 30,
-      "description": "How often (in seconds) broxy refreshes cached server capabilities in the background.",
+      "description": "How often (in seconds) Broxy refreshes cached server capabilities in the background.",
       "default": 300
     },
     "showTrayIcon": {

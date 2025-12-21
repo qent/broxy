@@ -1,6 +1,6 @@
 # Proxy facade and request routing (ProxyMcpServer + MCP SDK)
 
-## What the facade is in broxy
+## What the facade is in Broxy
 
 The facade is the combined stack of:
 
@@ -27,7 +27,7 @@ routing and filtering logic.
 
 ### Why the prefix is required
 
-Multiple downstream servers can expose the same tool name. broxy avoids collisions by requiring
+Multiple downstream servers can expose the same tool name. Broxy avoids collisions by requiring
 prefixed tool names:
 
 - inbound tool name: `serverId:toolName`
@@ -83,7 +83,7 @@ File: `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/SdkServerFactory
 
 ### Runtime capability updates on preset change
 
-When `ProxyController.applyPreset(...)` is called broxy:
+When `ProxyController.applyPreset(...)` is called Broxy:
 
 1) recomputes the filtered view (capabilities + allow list + routing maps) in `ProxyMcpServer`;
 2) re-syncs the running SDK `Server` via `syncSdkServer(...)`.

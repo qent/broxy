@@ -1,4 +1,4 @@
-Icon placeholders for broxy installers
+Icon placeholders for Broxy installers
 
 Provide platform-specific icons here (optional but recommended):
 

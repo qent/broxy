@@ -1,6 +1,6 @@
 # Localization
 
-broxy UI strings live in `ui/src/commonMain/kotlin/io/qent/broxy/ui/strings/AppStrings.kt`.
+Broxy UI strings live in `ui/src/commonMain/kotlin/io/qent/broxy/ui/strings/AppStrings.kt`.
 The UI reads them via the `LocalStrings` composition local, and the desktop tray uses the same
 `AppStrings` instance passed from `DesktopApp`.
 

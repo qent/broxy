@@ -297,7 +297,7 @@ class OAuthManager(
         val authMethod = resolveTokenEndpointAuthMethod(config.tokenEndpointAuthMethod, null, null)
         val payload =
             buildJsonObject {
-                put("client_name", JsonPrimitive(config.clientName ?: "broxy"))
+                put("client_name", JsonPrimitive(config.clientName ?: "Broxy"))
                 putJsonArray("redirect_uris") { add(JsonPrimitive(redirectUri)) }
                 putJsonArray("grant_types") { add(JsonPrimitive("authorization_code")) }
                 putJsonArray("response_types") { add(JsonPrimitive("code")) }

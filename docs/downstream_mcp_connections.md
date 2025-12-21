@@ -152,7 +152,7 @@ Timeout behavior:
 - When metadata is available, completes OAuth before connecting to the MCP endpoint; otherwise falls
   back to an unauthenticated probe and step-up authorization.
 
-If the server supports dynamic client registration, broxy can auto-discover OAuth parameters via
+If the server supports dynamic client registration, Broxy can auto-discover OAuth parameters via
 `/.well-known` endpoints. Use the `auth` block in `mcp.json` only for pre-registered credentials
 or servers without dynamic registration (see `docs/remote_auth_and_websocket.md`).
 

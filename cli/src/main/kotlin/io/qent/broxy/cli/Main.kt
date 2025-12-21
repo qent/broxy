@@ -6,7 +6,7 @@ import io.qent.broxy.cli.commands.ProxyCommand
 
 private class BroxyCli : CliktCommand(name = "broxy") {
     override fun run() {
-        echo("broxy CLI")
+        echo("Broxy CLI")
     }
 }
 

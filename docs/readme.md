@@ -1,6 +1,6 @@
 # Documentation for AI agents and maintainers
 
-This folder contains detailed documentation for broxy subsystems: architecture, proxy facade, downstream
+This folder contains detailed documentation for Broxy subsystems: architecture, proxy facade, downstream
 connections, preset filtering, configuration and hot reload, inbound transports, remote auth and WebSocket
 transport, capabilities snapshots for the UI, and logging.
 

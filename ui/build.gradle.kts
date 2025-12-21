@@ -50,7 +50,7 @@ compose.desktop {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "broxy"
             vendor = "Qent"
-            description = "broxy: manage and route MCP servers, tools and presets across clients."
+            description = "Broxy: manage and route MCP servers, tools and presets across clients."
             includeAllModules = false
             modules("java.instrument", "java.management", "jdk.unsupported")
             // Compose Desktop installers require MAJOR > 0
@@ -83,7 +83,7 @@ compose.desktop {
             windows {
                 packageVersion = sanitizedVersion
                 // Menu + shortcuts
-                menuGroup = "broxy"
+                menuGroup = "Broxy"
                 shortcut = true
                 // Stable upgrade UUID for MSI upgrades
                 upgradeUuid = "2b7e8e4c-0b20-4f7a-93b8-66f57d1f7f3a"

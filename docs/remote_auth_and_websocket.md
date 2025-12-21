@@ -1,7 +1,7 @@
 # Remote auth (OAuth) for downstream HTTP/WS
 
-broxy supports OAuth authorization for downstream MCP servers using HTTP-based transports. If the
-server supports dynamic client registration, broxy can auto-discover OAuth parameters via the
+Broxy supports OAuth authorization for downstream MCP servers using HTTP-based transports. If the
+server supports dynamic client registration, Broxy can auto-discover OAuth parameters via the
 well-known metadata endpoints and no explicit `auth` block is required.
 
 - HTTP SSE
@@ -12,7 +12,7 @@ STDIO transports do **not** use OAuth; use environment variables for credentials
 
 ## Discovery flow (resource server)
 
-broxy follows the MCP OAuth specification with a pre-authorization step:
+Broxy follows the MCP OAuth specification with a pre-authorization step:
 
 1. Probe well-known Protected Resource Metadata endpoints before connecting to the MCP URL.
 2. If metadata is found, complete OAuth (including dynamic registration when enabled) before opening the MCP session.
@@ -27,13 +27,13 @@ The resource metadata **must** include `authorization_servers`.
 
 ## Authorization server metadata
 
-For each authorization server issuer, broxy attempts OAuth 2.0 and OpenID Connect discovery
+For each authorization server issuer, Broxy attempts OAuth 2.0 and OpenID Connect discovery
 endpoints in priority order, including the RFC 8414 path insertion rules. PKCE support is
 required; if `code_challenge_methods_supported` does not include `S256`, authorization fails.
 
 ## Scope selection
 
-broxy selects scopes in this order:
+Broxy selects scopes in this order:
 
 1. `scope` from the `WWW-Authenticate` challenge (when present)
 2. `scopes_supported` from the Protected Resource Metadata document
@@ -83,20 +83,20 @@ Add an `auth` block to a server to enable OAuth:
   `resource` value from Protected Resource Metadata when present.
 - Performs step-up authorization on `insufficient_scope` challenges.
 - Uses refresh tokens when provided.
-- When OAuth is required, broxy extends the connect timeout to allow the user to complete the
+- When OAuth is required, Broxy extends the connect timeout to allow the user to complete the
   browser consent flow and only connects to the MCP endpoint after authorization succeeds.
 
 ## OAuth secure storage
 
-broxy stores OAuth tokens and dynamic client registration data in the system secure storage
+Broxy stores OAuth tokens and dynamic client registration data in the system secure storage
 (Keychain on macOS, Secret Service on Linux). On restart, cached tokens are reused when still
 valid, and refresh tokens are used when available to avoid interactive login. If the cached
 resource URL does not match the current server URL, the cached entry is ignored.
 
-If secure storage is unavailable, broxy keeps OAuth state in memory for the current session only
+If secure storage is unavailable, Broxy keeps OAuth state in memory for the current session only
 and requires re-authorization after restart.
 
 ## WebSocket notes
 
 WebSocket transports include the OAuth Bearer token during the HTTP handshake. If scopes
-change (step-up authorization), broxy reconnects using the updated token.
+change (step-up authorization), Broxy reconnects using the updated token.

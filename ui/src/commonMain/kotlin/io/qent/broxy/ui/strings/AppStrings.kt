@@ -280,7 +280,7 @@ interface AppStrings {
 }
 
 object EnglishStrings : AppStrings {
-    override val appName = "broxy"
+    override val appName = "Broxy"
 
     override val appGreeting = "Hello from UI"
 
@@ -339,7 +339,7 @@ object EnglishStrings : AppStrings {
             "This action cannot be undone."
 
     override val deletePresetDescription =
-        "This preset will disappear from broxy, including the CLI shortcuts that rely on it. This action cannot be undone."
+        "This preset will disappear from Broxy, including the CLI shortcuts that rely on it. This action cannot be undone."
 
     override val editServer = "Edit server"
 
@@ -438,7 +438,7 @@ object EnglishStrings : AppStrings {
 
     override val showTrayIconTitle = "Show tray icon"
 
-    override val showTrayIconDescription = "Display the broxy icon in the system tray."
+    override val showTrayIconDescription = "Display the Broxy icon in the system tray."
 
     override val logsTitle = "Logs"
 
@@ -500,7 +500,7 @@ object EnglishStrings : AppStrings {
 
     override fun trayServerStatus(statusText: String): String = "SSE server: $statusText"
 
-    override val trayShowApp = "Show broxy"
+    override val trayShowApp = "Show Broxy"
 
     override val trayExit = "Exit"
 
