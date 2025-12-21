@@ -4,8 +4,13 @@ import io.qent.broxy.core.mcp.ServerCapabilities
 import io.qent.broxy.core.models.McpServerConfig
 import io.qent.broxy.core.models.TransportConfig
 import io.qent.broxy.core.utils.Logger
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeout
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -108,6 +113,52 @@ class CapabilityRefresherTest {
             nowMillis = 20_000L
             refresher.refreshEnabledServers(force = false)
             assertEquals(listOf("s1"), calls)
+        }
+
+    @Test
+    fun markServerDisabled_cancels_inflight_refresh() =
+        runTest {
+            val started = CompletableDeferred<Unit>()
+            val cancelled = CompletableDeferred<Unit>()
+            val config =
+                McpServerConfig(
+                    id = "s1",
+                    name = "Server 1",
+                    transport = TransportConfig.StdioTransport(command = "noop"),
+                    enabled = true,
+                )
+            val cache = CapabilityCache { 0L }
+            val statusTracker = ServerStatusTracker { 0L }
+            val refresher =
+                CapabilityRefresher(
+                    scope = this,
+                    capabilityFetcher = { _, _ ->
+                        started.complete(Unit)
+                        try {
+                            awaitCancellation()
+                        } catch (e: CancellationException) {
+                            cancelled.complete(Unit)
+                            throw e
+                        }
+                        Result.success(ServerCapabilities())
+                    },
+                    capabilityCache = cache,
+                    statusTracker = statusTracker,
+                    logger = NoopLogger,
+                    serversProvider = { listOf(config) },
+                    capabilitiesTimeoutProvider = { 5 },
+                    publishUpdate = {},
+                    refreshIntervalMillis = { 0L },
+                )
+
+            val refreshJob = launch { refresher.refreshEnabledServers(force = true) }
+            withTimeout(1_000) { started.await() }
+
+            refresher.markServerDisabled("s1")
+
+            withTimeout(1_000) { cancelled.await() }
+            refreshJob.join()
+            assertEquals(ServerConnectionStatus.Disabled, statusTracker.statusFor("s1"))
         }
 }
 

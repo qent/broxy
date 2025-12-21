@@ -2,6 +2,7 @@ package io.qent.broxy.core.capabilities
 
 import io.qent.broxy.core.models.McpServerConfig
 import io.qent.broxy.core.utils.Logger
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
@@ -23,11 +24,14 @@ class CapabilityRefresher(
 ) {
     private var refreshJob: Job? = null
     private var backgroundEnabled = true
+    private val refreshJobs = mutableMapOf<String, Job>()
+    private val refreshLock = Any()
 
     fun syncWithServers(servers: List<McpServerConfig>) {
         val ids = servers.map { it.id }.toSet()
         capabilityCache.retain(ids)
         statusTracker.retain(ids)
+        cancelRefreshesNotIn(ids)
     }
 
     fun updateCachedName(
@@ -38,11 +42,13 @@ class CapabilityRefresher(
     }
 
     fun markServerDisabled(serverId: String) {
+        cancelRefresh(serverId)
         capabilityCache.remove(serverId)
         statusTracker.set(serverId, ServerConnectionStatus.Disabled)
     }
 
     fun markServerRemoved(serverId: String) {
+        cancelRefresh(serverId)
         capabilityCache.remove(serverId)
         statusTracker.remove(serverId)
     }
@@ -145,29 +151,41 @@ class CapabilityRefresher(
         publishUpdate()
 
         coroutineScope {
-            targets.map { cfg ->
-                launch {
-                    val snapshot =
-                        runCatching { fetchAndCacheCapabilities(cfg) }
-                            .onFailure { error ->
-                                logger.info("CapabilityRefresher refresh server '${cfg.id}' failed: ${error.message}")
-                            }
-                            .getOrNull()
-                    if (snapshot == null && !capabilityCache.has(cfg.id)) {
-                        capabilityCache.remove(cfg.id)
-                    }
-                    val capsSnapshot = snapshot ?: capabilityCache.snapshot(cfg.id)
-                    val currentServers = serversProvider().associateBy { it.id }
-                    val enabled = currentServers[cfg.id]?.enabled == true
-                    val status =
-                        when {
-                            !enabled -> ServerConnectionStatus.Disabled
-                            capsSnapshot != null -> ServerConnectionStatus.Available
-                            else -> ServerConnectionStatus.Error
+            targets.mapNotNull { cfg ->
+                if (isRefreshActive(cfg.id)) return@mapNotNull null
+                val job =
+                    launch {
+                        val currentServers = serversProvider().associateBy { it.id }
+                        val enabled = currentServers[cfg.id]?.enabled == true
+                        if (!enabled) {
+                            statusTracker.set(cfg.id, ServerConnectionStatus.Disabled)
+                            publishUpdate()
+                            return@launch
                         }
-                    statusTracker.set(cfg.id, status)
-                    publishUpdate()
-                }
+                        val snapshot =
+                            runCatching { fetchAndCacheCapabilities(cfg) }
+                                .onFailure { error ->
+                                    error.rethrowIfCancelled()
+                                    logger.info("CapabilityRefresher refresh server '${cfg.id}' failed: ${error.message}")
+                                }
+                                .getOrNull()
+                        if (snapshot == null && !capabilityCache.has(cfg.id)) {
+                            capabilityCache.remove(cfg.id)
+                        }
+                        val capsSnapshot = snapshot ?: capabilityCache.snapshot(cfg.id)
+                        val refreshedServers = serversProvider().associateBy { it.id }
+                        val stillEnabled = refreshedServers[cfg.id]?.enabled == true
+                        val status =
+                            when {
+                                !stillEnabled -> ServerConnectionStatus.Disabled
+                                capsSnapshot != null -> ServerConnectionStatus.Available
+                                else -> ServerConnectionStatus.Error
+                            }
+                        statusTracker.set(cfg.id, status)
+                        publishUpdate()
+                    }
+                trackRefreshJob(cfg.id, job)
+                job
             }.joinAll()
         }
     }
@@ -181,6 +199,49 @@ class CapabilityRefresher(
             snapshot
         } else {
             null
+        }
+    }
+
+    private fun isRefreshActive(serverId: String): Boolean =
+        synchronized(refreshLock) {
+            refreshJobs[serverId]?.isActive == true
+        }
+
+    private fun trackRefreshJob(
+        serverId: String,
+        job: Job,
+    ) {
+        synchronized(refreshLock) {
+            refreshJobs[serverId] = job
+        }
+        job.invokeOnCompletion {
+            synchronized(refreshLock) {
+                val current = refreshJobs[serverId]
+                if (current == job) {
+                    refreshJobs.remove(serverId)
+                }
+            }
+        }
+    }
+
+    private fun cancelRefresh(serverId: String) {
+        synchronized(refreshLock) {
+            refreshJobs.remove(serverId)
+        }?.cancel()
+    }
+
+    private fun cancelRefreshesNotIn(validIds: Set<String>) {
+        val toCancel =
+            synchronized(refreshLock) {
+                val ids = refreshJobs.keys.filterNot { it in validIds }
+                ids.mapNotNull { id -> refreshJobs.remove(id) }
+            }
+        toCancel.forEach { it.cancel() }
+    }
+
+    private fun Throwable.rethrowIfCancelled() {
+        if (this is CancellationException) {
+            throw this
         }
     }
 }
