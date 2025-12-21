@@ -95,7 +95,7 @@ fun runStdioProxy(
             ProxyMcpServer(
                 downstreams = downstreams,
                 logger = logger,
-                onCapabilitiesUpdated = {
+                onCapabilitiesUpdated = { _ ->
                     val server = sdkServer
                     val activeProxy = proxyRef
                     if (server != null && activeProxy != null) {

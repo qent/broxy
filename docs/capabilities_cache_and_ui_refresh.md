@@ -120,3 +120,9 @@ UI snapshots and proxy runtime are separate but share configuration:
 
 `CapabilityRefresher` uses `capabilitiesTimeoutSeconds` from store snapshots for
 server validation and background refresh.
+
+When the proxy is running, UI snapshots are updated from proxy capability updates
+instead of triggering direct capability fetches. This avoids spawning duplicate
+downstream connections and keeps UI data in sync with `ProxyMcpServer` refreshes.
+Background refresh is disabled while proxy capability updates are active, and
+manual refresh falls back to UI polling only when the proxy is not running.

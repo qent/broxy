@@ -1,5 +1,7 @@
 package io.qent.broxy.ui.adapter.store
 
+import io.qent.broxy.core.capabilities.ServerCapsSnapshot
+import io.qent.broxy.core.capabilities.ToolSummary
 import io.qent.broxy.core.models.McpServerConfig
 import io.qent.broxy.core.models.McpServersConfig
 import io.qent.broxy.core.models.Preset
@@ -49,6 +51,17 @@ class AppStoreTest {
                 throwable: Throwable?,
             ) {}
         }
+
+    private fun serverSnapshot(
+        serverId: String,
+        name: String,
+        toolNames: List<String> = emptyList(),
+    ): ServerCapsSnapshot =
+        ServerCapsSnapshot(
+            serverId = serverId,
+            name = name,
+            tools = toolNames.map { ToolSummary(name = it, description = "") },
+        )
 
     @org.junit.Test
     fun startLoadsConfigurationAndCachesCapabilities() =
@@ -108,6 +121,8 @@ class AppStoreTest {
 
             store.start()
             storeScope.advanceUntilIdle()
+            proxyController.emitSnapshots(listOf(serverSnapshot("s1", "Server 1", listOf("alpha"))))
+            storeScope.advanceUntilIdle()
 
             val state = store.state.value
             assertTrue(state is UIState.Ready, "Expected Ready state, got $state")
@@ -122,8 +137,8 @@ class AppStoreTest {
             assertEquals(180, ready.capabilitiesRefreshIntervalSeconds)
             assertEquals(listOf(42), proxyController.callTimeoutUpdates)
             assertEquals(listOf(24), proxyController.capabilityTimeoutUpdates)
-            assertEquals(listOf("s1"), capabilityFetcher.requestedIds)
-            assertEquals(listOf(24), capabilityFetcher.requestedTimeouts)
+            assertTrue(capabilityFetcher.requestedIds.isEmpty())
+            assertTrue(capabilityFetcher.requestedTimeouts.isEmpty())
 
             storeScope.cancel()
         }
@@ -221,7 +236,7 @@ class AppStoreTest {
             storeScope.advanceUntilIdle()
 
             assertEquals(1, proxyController.startCalls.size)
-            store.getServerCaps("s1", forceRefresh = true)
+            proxyController.emitSnapshots(listOf(serverSnapshot("s1", "Server 1")))
             storeScope.advanceUntilIdle()
 
             var readyState = store.state.value
@@ -605,6 +620,8 @@ class AppStoreTest {
     private class FakeProxyController : ProxyController {
         private val _logs = MutableSharedFlow<LogEvent>(extraBufferCapacity = 16)
         override val logs = _logs
+        private val _capabilityUpdates = MutableSharedFlow<List<ServerCapsSnapshot>>(replay = 1)
+        override val capabilityUpdates = _capabilityUpdates
 
         data class StartParams(
             val servers: List<UiMcpServerConfig>,
@@ -666,6 +683,10 @@ class AppStoreTest {
         }
 
         override fun currentProxy(): ProxyMcpServer? = null
+
+        fun emitSnapshots(snapshots: List<ServerCapsSnapshot>) {
+            _capabilityUpdates.tryEmit(snapshots)
+        }
     }
 
     private class RecordingCapabilityFetcher(

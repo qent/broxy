@@ -1,5 +1,6 @@
 package io.qent.broxy.core.proxy.runtime
 
+import io.qent.broxy.core.capabilities.ServerCapsSnapshot
 import io.qent.broxy.core.models.McpServerConfig
 import io.qent.broxy.core.models.Preset
 import io.qent.broxy.core.models.TransportConfig
@@ -14,6 +15,7 @@ import kotlinx.coroutines.flow.Flow
  */
 interface ProxyController {
     val logs: Flow<LogEvent>
+    val capabilityUpdates: Flow<List<ServerCapsSnapshot>>
 
     fun start(
         servers: List<McpServerConfig>,

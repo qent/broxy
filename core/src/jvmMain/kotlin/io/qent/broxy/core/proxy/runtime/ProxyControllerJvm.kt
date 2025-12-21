@@ -1,8 +1,11 @@
 package io.qent.broxy.core.proxy.runtime
 
+import io.qent.broxy.core.capabilities.ServerCapsSnapshot
+import io.qent.broxy.core.capabilities.toSnapshot
 import io.qent.broxy.core.mcp.DefaultMcpServerConnection
 import io.qent.broxy.core.mcp.IsolatedMcpServerConnection
 import io.qent.broxy.core.mcp.McpServerConnection
+import io.qent.broxy.core.mcp.ServerCapabilities
 import io.qent.broxy.core.mcp.ServerStatus
 import io.qent.broxy.core.models.McpServerConfig
 import io.qent.broxy.core.models.Preset
@@ -19,6 +22,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -56,6 +60,7 @@ private class JvmProxyController(
     private var inboundServer: InboundServer? = null
     private val refreshScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var refreshJob: Job? = null
+    private val _capabilityUpdates = MutableSharedFlow<List<ServerCapsSnapshot>>(replay = 1)
 
     @Volatile
     private var callTimeoutMillis: Long = 60_000
@@ -64,6 +69,7 @@ private class JvmProxyController(
     private var capabilitiesTimeoutMillis: Long = 30_000
 
     override val logs: Flow<LogEvent> get() = logger.events
+    override val capabilityUpdates: Flow<List<ServerCapsSnapshot>> get() = _capabilityUpdates
 
     override fun start(
         servers: List<McpServerConfig>,
@@ -88,8 +94,9 @@ private class JvmProxyController(
                     ProxyMcpServer(
                         downstreams,
                         logger = logger,
-                        onCapabilitiesUpdated = {
+                        onCapabilitiesUpdated = { capabilities ->
                             inboundServer?.refreshCapabilities()
+                            emitCapabilitySnapshots(capabilities)
                         },
                     )
                 proxy.start(preset, inbound)
@@ -210,6 +217,18 @@ private class JvmProxyController(
     }
 
     override fun currentProxy(): ProxyMcpServer? = proxy
+
+    private fun emitCapabilitySnapshots(capabilitiesById: Map<String, ServerCapabilities>) {
+        if (capabilitiesById.isEmpty()) return
+        val configs = managedDownstreams.values.map { it.config }
+        val snapshots =
+            configs.mapNotNull { cfg ->
+                capabilitiesById[cfg.id]?.toSnapshot(cfg)
+            }
+        if (snapshots.isNotEmpty()) {
+            _capabilityUpdates.tryEmit(snapshots)
+        }
+    }
 
     private fun createManagedDownstream(config: McpServerConfig): ManagedDownstream {
         val connection =

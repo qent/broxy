@@ -30,7 +30,7 @@ internal class AppStoreIntents(
     private val proxyLifecycle: ProxyLifecycle,
     private val loadConfiguration: suspend () -> Result<Unit>,
     private val refreshEnabledCaps: suspend (Boolean) -> Unit,
-    private val restartRefreshJob: () -> Unit,
+    private val restartRefreshJob: (Boolean) -> Unit,
     private val publishReady: () -> Unit,
     private val remoteConnector: RemoteConnector,
 ) : Intents {
@@ -46,8 +46,12 @@ internal class AppStoreIntents(
             }
             publishReady()
             proxyRuntime.ensureInboundRunning(forceRestart = true)
-            refreshEnabledCaps(true)
-            restartRefreshJob()
+            if (proxyLifecycle.isRunning()) {
+                restartRefreshJob(false)
+            } else {
+                refreshEnabledCaps(true)
+                restartRefreshJob(true)
+            }
         }
     }
 
@@ -453,8 +457,12 @@ internal class AppStoreIntents(
                 state.updateSnapshot { copy(capabilitiesRefreshIntervalSeconds = previous) }
                 state.setError(msg)
             } else {
-                restartRefreshJob()
-                refreshEnabledCaps(true)
+                if (proxyLifecycle.isRunning()) {
+                    restartRefreshJob(false)
+                } else {
+                    restartRefreshJob(true)
+                    refreshEnabledCaps(true)
+                }
             }
             publishReady()
         }
@@ -533,6 +541,7 @@ internal class AppStoreIntents(
         force: Boolean,
     ) {
         if (ids.isEmpty()) return
+        if (proxyLifecycle.isRunning()) return
         scope.launch { capabilityRefresher.refreshServersById(ids, force) }
     }
 }

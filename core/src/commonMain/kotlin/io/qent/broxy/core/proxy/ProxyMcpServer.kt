@@ -23,7 +23,7 @@ class ProxyMcpServer(
     downstreams: List<McpServerConnection>,
     private val logger: Logger = ConsoleLogger,
     private val toolFilter: ToolFilter = DefaultToolFilter(),
-    private val onCapabilitiesUpdated: (() -> Unit)? = null,
+    private val onCapabilitiesUpdated: ((Map<String, ServerCapabilities>) -> Unit)? = null,
 ) : ProxyServer {
     @Volatile
     private var status: ServerStatus = ServerStatus.Stopped
@@ -232,7 +232,8 @@ class ProxyMcpServer(
 
     private fun notifyCapabilitiesUpdated() {
         val callback = onCapabilitiesUpdated ?: return
-        runCatching { callback() }
+        val snapshot = allCapabilities.toMap()
+        runCatching { callback(snapshot) }
             .onFailure { logger.warn("Failed to sync inbound capabilities", it) }
     }
 

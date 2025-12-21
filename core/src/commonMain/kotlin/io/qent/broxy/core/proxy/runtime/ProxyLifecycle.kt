@@ -1,9 +1,11 @@
 package io.qent.broxy.core.proxy.runtime
 
+import io.qent.broxy.core.capabilities.ServerCapsSnapshot
 import io.qent.broxy.core.models.McpServersConfig
 import io.qent.broxy.core.models.Preset
 import io.qent.broxy.core.models.TransportConfig
 import io.qent.broxy.core.utils.Logger
+import kotlinx.coroutines.flow.Flow
 
 /**
  * Coordinates ProxyController start/stop/update operations and keeps track of the
@@ -14,6 +16,7 @@ class ProxyLifecycle(
     private val controller: ProxyController,
     private val logger: Logger,
 ) {
+    val capabilityUpdates: Flow<List<ServerCapsSnapshot>> get() = controller.capabilityUpdates
     private var currentConfig: McpServersConfig? = null
     private var currentPreset: Preset? = null
     private var currentInbound: TransportConfig? = null

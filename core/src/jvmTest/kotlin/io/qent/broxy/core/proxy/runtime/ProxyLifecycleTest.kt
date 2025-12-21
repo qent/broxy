@@ -1,5 +1,6 @@
 package io.qent.broxy.core.proxy.runtime
 
+import io.qent.broxy.core.capabilities.ServerCapsSnapshot
 import io.qent.broxy.core.models.McpServerConfig
 import io.qent.broxy.core.models.McpServersConfig
 import io.qent.broxy.core.models.Preset
@@ -87,6 +88,7 @@ private class FakeProxyController : ProxyController {
     )
 
     override val logs: Flow<LogEvent> = emptyFlow()
+    override val capabilityUpdates: Flow<List<ServerCapsSnapshot>> = emptyFlow()
 
     val startCalls = mutableListOf<StartCall>()
 

@@ -113,6 +113,31 @@ class CapabilityRefresher(
         refreshServers(targets)
     }
 
+    fun applyProxySnapshots(snapshots: List<ServerCapsSnapshot>) {
+        val servers = serversProvider()
+        val enabledIds = servers.filter { it.enabled }.map { it.id }.toSet()
+        val byId = snapshots.associateBy { it.serverId }
+
+        byId.forEach { (serverId, snapshot) ->
+            capabilityCache.put(serverId, snapshot)
+        }
+        capabilityCache.retain(byId.keys)
+
+        enabledIds.forEach { serverId ->
+            val status =
+                if (serverId in byId) {
+                    ServerConnectionStatus.Available
+                } else {
+                    ServerConnectionStatus.Error
+                }
+            statusTracker.set(serverId, status)
+        }
+        servers.filterNot { it.enabled }.forEach { cfg ->
+            statusTracker.set(cfg.id, ServerConnectionStatus.Disabled)
+        }
+        publishUpdate()
+    }
+
     private suspend fun refreshServers(targets: List<McpServerConfig>) {
         if (targets.isEmpty()) return
         val targetIds = targets.map { it.id }

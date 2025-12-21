@@ -107,13 +107,14 @@ class AppStore(
             proxyLifecycle = proxyLifecycle,
             loadConfiguration = { loadConfigurationSnapshot() },
             refreshEnabledCaps = { force -> capabilityRefresher.refreshEnabledServers(force) },
-            restartRefreshJob = { capabilityRefresher.restartBackgroundJob(enableBackgroundRefresh) },
+            restartRefreshJob = { enabled -> capabilityRefresher.restartBackgroundJob(enabled && enableBackgroundRefresh) },
             publishReady = ::publishReady,
             remoteConnector = remoteConnector,
         )
 
     init {
         observeRemote()
+        observeProxyCapabilities()
     }
 
     fun start() {
@@ -128,8 +129,12 @@ class AppStore(
             capabilityRefresher.syncWithServers(snapshot.servers)
             publishReady()
             proxyRuntime.ensureInboundRunning(forceRestart = true)
-            capabilityRefresher.refreshEnabledServers(force = true)
-            capabilityRefresher.restartBackgroundJob(enableBackgroundRefresh)
+            if (proxyLifecycle.isRunning()) {
+                capabilityRefresher.restartBackgroundJob(false)
+            } else {
+                capabilityRefresher.refreshEnabledServers(force = true)
+                capabilityRefresher.restartBackgroundJob(enableBackgroundRefresh)
+            }
             if (snapshot.remoteEnabled) {
                 remoteConnector.start()
             }
@@ -215,6 +220,15 @@ class AppStore(
             remoteConnector.state.collect { state ->
                 updateSnapshot { copy(remote = state) }
                 publishReadyIfNotError()
+            }
+        }
+    }
+
+    private fun observeProxyCapabilities() {
+        scope.launch {
+            proxyLifecycle.capabilityUpdates.collect { snapshots ->
+                if (!proxyLifecycle.isRunning()) return@collect
+                capabilityRefresher.applyProxySnapshots(snapshots)
             }
         }
     }
