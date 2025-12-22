@@ -21,7 +21,6 @@ class OAuthStateStore private constructor(
         json: Json =
             Json {
                 ignoreUnknownKeys = true
-                prettyPrint = true
             },
     ) : this(
         baseDir = baseDir,
@@ -37,7 +36,6 @@ class OAuthStateStore private constructor(
             json: Json =
                 Json {
                     ignoreUnknownKeys = true
-                    prettyPrint = true
                 },
             secureStorage: SecureStorage,
         ): OAuthStateStore =
@@ -110,6 +108,7 @@ class OAuthStateStore private constructor(
                 json.decodeFromString(OAuthStateSnapshot.serializer(), serialized)
             } catch (ex: Exception) {
                 logger.warn("Failed to decode OAuth cache entry for '$serverId': ${ex.message}", ex)
+                secureStorage.delete(keyFor(serverId))
                 missing.add(serverId)
                 return null
             }

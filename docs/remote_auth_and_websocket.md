@@ -99,6 +99,12 @@ and requires re-authorization after restart.
 On macOS, Broxy resolves the Keychain `security` tool from standard system paths so Keychain
 storage works even when PATH is minimal.
 
+If a cached OAuth entry is corrupted or cannot be decoded, Broxy deletes the entry and requires
+re-authorization.
+
+OAuth cache entries are stored as compact JSON to avoid non-printable characters that some
+Keychain tooling renders as hex output.
+
 ## WebSocket notes
 
 WebSocket transports include the OAuth Bearer token during the HTTP handshake. If scopes
