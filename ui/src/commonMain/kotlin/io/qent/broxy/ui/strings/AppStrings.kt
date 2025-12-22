@@ -109,7 +109,7 @@ interface AppStrings {
 
     fun connecting(seconds: Long): String
 
-    fun authorising(seconds: Long): String
+    fun authorization(seconds: Long): String
 
     val separatorDot: String
 
@@ -383,7 +383,7 @@ object EnglishStrings : AppStrings {
 
     override fun connecting(seconds: Long): String = "Connecting: $seconds s"
 
-    override fun authorising(seconds: Long): String = "Authorising: $seconds s"
+    override fun authorization(seconds: Long): String = "Authorization: $seconds s"
 
     override val separatorDot = " • "
 

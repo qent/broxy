@@ -2,6 +2,7 @@ package io.qent.broxy.ui.adapter.services
 
 import io.qent.broxy.core.config.EnvironmentVariableResolver
 import io.qent.broxy.core.mcp.DefaultMcpServerConnection
+import io.qent.broxy.core.mcp.auth.AuthorizationStatusListener
 import io.qent.broxy.core.mcp.auth.OAuthState
 import io.qent.broxy.core.mcp.auth.OAuthStateStore
 import io.qent.broxy.core.mcp.auth.resolveOAuthResourceUrl
@@ -21,6 +22,7 @@ actual suspend fun fetchServerCapabilities(
     timeoutSeconds: Int,
     connectionRetryCount: Int,
     logger: Logger?,
+    authorizationStatusListener: AuthorizationStatusListener?,
 ): Result<UiServerCapabilities> {
     // No outer timeout - let the internal timeouts handle it.
     // The timeoutSeconds parameter is used to configure internal timeouts.
@@ -43,6 +45,7 @@ actual suspend fun fetchServerCapabilities(
             config = config,
             logger = connLogger,
             authState = authState,
+            authorizationStatusListener = authorizationStatusListener,
             authStateObserver = { state ->
                 if (resourceUrl != null) {
                     connLogger.debug("ToolService saving OAuth state for id='${config.id}' resource=$resourceUrl")

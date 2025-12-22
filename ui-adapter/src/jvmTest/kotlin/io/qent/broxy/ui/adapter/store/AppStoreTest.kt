@@ -721,6 +721,7 @@ class AppStoreTest {
             config: UiMcpServerConfig,
             timeoutSeconds: Int,
             connectionRetryCount: Int,
+            authorizationStatusListener: io.qent.broxy.core.mcp.auth.AuthorizationStatusListener?,
         ): Result<UiServerCapabilities> {
             requestedIds += config.id
             requestedTimeouts += timeoutSeconds

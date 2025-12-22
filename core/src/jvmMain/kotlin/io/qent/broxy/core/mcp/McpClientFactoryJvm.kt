@@ -1,5 +1,6 @@
 package io.qent.broxy.core.mcp
 
+import io.qent.broxy.core.mcp.auth.AuthorizationStatusListener
 import io.qent.broxy.core.mcp.auth.OAuthState
 import io.qent.broxy.core.mcp.clients.KtorMcpClient
 import io.qent.broxy.core.mcp.clients.StdioMcpClient
@@ -14,6 +15,7 @@ private object DefaultJvmMcpClientProvider : McpClientProvider {
         logger: Logger,
         auth: AuthConfig?,
         authState: OAuthState?,
+        authorizationStatusListener: AuthorizationStatusListener?,
     ): McpClient =
         when (config) {
             is TransportConfig.StdioTransport ->
@@ -32,6 +34,7 @@ private object DefaultJvmMcpClientProvider : McpClientProvider {
                     logger = logger,
                     authConfig = auth,
                     authState = authState,
+                    authorizationStatusListener = authorizationStatusListener,
                 )
 
             is TransportConfig.StreamableHttpTransport ->
@@ -42,6 +45,7 @@ private object DefaultJvmMcpClientProvider : McpClientProvider {
                     logger = logger,
                     authConfig = auth,
                     authState = authState,
+                    authorizationStatusListener = authorizationStatusListener,
                 )
 
             is TransportConfig.WebSocketTransport ->
@@ -52,6 +56,7 @@ private object DefaultJvmMcpClientProvider : McpClientProvider {
                     logger = logger,
                     authConfig = auth,
                     authState = authState,
+                    authorizationStatusListener = authorizationStatusListener,
                 )
         }
 }

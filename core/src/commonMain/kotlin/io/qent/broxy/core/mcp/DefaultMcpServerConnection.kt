@@ -1,5 +1,6 @@
 package io.qent.broxy.core.mcp
 
+import io.qent.broxy.core.mcp.auth.AuthorizationStatusListener
 import io.qent.broxy.core.mcp.auth.OAuthState
 import io.qent.broxy.core.mcp.errors.McpError
 import io.qent.broxy.core.models.AuthConfig
@@ -27,6 +28,7 @@ class DefaultMcpServerConnection(
             config.auth == null && config.transport is TransportConfig.WebSocketTransport -> OAuthState()
             else -> null
         },
+    private val authorizationStatusListener: AuthorizationStatusListener? = null,
     private val authStateObserver: ((OAuthState) -> Unit)? = null,
     private val clientFactory: () -> McpClient = {
         McpClientFactory(defaultMcpClientProvider()).create(
@@ -35,6 +37,7 @@ class DefaultMcpServerConnection(
             logger,
             config.auth,
             authState,
+            authorizationStatusListener,
         )
     },
     private val cache: CapabilitiesCache = CapabilitiesCache(ttlMillis = cacheTtlMs),

@@ -1,5 +1,6 @@
 package io.qent.broxy.ui.adapter.services
 
+import io.qent.broxy.core.mcp.auth.AuthorizationStatusListener
 import io.qent.broxy.core.utils.Logger
 import io.qent.broxy.ui.adapter.models.UiHttpDraft
 import io.qent.broxy.ui.adapter.models.UiHttpTransport
@@ -27,6 +28,7 @@ expect suspend fun fetchServerCapabilities(
     timeoutSeconds: Int,
     connectionRetryCount: Int,
     logger: Logger? = null,
+    authorizationStatusListener: AuthorizationStatusListener? = null,
 ): Result<UiServerCapabilities>
 
 expect suspend fun checkStdioCommandAvailability(
@@ -56,5 +58,11 @@ suspend fun validateServerConnection(
             transport = transport,
             env = draft.env,
         )
-    return fetchServerCapabilities(cfg, timeoutSeconds = 10, connectionRetryCount = connectionRetryCount, logger = logger).map { }
+    return fetchServerCapabilities(
+        cfg,
+        timeoutSeconds = 10,
+        connectionRetryCount = connectionRetryCount,
+        logger = logger,
+        authorizationStatusListener = null,
+    ).map { }
 }

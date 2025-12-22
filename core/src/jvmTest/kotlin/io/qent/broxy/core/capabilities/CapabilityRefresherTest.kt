@@ -50,7 +50,7 @@ class CapabilityRefresherTest {
             val refresher =
                 CapabilityRefresher(
                     scope = this,
-                    capabilityFetcher = { cfg, _, _ ->
+                    capabilityFetcher = { cfg, _, _, _ ->
                         calls += cfg.id
                         if (cfg.id == "s1") {
                             Result.success(ServerCapabilities())
@@ -96,7 +96,7 @@ class CapabilityRefresherTest {
             val refresher =
                 CapabilityRefresher(
                     scope = this,
-                    capabilityFetcher = { cfg, _, _ ->
+                    capabilityFetcher = { cfg, _, _, _ ->
                         calls += cfg.id
                         Result.success(ServerCapabilities())
                     },
@@ -135,7 +135,7 @@ class CapabilityRefresherTest {
             val refresher =
                 CapabilityRefresher(
                     scope = this,
-                    capabilityFetcher = { _, _, _ ->
+                    capabilityFetcher = { _, _, _, _ ->
                         started.complete(Unit)
                         try {
                             awaitCancellation()
@@ -190,7 +190,7 @@ class CapabilityRefresherTest {
             val refresher =
                 CapabilityRefresher(
                     scope = this,
-                    capabilityFetcher = { cfg, _, _ ->
+                    capabilityFetcher = { cfg, _, _, _ ->
                         when (cfg.id) {
                             "s1" -> {
                                 started.complete(Unit)
@@ -258,7 +258,7 @@ class CapabilityRefresherTest {
             val refresher =
                 CapabilityRefresher(
                     scope = this,
-                    capabilityFetcher = { _, _, _ -> Result.success(ServerCapabilities()) },
+                    capabilityFetcher = { _, _, _, _ -> Result.success(ServerCapabilities()) },
                     capabilityCache = cache,
                     statusTracker = statusTracker,
                     logger = NoopLogger,

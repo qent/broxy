@@ -25,6 +25,7 @@ import io.qent.broxy.core.mcp.AuthInteractiveMcpClient
 import io.qent.broxy.core.mcp.McpClient
 import io.qent.broxy.core.mcp.ServerCapabilities
 import io.qent.broxy.core.mcp.TimeoutConfigurableMcpClient
+import io.qent.broxy.core.mcp.auth.AuthorizationStatusListener
 import io.qent.broxy.core.mcp.auth.OAuthAuthorizer
 import io.qent.broxy.core.mcp.auth.OAuthChallenge
 import io.qent.broxy.core.mcp.auth.OAuthChallengeRecorder
@@ -57,6 +58,7 @@ class KtorMcpClient(
     private val oauthAuthorizerFactory: (AuthConfig.OAuth, OAuthState, String, Logger) -> OAuthAuthorizer =
         { cfg, state, resourceUrl, log -> OAuthManager(cfg, state, resourceUrl, log) },
     private val preauthorizeWithConnector: Boolean = false,
+    private val authorizationStatusListener: AuthorizationStatusListener? = null,
 ) : McpClient, TimeoutConfigurableMcpClient, AuthInteractiveMcpClient {
     enum class Mode { Sse, StreamableHttp, WebSocket }
 
@@ -123,7 +125,7 @@ class KtorMcpClient(
             if (authManager != null) {
                 logger.debug("KtorMcpClient preauthorizing OAuth ($mode) url=$url")
             }
-            authManager?.ensureAuthorized()?.getOrThrow()
+            authManager?.let { manager -> ensureAuthorized(manager) }
             if (authManager != null) {
                 logger.debug("KtorMcpClient preauthorization complete ($mode) url=$url")
             }
@@ -168,7 +170,7 @@ class KtorMcpClient(
                         val manager = oauthManager ?: getOrCreateOAuthManager()
                         if (manager != null) {
                             logger.debug("KtorMcpClient auth failure detected; reauthorizing ($mode) url=$url")
-                            manager.ensureAuthorized(challenge).getOrThrow()
+                            ensureAuthorized(manager, challenge)
                             disconnect()
                             return@repeat
                         }
@@ -370,7 +372,7 @@ class KtorMcpClient(
     private suspend fun reauthorizeAndReconnect(challenge: OAuthChallenge?) {
         logger.debug("KtorMcpClient reauthorizeAndReconnect start ($mode) url=$url")
         val manager = oauthManager ?: getOrCreateOAuthManager() ?: return
-        manager.ensureAuthorized(challenge).getOrThrow()
+        ensureAuthorized(manager, challenge)
         disconnect()
         connectInternal(allowAuthRetry = false).getOrThrow()
     }
@@ -400,6 +402,23 @@ class KtorMcpClient(
         val manager = oauthAuthorizerFactory(AuthConfig.OAuth(), oauthState, resolveOAuthResourceUrl(url), logger)
         oauthManager = manager
         return manager
+    }
+
+    private suspend fun ensureAuthorized(
+        manager: OAuthAuthorizer,
+        challenge: OAuthChallenge? = null,
+    ) {
+        val listener = authorizationStatusListener
+        if (listener == null) {
+            manager.ensureAuthorized(challenge).getOrThrow()
+            return
+        }
+        listener.onAuthorizationStart()
+        try {
+            manager.ensureAuthorized(challenge).getOrThrow()
+        } finally {
+            listener.onAuthorizationComplete()
+        }
     }
 
     private suspend fun <T> listWithTimeout(

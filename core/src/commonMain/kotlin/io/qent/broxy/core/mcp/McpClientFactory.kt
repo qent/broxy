@@ -1,5 +1,6 @@
 package io.qent.broxy.core.mcp
 
+import io.qent.broxy.core.mcp.auth.AuthorizationStatusListener
 import io.qent.broxy.core.mcp.auth.OAuthState
 import io.qent.broxy.core.models.AuthConfig
 import io.qent.broxy.core.models.TransportConfig
@@ -17,7 +18,8 @@ class McpClientFactory(private val provider: McpClientProvider) {
         logger: Logger = ConsoleLogger,
         auth: AuthConfig? = null,
         authState: OAuthState? = null,
-    ): McpClient = provider.create(config, env, logger, auth, authState)
+        authorizationStatusListener: AuthorizationStatusListener? = null,
+    ): McpClient = provider.create(config, env, logger, auth, authState, authorizationStatusListener)
 }
 
 expect fun defaultMcpClientProvider(): McpClientProvider

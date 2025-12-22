@@ -307,7 +307,10 @@ fun createAppStore(
     logger: CollectingLogger = provideDefaultLogger(),
     repository: ConfigurationRepository = provideConfigurationRepository(),
     proxyFactory: (CollectingLogger) -> ProxyController = { createProxyController(it) },
-    capabilityFetcher: CapabilityFetcher = { config, timeout, retries -> fetchServerCapabilities(config, timeout, retries, logger) },
+    capabilityFetcher: CapabilityFetcher =
+        { config, timeout, retries, authorizationStatusListener ->
+            fetchServerCapabilities(config, timeout, retries, logger, authorizationStatusListener)
+        },
     now: () -> Long = { System.currentTimeMillis() },
     enableBackgroundRefresh: Boolean = true,
 ): AppStore {

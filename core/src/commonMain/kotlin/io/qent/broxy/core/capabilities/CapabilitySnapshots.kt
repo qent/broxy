@@ -45,6 +45,7 @@ data class CapabilityArgument(
 
 enum class ServerConnectionStatus {
     Disabled,
+    Authorization,
     Connecting,
     Available,
     Error,

@@ -37,9 +37,10 @@ class ServerStatusTracker(
         status: ServerConnectionStatus,
     ) {
         synchronized(lock) {
+            val previous = statuses[serverId]
             statuses[serverId] = status
-            if (status == ServerConnectionStatus.Connecting) {
-                if (connectingSince[serverId] == null) {
+            if (status.isTimedStatus()) {
+                if (connectingSince[serverId] == null || previous != status) {
                     connectingSince[serverId] = now()
                 }
             } else {
@@ -56,12 +57,13 @@ class ServerStatusTracker(
         status: ServerConnectionStatus,
     ) {
         if (serverIds.isEmpty()) return
-        val timestamp = if (status == ServerConnectionStatus.Connecting) now() else null
+        val timestamp = if (status.isTimedStatus()) now() else null
         synchronized(lock) {
             serverIds.forEach { serverId ->
+                val previous = statuses[serverId]
                 statuses[serverId] = status
-                if (status == ServerConnectionStatus.Connecting) {
-                    if (connectingSince[serverId] == null) {
+                if (status.isTimedStatus()) {
+                    if (connectingSince[serverId] == null || previous != status) {
                         connectingSince[serverId] = timestamp ?: now()
                     }
                 } else {
@@ -89,4 +91,7 @@ class ServerStatusTracker(
             errors.keys.retainAll(validIds)
         }
     }
+
+    private fun ServerConnectionStatus.isTimedStatus(): Boolean =
+        this == ServerConnectionStatus.Authorization || this == ServerConnectionStatus.Connecting
 }

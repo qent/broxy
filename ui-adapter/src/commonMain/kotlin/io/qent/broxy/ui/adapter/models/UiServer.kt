@@ -7,7 +7,6 @@ data class UiServer(
     val enabled: Boolean,
     val canToggle: Boolean = true,
     val status: UiServerConnStatus,
-    val isAuthorizing: Boolean = false,
     val errorMessage: String? = null,
     val connectingSinceEpochMillis: Long? = null,
     val toolsCount: Int? = null,

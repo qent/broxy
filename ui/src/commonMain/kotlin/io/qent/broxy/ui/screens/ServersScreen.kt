@@ -160,11 +160,14 @@ private fun ServerCard(
             UiServerConnStatus.Available -> AppTheme.extendedColors.success
             UiServerConnStatus.Error -> MaterialTheme.colorScheme.error
             UiServerConnStatus.Disabled -> MaterialTheme.colorScheme.outline
+            UiServerConnStatus.Authorization -> MaterialTheme.colorScheme.secondary
             UiServerConnStatus.Connecting -> MaterialTheme.colorScheme.secondary
         }
 
     val isDisabled = !cfg.enabled
-    val isConnecting = cfg.enabled && cfg.status == UiServerConnStatus.Connecting
+    val isConnecting =
+        cfg.enabled &&
+            (cfg.status == UiServerConnStatus.Authorization || cfg.status == UiServerConnStatus.Connecting)
     val disabledAlpha = 0.55f
     val titleColor = MaterialTheme.colorScheme.onSurface.copy(alpha = if (isDisabled) disabledAlpha else 1f)
     val transportColor =
@@ -184,8 +187,8 @@ private fun ServerCard(
     val statusText =
         when {
             isConnecting ->
-                if (cfg.isAuthorizing) {
-                    strings.authorising(connectingSeconds)
+                if (cfg.status == UiServerConnStatus.Authorization) {
+                    strings.authorization(connectingSeconds)
                 } else {
                     strings.connecting(connectingSeconds)
                 }

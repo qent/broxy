@@ -88,7 +88,7 @@ class CapabilityRefresherTest {
         tracker.retain(emptySet())
         return CapabilityRefresher(
             scope = testScope,
-            capabilityFetcher = { _, _, _ -> result },
+            capabilityFetcher = { _, _, _, _ -> result },
             capabilityCache = cache,
             statusTracker = tracker,
             logger = logger,

@@ -67,25 +67,22 @@ internal fun StoreSnapshot.toUiState(
             val derivedStatus =
                 when {
                     !server.enabled -> UiServerConnStatus.Disabled
+                    trackedStatus == UiServerConnStatus.Authorization -> UiServerConnStatus.Authorization
                     trackedStatus == UiServerConnStatus.Connecting -> UiServerConnStatus.Connecting
                     snapshot != null -> UiServerConnStatus.Available
                     trackedStatus != null -> trackedStatus
                     else -> UiServerConnStatus.Connecting
                 }
-            val isAuthorizing =
-                server.enabled &&
-                    derivedStatus == UiServerConnStatus.Connecting &&
-                    snapshot == null &&
-                    server.mayAuthorize()
+            val isPendingStatus =
+                derivedStatus == UiServerConnStatus.Authorization || derivedStatus == UiServerConnStatus.Connecting
             val connectingSince =
-                if (derivedStatus == UiServerConnStatus.Connecting) {
+                if (isPendingStatus) {
                     statuses.connectingSince(server.id)
                 } else {
                     null
                 }
-            val isInitialConnecting =
-                server.enabled && derivedStatus == UiServerConnStatus.Connecting && snapshot == null
-            val canToggle = server.id !in pendingServerToggles && !isInitialConnecting
+            val isInitialPending = server.enabled && isPendingStatus && snapshot == null
+            val canToggle = server.id !in pendingServerToggles && !isInitialPending
             val errorMessage =
                 if (derivedStatus == UiServerConnStatus.Error) {
                     statuses.errorMessageFor(server.id)
@@ -99,7 +96,6 @@ internal fun StoreSnapshot.toUiState(
                 enabled = server.enabled,
                 canToggle = canToggle,
                 status = derivedStatus,
-                isAuthorizing = isAuthorizing,
                 errorMessage = errorMessage,
                 connectingSinceEpochMillis = connectingSince,
                 toolsCount = snapshot?.tools?.size,
@@ -131,5 +127,3 @@ private fun UiTransportConfig.transportLabel(): String =
         is UiStreamableHttpTransport -> "HTTP"
         is UiWebSocketTransport -> "WebSocket"
     }
-
-private fun UiMcpServerConfig.mayAuthorize(): Boolean = auth != null || transport !is UiStdioTransport

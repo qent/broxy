@@ -1,5 +1,6 @@
 package io.qent.broxy.core.capabilities
 
+import io.qent.broxy.core.mcp.auth.AuthorizationStatusListener
 import io.qent.broxy.core.models.McpServerConfig
 import io.qent.broxy.core.utils.Logger
 import kotlinx.coroutines.CancellationException
@@ -215,7 +216,19 @@ class CapabilityRefresher(
             "CapabilityRefresher fetchAndCacheCapabilities '${cfg.id}' " +
                 "timeoutSeconds=$timeoutSeconds retries=$retryCount",
         )
-        val result = capabilityFetcher(cfg, timeoutSeconds, retryCount)
+        val authorizationListener =
+            object : AuthorizationStatusListener {
+                override fun onAuthorizationStart() {
+                    statusTracker.set(cfg.id, ServerConnectionStatus.Authorization)
+                    publishUpdate()
+                }
+
+                override fun onAuthorizationComplete() {
+                    statusTracker.set(cfg.id, ServerConnectionStatus.Connecting)
+                    publishUpdate()
+                }
+            }
+        val result = capabilityFetcher(cfg, timeoutSeconds, retryCount, authorizationListener)
         return if (result.isSuccess) {
             val snapshot = result.getOrThrow().toSnapshot(cfg)
             capabilityCache.put(cfg.id, snapshot)

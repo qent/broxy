@@ -1,5 +1,6 @@
 package io.qent.broxy.core.mcp
 
+import io.qent.broxy.core.mcp.auth.AuthorizationStatusListener
 import io.qent.broxy.core.mcp.auth.OAuthState
 import io.qent.broxy.core.models.AuthConfig
 import io.qent.broxy.core.models.TransportConfig
@@ -15,5 +16,6 @@ fun interface McpClientProvider {
         logger: Logger,
         auth: AuthConfig?,
         authState: OAuthState?,
+        authorizationStatusListener: AuthorizationStatusListener?,
     ): McpClient
 }
