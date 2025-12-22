@@ -183,7 +183,12 @@ private fun ServerCard(
     val showStatusText = isConnecting || showErrorStatus
     val statusText =
         when {
-            isConnecting -> strings.connecting(connectingSeconds)
+            isConnecting ->
+                if (cfg.isAuthorizing) {
+                    strings.authorising(connectingSeconds)
+                } else {
+                    strings.connecting(connectingSeconds)
+                }
             showErrorStatus -> errorMessage?.let { strings.errorMessage(it) } ?: strings.errorLabel
             else -> null
         }

@@ -83,8 +83,8 @@ Add an `auth` block to a server to enable OAuth:
   `resource` value from Protected Resource Metadata when present.
 - Performs step-up authorization on `insufficient_scope` challenges.
 - Uses refresh tokens when provided.
-- When OAuth is required, Broxy extends the connect timeout to allow the user to complete the
-  browser consent flow and only connects to the MCP endpoint after authorization succeeds.
+- OAuth authorization waits are bounded by `capabilitiesTimeoutSeconds` so interactive consent
+  uses the same timeout configured in settings.
 
 ## OAuth secure storage
 

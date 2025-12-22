@@ -75,18 +75,23 @@ class OAuthManager(
     override suspend fun ensureAuthorized(challenge: OAuthChallenge?): Result<String?> =
         runCatching {
             state.mutex.withLock {
+                logger.debug("OAuth ensureAuthorized start for $resourceUrl (challenge=${challenge != null})")
                 val requiredScope = challenge?.scope ?: state.lastRequestedScope
                 val now = clockMillis()
                 val token = state.token
                 if (token != null && !isExpired(token, now) && tokenSatisfiesScope(token, requiredScope)) {
+                    logger.debug("OAuth token valid for $resourceUrl; skipping authorization")
                     return@withLock token.accessToken
                 }
                 if (token != null && token.refreshToken != null && isExpired(token, now)) {
+                    logger.debug("OAuth token expired; attempting refresh for $resourceUrl")
                     val refreshed = refreshToken(token.refreshToken, requiredScope)
                     if (refreshed != null && tokenSatisfiesScope(refreshed, requiredScope)) {
                         state.token = refreshed
+                        logger.debug("OAuth token refresh succeeded for $resourceUrl")
                         return@withLock refreshed.accessToken
                     }
+                    logger.debug("OAuth token refresh failed or insufficient scope for $resourceUrl")
                 }
 
                 val discovery = discoverMetadata(challenge)
@@ -97,6 +102,7 @@ class OAuthManager(
 
                 val scope = selectScope(challenge?.scope, discovery.resourceMetadata?.scopesSupported, config.scopes)
                 state.lastRequestedScope = scope
+                logger.debug("OAuth scope selected for $resourceUrl: ${scope ?: "none"}")
                 val codeVerifier = generateCodeVerifier()
                 val codeChallenge = generateCodeChallenge(codeVerifier)
                 val stateValue = generateState()
@@ -113,15 +119,21 @@ class OAuthManager(
                         stateValue,
                         codeChallenge,
                     )
-                browserLauncher.open(authUrl).onFailure {
+                logger.debug("OAuth authorization URL prepared for $resourceUrl; launching browser.")
+                browserLauncher.open(authUrl).onSuccess {
+                    logger.debug("OAuth browser launch succeeded for $resourceUrl")
+                }.onFailure {
                     logger.info("Open this URL to authorize access: $authUrl")
                 }
                 val code =
                     try {
-                        receiver.awaitCode(authUrl, stateValue, DEFAULT_AUTH_CODE_TIMEOUT_MILLIS).getOrThrow()
+                        val timeoutMillis = resolveAuthorizationTimeoutMillis()
+                        logger.debug("OAuth awaiting authorization code for $resourceUrl timeout=${timeoutMillis}ms")
+                        receiver.awaitCode(authUrl, stateValue, timeoutMillis).getOrThrow()
                     } finally {
                         receiver.close()
                     }
+                logger.debug("OAuth authorization code received for $resourceUrl; exchanging token.")
                 val exchanged =
                     exchangeAuthorizationCode(
                         discovery.authorizationMetadata,
@@ -131,6 +143,7 @@ class OAuthManager(
                         codeVerifier,
                     )
                 state.token = exchanged
+                logger.debug("OAuth token exchange complete for $resourceUrl")
                 exchanged.accessToken
             }
         }
@@ -151,6 +164,7 @@ class OAuthManager(
     private suspend fun discoverMetadata(challenge: OAuthChallenge?): DiscoveryResult? {
         val client = httpClient()
         val force = challenge != null
+        logger.debug("OAuth discovery start for $resourceUrl (force=$force)")
         val resourceMetadata =
             state.resourceMetadata ?: fetchProtectedResourceMetadata(client, challenge).also {
                 if (it != null) {
@@ -177,6 +191,7 @@ class OAuthManager(
         val cachedMeta = state.authorizationMetadata
         val (issuer, authMeta) =
             if (!cachedIssuer.isNullOrBlank() && cachedMeta != null) {
+                logger.debug("OAuth using cached authorization metadata for $resourceUrl")
                 cachedIssuer to cachedMeta
             } else {
                 discoverAuthorizationServerMetadata(client, authorizationServers)
@@ -198,6 +213,7 @@ class OAuthManager(
                 else -> buildProtectedResourceMetadataUrls(resourceUrl)
             }
         for (url in urls) {
+            logger.debug("OAuth fetching protected resource metadata from $url")
             val response =
                 client.get(url) {
                     headers { append(HttpHeaders.Accept, ContentType.Application.Json.toString()) }
@@ -206,8 +222,10 @@ class OAuthManager(
             val body = response.bodyAsText()
             val metadata = json.decodeFromString(ProtectedResourceMetadata.serializer(), body)
             state.resourceMetadataUrl = url
+            logger.debug("OAuth protected resource metadata loaded from $url")
             return metadata
         }
+        logger.debug("OAuth protected resource metadata not found for $resourceUrl")
         return null
     }
 
@@ -217,7 +235,9 @@ class OAuthManager(
     ): Pair<String, AuthorizationServerMetadata> {
         val failures = mutableListOf<String>()
         for (issuer in authorizationServers) {
+            logger.debug("OAuth discovery probing authorization server $issuer")
             for (candidate in buildAuthorizationServerMetadataUrls(issuer)) {
+                logger.debug("OAuth fetching authorization server metadata from $candidate")
                 val response =
                     client.get(candidate) {
                         headers { append(HttpHeaders.Accept, ContentType.Application.Json.toString()) }
@@ -232,6 +252,7 @@ class OAuthManager(
                     failures.add("missing endpoints $candidate")
                     continue
                 }
+                logger.debug("OAuth authorization server metadata resolved from $candidate")
                 return issuer to metadata
             }
         }
@@ -243,6 +264,7 @@ class OAuthManager(
         redirectUri: String,
     ): OAuthClientRegistration {
         config.clientId?.takeIf { it.isNotBlank() }?.let { clientId ->
+            logger.debug("OAuth using configured client_id for $resourceUrl")
             val registration =
                 OAuthClientRegistration(
                     clientId = clientId,
@@ -261,6 +283,7 @@ class OAuthManager(
             if (authMeta.clientIdMetadataDocumentSupported != true) {
                 error("Authorization server does not support client ID metadata documents.")
             }
+            logger.debug("OAuth using client_id metadata URL for $resourceUrl")
             val registration =
                 OAuthClientRegistration(
                     clientId = metadataUrl,
@@ -279,9 +302,11 @@ class OAuthManager(
             state.registration?.let { existing ->
                 val registeredRedirect = state.registeredRedirectUri
                 if (registeredRedirect.isNullOrBlank() || registeredRedirect == redirectUri) {
+                    logger.debug("OAuth reusing cached dynamic registration for $resourceUrl")
                     return existing
                 }
             }
+            logger.debug("OAuth starting dynamic client registration for $resourceUrl")
             val registration = registerDynamicClient(authMeta.registrationEndpoint, redirectUri)
             state.registration = registration
             state.registeredRedirectUri = redirectUri
@@ -294,6 +319,7 @@ class OAuthManager(
         registrationEndpoint: String,
         redirectUri: String,
     ): OAuthClientRegistration {
+        logger.debug("OAuth dynamic client registration request to $registrationEndpoint")
         val authMethod = resolveTokenEndpointAuthMethod(config.tokenEndpointAuthMethod, null, null)
         val payload =
             buildJsonObject {
@@ -313,6 +339,7 @@ class OAuthManager(
         }
         val responseBody = response.bodyAsText()
         val registration = json.decodeFromString(DynamicClientRegistrationResponse.serializer(), responseBody)
+        logger.debug("OAuth dynamic client registration succeeded for $resourceUrl")
         return OAuthClientRegistration(
             clientId = registration.clientId,
             clientSecret = registration.clientSecret,
@@ -358,6 +385,7 @@ class OAuthManager(
         redirectUri: String,
         codeVerifier: String,
     ): OAuthToken {
+        logger.debug("OAuth exchanging authorization code for token at ${authMeta.tokenEndpoint}")
         val params =
             Parameters.build {
                 append("grant_type", "authorization_code")
@@ -385,6 +413,7 @@ class OAuthManager(
             error("Token request failed: ${response.status} ${response.bodyAsText()}")
         }
         val body = response.bodyAsText()
+        logger.debug("OAuth token endpoint response received for $resourceUrl")
         return toToken(json.decodeFromString(OAuthTokenResponse.serializer(), body))
     }
 
@@ -393,6 +422,7 @@ class OAuthManager(
         scope: String?,
     ): OAuthToken? {
         val registration = state.registration ?: return null
+        logger.debug("OAuth refreshing token for $resourceUrl")
         val params =
             Parameters.build {
                 append("grant_type", "refresh_token")
@@ -415,8 +445,12 @@ class OAuthManager(
                 headers { append(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded.toString()) }
                 applyClientAuthHeaders(registration)
             }
-        if (!response.status.isSuccess()) return null
+        if (!response.status.isSuccess()) {
+            logger.debug("OAuth refresh token request failed: ${response.status}")
+            return null
+        }
         val body = response.bodyAsText()
+        logger.debug("OAuth refresh token response received for $resourceUrl")
         return toToken(json.decodeFromString(OAuthTokenResponse.serializer(), body))
     }
 
@@ -468,6 +502,11 @@ class OAuthManager(
         val required = requiredScope.split(" ").filter { it.isNotBlank() }.toSet()
         val available = tokenScope.split(" ").filter { it.isNotBlank() }.toSet()
         return available.containsAll(required)
+    }
+
+    private fun resolveAuthorizationTimeoutMillis(): Long {
+        val configured = state.authorizationTimeoutMillis
+        return if (configured != null && configured > 0) configured else DEFAULT_AUTH_CODE_TIMEOUT_MILLIS
     }
 
     private fun buildAuthorizationUrl(

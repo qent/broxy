@@ -117,6 +117,7 @@ class CapabilityRefresher(
         val targets =
             serversProvider().filter { it.enabled }
                 .filter { force || capabilityCache.shouldRefresh(it.id, interval) }
+        logger.debug("CapabilityRefresher refreshEnabledServers(force=$force) targets=${targets.size}")
         refreshServers(targets)
     }
 
@@ -129,6 +130,7 @@ class CapabilityRefresher(
         val targets =
             serversProvider().filter { it.id in targetIds && it.enabled }
                 .filter { force || capabilityCache.shouldRefresh(it.id, interval) }
+        logger.debug("CapabilityRefresher refreshServersById(ids=${targetIds.size}, force=$force) targets=${targets.size}")
         refreshServers(targets)
     }
 
@@ -158,6 +160,7 @@ class CapabilityRefresher(
     private suspend fun refreshServers(targets: List<McpServerConfig>) {
         if (targets.isEmpty()) return
         val targetIds = targets.map { it.id }
+        logger.debug("CapabilityRefresher refreshServers start targets=${targetIds.joinToString(",")}")
         statusTracker.setAll(targetIds, ServerConnectionStatus.Connecting)
         publishUpdate()
 
@@ -173,6 +176,7 @@ class CapabilityRefresher(
                             publishUpdate()
                             return@launch
                         }
+                        logger.debug("CapabilityRefresher fetching capabilities for '${cfg.id}'")
                         val fetched = fetchAndCacheCapabilities(cfg)
                         fetched.error?.let { error ->
                             error.rethrowIfCancelled()
@@ -207,6 +211,10 @@ class CapabilityRefresher(
     private suspend fun fetchAndCacheCapabilities(cfg: McpServerConfig): FetchResult {
         val timeoutSeconds = capabilitiesTimeoutProvider()
         val retryCount = connectionRetryCountProvider()
+        logger.debug(
+            "CapabilityRefresher fetchAndCacheCapabilities '${cfg.id}' " +
+                "timeoutSeconds=$timeoutSeconds retries=$retryCount",
+        )
         val result = capabilityFetcher(cfg, timeoutSeconds, retryCount)
         return if (result.isSuccess) {
             val snapshot = result.getOrThrow().toSnapshot(cfg)

@@ -95,6 +95,9 @@ As each server finishes:
 UI status derivation treats `Connecting` from `ServerStatusTracker` as higher priority than cached
 snapshots so refresh-in-progress still shows the timer even if an older snapshot exists.
 
+For OAuth-capable HTTP/WS servers with no cached snapshot, the UI labels the `Connecting` state as
+`Authorising` and the timer is bounded by the configured `capabilitiesTimeoutSeconds`.
+
 ## UI toggle flow (enable/disable)
 
 When a server is toggled from the UI:

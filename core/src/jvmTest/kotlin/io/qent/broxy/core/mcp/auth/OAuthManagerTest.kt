@@ -132,6 +132,64 @@ class OAuthManagerTest {
     }
 
     @Test
+    fun ensureAuthorized_uses_configured_authorization_timeout() {
+        val tokenResponse =
+            """{"access_token":"token123","token_type":"Bearer","expires_in":3600}"""
+        val authMetadata =
+            """
+                |{
+                |  "authorization_endpoint": "https://auth.example.com/authorize",
+                |  "token_endpoint": "https://auth.example.com/token",
+                |  "code_challenge_methods_supported": ["S256"]
+                |}
+            """.trimMargin()
+        val engine =
+            MockEngine { request ->
+                when (request.url.toString()) {
+                    "https://mcp.example.com/.well-known/oauth-protected-resource" ->
+                        respond(
+                            content = ByteReadChannel("""{"authorization_servers":["https://auth.example.com"]}"""),
+                            status = HttpStatusCode.OK,
+                            headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+                        )
+
+                    "https://auth.example.com/.well-known/oauth-authorization-server" ->
+                        respond(
+                            content = ByteReadChannel(authMetadata),
+                            status = HttpStatusCode.OK,
+                            headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+                        )
+
+                    "https://auth.example.com/token" ->
+                        respond(
+                            content = ByteReadChannel(tokenResponse),
+                            status = HttpStatusCode.OK,
+                            headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+                        )
+
+                    else -> respondError(HttpStatusCode.NotFound)
+                }
+            }
+        val client = HttpClient(engine)
+        val receiver = FakeAuthorizationCodeReceiver("http://localhost:3333/callback", "code123")
+        val state = OAuthState().apply { authorizationTimeoutMillis = 30_000L }
+        val manager =
+            OAuthManager(
+                config = AuthConfig.OAuth(clientId = "client", redirectUri = receiver.redirectUri),
+                state = state,
+                resourceUrl = "https://mcp.example.com/mcp",
+                logger = ConfigTestLogger,
+                httpClientFactory = { client },
+                authorizationCodeReceiverFactory = { receiver },
+                browserLauncher = CapturingBrowserLauncher(),
+            )
+
+        val result = runBlocking { manager.ensureAuthorized() }
+        assertTrue(result.isSuccess)
+        assertEquals(30_000L, receiver.lastTimeoutMillis)
+    }
+
+    @Test
     fun ensureAuthorized_falls_back_to_root_well_known() {
         val tokenResponse =
             """{"access_token":"token123","token_type":"Bearer","expires_in":3600}"""
@@ -392,6 +450,7 @@ class OAuthManagerTest {
         private val code: String,
     ) : AuthorizationCodeReceiver {
         var lastAuthorizationUrl: String? = null
+        var lastTimeoutMillis: Long? = null
 
         override suspend fun awaitCode(
             authorizationUrl: String,
@@ -399,6 +458,7 @@ class OAuthManagerTest {
             timeoutMillis: Long,
         ): Result<String> {
             lastAuthorizationUrl = authorizationUrl
+            lastTimeoutMillis = timeoutMillis
             return Result.success(code)
         }
 

@@ -72,6 +72,11 @@ internal fun StoreSnapshot.toUiState(
                     trackedStatus != null -> trackedStatus
                     else -> UiServerConnStatus.Connecting
                 }
+            val isAuthorizing =
+                server.enabled &&
+                    derivedStatus == UiServerConnStatus.Connecting &&
+                    snapshot == null &&
+                    server.mayAuthorize()
             val connectingSince =
                 if (derivedStatus == UiServerConnStatus.Connecting) {
                     statuses.connectingSince(server.id)
@@ -94,6 +99,7 @@ internal fun StoreSnapshot.toUiState(
                 enabled = server.enabled,
                 canToggle = canToggle,
                 status = derivedStatus,
+                isAuthorizing = isAuthorizing,
                 errorMessage = errorMessage,
                 connectingSinceEpochMillis = connectingSince,
                 toolsCount = snapshot?.tools?.size,
@@ -125,3 +131,5 @@ private fun UiTransportConfig.transportLabel(): String =
         is UiStreamableHttpTransport -> "HTTP"
         is UiWebSocketTransport -> "WebSocket"
     }
+
+private fun UiMcpServerConfig.mayAuthorize(): Boolean = auth != null || transport !is UiStdioTransport

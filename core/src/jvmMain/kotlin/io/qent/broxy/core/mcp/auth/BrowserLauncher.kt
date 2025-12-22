@@ -13,6 +13,7 @@ class DesktopBrowserLauncher(
 ) : BrowserLauncher {
     override fun open(url: String): Result<Unit> =
         runCatching {
+            logger.debug("Launching browser for OAuth URL.")
             if (!Desktop.isDesktopSupported()) {
                 error("Desktop browsing is not supported on this platform.")
             }

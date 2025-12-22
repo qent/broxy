@@ -3,14 +3,17 @@ package io.qent.broxy.core.mcp.clients
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.HttpResponseValidator
+import io.ktor.client.plugins.HttpSend
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.ResponseException
+import io.ktor.client.plugins.plugin
 import io.ktor.client.plugins.sse.SSE
 import io.ktor.client.plugins.sse.SSEClientException
 import io.ktor.client.plugins.websocket.WebSockets
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.headers
 import io.ktor.http.HttpHeaders
+import io.ktor.http.Url
 import io.modelcontextprotocol.kotlin.sdk.client.StreamableHttpError
 import io.modelcontextprotocol.kotlin.sdk.client.mcpSse
 import io.modelcontextprotocol.kotlin.sdk.client.mcpStreamableHttp
@@ -78,8 +81,11 @@ class KtorMcpClient(
         connectTimeoutMillis: Long,
         capabilitiesTimeoutMillis: Long,
     ) {
-        this.connectTimeoutMillis = connectTimeoutMillis.coerceAtLeast(1)
+        val connectTimeout = connectTimeoutMillis.coerceAtLeast(1)
+        this.connectTimeoutMillis = connectTimeout
         this.capabilitiesTimeoutMillis = capabilitiesTimeoutMillis.coerceAtLeast(1)
+        this.authorizationTimeoutMillis = connectTimeout
+        oauthState.authorizationTimeoutMillis = connectTimeout
     }
 
     companion object {
@@ -88,13 +94,24 @@ class KtorMcpClient(
         private const val DEFAULT_AUTHORIZATION_TIMEOUT_MILLIS = 180_000L
     }
 
-    override val authorizationTimeoutMillis: Long
-        get() = DEFAULT_AUTHORIZATION_TIMEOUT_MILLIS
+    @Volatile
+    override var authorizationTimeoutMillis: Long = DEFAULT_AUTHORIZATION_TIMEOUT_MILLIS
+        private set
 
     override suspend fun connect(): Result<Unit> = connectInternal(allowAuthRetry = true)
 
     private suspend fun connectInternal(allowAuthRetry: Boolean): Result<Unit> =
         runCatching {
+            logger.debug(
+                "KtorMcpClient connect start ($mode) url=$url allowAuthRetry=$allowAuthRetry " +
+                    "preauthorizeWithConnector=$preauthorizeWithConnector",
+            )
+            val connectStartNanos = System.nanoTime()
+
+            fun logConnectTotal() {
+                val elapsedMs = (System.nanoTime() - connectStartNanos) / 1_000_000
+                logger.debug("KtorMcpClient connect total ($mode) url=$url elapsed=${elapsedMs}ms")
+            }
             if (client != null) return@runCatching
             val allowPreauth = connector == null || preauthorizeWithConnector
             val authManager =
@@ -103,11 +120,18 @@ class KtorMcpClient(
                 } else {
                     null
                 }
+            if (authManager != null) {
+                logger.debug("KtorMcpClient preauthorizing OAuth ($mode) url=$url")
+            }
             authManager?.ensureAuthorized()?.getOrThrow()
+            if (authManager != null) {
+                logger.debug("KtorMcpClient preauthorization complete ($mode) url=$url")
+            }
             // Tests can inject a fake connector
             connector?.let {
                 client = it.connect()
                 logger.info("Connected via test connector for Ktor client ($mode)")
+                logConnectTotal()
                 return@runCatching
             }
 
@@ -120,16 +144,30 @@ class KtorMcpClient(
             var lastError: Throwable? = null
             repeat(maxAttempts) { attempt ->
                 authChallengeRecorder.reset()
+                val attemptStartNanos = System.nanoTime()
                 try {
+                    logger.debug("KtorMcpClient connect attempt ${attempt + 1}/$maxAttempts ($mode) url=$url")
                     connectOnce()
                     logger.info("Connected Ktor MCP client ($mode) to $url")
+                    val attemptMs = (System.nanoTime() - attemptStartNanos) / 1_000_000
+                    logger.debug(
+                        "KtorMcpClient connect attempt ${attempt + 1}/$maxAttempts ($mode) " +
+                            "url=$url elapsed=${attemptMs}ms",
+                    )
+                    logConnectTotal()
                     return@runCatching
                 } catch (ex: Throwable) {
+                    val attemptMs = (System.nanoTime() - attemptStartNanos) / 1_000_000
+                    logger.debug(
+                        "KtorMcpClient connect attempt ${attempt + 1}/$maxAttempts ($mode) " +
+                            "url=$url failed after ${attemptMs}ms",
+                    )
                     lastError = ex
                     val challenge = authChallengeRecorder.consume()
                     if (allowAuthRetry && attempt < maxAttempts - 1 && isAuthFailure(ex, challenge)) {
                         val manager = oauthManager ?: getOrCreateOAuthManager()
                         if (manager != null) {
+                            logger.debug("KtorMcpClient auth failure detected; reauthorizing ($mode) url=$url")
                             manager.ensureAuthorized(challenge).getOrThrow()
                             disconnect()
                             return@repeat
@@ -154,6 +192,7 @@ class KtorMcpClient(
 
     override suspend fun fetchCapabilities(): Result<ServerCapabilities> =
         runCatching {
+            logger.debug("KtorMcpClient fetchCapabilities start ($mode) url=$url")
             withAuthRetry("fetchCapabilities") {
                 val c = client ?: throw IllegalStateException("Not connected")
                 val timeoutMillis = capabilitiesTimeoutMillis.coerceAtLeast(1)
@@ -167,6 +206,10 @@ class KtorMcpClient(
                             async { listWithTimeout("listPrompts", timeoutMillis, emptyList()) { c.getPrompts() } }
                         Triple(toolsDeferred.await(), resourcesDeferred.await(), promptsDeferred.await())
                     }
+                logger.debug(
+                    "KtorMcpClient fetchCapabilities done ($mode) url=$url " +
+                        "tools=${tools.size} resources=${resources.size} prompts=${prompts.size}",
+                )
                 ServerCapabilities(tools = tools, resources = resources, prompts = prompts)
             }
         }
@@ -214,6 +257,7 @@ class KtorMcpClient(
 
     private suspend fun connectOnce() {
         val connectTimeout = connectTimeoutMillis.coerceAtLeast(1)
+        logger.debug("KtorMcpClient connectOnce ($mode) url=$url timeout=${connectTimeout}ms")
         ktor = createHttpClient(connectTimeout)
         val reqBuilder = buildRequestBuilder()
         val sdk =
@@ -231,21 +275,45 @@ class KtorMcpClient(
         client = RealSdkClientFacade(sdk, logger)
     }
 
-    private fun createHttpClient(connectTimeout: Long): HttpClient =
-        HttpClient(CIO) {
-            if (mode == Mode.Sse || mode == Mode.StreamableHttp) install(SSE)
-            if (mode == Mode.WebSocket) install(WebSockets)
-            install(HttpTimeout) {
-                requestTimeoutMillis = connectTimeout
-                socketTimeoutMillis = connectTimeout
-                this.connectTimeoutMillis = connectTimeout
-            }
-            HttpResponseValidator {
-                validateResponse { response ->
-                    authChallengeRecorder.record(response)
+    private fun createHttpClient(connectTimeout: Long): HttpClient {
+        val client =
+            HttpClient(CIO) {
+                if (mode == Mode.Sse || mode == Mode.StreamableHttp) install(SSE)
+                if (mode == Mode.WebSocket) install(WebSockets)
+                install(HttpTimeout) {
+                    requestTimeoutMillis = connectTimeout
+                    socketTimeoutMillis = connectTimeout
+                    this.connectTimeoutMillis = connectTimeout
+                }
+                HttpResponseValidator {
+                    validateResponse { response ->
+                        authChallengeRecorder.record(response)
+                    }
                 }
             }
+        client.plugin(HttpSend).intercept { request ->
+            val startNanos = System.nanoTime()
+            val urlLabel = request.url.build().toLogString()
+            try {
+                val call = execute(request)
+                val elapsedMs = (System.nanoTime() - startNanos) / 1_000_000
+                val status = call.response.status
+                logger.debug(
+                    "HTTP ${request.method.value} $urlLabel -> " +
+                        "${status.value} ${status.description} in ${elapsedMs}ms",
+                )
+                call
+            } catch (ex: Throwable) {
+                val elapsedMs = (System.nanoTime() - startNanos) / 1_000_000
+                logger.warn(
+                    "HTTP ${request.method.value} $urlLabel failed after ${elapsedMs}ms",
+                    ex,
+                )
+                throw ex
+            }
         }
+        return client
+    }
 
     private fun buildRequestBuilder(): HttpRequestBuilder.() -> Unit =
         {
@@ -278,6 +346,7 @@ class KtorMcpClient(
             val challenge = authChallengeRecorder.consume()
             val authFailure = isAuthFailure(result.exceptionOrNull(), challenge)
             if (authFailure) {
+                logger.debug("KtorMcpClient auth failure during $operation ($mode) url=$url")
                 lastError =
                     result.exceptionOrNull()
                         ?: IllegalStateException("Unauthorized response during $operation")
@@ -299,6 +368,7 @@ class KtorMcpClient(
     }
 
     private suspend fun reauthorizeAndReconnect(challenge: OAuthChallenge?) {
+        logger.debug("KtorMcpClient reauthorizeAndReconnect start ($mode) url=$url")
         val manager = oauthManager ?: getOrCreateOAuthManager() ?: return
         manager.ensureAuthorized(challenge).getOrThrow()
         disconnect()
@@ -338,8 +408,12 @@ class KtorMcpClient(
         defaultValue: T,
         fetch: suspend () -> T,
     ): T {
+        val startNanos = System.nanoTime()
         return runCatching {
             withTimeout(timeoutMillis) { fetch() }
+        }.onSuccess {
+            val elapsedMs = (System.nanoTime() - startNanos) / 1_000_000
+            logger.debug("$operation completed in ${elapsedMs}ms")
         }.onFailure { ex ->
             val kind =
                 if (ex is TimeoutCancellationException) {
@@ -348,7 +422,14 @@ class KtorMcpClient(
                     ex.message
                         ?: ex::class.simpleName
                 }
-            logger.warn("$operation $kind; treating as empty.", ex)
+            val elapsedMs = (System.nanoTime() - startNanos) / 1_000_000
+            logger.warn("$operation $kind after ${elapsedMs}ms; treating as empty.", ex)
         }.getOrDefault(defaultValue)
+    }
+
+    private fun Url.toLogString(): String {
+        val portPart = if (port != protocol.defaultPort && port > 0) ":$port" else ""
+        val path = encodedPath.takeIf { it.isNotBlank() } ?: "/"
+        return "${protocol.name}://$host$portPart$path"
     }
 }

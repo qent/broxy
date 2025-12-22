@@ -53,4 +53,7 @@ class OAuthState {
 
     @Volatile
     var lastRequestedScope: String? = null
+
+    @Volatile
+    var authorizationTimeoutMillis: Long? = null
 }

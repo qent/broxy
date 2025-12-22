@@ -87,6 +87,7 @@ class DefaultMcpServerConnection(
         if (!forceRefresh) {
             cache.get()?.let { return Result.success(it) }
         }
+        logger.debug("Fetching capabilities for '${config.name}' (forceRefresh=$forceRefresh)")
         val result =
             withSession { client ->
                 // Don't wrap with timeout here - fetchCapabilities() already has per-operation timeouts
@@ -156,15 +157,12 @@ class DefaultMcpServerConnection(
     private fun newClient(): McpClient = clientFactory().also { configureClientTimeouts(it) }
 
     private fun configureClientTimeouts(client: McpClient) {
-        val effectiveConnectTimeout =
-            (client as? AuthInteractiveMcpClient)?.authorizationTimeoutMillis
-                ?.let { maxOf(connectTimeoutMillis, it) }
-                ?: connectTimeoutMillis
-        (client as? TimeoutConfigurableMcpClient)?.updateTimeouts(effectiveConnectTimeout, capabilitiesTimeoutMillis)
+        (client as? TimeoutConfigurableMcpClient)?.updateTimeouts(connectTimeoutMillis, capabilitiesTimeoutMillis)
     }
 
     private suspend fun <T> withSession(block: suspend (McpClient) -> Result<T>): Result<T> {
         val client = newClient()
+        logger.debug("Opening MCP session for '${config.name}'")
         status = ServerStatus.Starting
         val connectResult = connectClient(client)
         if (connectResult.isFailure) {
@@ -191,6 +189,7 @@ class DefaultMcpServerConnection(
         if (status !is ServerStatus.Error) {
             status = ServerStatus.Stopped
         }
+        logger.debug("Closed MCP session for '${config.name}'")
         return result
     }
 
@@ -198,10 +197,10 @@ class DefaultMcpServerConnection(
         val backoff = ExponentialBackoff()
         var lastError: Throwable? = null
         for (attempt in 1..maxRetries) {
-            val timeoutMillis =
-                (client as? AuthInteractiveMcpClient)?.authorizationTimeoutMillis
-                    ?.let { maxOf(connectTimeoutMillis, it) }
-                    ?: connectTimeoutMillis
+            val timeoutMillis = connectTimeoutMillis
+            logger.debug(
+                "Connecting to '${config.name}' (attempt $attempt/$maxRetries, timeout=${timeoutMillis}ms)",
+            )
             val result =
                 try {
                     withTimeout(timeoutMillis) { client.connect() }

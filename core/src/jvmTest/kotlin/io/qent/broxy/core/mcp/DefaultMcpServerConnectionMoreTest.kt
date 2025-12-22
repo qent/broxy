@@ -14,6 +14,7 @@ import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
@@ -120,16 +121,14 @@ class DefaultMcpServerConnectionMoreTest {
     }
 
     @Test
-    fun connect_allows_longer_timeout_for_auth_interactive_clients() {
+    fun connect_uses_configured_timeout_for_auth_interactive_clients() {
         runBlocking {
             val authClient =
-                object : McpClient, AuthInteractiveMcpClient {
+                object : McpClient, AuthInteractiveMcpClient, TimeoutConfigurableMcpClient {
                     override val authorizationTimeoutMillis: Long = 100
+                    var lastConnectTimeoutMillis: Long? = null
 
-                    override suspend fun connect(): Result<Unit> {
-                        delay(50)
-                        return Result.success(Unit)
-                    }
+                    override suspend fun connect(): Result<Unit> = Result.success(Unit)
 
                     override suspend fun disconnect() {}
 
@@ -146,6 +145,13 @@ class DefaultMcpServerConnectionMoreTest {
                     ): Result<JsonObject> = Result.success(JsonObject(emptyMap()))
 
                     override suspend fun readResource(uri: String): Result<JsonObject> = Result.success(JsonObject(emptyMap()))
+
+                    override fun updateTimeouts(
+                        connectTimeoutMillis: Long,
+                        capabilitiesTimeoutMillis: Long,
+                    ) {
+                        lastConnectTimeoutMillis = connectTimeoutMillis
+                    }
                 }
 
             val conn =
@@ -156,6 +162,7 @@ class DefaultMcpServerConnectionMoreTest {
                 )
             val result = conn.connect()
             assertTrue(result.isSuccess)
+            assertEquals(10, authClient.lastConnectTimeoutMillis)
         }
     }
 }

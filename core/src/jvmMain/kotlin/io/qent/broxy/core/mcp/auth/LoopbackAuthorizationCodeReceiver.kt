@@ -49,6 +49,7 @@ class LoopbackAuthorizationCodeReceiver(
             embeddedServer(Netty, host = host, port = port) {
                 routing {
                     get(path) {
+                        logger.debug("OAuth callback received on $path")
                         if (!deferred.isCompleted) {
                             deferred.complete(
                                 CallbackParams(

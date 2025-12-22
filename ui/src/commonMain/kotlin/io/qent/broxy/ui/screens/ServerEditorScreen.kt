@@ -12,7 +12,6 @@ import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.adapter.models.UiServerDraft
 import io.qent.broxy.ui.adapter.models.UiStdioDraft
 import io.qent.broxy.ui.adapter.services.checkStdioCommandAvailability
-import io.qent.broxy.ui.adapter.services.validateServerConnection
 import io.qent.broxy.ui.adapter.store.AppStore
 import io.qent.broxy.ui.adapter.store.UIState
 import io.qent.broxy.ui.components.EditorHeaderRow
@@ -130,25 +129,9 @@ fun ServerEditorScreen(
                                 originalId = originalId,
                             )
 
-                        var toSave = draft
-                        if (draft.enabled) {
-                            val result = validateServerConnection(draft, connectionRetryCount = readyUi.connectionRetryCount)
-                            if (result.isFailure) {
-                                val e = result.exceptionOrNull()
-                                val isTimeout = e?.message?.contains("timed out", ignoreCase = true) == true
-                                if (isTimeout) {
-                                    notify(strings.connectionTimedOutSavedDisabled)
-                                } else {
-                                    val errMsg = e?.message?.takeIf { it.isNotBlank() }
-                                    notify(strings.connectionFailedSavedDisabled(errMsg))
-                                }
-                                toSave = draft.copy(enabled = false)
-                            }
-                        }
-
-                        readyUi.intents.upsertServer(toSave)
+                        readyUi.intents.upsertServer(draft)
                         onClose()
-                        notify(strings.savedName(toSave.name))
+                        notify(strings.savedName(draft.name))
                     }
                 },
                 enabled = canSubmit,

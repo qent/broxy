@@ -25,11 +25,15 @@ actual suspend fun fetchServerCapabilities(
     // No outer timeout - let the internal timeouts handle it.
     // The timeoutSeconds parameter is used to configure internal timeouts.
     val connLogger = logger ?: ConsoleLogger
+    connLogger.debug(
+        "ToolService fetchServerCapabilities start id='${config.id}' timeoutSeconds=$timeoutSeconds retries=$connectionRetryCount",
+    )
     val timeoutMillis = timeoutSeconds.coerceAtLeast(1).toLong() * 1_000L
     val authStore = OAuthStateStore(logger = connLogger)
     val resourceUrl = resolveAuthResourceUrl(config)
     val authState =
         resourceUrl?.let {
+            connLogger.debug("ToolService loading OAuth state for id='${config.id}' resource=$it")
             OAuthState().also { state ->
                 authStore.load(config.id, it)?.let(state::restoreFrom)
             }
@@ -41,6 +45,7 @@ actual suspend fun fetchServerCapabilities(
             authState = authState,
             authStateObserver = { state ->
                 if (resourceUrl != null) {
+                    connLogger.debug("ToolService saving OAuth state for id='${config.id}' resource=$resourceUrl")
                     authStore.save(config.id, state.toSnapshot(resourceUrl))
                 }
             },

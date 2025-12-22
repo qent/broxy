@@ -36,3 +36,11 @@
 -keep @kotlinx.serialization.Serializable class ** { *; }
 -keep @kotlinx.serialization.Serializable class **$* { *; }
 -keep class io.modelcontextprotocol.kotlin.sdk.** { *; }
+
+# Strip debug logging from release builds.
+-assumenosideeffects class io.qent.broxy.core.utils.Logger {
+    void debug(java.lang.String);
+}
+-assumenosideeffects class io.qent.broxy.core.utils.JsonLoggingKt {
+    public static void debugJson(io.qent.broxy.core.utils.Logger, java.lang.String, kotlin.jvm.functions.Function1);
+}

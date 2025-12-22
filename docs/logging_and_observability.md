@@ -66,6 +66,9 @@ API:
 - `Logger.warnJson(event, throwable) { ... }`
 - `Logger.errorJson(event, throwable) { ... }`
 
+Release UI builds strip `Logger.debug(...)` and `Logger.debugJson(...)` calls via Proguard so debug
+logs do not ship in packaged releases.
+
 ## Key logging points
 
 ### LLM -> facade -> downstream -> facade -> LLM
@@ -97,6 +100,18 @@ File:
 - `STDIO raw tools/list_changed notification: { ... }`
 
 These help diagnose missing or stale capabilities.
+
+### OAuth (debug)
+
+OAuth flows emit debug logs for each stage: discovery, dynamic registration, browser launch,
+callback receipt, token exchange, and capability refresh start/end. Use these to measure
+latency between authorization and capability fetch.
+
+### HTTP client timing (debug)
+
+Ktor MCP clients emit per-request timing logs with HTTP method, sanitized URL (no query),
+status code, and elapsed milliseconds. These help pinpoint slow listTools/listResources
+calls and OAuth metadata/token latencies.
 
 ## Tracing guidance
 

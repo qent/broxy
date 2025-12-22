@@ -109,6 +109,8 @@ interface AppStrings {
 
     fun connecting(seconds: Long): String
 
+    fun authorising(seconds: Long): String
+
     val separatorDot: String
 
     val noDescriptionProvided: String
@@ -380,6 +382,8 @@ object EnglishStrings : AppStrings {
     override val serverFallbackName = "Server"
 
     override fun connecting(seconds: Long): String = "Connecting: $seconds s"
+
+    override fun authorising(seconds: Long): String = "Authorising: $seconds s"
 
     override val separatorDot = " • "
 
