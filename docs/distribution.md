@@ -25,5 +25,6 @@ The resulting DMG is located in `ui/build/compose/binaries/main-release/dmg`.
 Notes:
 
 - ProGuard rules live in `ui/proguard-release.pro` to suppress optional dependency warnings.
+- Release ProGuard keeps Kotlin serialization metadata and MCP SDK types to avoid runtime decode failures.
 - Release builds disable ProGuard optimization to avoid incomplete class hierarchy errors while still shrinking.
 - The macOS app bundle name is `Broxy` (capitalized) via the UI native distribution package name.

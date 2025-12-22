@@ -12,11 +12,13 @@ import io.ktor.http.contentType
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
+import io.modelcontextprotocol.kotlin.sdk.types.JSONRPCError
 import io.modelcontextprotocol.kotlin.sdk.types.JSONRPCMessage
 import io.modelcontextprotocol.kotlin.sdk.types.JSONRPCNotification
 import io.modelcontextprotocol.kotlin.sdk.types.JSONRPCRequest
 import io.modelcontextprotocol.kotlin.sdk.types.JSONRPCResponse
 import io.modelcontextprotocol.kotlin.sdk.types.McpJson
+import io.modelcontextprotocol.kotlin.sdk.types.RPCError
 import io.qent.broxy.core.models.TransportConfig
 import io.qent.broxy.core.proxy.ProxyMcpServer
 import io.qent.broxy.core.utils.Logger
@@ -114,6 +116,21 @@ class StreamableHttpInboundTest {
             val responseMessage =
                 McpJson.decodeFromString<JSONRPCMessage>(requestResponse.bodyAsText())
             assertTrue(responseMessage is JSONRPCResponse)
+
+            val missingRequest = JSONRPCRequest(2L, "unknown/method", JsonNull)
+            val missingPayload = McpJson.encodeToString(JSONRPCMessage.serializer(), missingRequest)
+            val missingResponse =
+                client.post("/mcp") {
+                    header("mcp-session-id", sessionId)
+                    setBody(missingPayload)
+                    contentType(ContentType.Application.Json)
+                }
+            assertEquals(HttpStatusCode.OK, missingResponse.status)
+            val missingMessage =
+                McpJson.decodeFromString<JSONRPCMessage>(missingResponse.bodyAsText())
+            assertTrue(missingMessage is JSONRPCError)
+            val error = missingMessage as JSONRPCError
+            assertEquals(RPCError.ErrorCode.METHOD_NOT_FOUND, error.error.code)
 
             val deleteResponse =
                 client.delete("/mcp") {

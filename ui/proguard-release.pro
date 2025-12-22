@@ -23,3 +23,16 @@
 -dontwarn io.netty.pkitesting.**
 -dontwarn reactor.blockhound.**
 -dontwarn io.netty.util.internal.logging.**
+
+# Keep Kotlin serialization metadata and MCP SDK types for runtime decoding.
+-keepattributes *Annotation*,InnerClasses
+-keep class kotlinx.serialization.** { *; }
+-keepclassmembers class ** {
+    public static ** serializer(...);
+}
+-keepclassmembers class **$Companion {
+    public ** serializer(...);
+}
+-keep @kotlinx.serialization.Serializable class ** { *; }
+-keep @kotlinx.serialization.Serializable class **$* { *; }
+-keep class io.modelcontextprotocol.kotlin.sdk.** { *; }

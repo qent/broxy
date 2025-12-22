@@ -22,6 +22,7 @@ import io.modelcontextprotocol.kotlin.sdk.server.Server
 import io.modelcontextprotocol.kotlin.sdk.server.ServerSession
 import io.modelcontextprotocol.kotlin.sdk.shared.AbstractTransport
 import io.modelcontextprotocol.kotlin.sdk.shared.TransportSendOptions
+import io.modelcontextprotocol.kotlin.sdk.types.JSONRPCError
 import io.modelcontextprotocol.kotlin.sdk.types.JSONRPCMessage
 import io.modelcontextprotocol.kotlin.sdk.types.JSONRPCRequest
 import io.modelcontextprotocol.kotlin.sdk.types.JSONRPCResponse
@@ -147,7 +148,10 @@ private class KtorStreamableHttpInboundServer(
             val sessions = InboundStreamableHttpRegistry(logger)
             engine =
                 embeddedServer(Netty, host = host, port = port, module = {
-                    install(CallLogging)
+                    install(CallLogging) {
+                        // Avoid ANSI/Jansi native initialization in packaged apps.
+                        disableDefaultColors()
+                    }
                     routing {
                         if (normalizedPath.routeSegments.isBlank()) {
                             mountStreamableHttpRoute(server = sdkServer, sessions = sessions)
@@ -270,7 +274,7 @@ private class StreamableHttpServerTransport(
     private val initialized: AtomicBoolean = AtomicBoolean(false)
     val sessionId: String = java.util.UUID.randomUUID().toString()
 
-    private val responseWaiters = ConcurrentHashMap<RequestId, CompletableDeferred<JSONRPCResponse>>()
+    private val responseWaiters = ConcurrentHashMap<RequestId, CompletableDeferred<JSONRPCMessage>>()
 
     override suspend fun start() {
         if (!initialized.compareAndSet(expectedValue = false, newValue = true)) {
@@ -286,8 +290,8 @@ private class StreamableHttpServerTransport(
     suspend fun awaitResponse(
         request: JSONRPCRequest,
         timeoutMillis: Long = DEFAULT_REQUEST_TIMEOUT_MILLIS,
-    ): JSONRPCResponse {
-        val deferred = CompletableDeferred<JSONRPCResponse>()
+    ): JSONRPCMessage {
+        val deferred = CompletableDeferred<JSONRPCMessage>()
         val previous = responseWaiters.putIfAbsent(request.id, deferred)
         check(previous == null) { "Duplicate in-flight request id ${request.id}" }
         try {
@@ -308,6 +312,12 @@ private class StreamableHttpServerTransport(
                 val waiter = responseWaiters[message.id]
                 if (waiter != null && waiter.complete(message)) return
                 logger.warn("Dropping response for unknown request id ${message.id}")
+            }
+
+            is JSONRPCError -> {
+                val waiter = responseWaiters[message.id]
+                if (waiter != null && waiter.complete(message)) return
+                logger.warn("Dropping error response for unknown request id ${message.id}")
             }
 
             else -> {

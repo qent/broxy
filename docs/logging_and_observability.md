@@ -27,6 +27,11 @@ In STDIO mode stdout is part of the MCP protocol. CLI writes logs to stderr:
 
 Headless UI mode uses `StdErrLogger` and also writes a daily file log.
 
+### HTTP inbound logging
+
+Streamable HTTP inbound uses Ktor `CallLogging`. ANSI colors are disabled to avoid
+native Jansi initialization issues in packaged macOS builds.
+
 ## File logs
 
 Logs are written next to the configuration directory:
