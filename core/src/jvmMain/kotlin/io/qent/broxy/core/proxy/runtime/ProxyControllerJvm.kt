@@ -9,6 +9,7 @@ import io.qent.broxy.core.mcp.IsolatedMcpServerConnection
 import io.qent.broxy.core.mcp.McpServerConnection
 import io.qent.broxy.core.mcp.ServerCapabilities
 import io.qent.broxy.core.mcp.ServerStatus
+import io.qent.broxy.core.mcp.auth.AuthorizationStatusListener
 import io.qent.broxy.core.mcp.auth.OAuthState
 import io.qent.broxy.core.mcp.auth.OAuthStateStore
 import io.qent.broxy.core.mcp.auth.resolveOAuthResourceUrl
@@ -294,11 +295,32 @@ private class JvmProxyController(
 
     private fun createManagedDownstream(config: McpServerConfig): ManagedDownstream {
         val authState = loadAuthState(config)
+        val authorizationListener =
+            object : AuthorizationStatusListener {
+                override fun onAuthorizationStart() {
+                    _serverStatusUpdates.tryEmit(
+                        ServerConnectionUpdate(
+                            serverId = config.id,
+                            status = ServerConnectionStatus.Authorization,
+                        ),
+                    )
+                }
+
+                override fun onAuthorizationComplete() {
+                    _serverStatusUpdates.tryEmit(
+                        ServerConnectionUpdate(
+                            serverId = config.id,
+                            status = ServerConnectionStatus.Connecting,
+                        ),
+                    )
+                }
+            }
         val connection =
             DefaultMcpServerConnection(
                 config = config,
                 logger = logger,
                 authState = authState,
+                authorizationStatusListener = authorizationListener,
                 authStateObserver = { state -> persistAuthState(config, state) },
                 maxRetries = connectionRetryCount,
                 initialCallTimeoutMillis = callTimeoutMillis,

@@ -50,7 +50,7 @@ fun GlobalHeader(
         colors = colors,
         title = {
             Box(
-                modifier = Modifier.fillMaxHeight(),
+                modifier = Modifier.fillMaxHeight().padding(top = 1.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 PresetDropdown(ui = ui, notify = notify, width = PRESET_SELECTOR_WIDTH)

@@ -153,4 +153,6 @@ present in the snapshot payload. Missing servers keep their previous status/cach
 data (typically `Connecting` during startup) so slow servers do not briefly show
 `Error` while other servers are still refreshing. If a refresh cycle fails for a
 server that has no cached capabilities, the proxy emits a status update so the UI
-switches to `Error` after retries are exhausted.
+switches to `Error` after retries are exhausted. During OAuth authorization, the
+proxy emits `Authorization` then `Connecting` status updates so the UI shows the
+authorization timer while interactive login is in progress.
