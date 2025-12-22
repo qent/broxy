@@ -96,6 +96,8 @@ resource URL does not match the current server URL, the cached entry is ignored.
 If secure storage is unavailable, Broxy keeps OAuth state in memory for the current session only
 and requires re-authorization after restart.
 
+When a server is removed from `mcp.json`, Broxy deletes the cached OAuth entry for that server ID.
+
 On macOS, Broxy resolves the Keychain `security` tool from standard system paths so Keychain
 storage works even when PATH is minimal.
 

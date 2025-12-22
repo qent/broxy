@@ -1,5 +1,9 @@
 package io.qent.broxy.core.config
 
+import io.qent.broxy.core.mcp.auth.InMemorySecureStorage
+import io.qent.broxy.core.mcp.auth.OAuthStateSnapshot
+import io.qent.broxy.core.mcp.auth.OAuthStateStore
+import io.qent.broxy.core.mcp.auth.OAuthToken
 import io.qent.broxy.core.models.McpServersConfig
 import io.qent.broxy.core.models.TransportConfig
 import io.qent.broxy.core.utils.ConfigurationException
@@ -8,6 +12,8 @@ import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class JsonConfigurationRepositoryTest {
@@ -190,5 +196,47 @@ class JsonConfigurationRepositoryTest {
         assertEquals("secret", auth.clientSecret)
         assertEquals("client_secret_post", auth.tokenEndpointAuthMethod)
         assertEquals("https://auth.example.com", auth.authorizationServer)
+    }
+
+    @Test
+    fun saveMcpConfig_removes_oauth_state_for_deleted_servers() {
+        val dir = Files.createTempDirectory("broxy-config")
+        val json =
+            """
+            {
+              "mcpServers": {
+                "alpha": {
+                  "transport": "http",
+                  "url": "http://localhost:9999/mcp",
+                  "auth": {
+                    "type": "oauth",
+                    "clientId": "client",
+                    "redirectUri": "http://localhost:8080/callback"
+                  }
+                }
+              }
+            }
+            """.trimIndent()
+        Files.writeString(dir.resolve("mcp.json"), json)
+
+        val authStore =
+            OAuthStateStore.forTesting(
+                baseDir = dir,
+                logger = ConfigTestLogger,
+                secureStorage = InMemorySecureStorage(),
+            )
+        val resourceUrl = "http://localhost:9999/mcp"
+        authStore.save("alpha", OAuthStateSnapshot(resourceUrl = resourceUrl, token = OAuthToken(accessToken = "token")))
+        assertNotNull(authStore.load("alpha", resourceUrl))
+
+        val repo =
+            JsonConfigurationRepository(
+                baseDir = dir,
+                logger = ConfigTestLogger,
+                authStateStore = authStore,
+            )
+        repo.saveMcpConfig(McpServersConfig(servers = emptyList()))
+
+        assertNull(authStore.load("alpha", resourceUrl))
     }
 }

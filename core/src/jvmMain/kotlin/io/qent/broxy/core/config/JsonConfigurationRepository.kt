@@ -1,5 +1,6 @@
 package io.qent.broxy.core.config
 
+import io.qent.broxy.core.mcp.auth.OAuthStateStore
 import io.qent.broxy.core.models.AuthConfig
 import io.qent.broxy.core.models.McpServerConfig
 import io.qent.broxy.core.models.McpServersConfig
@@ -30,6 +31,7 @@ class JsonConfigurationRepository(
         },
     private val logger: Logger = ConsoleLogger,
     private val envResolver: EnvironmentVariableResolver = EnvironmentVariableResolver(logger = logger),
+    private val authStateStore: OAuthStateStore = OAuthStateStore(baseDir = baseDir, logger = logger),
 ) : ConfigurationRepository {
     companion object {
         private const val DEFAULT_TIMEOUT_SECONDS = 60
@@ -156,6 +158,7 @@ class JsonConfigurationRepository(
     }
 
     override fun saveMcpConfig(config: McpServersConfig) {
+        val removedServerIds = removedServerIds(config)
         val root =
             FileMcpRoot(
                 defaultPresetId = config.defaultPresetId?.takeIf { it.isNotBlank() },
@@ -227,6 +230,7 @@ class JsonConfigurationRepository(
         } catch (e: IOException) {
             fail("Failed to save mcp.json: ${e.message}", e)
         }
+        removeAuthState(removedServerIds)
     }
 
     override fun loadPreset(id: String): Preset {
@@ -417,6 +421,25 @@ class JsonConfigurationRepository(
         } catch (e: Exception) {
             fail("Server '$serverId': $label is not a valid URI")
         }
+    }
+
+    private fun removedServerIds(config: McpServersConfig): Set<String> {
+        if (!Files.exists(mcpFile)) return emptySet()
+        val existing =
+            runCatching {
+                val text = Files.readString(mcpFile)
+                json.decodeFromString(FileMcpRoot.serializer(), text).mcpServers.keys
+            }.onFailure { error ->
+                logger.warn("Failed to read existing mcp.json for OAuth cleanup: ${error.message}", error)
+            }.getOrDefault(emptySet())
+        if (existing.isEmpty()) return emptySet()
+        val current = config.servers.map { it.id }.toSet()
+        return existing - current
+    }
+
+    private fun removeAuthState(serverIds: Set<String>) {
+        if (serverIds.isEmpty()) return
+        serverIds.forEach { authStateStore.remove(it) }
     }
 
     @Serializable

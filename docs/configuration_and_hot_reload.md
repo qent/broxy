@@ -15,6 +15,7 @@ Key files:
 - `mcp.json` - downstream server list and global settings.
 - `preset_<id>.json` - presets for filtering.
 - OAuth cache for HTTP/WS servers is stored in system secure storage.
+  - Cache entries are deleted when a server is removed from `mcp.json`.
 
 Loader:
 
