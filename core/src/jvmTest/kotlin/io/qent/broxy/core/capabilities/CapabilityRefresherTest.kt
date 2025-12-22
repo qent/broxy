@@ -50,7 +50,7 @@ class CapabilityRefresherTest {
             val refresher =
                 CapabilityRefresher(
                     scope = this,
-                    capabilityFetcher = { cfg, _ ->
+                    capabilityFetcher = { cfg, _, _ ->
                         calls += cfg.id
                         if (cfg.id == "s1") {
                             Result.success(ServerCapabilities())
@@ -63,6 +63,7 @@ class CapabilityRefresherTest {
                     logger = NoopLogger,
                     serversProvider = { configs },
                     capabilitiesTimeoutProvider = { 5 },
+                    connectionRetryCountProvider = { 3 },
                     publishUpdate = { published += Unit },
                     refreshIntervalMillis = { 0L },
                 )
@@ -95,7 +96,7 @@ class CapabilityRefresherTest {
             val refresher =
                 CapabilityRefresher(
                     scope = this,
-                    capabilityFetcher = { cfg, _ ->
+                    capabilityFetcher = { cfg, _, _ ->
                         calls += cfg.id
                         Result.success(ServerCapabilities())
                     },
@@ -104,6 +105,7 @@ class CapabilityRefresherTest {
                     logger = NoopLogger,
                     serversProvider = { listOf(config) },
                     capabilitiesTimeoutProvider = { 5 },
+                    connectionRetryCountProvider = { 3 },
                     publishUpdate = {},
                     refreshIntervalMillis = { 10_000L },
                 )
@@ -133,7 +135,7 @@ class CapabilityRefresherTest {
             val refresher =
                 CapabilityRefresher(
                     scope = this,
-                    capabilityFetcher = { _, _ ->
+                    capabilityFetcher = { _, _, _ ->
                         started.complete(Unit)
                         try {
                             awaitCancellation()
@@ -148,6 +150,7 @@ class CapabilityRefresherTest {
                     logger = NoopLogger,
                     serversProvider = { listOf(config) },
                     capabilitiesTimeoutProvider = { 5 },
+                    connectionRetryCountProvider = { 3 },
                     publishUpdate = {},
                     refreshIntervalMillis = { 0L },
                 )
@@ -187,7 +190,7 @@ class CapabilityRefresherTest {
             val refresher =
                 CapabilityRefresher(
                     scope = this,
-                    capabilityFetcher = { cfg, _ ->
+                    capabilityFetcher = { cfg, _, _ ->
                         when (cfg.id) {
                             "s1" -> {
                                 started.complete(Unit)
@@ -205,6 +208,7 @@ class CapabilityRefresherTest {
                     logger = NoopLogger,
                     serversProvider = { configs },
                     capabilitiesTimeoutProvider = { 5 },
+                    connectionRetryCountProvider = { 3 },
                     publishUpdate = {},
                     refreshIntervalMillis = { 0L },
                 )
@@ -254,12 +258,13 @@ class CapabilityRefresherTest {
             val refresher =
                 CapabilityRefresher(
                     scope = this,
-                    capabilityFetcher = { _, _ -> Result.success(ServerCapabilities()) },
+                    capabilityFetcher = { _, _, _ -> Result.success(ServerCapabilities()) },
                     capabilityCache = cache,
                     statusTracker = statusTracker,
                     logger = NoopLogger,
                     serversProvider = { configs },
                     capabilitiesTimeoutProvider = { 5 },
+                    connectionRetryCountProvider = { 3 },
                     publishUpdate = { published += Unit },
                     refreshIntervalMillis = { 0L },
                 )

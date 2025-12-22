@@ -1,6 +1,8 @@
 package io.qent.broxy.core.proxy.runtime
 
 import io.qent.broxy.core.capabilities.ServerCapsSnapshot
+import io.qent.broxy.core.capabilities.ServerConnectionStatus
+import io.qent.broxy.core.capabilities.ServerConnectionUpdate
 import io.qent.broxy.core.capabilities.toSnapshot
 import io.qent.broxy.core.mcp.DefaultMcpServerConnection
 import io.qent.broxy.core.mcp.IsolatedMcpServerConnection
@@ -80,6 +82,10 @@ private class JvmProxyController(
     private var refreshLimiter = Semaphore(DEFAULT_REFRESH_PARALLELISM)
     private var capabilitiesRefreshIntervalMillis: Long = DEFAULT_REFRESH_INTERVAL_MILLIS
     private val _capabilityUpdates = MutableSharedFlow<List<ServerCapsSnapshot>>(replay = 1)
+    private val _serverStatusUpdates = MutableSharedFlow<ServerConnectionUpdate>(extraBufferCapacity = 32)
+
+    @Volatile
+    private var lastCapabilityServerIds: Set<String> = emptySet()
 
     @Volatile
     private var callTimeoutMillis: Long = 60_000
@@ -87,8 +93,12 @@ private class JvmProxyController(
     @Volatile
     private var capabilitiesTimeoutMillis: Long = 30_000
 
+    @Volatile
+    private var connectionRetryCount: Int = 3
+
     override val logs: Flow<LogEvent> get() = logger.events
     override val capabilityUpdates: Flow<List<ServerCapsSnapshot>> get() = _capabilityUpdates
+    override val serverStatusUpdates: Flow<ServerConnectionUpdate> get() = _serverStatusUpdates
 
     override fun start(
         servers: List<McpServerConfig>,
@@ -96,12 +106,14 @@ private class JvmProxyController(
         inbound: TransportConfig,
         callTimeoutSeconds: Int,
         capabilitiesTimeoutSeconds: Int,
+        connectionRetryCount: Int,
         capabilitiesRefreshIntervalSeconds: Int,
     ): Result<Unit> =
         runCatching {
             runCatching { stop() }
             callTimeoutMillis = callTimeoutSeconds.toLong() * 1_000L
             capabilitiesTimeoutMillis = capabilitiesTimeoutSeconds.toLong() * 1_000L
+            this.connectionRetryCount = connectionRetryCount.coerceAtLeast(1)
             capabilitiesRefreshIntervalMillis = refreshIntervalMillis(capabilitiesRefreshIntervalSeconds)
 
             val enabledConfigs = servers.filter { it.enabled }
@@ -165,6 +177,7 @@ private class JvmProxyController(
         servers: List<McpServerConfig>,
         callTimeoutSeconds: Int,
         capabilitiesTimeoutSeconds: Int,
+        connectionRetryCount: Int,
         capabilitiesRefreshIntervalSeconds: Int,
     ): Result<Unit> =
         runCatching {
@@ -176,8 +189,10 @@ private class JvmProxyController(
 
             val previousCallTimeoutMillis = callTimeoutMillis
             val previousCapabilitiesTimeoutMillis = capabilitiesTimeoutMillis
+            val previousConnectionRetryCount = this.connectionRetryCount
             callTimeoutMillis = callTimeoutSeconds.toLong() * 1_000L
             capabilitiesTimeoutMillis = capabilitiesTimeoutSeconds.toLong() * 1_000L
+            this.connectionRetryCount = connectionRetryCount.coerceAtLeast(1)
             capabilitiesRefreshIntervalMillis = refreshIntervalMillis(capabilitiesRefreshIntervalSeconds)
 
             val enabledConfigs = servers.filter { it.enabled }
@@ -213,11 +228,18 @@ private class JvmProxyController(
 
             val callTimeoutChanged = previousCallTimeoutMillis != callTimeoutMillis
             val capabilitiesTimeoutChanged = previousCapabilitiesTimeoutMillis != capabilitiesTimeoutMillis
+            val retryCountChanged = previousConnectionRetryCount != this.connectionRetryCount
             if (callTimeoutChanged || capabilitiesTimeoutChanged) {
                 reusedIds.forEach { id ->
                     val managed = updated[id] ?: return@forEach
                     if (callTimeoutChanged) managed.updateCallTimeout(callTimeoutMillis)
                     if (capabilitiesTimeoutChanged) managed.updateCapabilitiesTimeout(capabilitiesTimeoutMillis)
+                }
+            }
+            if (retryCountChanged) {
+                reusedIds.forEach { id ->
+                    val managed = updated[id] ?: return@forEach
+                    managed.connection.updateConnectionRetryCount(this.connectionRetryCount)
                 }
             }
 
@@ -247,16 +269,25 @@ private class JvmProxyController(
         managedDownstreams.values.forEach { it.updateCapabilitiesTimeout(capabilitiesTimeoutMillis) }
     }
 
+    override fun updateConnectionRetryCount(count: Int) {
+        connectionRetryCount = count.coerceAtLeast(1)
+        managedDownstreams.values.forEach { it.connection.updateConnectionRetryCount(connectionRetryCount) }
+    }
+
     override fun currentProxy(): ProxyMcpServer? = proxy
 
     private fun emitCapabilitySnapshots(capabilitiesById: Map<String, ServerCapabilities>) {
-        if (capabilitiesById.isEmpty()) return
+        if (capabilitiesById.isEmpty()) {
+            lastCapabilityServerIds = emptySet()
+            return
+        }
         val configs = managedDownstreams.values.map { it.config }
         val snapshots =
             configs.mapNotNull { cfg ->
                 capabilitiesById[cfg.id]?.toSnapshot(cfg)
             }
         if (snapshots.isNotEmpty()) {
+            lastCapabilityServerIds = snapshots.map { it.serverId }.toSet()
             _capabilityUpdates.tryEmit(snapshots)
         }
     }
@@ -269,6 +300,7 @@ private class JvmProxyController(
                 logger = logger,
                 authState = authState,
                 authStateObserver = { state -> persistAuthState(config, state) },
+                maxRetries = connectionRetryCount,
                 initialCallTimeoutMillis = callTimeoutMillis,
                 initialCapabilitiesTimeoutMillis = capabilitiesTimeoutMillis,
             )
@@ -339,6 +371,17 @@ private class JvmProxyController(
                         throw e
                     } catch (t: Throwable) {
                         logger.warn("$label capabilities refresh failed for '$serverId'", t)
+                    }
+                    val connection = managedDownstreams[serverId]?.connection ?: return@launch
+                    val status = connection.status
+                    if (status is ServerStatus.Error && serverId !in lastCapabilityServerIds) {
+                        _serverStatusUpdates.tryEmit(
+                            ServerConnectionUpdate(
+                                serverId = serverId,
+                                status = ServerConnectionStatus.Error,
+                                errorMessage = status.message,
+                            ),
+                        )
                     }
                 }
             }.joinAll()

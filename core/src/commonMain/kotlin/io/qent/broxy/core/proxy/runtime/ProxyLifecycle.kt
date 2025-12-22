@@ -1,6 +1,7 @@
 package io.qent.broxy.core.proxy.runtime
 
 import io.qent.broxy.core.capabilities.ServerCapsSnapshot
+import io.qent.broxy.core.capabilities.ServerConnectionUpdate
 import io.qent.broxy.core.models.McpServersConfig
 import io.qent.broxy.core.models.Preset
 import io.qent.broxy.core.models.TransportConfig
@@ -17,6 +18,7 @@ class ProxyLifecycle(
     private val logger: Logger,
 ) {
     val capabilityUpdates: Flow<List<ServerCapsSnapshot>> get() = controller.capabilityUpdates
+    val serverStatusUpdates: Flow<ServerConnectionUpdate> get() = controller.serverStatusUpdates
     private var currentConfig: McpServersConfig? = null
     private var currentPreset: Preset? = null
     private var currentInbound: TransportConfig? = null
@@ -33,6 +35,7 @@ class ProxyLifecycle(
                 inbound = inbound,
                 callTimeoutSeconds = config.requestTimeoutSeconds,
                 capabilitiesTimeoutSeconds = config.capabilitiesTimeoutSeconds,
+                connectionRetryCount = config.connectionRetryCount,
                 capabilitiesRefreshIntervalSeconds = config.capabilitiesRefreshIntervalSeconds,
             )
         if (result.isSuccess) {
@@ -89,6 +92,7 @@ class ProxyLifecycle(
                 servers = config.servers,
                 callTimeoutSeconds = config.requestTimeoutSeconds,
                 capabilitiesTimeoutSeconds = config.capabilitiesTimeoutSeconds,
+                connectionRetryCount = config.connectionRetryCount,
                 capabilitiesRefreshIntervalSeconds = config.capabilitiesRefreshIntervalSeconds,
             )
         if (result.isSuccess) {
@@ -107,6 +111,11 @@ class ProxyLifecycle(
     fun updateCapabilitiesTimeout(seconds: Int) {
         controller.updateCapabilitiesTimeout(seconds)
         currentConfig = currentConfig?.copy(capabilitiesTimeoutSeconds = seconds)
+    }
+
+    fun updateConnectionRetryCount(count: Int) {
+        controller.updateConnectionRetryCount(count)
+        currentConfig = currentConfig?.copy(connectionRetryCount = count)
     }
 
     fun isRunning(): Boolean = currentPreset != null && currentInbound != null

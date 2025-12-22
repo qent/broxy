@@ -19,6 +19,7 @@ class CapabilityRefresher(
     private val logger: Logger,
     private val serversProvider: () -> List<McpServerConfig>,
     private val capabilitiesTimeoutProvider: () -> Int,
+    private val connectionRetryCountProvider: () -> Int,
     private val publishUpdate: () -> Unit,
     private val refreshIntervalMillis: () -> Long,
 ) {
@@ -146,6 +147,14 @@ class CapabilityRefresher(
         publishUpdate()
     }
 
+    fun applyProxyStatus(update: ServerConnectionUpdate) {
+        when (update.status) {
+            ServerConnectionStatus.Error -> statusTracker.setError(update.serverId, update.errorMessage)
+            else -> statusTracker.set(update.serverId, update.status)
+        }
+        publishUpdate()
+    }
+
     private suspend fun refreshServers(targets: List<McpServerConfig>) {
         if (targets.isEmpty()) return
         val targetIds = targets.map { it.id }
@@ -197,7 +206,8 @@ class CapabilityRefresher(
 
     private suspend fun fetchAndCacheCapabilities(cfg: McpServerConfig): FetchResult {
         val timeoutSeconds = capabilitiesTimeoutProvider()
-        val result = capabilityFetcher(cfg, timeoutSeconds)
+        val retryCount = connectionRetryCountProvider()
+        val result = capabilityFetcher(cfg, timeoutSeconds, retryCount)
         return if (result.isSuccess) {
             val snapshot = result.getOrThrow().toSnapshot(cfg)
             capabilityCache.put(cfg.id, snapshot)

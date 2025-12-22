@@ -18,7 +18,7 @@ class DefaultMcpServerConnection(
     override val config: McpServerConfig,
     private val logger: Logger = ConsoleLogger,
     private val cacheTtlMs: Long = 5 * 60 * 1000,
-    private val maxRetries: Int = 5,
+    private var maxRetries: Int = 5,
     private val authState: OAuthState? =
         when {
             config.auth is AuthConfig.OAuth -> OAuthState()
@@ -57,6 +57,10 @@ class DefaultMcpServerConnection(
     @Volatile
     private var connectTimeoutMillis: Long = initialConnectTimeoutMillis.coerceAtLeast(1)
 
+    init {
+        maxRetries = maxRetries.coerceAtLeast(1)
+    }
+
     fun updateCallTimeout(millis: Long) {
         callTimeoutMillis = millis.coerceAtLeast(1)
         logger.info("Updated call timeout for '${config.name}' to ${callTimeoutMillis}ms")
@@ -66,6 +70,11 @@ class DefaultMcpServerConnection(
         capabilitiesTimeoutMillis = millis.coerceAtLeast(1)
         connectTimeoutMillis = capabilitiesTimeoutMillis
         logger.info("Updated capabilities timeout for '${config.name}' to ${capabilitiesTimeoutMillis}ms")
+    }
+
+    fun updateConnectionRetryCount(count: Int) {
+        maxRetries = count.coerceAtLeast(1)
+        logger.info("Updated connection retries for '${config.name}' to $maxRetries")
     }
 
     override suspend fun connect(): Result<Unit> = withSession { Result.success(Unit) }

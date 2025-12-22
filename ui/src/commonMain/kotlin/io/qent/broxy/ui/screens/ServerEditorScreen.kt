@@ -132,7 +132,7 @@ fun ServerEditorScreen(
 
                         var toSave = draft
                         if (draft.enabled) {
-                            val result = validateServerConnection(draft)
+                            val result = validateServerConnection(draft, connectionRetryCount = readyUi.connectionRetryCount)
                             if (result.isFailure) {
                                 val e = result.exceptionOrNull()
                                 val isTimeout = e?.message?.contains("timed out", ignoreCase = true) == true

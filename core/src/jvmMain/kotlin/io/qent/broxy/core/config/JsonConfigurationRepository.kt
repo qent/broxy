@@ -35,6 +35,7 @@ class JsonConfigurationRepository(
         private const val DEFAULT_TIMEOUT_SECONDS = 60
         private const val DEFAULT_CAPABILITIES_TIMEOUT_SECONDS = 30
         private const val DEFAULT_CAPABILITIES_REFRESH_INTERVAL_SECONDS = 300
+        private const val DEFAULT_CONNECTION_RETRY_COUNT = 3
         private const val DEFAULT_INBOUND_SSE_PORT = 3335
     }
 
@@ -135,6 +136,7 @@ class JsonConfigurationRepository(
 
         val timeoutSeconds = root.requestTimeoutSeconds ?: DEFAULT_TIMEOUT_SECONDS
         val capabilitiesTimeoutSeconds = root.capabilitiesTimeoutSeconds ?: DEFAULT_CAPABILITIES_TIMEOUT_SECONDS
+        val connectionRetryCount = root.connectionRetryCount ?: DEFAULT_CONNECTION_RETRY_COUNT
         val showTrayIcon = root.showTrayIcon ?: true
         val capabilitiesRefreshIntervalSeconds =
             root.capabilitiesRefreshIntervalSeconds
@@ -147,6 +149,7 @@ class JsonConfigurationRepository(
             inboundSsePort = inboundSsePort.coerceIn(1, 65535),
             requestTimeoutSeconds = timeoutSeconds,
             capabilitiesTimeoutSeconds = capabilitiesTimeoutSeconds,
+            connectionRetryCount = connectionRetryCount.coerceAtLeast(1),
             showTrayIcon = showTrayIcon,
             capabilitiesRefreshIntervalSeconds = capabilitiesRefreshIntervalSeconds,
         )
@@ -159,6 +162,7 @@ class JsonConfigurationRepository(
                 inboundSsePort = config.inboundSsePort.coerceIn(1, 65535),
                 requestTimeoutSeconds = config.requestTimeoutSeconds,
                 capabilitiesTimeoutSeconds = config.capabilitiesTimeoutSeconds,
+                connectionRetryCount = config.connectionRetryCount.coerceAtLeast(1),
                 showTrayIcon = config.showTrayIcon,
                 capabilitiesRefreshIntervalSeconds = config.capabilitiesRefreshIntervalSeconds,
                 mcpServers =
@@ -421,6 +425,7 @@ class JsonConfigurationRepository(
         val inboundSsePort: Int? = null,
         val requestTimeoutSeconds: Int? = null,
         val capabilitiesTimeoutSeconds: Int? = null,
+        val connectionRetryCount: Int? = null,
         val showTrayIcon: Boolean? = null,
         val capabilitiesRefreshIntervalSeconds: Int? = null,
         val mcpServers: Map<String, FileMcpServer>,

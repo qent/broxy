@@ -25,6 +25,7 @@ data class CommandAvailability(
 expect suspend fun fetchServerCapabilities(
     config: UiMcpServerConfig,
     timeoutSeconds: Int,
+    connectionRetryCount: Int,
     logger: Logger? = null,
 ): Result<UiServerCapabilities>
 
@@ -37,6 +38,7 @@ expect suspend fun checkStdioCommandAvailability(
 /** Validates connectivity by attempting to fetch capabilities for a draft config. */
 suspend fun validateServerConnection(
     draft: UiServerDraft,
+    connectionRetryCount: Int,
     logger: Logger? = null,
 ): Result<Unit> {
     val transport =
@@ -54,5 +56,5 @@ suspend fun validateServerConnection(
             transport = transport,
             env = draft.env,
         )
-    return fetchServerCapabilities(cfg, timeoutSeconds = 10, logger = logger).map { }
+    return fetchServerCapabilities(cfg, timeoutSeconds = 10, connectionRetryCount = connectionRetryCount, logger = logger).map { }
 }

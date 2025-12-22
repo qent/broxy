@@ -147,4 +147,6 @@ manual refresh falls back to UI polling only when the proxy is not running.
 Proxy capability updates are incremental: UI caches are updated only for servers
 present in the snapshot payload. Missing servers keep their previous status/cached
 data (typically `Connecting` during startup) so slow servers do not briefly show
-`Error` while other servers are still refreshing.
+`Error` while other servers are still refreshing. If a refresh cycle fails for a
+server that has no cached capabilities, the proxy emits a status update so the UI
+switches to `Error` after retries are exhausted.

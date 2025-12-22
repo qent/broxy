@@ -21,6 +21,7 @@ sealed class UIState {
         val proxyStatus: UiProxyStatus,
         val requestTimeoutSeconds: Int,
         val capabilitiesTimeoutSeconds: Int,
+        val connectionRetryCount: Int,
         val capabilitiesRefreshIntervalSeconds: Int,
         val showTrayIcon: Boolean,
         val intents: Intents,
@@ -62,6 +63,8 @@ interface Intents {
     fun updateRequestTimeout(seconds: Int)
 
     fun updateCapabilitiesTimeout(seconds: Int)
+
+    fun updateConnectionRetryCount(count: Int)
 
     fun updateCapabilitiesRefreshInterval(seconds: Int)
 

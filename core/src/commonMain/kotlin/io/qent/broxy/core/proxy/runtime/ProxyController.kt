@@ -1,6 +1,7 @@
 package io.qent.broxy.core.proxy.runtime
 
 import io.qent.broxy.core.capabilities.ServerCapsSnapshot
+import io.qent.broxy.core.capabilities.ServerConnectionUpdate
 import io.qent.broxy.core.models.McpServerConfig
 import io.qent.broxy.core.models.Preset
 import io.qent.broxy.core.models.TransportConfig
@@ -16,6 +17,7 @@ import kotlinx.coroutines.flow.Flow
 interface ProxyController {
     val logs: Flow<LogEvent>
     val capabilityUpdates: Flow<List<ServerCapsSnapshot>>
+    val serverStatusUpdates: Flow<ServerConnectionUpdate>
 
     fun start(
         servers: List<McpServerConfig>,
@@ -23,6 +25,7 @@ interface ProxyController {
         inbound: TransportConfig,
         callTimeoutSeconds: Int,
         capabilitiesTimeoutSeconds: Int,
+        connectionRetryCount: Int,
         capabilitiesRefreshIntervalSeconds: Int,
     ): Result<Unit>
 
@@ -38,12 +41,15 @@ interface ProxyController {
         servers: List<McpServerConfig>,
         callTimeoutSeconds: Int,
         capabilitiesTimeoutSeconds: Int,
+        connectionRetryCount: Int,
         capabilitiesRefreshIntervalSeconds: Int,
     ): Result<Unit>
 
     fun updateCallTimeout(seconds: Int)
 
     fun updateCapabilitiesTimeout(seconds: Int)
+
+    fun updateConnectionRetryCount(count: Int)
 
     fun currentProxy(): ProxyMcpServer?
 }

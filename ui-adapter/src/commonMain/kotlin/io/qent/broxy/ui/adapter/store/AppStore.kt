@@ -84,6 +84,7 @@ class AppStore(
             logger = logger,
             serversProvider = { snapshot.servers },
             capabilitiesTimeoutProvider = { snapshot.capabilitiesTimeoutSeconds },
+            connectionRetryCountProvider = { snapshot.connectionRetryCount },
             publishUpdate = ::publishReady,
             refreshIntervalMillis = ::refreshIntervalMillis,
         )
@@ -115,6 +116,7 @@ class AppStore(
     init {
         observeRemote()
         observeProxyCapabilities()
+        observeProxyStatuses()
     }
 
     fun start() {
@@ -233,6 +235,15 @@ class AppStore(
         }
     }
 
+    private fun observeProxyStatuses() {
+        scope.launch {
+            proxyLifecycle.serverStatusUpdates.collect { update ->
+                if (!proxyLifecycle.isRunning()) return@collect
+                capabilityRefresher.applyProxyStatus(update)
+            }
+        }
+    }
+
     private fun updateSnapshot(transform: StoreSnapshot.() -> StoreSnapshot) {
         snapshot = snapshot.transform()
     }
@@ -243,6 +254,7 @@ class AppStore(
             val loadedPresets = configurationRepository.listPresets().map { it.toUiPresetSummary() }
             proxyLifecycle.updateCallTimeout(config.requestTimeoutSeconds)
             proxyLifecycle.updateCapabilitiesTimeout(config.capabilitiesTimeoutSeconds)
+            proxyLifecycle.updateConnectionRetryCount(config.connectionRetryCount)
             updateSnapshot {
                 copy(
                     isLoading = false,
@@ -251,6 +263,7 @@ class AppStore(
                     inboundSsePort = config.inboundSsePort,
                     requestTimeoutSeconds = config.requestTimeoutSeconds,
                     capabilitiesTimeoutSeconds = config.capabilitiesTimeoutSeconds,
+                    connectionRetryCount = config.connectionRetryCount,
                     capabilitiesRefreshIntervalSeconds = config.capabilitiesRefreshIntervalSeconds.coerceAtLeast(30),
                     showTrayIcon = config.showTrayIcon,
                 ).withPresets(loadedPresets)
@@ -267,6 +280,7 @@ class AppStore(
             inboundSsePort = snapshot.inboundSsePort,
             requestTimeoutSeconds = snapshot.requestTimeoutSeconds,
             capabilitiesTimeoutSeconds = snapshot.capabilitiesTimeoutSeconds,
+            connectionRetryCount = snapshot.connectionRetryCount,
             showTrayIcon = snapshot.showTrayIcon,
             capabilitiesRefreshIntervalSeconds = snapshot.capabilitiesRefreshIntervalSeconds,
         )
@@ -293,7 +307,7 @@ fun createAppStore(
     logger: CollectingLogger = provideDefaultLogger(),
     repository: ConfigurationRepository = provideConfigurationRepository(),
     proxyFactory: (CollectingLogger) -> ProxyController = { createProxyController(it) },
-    capabilityFetcher: CapabilityFetcher = { config, timeout -> fetchServerCapabilities(config, timeout, logger) },
+    capabilityFetcher: CapabilityFetcher = { config, timeout, retries -> fetchServerCapabilities(config, timeout, retries, logger) },
     now: () -> Long = { System.currentTimeMillis() },
     enableBackgroundRefresh: Boolean = true,
 ): AppStore {

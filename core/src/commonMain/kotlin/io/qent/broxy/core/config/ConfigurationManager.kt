@@ -90,6 +90,11 @@ class ConfigurationManager(
         seconds: Int,
     ): Result<McpServersConfig> = saveConfig(config.copy(capabilitiesTimeoutSeconds = seconds))
 
+    fun updateConnectionRetryCount(
+        config: McpServersConfig,
+        count: Int,
+    ): Result<McpServersConfig> = saveConfig(config.copy(connectionRetryCount = count.coerceAtLeast(1)))
+
     fun updateInboundSsePort(
         config: McpServersConfig,
         port: Int,

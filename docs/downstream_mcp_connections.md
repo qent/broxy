@@ -84,7 +84,7 @@ If a connection is created outside that flow, the internal defaults are 60s and 
 
 `connectClient(client)`:
 
-- `maxRetries` attempts (default 5).
+- `maxRetries` attempts (default 3, configurable via `connectionRetryCount` in `mcp.json`).
 - backoff via `ExponentialBackoff` (`core/src/commonMain/kotlin/io/qent/broxy/core/utils/Backoff.kt`).
 - connect is wrapped in `withTimeout(connectTimeoutMillis)`.
 

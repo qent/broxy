@@ -1,6 +1,7 @@
 package io.qent.broxy.ui.adapter.store
 
 import io.qent.broxy.core.capabilities.ServerCapsSnapshot
+import io.qent.broxy.core.capabilities.ServerConnectionUpdate
 import io.qent.broxy.core.capabilities.ToolSummary
 import io.qent.broxy.core.models.McpServerConfig
 import io.qent.broxy.core.models.McpServersConfig
@@ -79,6 +80,7 @@ class AppStoreTest {
                     servers = listOf(server),
                     requestTimeoutSeconds = 42,
                     capabilitiesTimeoutSeconds = 24,
+                    connectionRetryCount = 4,
                     showTrayIcon = true,
                     capabilitiesRefreshIntervalSeconds = 180,
                 )
@@ -134,9 +136,11 @@ class AppStoreTest {
             assertEquals(1, uiServer.toolsCount)
             assertEquals(42, ready.requestTimeoutSeconds)
             assertEquals(24, ready.capabilitiesTimeoutSeconds)
+            assertEquals(4, ready.connectionRetryCount)
             assertEquals(180, ready.capabilitiesRefreshIntervalSeconds)
             assertEquals(listOf(42), proxyController.callTimeoutUpdates)
             assertEquals(listOf(24), proxyController.capabilityTimeoutUpdates)
+            assertEquals(listOf(4), proxyController.connectionRetryUpdates)
             assertTrue(capabilityFetcher.requestedIds.isEmpty())
             assertTrue(capabilityFetcher.requestedTimeouts.isEmpty())
 
@@ -189,6 +193,7 @@ class AppStoreTest {
             assertIs<TransportConfig.StreamableHttpTransport>(params.inbound)
             assertEquals(config.requestTimeoutSeconds, params.callTimeoutSeconds)
             assertEquals(config.capabilitiesTimeoutSeconds, params.capabilitiesTimeoutSeconds)
+            assertEquals(config.connectionRetryCount, params.connectionRetryCount)
             assertEquals(config.capabilitiesRefreshIntervalSeconds, params.capabilitiesRefreshIntervalSeconds)
 
             val updatedState = store.state.value
@@ -623,6 +628,8 @@ class AppStoreTest {
         override val logs = _logs
         private val _capabilityUpdates = MutableSharedFlow<List<ServerCapsSnapshot>>(replay = 1)
         override val capabilityUpdates = _capabilityUpdates
+        private val statusUpdates = MutableSharedFlow<ServerConnectionUpdate>(extraBufferCapacity = 8)
+        override val serverStatusUpdates = statusUpdates
 
         data class StartParams(
             val servers: List<UiMcpServerConfig>,
@@ -630,6 +637,7 @@ class AppStoreTest {
             val inbound: UiTransportConfig,
             val callTimeoutSeconds: Int,
             val capabilitiesTimeoutSeconds: Int,
+            val connectionRetryCount: Int,
             val capabilitiesRefreshIntervalSeconds: Int,
             val logsSubscriptionActive: Boolean,
         )
@@ -638,6 +646,7 @@ class AppStoreTest {
         val startCalls = mutableListOf<StartParams>()
         val callTimeoutUpdates = mutableListOf<Int>()
         val capabilityTimeoutUpdates = mutableListOf<Int>()
+        val connectionRetryUpdates = mutableListOf<Int>()
         val appliedPresets = mutableListOf<String>()
         val updateServersCalls = mutableListOf<List<UiMcpServerConfig>>()
 
@@ -647,6 +656,7 @@ class AppStoreTest {
             inbound: UiTransportConfig,
             callTimeoutSeconds: Int,
             capabilitiesTimeoutSeconds: Int,
+            connectionRetryCount: Int,
             capabilitiesRefreshIntervalSeconds: Int,
         ): Result<Unit> {
             startCalls +=
@@ -656,6 +666,7 @@ class AppStoreTest {
                     inbound = inbound,
                     callTimeoutSeconds = callTimeoutSeconds,
                     capabilitiesTimeoutSeconds = capabilitiesTimeoutSeconds,
+                    connectionRetryCount = connectionRetryCount,
                     capabilitiesRefreshIntervalSeconds = capabilitiesRefreshIntervalSeconds,
                     logsSubscriptionActive = true,
                 )
@@ -673,6 +684,7 @@ class AppStoreTest {
             servers: List<UiMcpServerConfig>,
             callTimeoutSeconds: Int,
             capabilitiesTimeoutSeconds: Int,
+            connectionRetryCount: Int,
             capabilitiesRefreshIntervalSeconds: Int,
         ): Result<Unit> {
             updateServersCalls += servers
@@ -687,6 +699,10 @@ class AppStoreTest {
             capabilityTimeoutUpdates += seconds
         }
 
+        override fun updateConnectionRetryCount(count: Int) {
+            connectionRetryUpdates += count
+        }
+
         override fun currentProxy(): ProxyMcpServer? = null
 
         fun emitSnapshots(snapshots: List<ServerCapsSnapshot>) {
@@ -699,13 +715,16 @@ class AppStoreTest {
     ) {
         val requestedIds = mutableListOf<String>()
         val requestedTimeouts = mutableListOf<Int>()
+        val requestedRetries = mutableListOf<Int>()
 
         suspend fun invoke(
             config: UiMcpServerConfig,
             timeoutSeconds: Int,
+            connectionRetryCount: Int,
         ): Result<UiServerCapabilities> {
             requestedIds += config.id
             requestedTimeouts += timeoutSeconds
+            requestedRetries += connectionRetryCount
             return result
         }
     }

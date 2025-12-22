@@ -166,6 +166,10 @@ interface AppStrings {
 
     val capabilitiesTimeoutDescription: String
 
+    val connectionRetryCountTitle: String
+
+    val connectionRetryCountDescription: String
+
     val capabilitiesRefreshTitle: String
 
     val capabilitiesRefreshDescription: String
@@ -193,6 +197,8 @@ interface AppStrings {
     fun requestTimeoutSaved(seconds: Int): String
 
     fun capabilitiesTimeoutSaved(seconds: Int): String
+
+    fun connectionRetryCountSaved(count: Int): String
 
     fun refreshIntervalSaved(seconds: Int): String
 
@@ -432,6 +438,10 @@ object EnglishStrings : AppStrings {
 
     override val capabilitiesTimeoutDescription = "Max time to wait for server listings (seconds)."
 
+    override val connectionRetryCountTitle = "Connection retries"
+
+    override val connectionRetryCountDescription = "Retry attempts when connecting to servers."
+
     override val capabilitiesRefreshTitle = "Capabilities refresh"
 
     override val capabilitiesRefreshDescription = "Background refresh interval (seconds)."
@@ -459,6 +469,8 @@ object EnglishStrings : AppStrings {
     override fun requestTimeoutSaved(seconds: Int): String = "Timeout saved: ${seconds}s"
 
     override fun capabilitiesTimeoutSaved(seconds: Int): String = "Capabilities timeout saved: ${seconds}s"
+
+    override fun connectionRetryCountSaved(count: Int): String = "Connection retries saved: $count"
 
     override fun refreshIntervalSaved(seconds: Int): String = "Refresh interval saved: ${seconds}s"
 

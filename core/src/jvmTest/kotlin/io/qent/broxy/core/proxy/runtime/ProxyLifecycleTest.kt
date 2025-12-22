@@ -1,6 +1,7 @@
 package io.qent.broxy.core.proxy.runtime
 
 import io.qent.broxy.core.capabilities.ServerCapsSnapshot
+import io.qent.broxy.core.capabilities.ServerConnectionUpdate
 import io.qent.broxy.core.models.McpServerConfig
 import io.qent.broxy.core.models.McpServersConfig
 import io.qent.broxy.core.models.Preset
@@ -25,6 +26,7 @@ class ProxyLifecycleTest {
                 servers = listOf(testServer("s1")),
                 requestTimeoutSeconds = 5,
                 capabilitiesTimeoutSeconds = 3,
+                connectionRetryCount = 2,
             )
         val preset = Preset(id = "p1", name = "Preset")
         val inbound = TransportConfig.StdioTransport(command = "noop")
@@ -46,6 +48,7 @@ class ProxyLifecycleTest {
                 servers = listOf(testServer("s1")),
                 requestTimeoutSeconds = 5,
                 capabilitiesTimeoutSeconds = 3,
+                connectionRetryCount = 2,
             )
         val preset = Preset(id = "p1", name = "Preset")
         val inbound = TransportConfig.StreamableHttpTransport(url = "http://localhost:8080/mcp")
@@ -72,6 +75,7 @@ class ProxyLifecycleTest {
                 servers = listOf(testServer("s1")),
                 requestTimeoutSeconds = 5,
                 capabilitiesTimeoutSeconds = 3,
+                connectionRetryCount = 2,
             )
 
         assertTrue(lifecycle.restartWithConfig(config).isFailure)
@@ -85,11 +89,13 @@ private class FakeProxyController : ProxyController {
         val inbound: TransportConfig,
         val callTimeoutSeconds: Int,
         val capabilitiesTimeoutSeconds: Int,
+        val connectionRetryCount: Int,
         val capabilitiesRefreshIntervalSeconds: Int,
     )
 
     override val logs: Flow<LogEvent> = emptyFlow()
     override val capabilityUpdates: Flow<List<ServerCapsSnapshot>> = emptyFlow()
+    override val serverStatusUpdates: Flow<ServerConnectionUpdate> = emptyFlow()
 
     val startCalls = mutableListOf<StartCall>()
 
@@ -99,6 +105,7 @@ private class FakeProxyController : ProxyController {
         inbound: TransportConfig,
         callTimeoutSeconds: Int,
         capabilitiesTimeoutSeconds: Int,
+        connectionRetryCount: Int,
         capabilitiesRefreshIntervalSeconds: Int,
     ): Result<Unit> {
         startCalls +=
@@ -108,6 +115,7 @@ private class FakeProxyController : ProxyController {
                 inbound,
                 callTimeoutSeconds,
                 capabilitiesTimeoutSeconds,
+                connectionRetryCount,
                 capabilitiesRefreshIntervalSeconds,
             )
         return Result.success(Unit)
@@ -121,12 +129,15 @@ private class FakeProxyController : ProxyController {
         servers: List<McpServerConfig>,
         callTimeoutSeconds: Int,
         capabilitiesTimeoutSeconds: Int,
+        connectionRetryCount: Int,
         capabilitiesRefreshIntervalSeconds: Int,
     ): Result<Unit> = Result.success(Unit)
 
     override fun updateCallTimeout(seconds: Int) {}
 
     override fun updateCapabilitiesTimeout(seconds: Int) {}
+
+    override fun updateConnectionRetryCount(count: Int) {}
 
     override fun currentProxy(): ProxyMcpServer? = null
 }

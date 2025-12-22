@@ -47,6 +47,12 @@
       "description": "Timeout for listing tools/resources/prompts from servers in seconds.",
       "default": 30
     },
+    "connectionRetryCount": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Maximum connection attempts when connecting to downstream servers.",
+      "default": 3
+    },
     "capabilitiesRefreshIntervalSeconds": {
       "type": "integer",
       "minimum": 30,

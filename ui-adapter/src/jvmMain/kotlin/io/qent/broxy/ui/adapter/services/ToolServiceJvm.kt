@@ -19,6 +19,7 @@ import io.qent.broxy.ui.adapter.models.UiWebSocketTransport
 actual suspend fun fetchServerCapabilities(
     config: UiMcpServerConfig,
     timeoutSeconds: Int,
+    connectionRetryCount: Int,
     logger: Logger?,
 ): Result<UiServerCapabilities> {
     // No outer timeout - let the internal timeouts handle it.
@@ -43,7 +44,7 @@ actual suspend fun fetchServerCapabilities(
                     authStore.save(config.id, state.toSnapshot(resourceUrl))
                 }
             },
-            maxRetries = 1,
+            maxRetries = connectionRetryCount.coerceAtLeast(1),
             initialCallTimeoutMillis = timeoutMillis,
             initialCapabilitiesTimeoutMillis = timeoutMillis,
             initialConnectTimeoutMillis = timeoutMillis,

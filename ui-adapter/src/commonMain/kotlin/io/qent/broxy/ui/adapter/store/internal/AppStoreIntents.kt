@@ -457,6 +457,25 @@ internal class AppStoreIntents(
         }
     }
 
+    override fun updateConnectionRetryCount(count: Int) {
+        scope.launch {
+            val clamped = count.coerceAtLeast(1)
+            val previous = state.snapshot.connectionRetryCount
+            val previousConfig = state.snapshotConfig()
+            state.updateSnapshot { copy(connectionRetryCount = clamped) }
+            proxyLifecycle.updateConnectionRetryCount(clamped)
+            val result = configurationManager.updateConnectionRetryCount(previousConfig, clamped)
+            if (result.isFailure) {
+                val msg = result.exceptionOrNull()?.message ?: "Failed to update connection retries"
+                logger.info("[AppStore] updateConnectionRetryCount failed: $msg")
+                state.updateSnapshot { copy(connectionRetryCount = previous) }
+                proxyLifecycle.updateConnectionRetryCount(previous)
+                state.setError(msg)
+            }
+            publishReady()
+        }
+    }
+
     override fun updateCapabilitiesRefreshInterval(seconds: Int) {
         scope.launch {
             val clamped = seconds.coerceAtLeast(30)

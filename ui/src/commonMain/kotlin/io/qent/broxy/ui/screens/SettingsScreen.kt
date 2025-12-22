@@ -60,6 +60,7 @@ fun SettingsScreen(
                     onFabStateChange = onFabStateChange,
                     requestTimeoutSeconds = ui.requestTimeoutSeconds,
                     capabilitiesTimeoutSeconds = ui.capabilitiesTimeoutSeconds,
+                    connectionRetryCount = ui.connectionRetryCount,
                     capabilitiesRefreshIntervalSeconds = ui.capabilitiesRefreshIntervalSeconds,
                     inboundSsePort = ui.inboundSsePort,
                     showTrayIcon = ui.showTrayIcon,
@@ -74,6 +75,10 @@ fun SettingsScreen(
                     onCapabilitiesTimeoutSave = { seconds ->
                         ui.intents.updateCapabilitiesTimeout(seconds)
                         notify(strings.capabilitiesTimeoutSaved(seconds))
+                    },
+                    onConnectionRetryCountSave = { count ->
+                        ui.intents.updateConnectionRetryCount(count)
+                        notify(strings.connectionRetryCountSaved(count))
                     },
                     onCapabilitiesRefreshIntervalSave = { seconds ->
                         ui.intents.updateCapabilitiesRefreshInterval(seconds)
@@ -101,12 +106,14 @@ private fun SettingsContent(
     onFabStateChange: (SettingsFabState) -> Unit,
     requestTimeoutSeconds: Int,
     capabilitiesTimeoutSeconds: Int,
+    connectionRetryCount: Int,
     capabilitiesRefreshIntervalSeconds: Int,
     inboundSsePort: Int,
     showTrayIcon: Boolean,
     onInboundSsePortSave: (Int) -> Unit,
     onRequestTimeoutSave: (Int) -> Unit,
     onCapabilitiesTimeoutSave: (Int) -> Unit,
+    onConnectionRetryCountSave: (Int) -> Unit,
     onCapabilitiesRefreshIntervalSave: (Int) -> Unit,
     onToggleTrayIcon: (Boolean) -> Unit,
     onOpenLogsFolder: () -> Unit,
@@ -123,6 +130,7 @@ private fun SettingsContent(
             capabilitiesRefreshIntervalSeconds.toString(),
         )
     }
+    var connectionRetryInput by rememberSaveable(connectionRetryCount) { mutableStateOf(connectionRetryCount.toString()) }
     var inboundSsePortInput by rememberSaveable(inboundSsePort) { mutableStateOf(inboundSsePort.toString()) }
 
     LaunchedEffect(requestTimeoutSeconds) {
@@ -135,6 +143,10 @@ private fun SettingsContent(
 
     LaunchedEffect(capabilitiesRefreshIntervalSeconds) {
         capabilitiesRefreshInput = capabilitiesRefreshIntervalSeconds.toString()
+    }
+
+    LaunchedEffect(connectionRetryCount) {
+        connectionRetryInput = connectionRetryCount.toString()
     }
 
     LaunchedEffect(inboundSsePort) {
@@ -153,11 +165,15 @@ private fun SettingsContent(
     val resolvedRefresh = parsedRefresh?.takeIf { it >= 30 && it <= Int.MAX_VALUE }?.toInt()
     val canSaveRefresh = resolvedRefresh != null && resolvedRefresh != capabilitiesRefreshIntervalSeconds
 
+    val parsedRetries = connectionRetryInput.toLongOrNull()
+    val resolvedRetries = parsedRetries?.takeIf { it > 0 && it <= Int.MAX_VALUE }?.toInt()
+    val canSaveRetries = resolvedRetries != null && resolvedRetries != connectionRetryCount
+
     val parsedPort = inboundSsePortInput.toLongOrNull()
     val resolvedPort = parsedPort?.takeIf { it in 1..65535 }?.toInt()
     val canSavePort = resolvedPort != null && resolvedPort != inboundSsePort
 
-    val canSaveAny = canSaveRequest || canSaveCapabilities || canSaveRefresh || canSavePort
+    val canSaveAny = canSaveRequest || canSaveCapabilities || canSaveRefresh || canSaveRetries || canSavePort
 
     val scrollState = rememberScrollState()
     val onSave: () -> Unit = onSave@{
@@ -171,6 +187,9 @@ private fun SettingsContent(
         if (canSaveRefresh) {
             resolvedRefresh?.let { onCapabilitiesRefreshIntervalSave(it) }
         }
+        if (canSaveRetries) {
+            resolvedRetries?.let { onConnectionRetryCountSave(it) }
+        }
         if (canSavePort) {
             resolvedPort?.let { onInboundSsePortSave(it) }
         }
@@ -181,6 +200,7 @@ private fun SettingsContent(
         resolvedRequest,
         resolvedCapabilities,
         resolvedRefresh,
+        resolvedRetries,
         resolvedPort,
     ) {
         onFabStateChange(SettingsFabState(enabled = canSaveAny, onClick = onSave))
@@ -230,6 +250,16 @@ private fun SettingsContent(
                 onValueChange = { value ->
                     if (value.isEmpty() || value.all { it.isDigit() }) {
                         capabilitiesTimeoutInput = value
+                    }
+                },
+            )
+            TimeoutSetting(
+                title = strings.connectionRetryCountTitle,
+                description = strings.connectionRetryCountDescription,
+                value = connectionRetryInput,
+                onValueChange = { value ->
+                    if (value.isEmpty() || value.all { it.isDigit() }) {
+                        connectionRetryInput = value
                     }
                 },
             )

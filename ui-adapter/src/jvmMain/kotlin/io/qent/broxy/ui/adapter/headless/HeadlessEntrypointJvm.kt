@@ -111,6 +111,7 @@ fun runStdioProxy(
                                     authStateStore.save(serverCfg.id, state.toSnapshot(resourceUrl))
                                 }
                             },
+                            maxRetries = cfg.connectionRetryCount,
                             initialCallTimeoutMillis = callTimeoutMillis,
                             initialCapabilitiesTimeoutMillis = capabilitiesTimeoutMillis,
                         )

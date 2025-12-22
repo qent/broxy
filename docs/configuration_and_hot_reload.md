@@ -35,6 +35,7 @@ Loader:
 5) applies defaults:
     - `requestTimeoutSeconds` (default 60)
     - `capabilitiesTimeoutSeconds` (default 30)
+    - `connectionRetryCount` (default 3)
     - `capabilitiesRefreshIntervalSeconds` (default 300)
     - `showTrayIcon` (default true)
     - `inboundSsePort` (default 3335; historical name, used for local Streamable HTTP)
@@ -51,6 +52,7 @@ the UI refresh cadence (minimum 30 seconds for each).
   "inboundSsePort": 3335,
   "requestTimeoutSeconds": 60,
   "capabilitiesTimeoutSeconds": 30,
+  "connectionRetryCount": 3,
   "capabilitiesRefreshIntervalSeconds": 300,
   "showTrayIcon": true,
   "mcpServers": {

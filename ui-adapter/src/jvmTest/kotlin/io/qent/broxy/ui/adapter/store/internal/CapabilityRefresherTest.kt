@@ -88,12 +88,13 @@ class CapabilityRefresherTest {
         tracker.retain(emptySet())
         return CapabilityRefresher(
             scope = testScope,
-            capabilityFetcher = { _, _ -> result },
+            capabilityFetcher = { _, _, _ -> result },
             capabilityCache = cache,
             statusTracker = tracker,
             logger = logger,
             serversProvider = { storeSnapshot.servers },
             capabilitiesTimeoutProvider = { storeSnapshot.capabilitiesTimeoutSeconds },
+            connectionRetryCountProvider = { storeSnapshot.connectionRetryCount },
             publishUpdate = { publishes += Unit },
             refreshIntervalMillis = { 1_000L },
         )
