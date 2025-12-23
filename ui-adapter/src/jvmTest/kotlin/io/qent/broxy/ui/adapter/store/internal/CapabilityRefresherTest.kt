@@ -37,7 +37,7 @@ class CapabilityRefresherTest {
         }
     private val logger = CollectingLogger(delegate = noopLogger)
     private val testScope = TestScope()
-    private val cache = CapabilityCache { 0L }
+    private val cache = CapabilityCache({ 0L })
     private val tracker = ServerStatusTracker()
     private val publishes = mutableListOf<Unit>()
     private var storeSnapshot =

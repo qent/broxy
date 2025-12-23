@@ -1,6 +1,7 @@
 package io.qent.broxy.ui.adapter.store
 
 import io.qent.broxy.core.capabilities.CapabilityCache
+import io.qent.broxy.core.capabilities.CapabilityCachePersistence
 import io.qent.broxy.core.capabilities.CapabilityFetcher
 import io.qent.broxy.core.capabilities.CapabilityRefresher
 import io.qent.broxy.core.capabilities.ServerStatusTracker
@@ -10,6 +11,7 @@ import io.qent.broxy.core.proxy.runtime.ProxyLifecycle
 import io.qent.broxy.core.proxy.runtime.createProxyController
 import io.qent.broxy.core.repository.ConfigurationRepository
 import io.qent.broxy.core.utils.CollectingLogger
+import io.qent.broxy.ui.adapter.data.provideCapabilityCachePersistence
 import io.qent.broxy.ui.adapter.data.provideConfigurationRepository
 import io.qent.broxy.ui.adapter.data.provideDefaultLogger
 import io.qent.broxy.ui.adapter.models.UiHttpDraft
@@ -57,8 +59,9 @@ class AppStore(
     private val now: () -> Long = { System.currentTimeMillis() },
     private val enableBackgroundRefresh: Boolean = true,
     private val remoteConnector: RemoteConnector,
+    private val capabilityCachePersistence: CapabilityCachePersistence = CapabilityCachePersistence.Noop,
 ) {
-    private val capabilityCache = CapabilityCache(now)
+    private val capabilityCache = CapabilityCache(now, capabilityCachePersistence)
     private val statusTracker = ServerStatusTracker()
 
     private val _state = MutableStateFlow<UIState>(UIState.Loading)
@@ -134,7 +137,7 @@ class AppStore(
             if (proxyLifecycle.isRunning()) {
                 capabilityRefresher.restartBackgroundJob(false)
             } else {
-                capabilityRefresher.refreshEnabledServers(force = true)
+                capabilityRefresher.refreshEnabledServers(force = false)
                 capabilityRefresher.restartBackgroundJob(enableBackgroundRefresh)
             }
             if (snapshot.remoteEnabled) {
@@ -313,6 +316,7 @@ fun createAppStore(
         },
     now: () -> Long = { System.currentTimeMillis() },
     enableBackgroundRefresh: Boolean = true,
+    capabilityCachePersistence: CapabilityCachePersistence = provideCapabilityCachePersistence(logger),
 ): AppStore {
     val proxyController = proxyFactory(logger)
     val proxyLifecycle = ProxyLifecycle(proxyController, logger)
@@ -331,5 +335,6 @@ fun createAppStore(
         now = now,
         enableBackgroundRefresh = enableBackgroundRefresh,
         remoteConnector = remoteConnector,
+        capabilityCachePersistence = capabilityCachePersistence,
     )
 }

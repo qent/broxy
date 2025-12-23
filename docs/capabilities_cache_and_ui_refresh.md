@@ -23,6 +23,17 @@ Files:
 - `core/src/commonMain/kotlin/io/qent/broxy/core/capabilities/CapabilityCache.kt`
 - `core/src/commonMain/kotlin/io/qent/broxy/core/capabilities/ServerStatusTracker.kt`
 - `core/src/commonMain/kotlin/io/qent/broxy/core/capabilities/CapabilitySnapshots.kt`
+- `core/src/jvmMain/kotlin/io/qent/broxy/core/capabilities/FileCapabilityCachePersistence.kt`
+
+## Persistent cache storage
+
+UI capability snapshots are persisted to the system cache directory (not `~/.config/broxy`).
+JVM builds resolve the cache root via `AppCacheDir` and store JSON entries under a
+`capabilities/` subfolder, e.g.:
+
+- macOS: `~/Library/Caches/broxy/capabilities/`
+- Linux: `${XDG_CACHE_HOME:-~/.cache}/broxy/capabilities/`
+- Windows: `%LOCALAPPDATA%\\broxy\\Cache\\capabilities\\`
 
 ## Layer separation: UI snapshots vs proxy capabilities
 
@@ -66,8 +77,15 @@ Dependencies:
 
 On `AppStore.start()`:
 
-- `refreshEnabledServers(force=true)`;
+- `refreshEnabledServers(force=false)` (missing or stale entries are refreshed, cached entries stay);
 - then `restartBackgroundJob(enableBackgroundRefresh)`.
+
+Manual refresh:
+
+- the server list includes a per-server refresh action (between the enable switch and edit button);
+- `Intents.refreshServerCapabilities(serverId)` forces a refresh for that server. When the proxy is
+  running, the refresh is delegated to `ProxyMcpServer.refreshServerCapabilities`; otherwise
+  `CapabilityRefresher.refreshServersById(force=true)` is used.
 
 ### Background job
 
@@ -103,10 +121,10 @@ being fetched. The timer is bounded by the configured `capabilitiesTimeoutSecond
 
 When a server is toggled from the UI:
 
-- Enable: the switch flips on immediately, the status becomes `Connecting`, and the timer starts at
-  the moment of the toggle. The switch is disabled while the server is connecting, and the timer
-  keeps running (without reset) until capabilities arrive. Once capabilities are available, the
-  status becomes `Available` and the switch is re-enabled.
+- Enable: the switch flips on immediately. If a cached snapshot exists, the UI reuses it and does
+  not fetch capabilities until the cache is due or the user triggers a refresh. If no cache exists,
+  the status becomes `Connecting` and the timer starts at the moment of the toggle until capabilities
+  arrive, then switches to `Available`.
 - Disable: the switch flips off immediately and the card is rendered as disabled. The switch stays
   disabled while the disconnect/update is in flight, then becomes interactive again once the
   server is fully stopped.

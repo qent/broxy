@@ -50,7 +50,6 @@ class CapabilityRefresher(
 
     fun markServerDisabled(serverId: String) {
         cancelRefresh(serverId)
-        capabilityCache.remove(serverId)
         statusTracker.set(serverId, ServerConnectionStatus.Disabled)
     }
 
@@ -144,11 +143,12 @@ class CapabilityRefresher(
             statusTracker.set(serverId, ServerConnectionStatus.Available)
         }
         servers.filterNot { it.enabled }.forEach { cfg ->
-            capabilityCache.remove(cfg.id)
             statusTracker.set(cfg.id, ServerConnectionStatus.Disabled)
         }
         publishUpdate()
     }
+
+    fun hasCachedSnapshot(serverId: String): Boolean = capabilityCache.snapshot(serverId) != null
 
     fun applyProxyStatus(update: ServerConnectionUpdate) {
         when (update.status) {

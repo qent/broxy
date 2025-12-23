@@ -230,7 +230,9 @@ internal class AppStoreIntents(
                 }
             state.updateSnapshot { copy(servers = updated, pendingServerToggles = updatedPending) }
             if (enabled) {
-                capabilityRefresher.markServerConnecting(id)
+                if (!capabilityRefresher.hasCachedSnapshot(id)) {
+                    capabilityRefresher.markServerConnecting(id)
+                }
             }
             val result = configurationManager.toggleServer(previousConfig, id, enabled)
             if (result.isFailure) {
@@ -246,7 +248,7 @@ internal class AppStoreIntents(
                 if (!enabled) {
                     capabilityRefresher.markServerDisabled(id)
                 } else {
-                    triggerServerRefresh(setOf(id), force = true)
+                    triggerServerRefresh(setOf(id), force = false)
                 }
                 if (savedConfig != null && proxyLifecycle.isRunning()) {
                     val updateResult = proxyLifecycle.updateServers(savedConfig)
@@ -259,6 +261,23 @@ internal class AppStoreIntents(
                 }
             }
             publishReady()
+        }
+    }
+
+    override fun refreshServerCapabilities(serverId: String) {
+        scope.launch {
+            if (proxyLifecycle.isRunning()) {
+                val proxy = proxyLifecycle.currentProxy()
+                if (proxy != null) {
+                    try {
+                        proxy.refreshServerCapabilities(serverId)
+                    } catch (error: Throwable) {
+                        logger.info("[AppStore] refreshServerCapabilities failed: ${error.message}")
+                    }
+                    return@launch
+                }
+            }
+            capabilityRefresher.refreshServersById(setOf(serverId), force = true)
         }
     }
 

@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -113,6 +114,9 @@ fun ServersScreen(
                                     onToggle = { id, enabled ->
                                         ui.intents.toggleServer(id, enabled)
                                     },
+                                    onRefresh = {
+                                        ui.intents.refreshServerCapabilities(cfg.id)
+                                    },
                                     onEdit = {
                                         pendingDeletion = null
                                         state.serverDetailsId.value = null
@@ -151,6 +155,7 @@ private fun ServerCard(
     cfg: UiServer,
     onViewDetails: () -> Unit,
     onToggle: (String, Boolean) -> Unit,
+    onRefresh: () -> Unit,
     onDelete: () -> Unit,
     onEdit: () -> Unit,
 ) {
@@ -184,6 +189,7 @@ private fun ServerCard(
             cfg.promptsCount != null &&
             cfg.resourcesCount != null
     val showStatusText = isConnecting || showErrorStatus
+    val canRefresh = cfg.enabled && !isConnecting
     val statusText =
         when {
             isConnecting ->
@@ -251,6 +257,16 @@ private fun ServerCard(
                     uncheckedBorderColor = MaterialTheme.colorScheme.outline,
                 ),
         )
+        IconButton(
+            onClick = onRefresh,
+            enabled = canRefresh,
+        ) {
+            Icon(
+                Icons.Outlined.Refresh,
+                contentDescription = strings.refreshContentDescription,
+                tint = MaterialTheme.colorScheme.secondary,
+            )
+        }
         IconButton(onClick = onEdit) {
             Icon(
                 Icons.Outlined.Edit,

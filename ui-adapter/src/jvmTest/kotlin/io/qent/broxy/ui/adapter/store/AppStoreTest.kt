@@ -1,5 +1,7 @@
 package io.qent.broxy.ui.adapter.store
 
+import io.qent.broxy.core.capabilities.CapabilityCacheEntry
+import io.qent.broxy.core.capabilities.CapabilityCachePersistence
 import io.qent.broxy.core.capabilities.ServerCapsSnapshot
 import io.qent.broxy.core.capabilities.ServerConnectionUpdate
 import io.qent.broxy.core.capabilities.ToolSummary
@@ -258,6 +260,120 @@ class AppStoreTest {
             val serverState = (readyState as UIState.Ready).servers.first()
             assertEquals(UiServerConnStatus.Disabled, serverState.status)
             assertTrue(store.listEnabledServerCaps().isEmpty())
+
+            storeScope.cancel()
+        }
+
+    @org.junit.Test
+    fun toggleServerUsesCachedCapabilitiesWithoutImmediateRefresh() =
+        runTest {
+            val server =
+                McpServerConfig(
+                    id = "s1",
+                    name = "Server 1",
+                    transport = TransportConfig.StdioTransport(command = "cmd"),
+                    env = emptyMap(),
+                    enabled = false,
+                )
+            val config = McpServersConfig(servers = listOf(server))
+            val preset = Preset("main", "Main", emptyList())
+            val repository = FakeConfigurationRepository(config, mutableMapOf(preset.id to preset))
+            val capabilityFetcher = RecordingCapabilityFetcher(Result.success(UiServerCapabilities()))
+            val proxyController = FakeProxyController().apply { startResult = Result.failure(IllegalStateException("boom")) }
+            val proxyLifecycle = ProxyLifecycle(proxyController, noopLogger)
+            val logger = CollectingLogger(delegate = noopLogger)
+            val storeScope = TestScope(testScheduler)
+            val remoteConnector = NoOpRemoteConnector(defaultRemoteState())
+            val cachedSnapshot = ServerCapsSnapshot(serverId = "s1", name = "Server 1")
+            val persistence =
+                TestCapabilityCachePersistence(
+                    listOf(
+                        CapabilityCacheEntry(
+                            serverId = "s1",
+                            timestampMillis = 0L,
+                            snapshot = cachedSnapshot,
+                        ),
+                    ),
+                )
+            val store =
+                AppStore(
+                    configurationRepository = repository,
+                    proxyLifecycle = proxyLifecycle,
+                    capabilityFetcher = capabilityFetcher::invoke,
+                    logger = logger,
+                    scope = storeScope,
+                    now = { 0L },
+                    enableBackgroundRefresh = false,
+                    remoteConnector = remoteConnector,
+                    capabilityCachePersistence = persistence,
+                )
+
+            store.start()
+            storeScope.advanceUntilIdle()
+
+            val readyState = store.state.value as UIState.Ready
+            readyState.intents.toggleServer("s1", enabled = true)
+            storeScope.advanceUntilIdle()
+
+            assertTrue(capabilityFetcher.requestedIds.isEmpty())
+            val updated = store.state.value as UIState.Ready
+            assertEquals(UiServerConnStatus.Available, updated.servers.first().status)
+
+            storeScope.cancel()
+        }
+
+    @org.junit.Test
+    fun refreshServerCapabilitiesForcesFetchWhenProxyNotRunning() =
+        runTest {
+            val server =
+                McpServerConfig(
+                    id = "s1",
+                    name = "Server 1",
+                    transport = TransportConfig.StdioTransport(command = "cmd"),
+                    env = emptyMap(),
+                    enabled = true,
+                )
+            val config = McpServersConfig(servers = listOf(server))
+            val preset = Preset("main", "Main", emptyList())
+            val repository = FakeConfigurationRepository(config, mutableMapOf(preset.id to preset))
+            val capabilityFetcher = RecordingCapabilityFetcher(Result.success(UiServerCapabilities()))
+            val proxyController = FakeProxyController().apply { startResult = Result.failure(IllegalStateException("boom")) }
+            val proxyLifecycle = ProxyLifecycle(proxyController, noopLogger)
+            val logger = CollectingLogger(delegate = noopLogger)
+            val storeScope = TestScope(testScheduler)
+            val remoteConnector = NoOpRemoteConnector(defaultRemoteState())
+            val cachedSnapshot = ServerCapsSnapshot(serverId = "s1", name = "Server 1")
+            val persistence =
+                TestCapabilityCachePersistence(
+                    listOf(
+                        CapabilityCacheEntry(
+                            serverId = "s1",
+                            timestampMillis = 0L,
+                            snapshot = cachedSnapshot,
+                        ),
+                    ),
+                )
+            val store =
+                AppStore(
+                    configurationRepository = repository,
+                    proxyLifecycle = proxyLifecycle,
+                    capabilityFetcher = capabilityFetcher::invoke,
+                    logger = logger,
+                    scope = storeScope,
+                    now = { 0L },
+                    enableBackgroundRefresh = false,
+                    remoteConnector = remoteConnector,
+                    capabilityCachePersistence = persistence,
+                )
+
+            store.start()
+            storeScope.advanceUntilIdle()
+
+            val readyState = store.state.value as UIState.Ready
+            readyState.intents.refreshServerCapabilities("s1")
+            storeScope.advanceUntilIdle()
+
+            assertEquals(listOf("s1"), capabilityFetcher.requestedIds)
 
             storeScope.cancel()
         }
@@ -727,6 +843,21 @@ class AppStoreTest {
             requestedTimeouts += timeoutSeconds
             requestedRetries += connectionRetryCount
             return result
+        }
+    }
+
+    private class TestCapabilityCachePersistence(
+        private val entries: List<CapabilityCacheEntry>,
+    ) : CapabilityCachePersistence {
+        override fun loadAll(): List<CapabilityCacheEntry> = entries
+
+        override fun save(entry: CapabilityCacheEntry) {
+        }
+
+        override fun remove(serverId: String) {
+        }
+
+        override fun retain(validIds: Set<String>) {
         }
     }
 }

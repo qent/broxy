@@ -232,6 +232,8 @@ interface AppStrings {
 
     val deleteContentDescription: String
 
+    val refreshContentDescription: String
+
     val trayFailedToLoadPresets: String
 
     val trayServerStatusUnknown: String
@@ -505,6 +507,8 @@ object EnglishStrings : AppStrings {
     override val editContentDescription = "Edit"
 
     override val deleteContentDescription = "Delete"
+
+    override val refreshContentDescription = "Refresh"
 
     override val trayFailedToLoadPresets = "Failed to load presets"
 

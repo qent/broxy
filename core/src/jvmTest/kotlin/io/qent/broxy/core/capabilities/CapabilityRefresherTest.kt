@@ -44,7 +44,7 @@ class CapabilityRefresherTest {
                         enabled = false,
                     ),
                 )
-            val cache = CapabilityCache { 0L }
+            val cache = CapabilityCache({ 0L })
             val statusTracker = ServerStatusTracker { 0L }
             val published = mutableListOf<Unit>()
             val refresher =
@@ -90,7 +90,7 @@ class CapabilityRefresherTest {
                     transport = TransportConfig.StdioTransport(command = "noop"),
                     enabled = true,
                 )
-            val cache = CapabilityCache { nowMillis }
+            val cache = CapabilityCache({ nowMillis })
             cache.put("s1", ServerCapsSnapshot(serverId = "s1", name = "Server 1"))
 
             val refresher =
@@ -130,7 +130,7 @@ class CapabilityRefresherTest {
                     transport = TransportConfig.StdioTransport(command = "noop"),
                     enabled = true,
                 )
-            val cache = CapabilityCache { 0L }
+            val cache = CapabilityCache({ 0L })
             val statusTracker = ServerStatusTracker { 0L }
             val refresher =
                 CapabilityRefresher(
@@ -185,7 +185,7 @@ class CapabilityRefresherTest {
                         enabled = true,
                     ),
                 )
-            val cache = CapabilityCache { 0L }
+            val cache = CapabilityCache({ 0L })
             val statusTracker = ServerStatusTracker { 0L }
             val refresher =
                 CapabilityRefresher(
@@ -225,7 +225,7 @@ class CapabilityRefresherTest {
         }
 
     @Test
-    fun applyProxySnapshots_keeps_existing_entries_for_missing_servers() =
+    fun applyProxySnapshots_keeps_existing_entries_for_disabled_servers() =
         runTest {
             val configs =
                 listOf(
@@ -248,7 +248,7 @@ class CapabilityRefresherTest {
                         enabled = false,
                     ),
                 )
-            val cache = CapabilityCache { 0L }
+            val cache = CapabilityCache({ 0L })
             val statusTracker = ServerStatusTracker { 0L }
             cache.put("s2", ServerCapsSnapshot(serverId = "s2", name = "Server 2"))
             cache.put("s3", ServerCapsSnapshot(serverId = "s3", name = "Server 3"))
@@ -274,7 +274,7 @@ class CapabilityRefresherTest {
             )
 
             assertNotNull(cache.snapshot("s2"))
-            assertNull(cache.snapshot("s3"))
+            assertNotNull(cache.snapshot("s3"))
             assertEquals(ServerConnectionStatus.Available, statusTracker.statusFor("s1"))
             assertEquals(ServerConnectionStatus.Available, statusTracker.statusFor("s2"))
             assertEquals(ServerConnectionStatus.Disabled, statusTracker.statusFor("s3"))

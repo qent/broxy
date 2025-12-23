@@ -50,6 +50,8 @@ interface Intents {
         enabled: Boolean,
     )
 
+    fun refreshServerCapabilities(serverId: String)
+
     fun addOrUpdatePreset(preset: UiPreset)
 
     fun upsertPreset(draft: UiPresetDraft)

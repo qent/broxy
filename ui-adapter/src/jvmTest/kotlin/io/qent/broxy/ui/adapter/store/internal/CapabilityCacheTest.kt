@@ -10,7 +10,7 @@ import kotlin.test.assertTrue
 
 class CapabilityCacheTest {
     private var currentTime = 0L
-    private val cache = CapabilityCache { currentTime }
+    private val cache = CapabilityCache({ currentTime })
 
     @Test
     fun storesSnapshotsAndRetainsValidIds() {

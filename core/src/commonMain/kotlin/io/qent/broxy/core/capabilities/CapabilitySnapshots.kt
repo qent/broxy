@@ -5,11 +5,13 @@ import io.qent.broxy.core.mcp.ResourceDescriptor
 import io.qent.broxy.core.mcp.ServerCapabilities
 import io.qent.broxy.core.mcp.ToolDescriptor
 import io.qent.broxy.core.models.McpServerConfig
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 
+@Serializable
 data class ServerCapsSnapshot(
     val serverId: String,
     val name: String,
@@ -18,18 +20,21 @@ data class ServerCapsSnapshot(
     val resources: List<ResourceSummary> = emptyList(),
 )
 
+@Serializable
 data class ToolSummary(
     val name: String,
     val description: String,
     val arguments: List<CapabilityArgument> = emptyList(),
 )
 
+@Serializable
 data class PromptSummary(
     val name: String,
     val description: String,
     val arguments: List<CapabilityArgument> = emptyList(),
 )
 
+@Serializable
 data class ResourceSummary(
     val key: String,
     val name: String,
@@ -37,6 +42,7 @@ data class ResourceSummary(
     val arguments: List<CapabilityArgument> = emptyList(),
 )
 
+@Serializable
 data class CapabilityArgument(
     val name: String,
     val type: String = "unspecified",
