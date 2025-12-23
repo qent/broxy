@@ -55,6 +55,10 @@ interface AppStrings {
 
     val searchPresets: String
 
+    val searchCapabilities: String
+
+    val clearSearch: String
+
     val serversEmptyTitle: String
 
     val serversEmptySubtitle: String
@@ -327,6 +331,10 @@ object EnglishStrings : AppStrings {
     override val searchServers = "Search servers"
 
     override val searchPresets = "Search presets"
+
+    override val searchCapabilities = "Search capabilities"
+
+    override val clearSearch = "Clear search"
 
     override val serversEmptyTitle = "No servers yet"
 

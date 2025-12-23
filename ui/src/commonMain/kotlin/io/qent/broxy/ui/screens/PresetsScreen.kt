@@ -12,12 +12,16 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.adapter.models.UiPreset
 import io.qent.broxy.ui.adapter.store.AppStore
 import io.qent.broxy.ui.adapter.store.UIState
 import io.qent.broxy.ui.components.CapabilitiesInlineSummary
 import io.qent.broxy.ui.components.DeleteConfirmationDialog
+import io.qent.broxy.ui.components.HighlightedText
+import io.qent.broxy.ui.components.SearchField
+import io.qent.broxy.ui.components.SearchFieldFabAlignedBottomPadding
 import io.qent.broxy.ui.components.SettingsLikeItem
 import io.qent.broxy.ui.strings.LocalStrings
 import io.qent.broxy.ui.theme.AppTheme
@@ -53,15 +57,7 @@ fun PresetsScreen(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
         ) {
-            Spacer(Modifier.height(1.dp))
-
-            OutlinedTextField(
-                value = query,
-                onValueChange = { query = it },
-                label = { Text(strings.searchPresets) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-            )
+            Spacer(Modifier.height(AppTheme.spacing.sm))
 
             when (ui) {
                 is UIState.Loading -> Text(strings.loading, style = MaterialTheme.typography.bodyMedium)
@@ -74,10 +70,10 @@ fun PresetsScreen(
                             subtitle = strings.presetsEmptySubtitle,
                         )
                     } else {
+                        val trimmedQuery = query.trim()
                         val filtered =
                             presets.filter { p ->
-                                p.name.contains(query, ignoreCase = true) ||
-                                    p.id.contains(query, ignoreCase = true)
+                                trimmedQuery.isBlank() || p.name.contains(trimmedQuery, ignoreCase = true)
                             }
                         LazyColumn(
                             modifier = Modifier.weight(1f, fill = true),
@@ -87,6 +83,7 @@ fun PresetsScreen(
                             items(filtered, key = { it.id }) { preset ->
                                 PresetCard(
                                     preset = preset,
+                                    searchQuery = trimmedQuery,
                                     isActive = preset.id == ui.selectedPresetId,
                                     onEdit = {
                                         pendingDeletion = null
@@ -100,6 +97,16 @@ fun PresetsScreen(
                 }
             }
         }
+
+        SearchField(
+            value = query,
+            onValueChange = { query = it },
+            placeholder = strings.searchPresets,
+            modifier =
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = SearchFieldFabAlignedBottomPadding),
+        )
 
         val readyUi = ui as? UIState.Ready
         val toDelete = pendingDeletion
@@ -123,6 +130,7 @@ fun PresetsScreen(
 @Composable
 private fun PresetCard(
     preset: UiPreset,
+    searchQuery: String,
     isActive: Boolean,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
@@ -137,6 +145,16 @@ private fun PresetCard(
 
     SettingsLikeItem(
         title = preset.name,
+        titleContent = {
+            HighlightedText(
+                text = preset.name,
+                query = searchQuery,
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        },
         descriptionContent = {
             CapabilitiesInlineSummary(
                 toolsCount = preset.toolsCount,

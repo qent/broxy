@@ -11,6 +11,8 @@ import androidx.compose.material.icons.outlined.Construction
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.adapter.models.*
@@ -21,6 +23,10 @@ import io.qent.broxy.ui.components.CapabilityDisplayItem
 import io.qent.broxy.ui.components.EditorHeaderRow
 import io.qent.broxy.ui.components.FormCard
 import io.qent.broxy.ui.components.PresetSelector
+import io.qent.broxy.ui.components.SearchField
+import io.qent.broxy.ui.components.SearchFieldFabAlignedBottomPadding
+import io.qent.broxy.ui.components.matchesCapabilityQuery
+import io.qent.broxy.ui.components.matchesResourceQuery
 import io.qent.broxy.ui.strings.AppStrings
 import io.qent.broxy.ui.strings.LocalStrings
 import io.qent.broxy.ui.theme.AppTheme
@@ -73,6 +79,7 @@ fun PresetEditorScreen(
     val isCreate = editor is PresetEditorState.Create
     val title = if (isCreate) strings.createPreset else strings.editPreset
     val primaryActionLabel = if (isCreate) strings.add else strings.save
+    var searchQuery by rememberSaveable { mutableStateOf("") }
 
     var name by remember(editor) { mutableStateOf(initialDraft.name) }
     var selectedTools by remember(editor) { mutableStateOf<List<UiToolRef>>(initialDraft.tools) }
@@ -105,109 +112,126 @@ fun PresetEditorScreen(
         remember(serverCapsSnapshots.value) {
             serverCapsSnapshots.value.associateBy { it.serverId }
         }
+    val trimmedQuery = searchQuery.trim()
     val toolItems =
-        remember(selectedTools, serverCapsById, serverNamesById, strings) {
-            buildToolCapabilityItems(selectedTools, serverNamesById, serverCapsById, strings)
+        remember(selectedTools, serverCapsById, serverNamesById, strings, trimmedQuery) {
+            buildToolCapabilityItems(selectedTools, serverNamesById, serverCapsById, strings, trimmedQuery)
         }
     val promptItems =
-        remember(selectedPrompts, serverCapsById, serverNamesById, strings) {
-            buildPromptCapabilityItems(selectedPrompts, serverNamesById, serverCapsById, strings)
+        remember(selectedPrompts, serverCapsById, serverNamesById, strings, trimmedQuery) {
+            buildPromptCapabilityItems(selectedPrompts, serverNamesById, serverCapsById, strings, trimmedQuery)
         }
     val resourceItems =
-        remember(selectedResources, serverCapsById, serverNamesById) {
-            buildResourceCapabilityItems(selectedResources, serverNamesById, serverCapsById)
+        remember(selectedResources, serverCapsById, serverNamesById, trimmedQuery) {
+            buildResourceCapabilityItems(selectedResources, serverNamesById, serverCapsById, trimmedQuery)
         }
 
-    Column(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .verticalScroll(scrollState),
-        verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
-    ) {
-        Spacer(Modifier.height(AppTheme.spacing.xs))
-
-        EditorHeaderRow(
-            title = title,
-            onBack = onClose,
-            actions = {
-                AppSecondaryButton(
-                    onClick = onClose,
-                    modifier = Modifier.height(actionRowHeight),
-                ) {
-                    Text(strings.cancel, style = MaterialTheme.typography.labelSmall)
-                }
-                AppPrimaryButton(
-                    onClick = {
-                        val readyUi = ui as? UIState.Ready ?: return@AppPrimaryButton
-                        val draft =
-                            UiPresetDraft(
-                                id = resolvedId,
-                                name = resolvedName,
-                                tools = selectedTools,
-                                prompts = selectedPrompts,
-                                resources = selectedResources,
-                                promptsConfigured = promptsConfigured,
-                                resourcesConfigured = resourcesConfigured,
-                                originalId = if (isCreate) null else (initialDraft.originalId ?: initialDraft.id),
-                            )
-                        readyUi.intents.upsertPreset(draft)
-                        onClose()
-                    },
-                    enabled = canSubmit,
-                    modifier = Modifier.height(actionRowHeight),
-                ) {
-                    Text(primaryActionLabel, style = MaterialTheme.typography.labelSmall)
-                }
-            },
-        )
-
-        PresetIdentityCard(
-            name = name,
-            onNameChange = { name = it },
-            resolvedId = resolvedId,
-        )
-
-        FormCard(title = strings.mcpServersTitle) {
-            Text(
-                strings.selectCapabilitiesHint,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(scrollState),
+            verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
+        ) {
             Spacer(Modifier.height(AppTheme.spacing.xs))
-            PresetSelector(
-                store = store,
-                initialToolRefs = initialDraft.tools,
-                initialPromptRefs = initialDraft.prompts,
-                initialResourceRefs = initialDraft.resources,
-                promptsConfigured = promptsConfigured,
-                resourcesConfigured = resourcesConfigured,
-                onSelectionChanged = { tools, prompts, resources ->
-                    selectedTools = tools
-                    selectedPrompts = prompts
-                    selectedResources = resources
+
+            EditorHeaderRow(
+                title = title,
+                onBack = onClose,
+                actions = {
+                    AppSecondaryButton(
+                        onClick = onClose,
+                        modifier = Modifier.height(actionRowHeight),
+                    ) {
+                        Text(strings.cancel, style = MaterialTheme.typography.labelSmall)
+                    }
+                    AppPrimaryButton(
+                        onClick = {
+                            val readyUi = ui as? UIState.Ready ?: return@AppPrimaryButton
+                            val draft =
+                                UiPresetDraft(
+                                    id = resolvedId,
+                                    name = resolvedName,
+                                    tools = selectedTools,
+                                    prompts = selectedPrompts,
+                                    resources = selectedResources,
+                                    promptsConfigured = promptsConfigured,
+                                    resourcesConfigured = resourcesConfigured,
+                                    originalId = if (isCreate) null else (initialDraft.originalId ?: initialDraft.id),
+                                )
+                            readyUi.intents.upsertPreset(draft)
+                            onClose()
+                        },
+                        enabled = canSubmit,
+                        modifier = Modifier.height(actionRowHeight),
+                    ) {
+                        Text(primaryActionLabel, style = MaterialTheme.typography.labelSmall)
+                    }
                 },
-                onPromptsConfiguredChange = { promptsConfigured = it },
-                onResourcesConfiguredChange = { resourcesConfigured = it },
             )
+
+            PresetIdentityCard(
+                name = name,
+                onNameChange = { name = it },
+                resolvedId = resolvedId,
+            )
+
+            FormCard(title = strings.mcpServersTitle) {
+                Text(
+                    strings.selectCapabilitiesHint,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(AppTheme.spacing.xs))
+                PresetSelector(
+                    store = store,
+                    initialToolRefs = initialDraft.tools,
+                    initialPromptRefs = initialDraft.prompts,
+                    initialResourceRefs = initialDraft.resources,
+                    searchQuery = trimmedQuery,
+                    promptsConfigured = promptsConfigured,
+                    resourcesConfigured = resourcesConfigured,
+                    onSelectionChanged = { tools, prompts, resources ->
+                        selectedTools = tools
+                        selectedPrompts = prompts
+                        selectedResources = resources
+                    },
+                    onPromptsConfiguredChange = { promptsConfigured = it },
+                    onResourcesConfiguredChange = { resourcesConfigured = it },
+                )
+            }
+
+            CapabilitiesCard(
+                title = strings.toolsLabel,
+                items = toolItems,
+                icon = Icons.Outlined.Construction,
+                highlightQuery = trimmedQuery,
+            )
+            CapabilitiesCard(
+                title = strings.promptsLabel,
+                items = promptItems,
+                icon = Icons.Outlined.ChatBubbleOutline,
+                highlightQuery = trimmedQuery,
+            )
+            CapabilitiesCard(
+                title = strings.resourcesLabel,
+                items = resourceItems,
+                icon = Icons.Outlined.Description,
+                highlightQuery = trimmedQuery,
+            )
+            Spacer(Modifier.height(AppTheme.spacing.fab))
         }
 
-        CapabilitiesCard(
-            title = strings.toolsLabel,
-            items = toolItems,
-            icon = Icons.Outlined.Construction,
+        SearchField(
+            value = searchQuery,
+            onValueChange = { searchQuery = it },
+            placeholder = strings.searchCapabilities,
+            modifier =
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = SearchFieldFabAlignedBottomPadding),
         )
-        CapabilitiesCard(
-            title = strings.promptsLabel,
-            items = promptItems,
-            icon = Icons.Outlined.ChatBubbleOutline,
-        )
-        CapabilitiesCard(
-            title = strings.resourcesLabel,
-            items = resourceItems,
-            icon = Icons.Outlined.Description,
-        )
-        Spacer(Modifier.height(AppTheme.spacing.md))
     }
 }
 
@@ -232,13 +256,18 @@ private fun buildToolCapabilityItems(
     serverNames: Map<String, String>,
     serverCapsById: Map<String, UiServerCapsSnapshot>,
     strings: AppStrings,
+    searchQuery: String,
 ): List<CapabilityDisplayItem> {
-    return tools.filter { it.enabled }.map { ref ->
+    val trimmedQuery = searchQuery.trim()
+    return tools.filter { it.enabled }.mapNotNull { ref ->
         val summary = serverCapsById[ref.serverId]?.tools?.firstOrNull { it.name == ref.toolName }
         val serverName = serverNames[ref.serverId] ?: ref.serverId
         val capabilityName = summary?.name ?: ref.toolName
         val description = summary?.description?.takeIf { it.isNotBlank() } ?: strings.noDescriptionProvided
-        CapabilityDisplayItem(serverName, capabilityName, description, summary?.arguments.orEmpty())
+        val arguments = summary?.arguments.orEmpty()
+        val matches = matchesCapabilityQuery(trimmedQuery, capabilityName, description, arguments)
+        if (!matches && trimmedQuery.isNotBlank()) return@mapNotNull null
+        CapabilityDisplayItem(serverName, capabilityName, description, arguments)
     }
 }
 
@@ -247,13 +276,18 @@ private fun buildPromptCapabilityItems(
     serverNames: Map<String, String>,
     serverCapsById: Map<String, UiServerCapsSnapshot>,
     strings: AppStrings,
+    searchQuery: String,
 ): List<CapabilityDisplayItem> {
-    return prompts.filter { it.enabled }.map { ref ->
+    val trimmedQuery = searchQuery.trim()
+    return prompts.filter { it.enabled }.mapNotNull { ref ->
         val summary = serverCapsById[ref.serverId]?.prompts?.firstOrNull { it.name == ref.promptName }
         val serverName = serverNames[ref.serverId] ?: ref.serverId
         val capabilityName = summary?.name ?: ref.promptName
         val description = summary?.description?.takeIf { it.isNotBlank() } ?: strings.noDescriptionProvided
-        CapabilityDisplayItem(serverName, capabilityName, description, summary?.arguments.orEmpty())
+        val arguments = summary?.arguments.orEmpty()
+        val matches = matchesCapabilityQuery(trimmedQuery, capabilityName, description, arguments)
+        if (!matches && trimmedQuery.isNotBlank()) return@mapNotNull null
+        CapabilityDisplayItem(serverName, capabilityName, description, arguments)
     }
 }
 
@@ -261,8 +295,10 @@ private fun buildResourceCapabilityItems(
     resources: List<UiResourceRef>,
     serverNames: Map<String, String>,
     serverCapsById: Map<String, UiServerCapsSnapshot>,
+    searchQuery: String,
 ): List<CapabilityDisplayItem> {
-    return resources.filter { it.enabled }.map { ref ->
+    val trimmedQuery = searchQuery.trim()
+    return resources.filter { it.enabled }.mapNotNull { ref ->
         val summary = serverCapsById[ref.serverId]?.resources?.firstOrNull { it.key == ref.resourceKey }
         val displayName = summary?.name?.ifBlank { ref.resourceKey } ?: ref.resourceKey
         val serverName = serverNames[ref.serverId] ?: ref.serverId
@@ -270,7 +306,10 @@ private fun buildResourceCapabilityItems(
             summary?.description?.takeIf { it.isNotBlank() }
                 ?: summary?.key
                 ?: ref.resourceKey
-        CapabilityDisplayItem(serverName, displayName, description, summary?.arguments.orEmpty())
+        val arguments = summary?.arguments.orEmpty()
+        val matches = matchesResourceQuery(trimmedQuery, displayName, ref.resourceKey, description, arguments)
+        if (!matches && trimmedQuery.isNotBlank()) return@mapNotNull null
+        CapabilityDisplayItem(serverName, displayName, description, arguments)
     }
 }
 

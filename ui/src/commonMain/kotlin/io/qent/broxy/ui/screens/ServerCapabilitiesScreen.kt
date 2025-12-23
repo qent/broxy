@@ -10,6 +10,7 @@ import androidx.compose.material.icons.outlined.Construction
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
@@ -19,6 +20,10 @@ import io.qent.broxy.ui.adapter.store.UIState
 import io.qent.broxy.ui.components.CapabilitiesCard
 import io.qent.broxy.ui.components.CapabilitiesInlineSummary
 import io.qent.broxy.ui.components.CapabilityDisplayItem
+import io.qent.broxy.ui.components.SearchField
+import io.qent.broxy.ui.components.SearchFieldFabAlignedBottomPadding
+import io.qent.broxy.ui.components.matchesCapabilityQuery
+import io.qent.broxy.ui.components.matchesResourceQuery
 import io.qent.broxy.ui.strings.LocalStrings
 import io.qent.broxy.ui.theme.AppTheme
 
@@ -35,6 +40,7 @@ fun ServerCapabilitiesScreen(
 
     var capabilities by remember { mutableStateOf<UiServerCapsSnapshot?>(null) }
     var isLoading by remember { mutableStateOf(true) }
+    var query by rememberSaveable { mutableStateOf("") }
 
     LaunchedEffect(serverId) {
         val caps = store.getServerCaps(serverId)
@@ -56,7 +62,7 @@ fun ServerCapabilitiesScreen(
                 }
             }
         } else {
-            CapabilitiesContent(caps, serverName, onClose)
+            CapabilitiesContent(caps, serverName, query, onQueryChange = { query = it }, onClose = onClose)
         }
     }
 }
@@ -65,14 +71,19 @@ fun ServerCapabilitiesScreen(
 private fun CapabilitiesContent(
     caps: UiServerCapsSnapshot,
     serverName: String,
+    searchQuery: String,
+    onQueryChange: (String) -> Unit,
     onClose: () -> Unit,
 ) {
     val strings = LocalStrings.current
     val scrollState = rememberScrollState()
+    val trimmedQuery = searchQuery.trim()
 
     val toolsItems =
-        remember(caps.tools) {
-            caps.tools.map { tool ->
+        remember(caps.tools, trimmedQuery) {
+            caps.tools.filter { tool ->
+                matchesCapabilityQuery(trimmedQuery, tool.name, tool.description, tool.arguments)
+            }.map { tool ->
                 CapabilityDisplayItem(
                     serverName = serverName,
                     capabilityName = tool.name,
@@ -83,8 +94,10 @@ private fun CapabilitiesContent(
         }
 
     val promptsItems =
-        remember(caps.prompts) {
-            caps.prompts.map { prompt ->
+        remember(caps.prompts, trimmedQuery) {
+            caps.prompts.filter { prompt ->
+                matchesCapabilityQuery(trimmedQuery, prompt.name, prompt.description, prompt.arguments)
+            }.map { prompt ->
                 CapabilityDisplayItem(
                     serverName = serverName,
                     capabilityName = prompt.name,
@@ -95,61 +108,79 @@ private fun CapabilitiesContent(
         }
 
     val resourcesItems =
-        remember(caps.resources) {
-            caps.resources.map { res ->
+        remember(caps.resources, trimmedQuery) {
+            caps.resources.filter { res ->
+                matchesResourceQuery(trimmedQuery, res.name, res.key, res.description, res.arguments)
+            }.map { res ->
                 CapabilityDisplayItem(
                     serverName = serverName,
                     capabilityName = res.name.ifBlank { res.key },
                     description = res.description.ifBlank { res.key },
-                    arguments = listOf(),
+                    arguments = res.arguments,
                 )
             }
         }
 
-    Column(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .verticalScroll(scrollState),
-        verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
-    ) {
-        Spacer(Modifier.height(AppTheme.spacing.xs))
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(scrollState),
+            verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
+        ) {
+            Spacer(Modifier.height(AppTheme.spacing.xs))
 
-        HeaderRow(
-            title = serverName,
-            onBack = onClose,
-            caps = caps,
-        )
+            HeaderRow(
+                title = serverName,
+                onBack = onClose,
+                caps = caps,
+            )
 
-        if (toolsItems.isEmpty() && promptsItems.isEmpty() && resourcesItems.isEmpty()) {
-            Text(
-                strings.noCapabilitiesExposed,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = AppTheme.spacing.sm, start = AppTheme.spacing.md),
-            )
-        } else {
-            CapabilitiesCard(
-                title = strings.toolsLabel,
-                items = toolsItems,
-                icon = Icons.Outlined.Construction,
-                showServerName = false,
-            )
-            CapabilitiesCard(
-                title = strings.promptsLabel,
-                items = promptsItems,
-                icon = Icons.Outlined.ChatBubbleOutline,
-                showServerName = false,
-            )
-            CapabilitiesCard(
-                title = strings.resourcesLabel,
-                items = resourcesItems,
-                icon = Icons.Outlined.Description,
-                showServerName = false,
-            )
+            val hasMatches = toolsItems.isNotEmpty() || promptsItems.isNotEmpty() || resourcesItems.isNotEmpty()
+            if (!hasMatches && trimmedQuery.isBlank()) {
+                Text(
+                    strings.noCapabilitiesExposed,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = AppTheme.spacing.sm, start = AppTheme.spacing.md),
+                )
+            } else if (hasMatches) {
+                CapabilitiesCard(
+                    title = strings.toolsLabel,
+                    items = toolsItems,
+                    icon = Icons.Outlined.Construction,
+                    showServerName = false,
+                    highlightQuery = trimmedQuery,
+                )
+                CapabilitiesCard(
+                    title = strings.promptsLabel,
+                    items = promptsItems,
+                    icon = Icons.Outlined.ChatBubbleOutline,
+                    showServerName = false,
+                    highlightQuery = trimmedQuery,
+                )
+                CapabilitiesCard(
+                    title = strings.resourcesLabel,
+                    items = resourcesItems,
+                    icon = Icons.Outlined.Description,
+                    showServerName = false,
+                    highlightQuery = trimmedQuery,
+                )
+            }
+
+            Spacer(Modifier.height(AppTheme.spacing.fab))
         }
 
-        Spacer(Modifier.height(AppTheme.spacing.md))
+        SearchField(
+            value = searchQuery,
+            onValueChange = onQueryChange,
+            placeholder = strings.searchCapabilities,
+            modifier =
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = SearchFieldFabAlignedBottomPadding),
+        )
     }
 }
 

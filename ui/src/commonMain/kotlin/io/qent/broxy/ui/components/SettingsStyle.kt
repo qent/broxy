@@ -24,6 +24,7 @@ fun SettingsLikeItem(
     modifier: Modifier = Modifier,
     supportingContent: (@Composable ColumnScope.() -> Unit)? = null,
     onClick: (() -> Unit)? = null,
+    titleContent: (@Composable () -> Unit)? = null,
     border: BorderStroke? = null,
     control: @Composable RowScope.() -> Unit,
 ) {
@@ -40,6 +41,7 @@ fun SettingsLikeItem(
         modifier = modifier,
         supportingContent = supportingContent,
         onClick = onClick,
+        titleContent = titleContent,
         border = border,
         control = control,
     )
@@ -53,6 +55,7 @@ fun SettingsLikeItem(
     supportingContent: (@Composable ColumnScope.() -> Unit)? = null,
     onClick: (() -> Unit)? = null,
     titleColor: Color = MaterialTheme.colorScheme.onSurface,
+    titleContent: (@Composable () -> Unit)? = null,
     border: BorderStroke? = null,
     control: @Composable RowScope.() -> Unit,
 ) {
@@ -63,6 +66,7 @@ fun SettingsLikeItem(
         modifier = modifier,
         supportingContent = supportingContent,
         onClick = onClick,
+        titleContent = titleContent,
         border = border,
         control = control,
     )
@@ -76,6 +80,7 @@ private fun SettingsLikeItemImpl(
     modifier: Modifier,
     supportingContent: (@Composable ColumnScope.() -> Unit)?,
     onClick: (() -> Unit)?,
+    titleContent: (@Composable () -> Unit)?,
     border: BorderStroke? = null,
     control: @Composable RowScope.() -> Unit,
 ) {
@@ -101,11 +106,15 @@ private fun SettingsLikeItemImpl(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
-                androidx.compose.material3.Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleSmall,
-                    color = titleColor,
-                )
+                if (titleContent == null) {
+                    androidx.compose.material3.Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleSmall,
+                        color = titleColor,
+                    )
+                } else {
+                    titleContent()
+                }
                 Spacer(Modifier.height(2.dp))
                 descriptionContent()
                 supportingContent?.invoke(this)
@@ -173,4 +182,4 @@ private fun CompactInputSurface(
     )
 }
 
-val DefaultSearchFieldWidth: Dp = 260.dp
+val DefaultSearchFieldWidth: Dp = 520.dp

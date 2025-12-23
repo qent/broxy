@@ -29,12 +29,13 @@ fun CapabilitiesCard(
     items: List<CapabilityDisplayItem>,
     icon: ImageVector,
     showServerName: Boolean = true,
+    highlightQuery: String = "",
 ) {
     if (items.isEmpty()) return
     FormCard(title = title) {
         Column(verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm)) {
             items.forEachIndexed { index, item ->
-                CapabilityRow(item, icon, showServerName)
+                CapabilityRow(item, icon, showServerName, highlightQuery)
                 if (index < items.lastIndex) {
                     HorizontalDivider(
                         thickness = AppTheme.strokeWidths.hairline,
@@ -51,8 +52,10 @@ fun CapabilityRow(
     item: CapabilityDisplayItem,
     icon: ImageVector,
     showServerName: Boolean = true,
+    highlightQuery: String = "",
 ) {
     val strings = LocalStrings.current
+    val highlightColor = MaterialTheme.colorScheme.primary
     Column(verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.xs)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -69,14 +72,14 @@ fun CapabilityRow(
                 text =
                     if (showServerName) {
                         buildAnnotatedString {
-                            append(item.capabilityName)
+                            append(buildHighlightedAnnotatedString(item.capabilityName, highlightQuery, highlightColor))
                             append(strings.capabilitySeparator)
                             withStyle(SpanStyle(color = MaterialTheme.colorScheme.primary)) {
                                 append(item.serverName)
                             }
                         }
                     } else {
-                        buildAnnotatedString { append(item.capabilityName) }
+                        buildHighlightedAnnotatedString(item.capabilityName, highlightQuery, highlightColor)
                     },
                 style = MaterialTheme.typography.bodyMedium,
                 maxLines = 1,
@@ -86,9 +89,11 @@ fun CapabilityRow(
         CapabilityArgumentList(
             arguments = item.arguments,
             modifier = Modifier.padding(top = AppTheme.spacing.xs),
+            highlightQuery = highlightQuery,
+            highlightColor = highlightColor,
         )
         Text(
-            item.description,
+            text = buildHighlightedAnnotatedString(item.description, highlightQuery, highlightColor),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

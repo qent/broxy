@@ -10,6 +10,7 @@ import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.text.style.TextAlign
@@ -21,6 +22,9 @@ import io.qent.broxy.ui.adapter.store.AppStore
 import io.qent.broxy.ui.adapter.store.UIState
 import io.qent.broxy.ui.components.CapabilitiesInlineSummary
 import io.qent.broxy.ui.components.DeleteConfirmationDialog
+import io.qent.broxy.ui.components.HighlightedText
+import io.qent.broxy.ui.components.SearchField
+import io.qent.broxy.ui.components.SearchFieldFabAlignedBottomPadding
 import io.qent.broxy.ui.components.SettingsLikeItem
 import io.qent.broxy.ui.strings.LocalStrings
 import io.qent.broxy.ui.theme.AppTheme
@@ -72,15 +76,7 @@ fun ServersScreen(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
         ) {
-            Spacer(Modifier.height(1.dp))
-
-            OutlinedTextField(
-                value = query,
-                onValueChange = { query = it },
-                label = { Text(strings.searchServers) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-            )
+            Spacer(Modifier.height(AppTheme.spacing.sm))
 
             when (ui) {
                 is UIState.Loading -> Text(strings.loading, style = MaterialTheme.typography.bodyMedium)
@@ -93,11 +89,10 @@ fun ServersScreen(
                             subtitle = strings.serversEmptySubtitle,
                         )
                     } else {
+                        val trimmedQuery = query.trim()
                         val filtered =
                             servers.filter { cfg ->
-                                cfg.name.contains(query, ignoreCase = true) ||
-                                    cfg.id.contains(query, ignoreCase = true) ||
-                                    cfg.transportLabel.contains(query, ignoreCase = true)
+                                trimmedQuery.isBlank() || cfg.name.contains(trimmedQuery, ignoreCase = true)
                             }
                         LazyColumn(
                             modifier = Modifier.weight(1f, fill = true),
@@ -107,6 +102,7 @@ fun ServersScreen(
                             items(filtered, key = { it.id }) { cfg ->
                                 ServerCard(
                                     cfg = cfg,
+                                    searchQuery = trimmedQuery,
                                     onViewDetails = {
                                         state.serverEditor.value = null
                                         state.serverDetailsId.value = cfg.id
@@ -131,6 +127,16 @@ fun ServersScreen(
             }
         }
 
+        SearchField(
+            value = query,
+            onValueChange = { query = it },
+            placeholder = strings.searchServers,
+            modifier =
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = SearchFieldFabAlignedBottomPadding),
+        )
+
         val readyUi = ui as? UIState.Ready
         val toDelete = pendingDeletion
         if (readyUi != null && toDelete != null) {
@@ -153,6 +159,7 @@ fun ServersScreen(
 @Composable
 private fun ServerCard(
     cfg: UiServer,
+    searchQuery: String,
     onViewDetails: () -> Unit,
     onToggle: (String, Boolean) -> Unit,
     onRefresh: () -> Unit,
@@ -205,13 +212,24 @@ private fun ServerCard(
     SettingsLikeItem(
         title = cfg.name,
         titleColor = titleColor,
+        titleContent = {
+            HighlightedText(
+                text = cfg.name,
+                query = searchQuery,
+                style = MaterialTheme.typography.titleSmall,
+                color = titleColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        },
         descriptionContent = {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
             ) {
-                Text(
+                HighlightedText(
                     text = cfg.transportLabel,
+                    query = searchQuery,
                     style = MaterialTheme.typography.bodySmall,
                     color = transportColor,
                     maxLines = 1,

@@ -27,6 +27,7 @@ fun PresetSelector(
     initialToolRefs: List<UiToolRef> = emptyList(),
     initialPromptRefs: List<UiPromptRef> = emptyList(),
     initialResourceRefs: List<UiResourceRef> = emptyList(),
+    searchQuery: String = "",
     promptsConfigured: Boolean = true,
     resourcesConfigured: Boolean = true,
     onSelectionChanged: (
@@ -146,6 +147,18 @@ fun PresetSelector(
 
         snaps.value.forEach { snap ->
             val serverId = snap.serverId
+            val filteredTools = snap.tools.filter { matchesCapabilityQuery(searchQuery, it.name, it.description, it.arguments) }
+            val filteredPrompts = snap.prompts.filter { matchesCapabilityQuery(searchQuery, it.name, it.description, it.arguments) }
+            val filteredResources =
+                snap.resources.filter {
+                    matchesResourceQuery(searchQuery, it.name, it.key, it.description, it.arguments)
+                }
+            val shouldShowServer =
+                searchQuery.isBlank() ||
+                    filteredTools.isNotEmpty() ||
+                    filteredPrompts.isNotEmpty() ||
+                    filteredResources.isNotEmpty()
+            if (!shouldShowServer) return@forEach
             val isExpanded = expandedServerId == serverId
             val serverSelected = selectedServers[serverId] == true
             val cardColor =
@@ -180,6 +193,9 @@ fun PresetSelector(
                 label = "serverCapabilitiesArrow",
             )
             val toggleExpanded = { expandedServerId = if (isExpanded) null else serverId }
+            val showToolsSection = searchQuery.isBlank() || filteredTools.isNotEmpty()
+            val showPromptsSection = searchQuery.isBlank() || filteredPrompts.isNotEmpty()
+            val showResourcesSection = searchQuery.isBlank() || filteredResources.isNotEmpty()
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = AppTheme.shapes.item,
@@ -255,101 +271,113 @@ fun PresetSelector(
                         }
                     }
                     if (isExpanded) {
-                        CapabilitySection(
-                            label = strings.toolsLabel,
-                            isEmpty = snap.tools.isEmpty(),
-                            emptyMessage = strings.noToolsAvailable,
-                        ) {
-                            snap.tools.forEachIndexed { index, tool ->
-                                val checked = selectedTools[serverId]?.contains(tool.name) == true
-                                val description =
-                                    tool.description?.takeIf { it.isNotBlank() }
-                                        ?: strings.noDescriptionProvided
-                                CapabilitySelectionRow(
-                                    title = tool.name,
-                                    description = description,
-                                    checked = checked,
-                                    onCheckedChange = { c ->
-                                        val prev = selectedTools[serverId] ?: emptySet()
-                                        val next = if (c) prev + tool.name else prev - tool.name
-                                        selectedTools[serverId] = next
-                                        updateServerSelection(serverId)
-                                        emitSelection()
-                                    },
-                                ) {
-                                    CapabilityArgumentList(
-                                        arguments = tool.arguments,
-                                        modifier = Modifier.padding(top = AppTheme.spacing.xs),
-                                    )
-                                }
-                                if (index < snap.tools.lastIndex) {
-                                    CapabilityDivider()
-                                }
-                            }
-                        }
-                        CapabilitySection(
-                            label = strings.promptsLabel,
-                            isEmpty = snap.prompts.isEmpty(),
-                            emptyMessage = strings.noPromptsAvailable,
-                        ) {
-                            snap.prompts.forEachIndexed { index, prompt ->
-                                val checked = selectedPrompts[serverId]?.contains(prompt.name) == true
-                                val description =
-                                    prompt.description?.takeIf { it.isNotBlank() }
-                                        ?: strings.noDescriptionProvided
-                                CapabilitySelectionRow(
-                                    title = prompt.name,
-                                    description = description,
-                                    checked = checked,
-                                    onCheckedChange = { c ->
-                                        val prev = selectedPrompts[serverId] ?: emptySet()
-                                        val next = if (c) prev + prompt.name else prev - prompt.name
-                                        selectedPrompts[serverId] = next
-                                        updateServerSelection(serverId)
-                                        onPromptsConfiguredChange(true)
-                                        emitSelection()
-                                    },
-                                ) {
-                                    CapabilityArgumentList(
-                                        arguments = prompt.arguments,
-                                        modifier = Modifier.padding(top = AppTheme.spacing.xs),
-                                    )
-                                }
-                                if (index < snap.prompts.lastIndex) {
-                                    CapabilityDivider()
+                        if (showToolsSection) {
+                            CapabilitySection(
+                                label = strings.toolsLabel,
+                                isEmpty = filteredTools.isEmpty(),
+                                emptyMessage = strings.noToolsAvailable,
+                            ) {
+                                filteredTools.forEachIndexed { index, tool ->
+                                    val checked = selectedTools[serverId]?.contains(tool.name) == true
+                                    val description =
+                                        tool.description?.takeIf { it.isNotBlank() }
+                                            ?: strings.noDescriptionProvided
+                                    CapabilitySelectionRow(
+                                        title = tool.name,
+                                        description = description,
+                                        checked = checked,
+                                        highlightQuery = searchQuery,
+                                        onCheckedChange = { c ->
+                                            val prev = selectedTools[serverId] ?: emptySet()
+                                            val next = if (c) prev + tool.name else prev - tool.name
+                                            selectedTools[serverId] = next
+                                            updateServerSelection(serverId)
+                                            emitSelection()
+                                        },
+                                    ) {
+                                        CapabilityArgumentList(
+                                            arguments = tool.arguments,
+                                            modifier = Modifier.padding(top = AppTheme.spacing.xs),
+                                            highlightQuery = searchQuery,
+                                        )
+                                    }
+                                    if (index < filteredTools.lastIndex) {
+                                        CapabilityDivider()
+                                    }
                                 }
                             }
                         }
-                        CapabilitySection(
-                            label = strings.resourcesLabel,
-                            isEmpty = snap.resources.isEmpty(),
-                            emptyMessage = strings.noResourcesAvailable,
-                        ) {
-                            snap.resources.forEachIndexed { index, resource ->
-                                val checked = selectedResources[serverId]?.contains(resource.key) == true
-                                val description =
-                                    resource.description?.takeIf { it.isNotBlank() }
-                                        ?: resource.key
-                                CapabilitySelectionRow(
-                                    title = resource.name,
-                                    description = description,
-                                    checked = checked,
-                                    onCheckedChange = { c ->
-                                        val prev = selectedResources[serverId] ?: emptySet()
-                                        val next = if (c) prev + resource.key else prev - resource.key
-                                        selectedResources[serverId] = next
-                                        updateServerSelection(serverId)
-                                        onResourcesConfiguredChange(true)
-                                        emitSelection()
-                                    },
-                                ) {
-                                    CapabilityArgumentList(
-                                        arguments = resource.arguments,
-                                        modifier = Modifier.padding(top = AppTheme.spacing.xs),
-                                    )
+                        if (showPromptsSection) {
+                            CapabilitySection(
+                                label = strings.promptsLabel,
+                                isEmpty = filteredPrompts.isEmpty(),
+                                emptyMessage = strings.noPromptsAvailable,
+                            ) {
+                                filteredPrompts.forEachIndexed { index, prompt ->
+                                    val checked = selectedPrompts[serverId]?.contains(prompt.name) == true
+                                    val description =
+                                        prompt.description?.takeIf { it.isNotBlank() }
+                                            ?: strings.noDescriptionProvided
+                                    CapabilitySelectionRow(
+                                        title = prompt.name,
+                                        description = description,
+                                        checked = checked,
+                                        highlightQuery = searchQuery,
+                                        onCheckedChange = { c ->
+                                            val prev = selectedPrompts[serverId] ?: emptySet()
+                                            val next = if (c) prev + prompt.name else prev - prompt.name
+                                            selectedPrompts[serverId] = next
+                                            updateServerSelection(serverId)
+                                            onPromptsConfiguredChange(true)
+                                            emitSelection()
+                                        },
+                                    ) {
+                                        CapabilityArgumentList(
+                                            arguments = prompt.arguments,
+                                            modifier = Modifier.padding(top = AppTheme.spacing.xs),
+                                            highlightQuery = searchQuery,
+                                        )
+                                    }
+                                    if (index < filteredPrompts.lastIndex) {
+                                        CapabilityDivider()
+                                    }
                                 }
-                                if (index < snap.resources.lastIndex) {
-                                    CapabilityDivider()
+                            }
+                        }
+                        if (showResourcesSection) {
+                            CapabilitySection(
+                                label = strings.resourcesLabel,
+                                isEmpty = filteredResources.isEmpty(),
+                                emptyMessage = strings.noResourcesAvailable,
+                            ) {
+                                filteredResources.forEachIndexed { index, resource ->
+                                    val checked = selectedResources[serverId]?.contains(resource.key) == true
+                                    val description =
+                                        resource.description?.takeIf { it.isNotBlank() }
+                                            ?: resource.key
+                                    CapabilitySelectionRow(
+                                        title = resource.name,
+                                        description = description,
+                                        checked = checked,
+                                        highlightQuery = searchQuery,
+                                        onCheckedChange = { c ->
+                                            val prev = selectedResources[serverId] ?: emptySet()
+                                            val next = if (c) prev + resource.key else prev - resource.key
+                                            selectedResources[serverId] = next
+                                            updateServerSelection(serverId)
+                                            onResourcesConfiguredChange(true)
+                                            emitSelection()
+                                        },
+                                    ) {
+                                        CapabilityArgumentList(
+                                            arguments = resource.arguments,
+                                            modifier = Modifier.padding(top = AppTheme.spacing.xs),
+                                            highlightQuery = searchQuery,
+                                        )
+                                    }
+                                    if (index < filteredResources.lastIndex) {
+                                        CapabilityDivider()
+                                    }
                                 }
                             }
                         }
@@ -405,6 +433,7 @@ private fun CapabilitySelectionRow(
     title: String,
     description: String,
     checked: Boolean,
+    highlightQuery: String = "",
     onCheckedChange: (Boolean) -> Unit,
     metaContent: @Composable (() -> Unit)? = null,
 ) {
@@ -426,10 +455,16 @@ private fun CapabilitySelectionRow(
                     .weight(1f),
             verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.xs),
         ) {
-            Text(title, style = MaterialTheme.typography.bodyMedium)
+            HighlightedText(
+                text = title,
+                query = highlightQuery,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
             metaContent?.invoke()
-            Text(
-                description,
+            HighlightedText(
+                text = description,
+                query = highlightQuery,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
