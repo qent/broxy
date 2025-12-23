@@ -83,8 +83,18 @@ Add an `auth` block to a server to enable OAuth:
   `resource` value from Protected Resource Metadata when present.
 - Performs step-up authorization on `insufficient_scope` challenges.
 - Uses refresh tokens when provided.
-- OAuth authorization waits are bounded by `capabilitiesTimeoutSeconds` so interactive consent
-  uses the same timeout configured in settings.
+- Headless/CLI OAuth waits are bounded by `authorizationTimeoutSeconds`.
+
+## UI authorization popup
+
+When running the desktop UI, authorization URLs open inside Broxy instead of an external browser:
+
+- The OAuth URL is rendered in an in-app webview popup centered in the main window.
+- The popup includes an explicit close button (outside clicks do not dismiss).
+- After a successful OAuth redirect, the popup shows the local success page and closes automatically.
+- If the user closes the popup or authorization fails, the popup closes and the server is disabled
+  (the UI toggle turns off).
+- While the popup is open, Broxy listens for the loopback callback without applying the authorization timeout.
 
 ## OAuth secure storage
 

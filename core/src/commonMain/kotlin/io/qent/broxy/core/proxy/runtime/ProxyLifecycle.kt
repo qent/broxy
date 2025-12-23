@@ -35,6 +35,7 @@ class ProxyLifecycle(
                 inbound = inbound,
                 callTimeoutSeconds = config.requestTimeoutSeconds,
                 capabilitiesTimeoutSeconds = config.capabilitiesTimeoutSeconds,
+                authorizationTimeoutSeconds = config.authorizationTimeoutSeconds,
                 connectionRetryCount = config.connectionRetryCount,
                 capabilitiesRefreshIntervalSeconds = config.capabilitiesRefreshIntervalSeconds,
             )
@@ -92,6 +93,7 @@ class ProxyLifecycle(
                 servers = config.servers,
                 callTimeoutSeconds = config.requestTimeoutSeconds,
                 capabilitiesTimeoutSeconds = config.capabilitiesTimeoutSeconds,
+                authorizationTimeoutSeconds = config.authorizationTimeoutSeconds,
                 connectionRetryCount = config.connectionRetryCount,
                 capabilitiesRefreshIntervalSeconds = config.capabilitiesRefreshIntervalSeconds,
             )

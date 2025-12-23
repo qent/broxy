@@ -47,6 +47,12 @@
       "description": "Timeout for listing tools/resources/prompts from servers in seconds.",
       "default": 30
     },
+    "authorizationTimeoutSeconds": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Timeout for OAuth authorization (headless/CLI flows) in seconds.",
+      "default": 120
+    },
     "connectionRetryCount": {
       "type": "integer",
       "minimum": 1,

@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.luminance
 import io.qent.broxy.ui.adapter.store.AppStore
 import io.qent.broxy.ui.adapter.store.UIState
 import io.qent.broxy.ui.components.AppNavigationRail
+import io.qent.broxy.ui.components.AuthorizationPopupDialog
 import io.qent.broxy.ui.components.GlobalHeader
 import io.qent.broxy.ui.strings.LocalStrings
 import io.qent.broxy.ui.theme.AppTheme
@@ -164,6 +165,15 @@ fun MainWindow(
                     }
                 }
             }
+        }
+        val readyUi = ui as? UIState.Ready
+        val authPopup = readyUi?.authorizationPopup
+        if (readyUi != null && authPopup != null) {
+            AuthorizationPopupDialog(
+                popup = authPopup,
+                onCancel = { readyUi.intents.cancelAuthorization(authPopup.serverId) },
+                onDismiss = { readyUi.intents.dismissAuthorizationPopup(authPopup.serverId) },
+            )
         }
     }
 }

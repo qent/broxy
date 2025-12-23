@@ -45,6 +45,7 @@ class OAuthManager(
         LoopbackAuthorizationCodeReceiver(redirectUri, logger)
     },
     private val browserLauncher: BrowserLauncher = DesktopBrowserLauncher(logger),
+    private val authorizationPresenter: AuthorizationPresenter? = AuthorizationPresenterRegistry.current(),
     private val clockMillis: () -> Long = { System.currentTimeMillis() },
 ) : OAuthAuthorizer {
     private data class DiscoveryResult(
@@ -72,8 +73,10 @@ class OAuthManager(
 
     override fun currentAccessToken(): String? = state.token?.accessToken
 
-    override suspend fun ensureAuthorized(challenge: OAuthChallenge?): Result<String?> =
-        runCatching {
+    override suspend fun ensureAuthorized(challenge: OAuthChallenge?): Result<String?> {
+        val presenter = authorizationPresenter
+        var shouldNotifyPresenter = false
+        return runCatching {
             state.mutex.withLock {
                 logger.debug("OAuth ensureAuthorized start for $resourceUrl (challenge=${challenge != null})")
                 val requiredScope = challenge?.scope ?: state.lastRequestedScope
@@ -119,16 +122,38 @@ class OAuthManager(
                         stateValue,
                         codeChallenge,
                     )
-                logger.debug("OAuth authorization URL prepared for $resourceUrl; launching browser.")
-                browserLauncher.open(authUrl).onSuccess {
-                    logger.debug("OAuth browser launch succeeded for $resourceUrl")
-                }.onFailure {
-                    logger.info("Open this URL to authorize access: $authUrl")
+                shouldNotifyPresenter = presenter != null
+                if (presenter != null) {
+                    runCatching {
+                        presenter.onAuthorizationRequest(
+                            AuthorizationRequest(
+                                resourceUrl = resourceUrl,
+                                authorizationUrl = authUrl,
+                                redirectUri = redirectUri,
+                            ),
+                        )
+                    }.onFailure { ex ->
+                        logger.warn("OAuth presenter failed to open authorization UI for $resourceUrl", ex)
+                        throw ex
+                    }
+                } else {
+                    logger.debug("OAuth authorization URL prepared for $resourceUrl; launching browser.")
+                    browserLauncher.open(authUrl).onSuccess {
+                        logger.debug("OAuth browser launch succeeded for $resourceUrl")
+                    }.onFailure {
+                        logger.info("Open this URL to authorize access: $authUrl")
+                    }
                 }
                 val code =
                     try {
-                        val timeoutMillis = resolveAuthorizationTimeoutMillis()
-                        logger.debug("OAuth awaiting authorization code for $resourceUrl timeout=${timeoutMillis}ms")
+                        val timeoutMillis =
+                            if (presenter != null) {
+                                0L
+                            } else {
+                                resolveAuthorizationTimeoutMillis()
+                            }
+                        val timeoutLabel = if (timeoutMillis <= 0L) "none" else "${timeoutMillis}ms"
+                        logger.debug("OAuth awaiting authorization code for $resourceUrl timeout=$timeoutLabel")
                         receiver.awaitCode(authUrl, stateValue, timeoutMillis).getOrThrow()
                     } finally {
                         receiver.close()
@@ -144,9 +169,31 @@ class OAuthManager(
                     )
                 state.token = exchanged
                 logger.debug("OAuth token exchange complete for $resourceUrl")
+                if (presenter != null && shouldNotifyPresenter) {
+                    runCatching {
+                        presenter.onAuthorizationResult(AuthorizationResult.Success(resourceUrl))
+                    }.onFailure { ex ->
+                        logger.warn("OAuth presenter failed to report success for $resourceUrl", ex)
+                    }
+                }
                 exchanged.accessToken
             }
+        }.onFailure { ex ->
+            if (presenter != null && shouldNotifyPresenter) {
+                val result =
+                    when (ex) {
+                        is kotlinx.coroutines.CancellationException ->
+                            AuthorizationResult.Cancelled(resourceUrl, ex.message)
+                        else -> AuthorizationResult.Failure(resourceUrl, ex.message)
+                    }
+                runCatching {
+                    presenter.onAuthorizationResult(result)
+                }.onFailure { notifyError ->
+                    logger.warn("OAuth presenter failed to report failure for $resourceUrl", notifyError)
+                }
+            }
         }
+    }
 
     override fun close() {
         runCatching { httpClient?.close() }

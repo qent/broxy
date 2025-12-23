@@ -44,6 +44,7 @@ class DefaultMcpServerConnection(
     initialCallTimeoutMillis: Long = 60_000,
     initialCapabilitiesTimeoutMillis: Long = 10_000,
     initialConnectTimeoutMillis: Long = initialCapabilitiesTimeoutMillis,
+    initialAuthorizationTimeoutMillis: Long = DEFAULT_AUTHORIZATION_TIMEOUT_MILLIS,
 ) : McpServerConnection {
     override val serverId: String = config.id
 
@@ -60,8 +61,12 @@ class DefaultMcpServerConnection(
     @Volatile
     private var connectTimeoutMillis: Long = initialConnectTimeoutMillis.coerceAtLeast(1)
 
+    @Volatile
+    private var authorizationTimeoutMillis: Long = initialAuthorizationTimeoutMillis.coerceAtLeast(1)
+
     init {
         maxRetries = maxRetries.coerceAtLeast(1)
+        authState?.authorizationTimeoutMillis = authorizationTimeoutMillis
     }
 
     fun updateCallTimeout(millis: Long) {
@@ -78,6 +83,12 @@ class DefaultMcpServerConnection(
     fun updateConnectionRetryCount(count: Int) {
         maxRetries = count.coerceAtLeast(1)
         logger.info("Updated connection retries for '${config.name}' to $maxRetries")
+    }
+
+    fun updateAuthorizationTimeout(millis: Long) {
+        authorizationTimeoutMillis = millis.coerceAtLeast(1)
+        authState?.authorizationTimeoutMillis = authorizationTimeoutMillis
+        logger.info("Updated authorization timeout for '${config.name}' to ${authorizationTimeoutMillis}ms")
     }
 
     override suspend fun connect(): Result<Unit> = withSession { Result.success(Unit) }
@@ -161,6 +172,10 @@ class DefaultMcpServerConnection(
 
     private fun configureClientTimeouts(client: McpClient) {
         (client as? TimeoutConfigurableMcpClient)?.updateTimeouts(connectTimeoutMillis, capabilitiesTimeoutMillis)
+    }
+
+    companion object {
+        private const val DEFAULT_AUTHORIZATION_TIMEOUT_MILLIS = 120_000L
     }
 
     private suspend fun <T> withSession(block: suspend (McpClient) -> Result<T>): Result<T> {

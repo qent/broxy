@@ -26,6 +26,7 @@ class ProxyLifecycleTest {
                 servers = listOf(testServer("s1")),
                 requestTimeoutSeconds = 5,
                 capabilitiesTimeoutSeconds = 3,
+                authorizationTimeoutSeconds = 7,
                 connectionRetryCount = 2,
             )
         val preset = Preset(id = "p1", name = "Preset")
@@ -48,6 +49,7 @@ class ProxyLifecycleTest {
                 servers = listOf(testServer("s1")),
                 requestTimeoutSeconds = 5,
                 capabilitiesTimeoutSeconds = 3,
+                authorizationTimeoutSeconds = 7,
                 connectionRetryCount = 2,
             )
         val preset = Preset(id = "p1", name = "Preset")
@@ -75,6 +77,7 @@ class ProxyLifecycleTest {
                 servers = listOf(testServer("s1")),
                 requestTimeoutSeconds = 5,
                 capabilitiesTimeoutSeconds = 3,
+                authorizationTimeoutSeconds = 7,
                 connectionRetryCount = 2,
             )
 
@@ -89,6 +92,7 @@ private class FakeProxyController : ProxyController {
         val inbound: TransportConfig,
         val callTimeoutSeconds: Int,
         val capabilitiesTimeoutSeconds: Int,
+        val authorizationTimeoutSeconds: Int,
         val connectionRetryCount: Int,
         val capabilitiesRefreshIntervalSeconds: Int,
     )
@@ -105,6 +109,7 @@ private class FakeProxyController : ProxyController {
         inbound: TransportConfig,
         callTimeoutSeconds: Int,
         capabilitiesTimeoutSeconds: Int,
+        authorizationTimeoutSeconds: Int,
         connectionRetryCount: Int,
         capabilitiesRefreshIntervalSeconds: Int,
     ): Result<Unit> {
@@ -115,6 +120,7 @@ private class FakeProxyController : ProxyController {
                 inbound,
                 callTimeoutSeconds,
                 capabilitiesTimeoutSeconds,
+                authorizationTimeoutSeconds,
                 connectionRetryCount,
                 capabilitiesRefreshIntervalSeconds,
             )
@@ -129,6 +135,7 @@ private class FakeProxyController : ProxyController {
         servers: List<McpServerConfig>,
         callTimeoutSeconds: Int,
         capabilitiesTimeoutSeconds: Int,
+        authorizationTimeoutSeconds: Int,
         connectionRetryCount: Int,
         capabilitiesRefreshIntervalSeconds: Int,
     ): Result<Unit> = Result.success(Unit)

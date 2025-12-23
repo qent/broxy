@@ -97,6 +97,8 @@ interface AppStrings {
 
     val cancel: String
 
+    val close: String
+
     val add: String
 
     val save: String
@@ -114,6 +116,10 @@ interface AppStrings {
     fun connecting(seconds: Long): String
 
     fun authorization(seconds: Long): String
+
+    fun authorizationPopupTitle(name: String): String
+
+    val authorizationPopupSubtitle: String
 
     val separatorDot: String
 
@@ -377,6 +383,8 @@ object EnglishStrings : AppStrings {
 
     override val cancel = "Cancel"
 
+    override val close = "Close"
+
     override val add = "Add"
 
     override val save = "Save"
@@ -394,6 +402,10 @@ object EnglishStrings : AppStrings {
     override fun connecting(seconds: Long): String = "Connecting: $seconds s"
 
     override fun authorization(seconds: Long): String = "Authorization: $seconds s"
+
+    override fun authorizationPopupTitle(name: String): String = "Authorize $name"
+
+    override val authorizationPopupSubtitle = "Finish sign-in in the embedded browser."
 
     override val separatorDot = " • "
 

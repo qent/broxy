@@ -1,5 +1,6 @@
 package io.qent.broxy.ui.adapter.store
 
+import io.qent.broxy.ui.adapter.models.UiAuthorizationPopup
 import io.qent.broxy.ui.adapter.models.UiPreset
 import io.qent.broxy.ui.adapter.models.UiPresetDraft
 import io.qent.broxy.ui.adapter.models.UiProxyStatus
@@ -27,6 +28,7 @@ sealed class UIState {
         val intents: Intents,
         val remote: UiRemoteConnectionState,
         val remoteEnabled: Boolean,
+        val authorizationPopup: UiAuthorizationPopup?,
     ) : UIState()
 }
 
@@ -81,4 +83,8 @@ interface Intents {
     fun disconnectRemote()
 
     fun logoutRemote()
+
+    fun cancelAuthorization(serverId: String)
+
+    fun dismissAuthorizationPopup(serverId: String)
 }

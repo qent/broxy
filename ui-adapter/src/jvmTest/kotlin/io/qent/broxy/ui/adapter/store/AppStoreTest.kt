@@ -195,6 +195,7 @@ class AppStoreTest {
             assertIs<TransportConfig.StreamableHttpTransport>(params.inbound)
             assertEquals(config.requestTimeoutSeconds, params.callTimeoutSeconds)
             assertEquals(config.capabilitiesTimeoutSeconds, params.capabilitiesTimeoutSeconds)
+            assertEquals(config.authorizationTimeoutSeconds, params.authorizationTimeoutSeconds)
             assertEquals(config.connectionRetryCount, params.connectionRetryCount)
             assertEquals(config.capabilitiesRefreshIntervalSeconds, params.capabilitiesRefreshIntervalSeconds)
 
@@ -753,6 +754,7 @@ class AppStoreTest {
             val inbound: UiTransportConfig,
             val callTimeoutSeconds: Int,
             val capabilitiesTimeoutSeconds: Int,
+            val authorizationTimeoutSeconds: Int,
             val connectionRetryCount: Int,
             val capabilitiesRefreshIntervalSeconds: Int,
             val logsSubscriptionActive: Boolean,
@@ -772,6 +774,7 @@ class AppStoreTest {
             inbound: UiTransportConfig,
             callTimeoutSeconds: Int,
             capabilitiesTimeoutSeconds: Int,
+            authorizationTimeoutSeconds: Int,
             connectionRetryCount: Int,
             capabilitiesRefreshIntervalSeconds: Int,
         ): Result<Unit> {
@@ -782,6 +785,7 @@ class AppStoreTest {
                     inbound = inbound,
                     callTimeoutSeconds = callTimeoutSeconds,
                     capabilitiesTimeoutSeconds = capabilitiesTimeoutSeconds,
+                    authorizationTimeoutSeconds = authorizationTimeoutSeconds,
                     connectionRetryCount = connectionRetryCount,
                     capabilitiesRefreshIntervalSeconds = capabilitiesRefreshIntervalSeconds,
                     logsSubscriptionActive = true,
@@ -800,6 +804,7 @@ class AppStoreTest {
             servers: List<UiMcpServerConfig>,
             callTimeoutSeconds: Int,
             capabilitiesTimeoutSeconds: Int,
+            authorizationTimeoutSeconds: Int,
             connectionRetryCount: Int,
             capabilitiesRefreshIntervalSeconds: Int,
         ): Result<Unit> {

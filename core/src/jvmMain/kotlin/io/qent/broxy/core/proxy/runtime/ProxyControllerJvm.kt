@@ -62,6 +62,10 @@ private data class ManagedDownstream(
         connection.updateCapabilitiesTimeout(millis)
     }
 
+    fun updateAuthorizationTimeout(millis: Long) {
+        connection.updateAuthorizationTimeout(millis)
+    }
+
     suspend fun shutdown() {
         runCatching { isolated.disconnect() }
         isolated.close()
@@ -95,6 +99,9 @@ private class JvmProxyController(
     private var capabilitiesTimeoutMillis: Long = 30_000
 
     @Volatile
+    private var authorizationTimeoutMillis: Long = DEFAULT_AUTHORIZATION_TIMEOUT_MILLIS
+
+    @Volatile
     private var connectionRetryCount: Int = 3
 
     override val logs: Flow<LogEvent> get() = logger.events
@@ -107,6 +114,7 @@ private class JvmProxyController(
         inbound: TransportConfig,
         callTimeoutSeconds: Int,
         capabilitiesTimeoutSeconds: Int,
+        authorizationTimeoutSeconds: Int,
         connectionRetryCount: Int,
         capabilitiesRefreshIntervalSeconds: Int,
     ): Result<Unit> =
@@ -114,6 +122,7 @@ private class JvmProxyController(
             runCatching { stop() }
             callTimeoutMillis = callTimeoutSeconds.toLong() * 1_000L
             capabilitiesTimeoutMillis = capabilitiesTimeoutSeconds.toLong() * 1_000L
+            authorizationTimeoutMillis = authorizationTimeoutSeconds.toLong() * 1_000L
             this.connectionRetryCount = connectionRetryCount.coerceAtLeast(1)
             capabilitiesRefreshIntervalMillis = refreshIntervalMillis(capabilitiesRefreshIntervalSeconds)
 
@@ -178,6 +187,7 @@ private class JvmProxyController(
         servers: List<McpServerConfig>,
         callTimeoutSeconds: Int,
         capabilitiesTimeoutSeconds: Int,
+        authorizationTimeoutSeconds: Int,
         connectionRetryCount: Int,
         capabilitiesRefreshIntervalSeconds: Int,
     ): Result<Unit> =
@@ -190,9 +200,11 @@ private class JvmProxyController(
 
             val previousCallTimeoutMillis = callTimeoutMillis
             val previousCapabilitiesTimeoutMillis = capabilitiesTimeoutMillis
+            val previousAuthorizationTimeoutMillis = authorizationTimeoutMillis
             val previousConnectionRetryCount = this.connectionRetryCount
             callTimeoutMillis = callTimeoutSeconds.toLong() * 1_000L
             capabilitiesTimeoutMillis = capabilitiesTimeoutSeconds.toLong() * 1_000L
+            authorizationTimeoutMillis = authorizationTimeoutSeconds.toLong() * 1_000L
             this.connectionRetryCount = connectionRetryCount.coerceAtLeast(1)
             capabilitiesRefreshIntervalMillis = refreshIntervalMillis(capabilitiesRefreshIntervalSeconds)
 
@@ -229,12 +241,14 @@ private class JvmProxyController(
 
             val callTimeoutChanged = previousCallTimeoutMillis != callTimeoutMillis
             val capabilitiesTimeoutChanged = previousCapabilitiesTimeoutMillis != capabilitiesTimeoutMillis
+            val authorizationTimeoutChanged = previousAuthorizationTimeoutMillis != authorizationTimeoutMillis
             val retryCountChanged = previousConnectionRetryCount != this.connectionRetryCount
-            if (callTimeoutChanged || capabilitiesTimeoutChanged) {
+            if (callTimeoutChanged || capabilitiesTimeoutChanged || authorizationTimeoutChanged) {
                 reusedIds.forEach { id ->
                     val managed = updated[id] ?: return@forEach
                     if (callTimeoutChanged) managed.updateCallTimeout(callTimeoutMillis)
                     if (capabilitiesTimeoutChanged) managed.updateCapabilitiesTimeout(capabilitiesTimeoutMillis)
+                    if (authorizationTimeoutChanged) managed.updateAuthorizationTimeout(authorizationTimeoutMillis)
                 }
             }
             if (retryCountChanged) {
@@ -325,6 +339,7 @@ private class JvmProxyController(
                 maxRetries = connectionRetryCount,
                 initialCallTimeoutMillis = callTimeoutMillis,
                 initialCapabilitiesTimeoutMillis = capabilitiesTimeoutMillis,
+                initialAuthorizationTimeoutMillis = authorizationTimeoutMillis,
             )
         return ManagedDownstream(connection, IsolatedMcpServerConnection(connection))
     }
@@ -439,6 +454,7 @@ private class JvmProxyController(
         private const val MAX_REFRESH_PARALLELISM = 4
         private const val DEFAULT_REFRESH_INTERVAL_MILLIS = 300_000L
         private const val DEFAULT_REFRESH_PARALLELISM = 1
+        private const val DEFAULT_AUTHORIZATION_TIMEOUT_MILLIS = 120_000L
     }
 }
 

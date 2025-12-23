@@ -115,7 +115,8 @@ snapshots so refresh-in-progress still shows the timer even if an older snapshot
 
 For OAuth-capable HTTP/WS servers with no cached snapshot, the UI shows `Authorization` while OAuth
 is in progress, then switches to `Connecting` once authorization completes and capabilities are
-being fetched. The timer is bounded by the configured `capabilitiesTimeoutSeconds`.
+being fetched. In the desktop UI popup flow, authorization waits as long as the popup is open; in
+headless/CLI flows it is bounded by the configured `authorizationTimeoutSeconds`.
 
 ## UI toggle flow (enable/disable)
 

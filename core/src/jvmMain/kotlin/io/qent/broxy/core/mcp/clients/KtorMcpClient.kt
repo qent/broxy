@@ -86,8 +86,7 @@ class KtorMcpClient(
         val connectTimeout = connectTimeoutMillis.coerceAtLeast(1)
         this.connectTimeoutMillis = connectTimeout
         this.capabilitiesTimeoutMillis = capabilitiesTimeoutMillis.coerceAtLeast(1)
-        this.authorizationTimeoutMillis = connectTimeout
-        oauthState.authorizationTimeoutMillis = connectTimeout
+        oauthState.authorizationTimeoutMillis?.let { this.authorizationTimeoutMillis = it }
     }
 
     companion object {
@@ -97,7 +96,8 @@ class KtorMcpClient(
     }
 
     @Volatile
-    override var authorizationTimeoutMillis: Long = DEFAULT_AUTHORIZATION_TIMEOUT_MILLIS
+    override var authorizationTimeoutMillis: Long =
+        oauthState.authorizationTimeoutMillis ?: DEFAULT_AUTHORIZATION_TIMEOUT_MILLIS
         private set
 
     override suspend fun connect(): Result<Unit> = connectInternal(allowAuthRetry = true)

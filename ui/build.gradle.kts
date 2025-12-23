@@ -1,3 +1,4 @@
+import org.gradle.internal.os.OperatingSystem
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.compose.desktop.application.tasks.AbstractJLinkTask
 
@@ -27,6 +28,23 @@ kotlin {
             dependencies {
                 implementation(compose.desktop.currentOs)
                 implementation(project(":ui-adapter"))
+                val javafxVersion = property("javafxVersion") as String
+                val arch = System.getProperty("os.arch")?.lowercase() ?: ""
+                val javafxClassifier =
+                    when {
+                        OperatingSystem.current().isMacOsX && (arch.contains("aarch64") || arch.contains("arm64")) ->
+                            "mac-aarch64"
+                        OperatingSystem.current().isMacOsX -> "mac"
+                        OperatingSystem.current().isWindows -> "win"
+                        arch.contains("aarch64") || arch.contains("arm64") -> "linux-aarch64"
+                        else -> "linux"
+                    }
+                implementation("org.openjfx:javafx-base:$javafxVersion:$javafxClassifier")
+                implementation("org.openjfx:javafx-controls:$javafxVersion:$javafxClassifier")
+                implementation("org.openjfx:javafx-graphics:$javafxVersion:$javafxClassifier")
+                implementation("org.openjfx:javafx-media:$javafxVersion:$javafxClassifier")
+                implementation("org.openjfx:javafx-web:$javafxVersion:$javafxClassifier")
+                implementation("org.openjfx:javafx-swing:$javafxVersion:$javafxClassifier")
             }
         }
         val desktopTest by getting {
@@ -52,7 +70,15 @@ compose.desktop {
             vendor = "Qent"
             description = "Broxy: manage and route MCP servers, tools and presets across clients."
             includeAllModules = false
-            modules("java.instrument", "java.management", "jdk.unsupported")
+            modules(
+                "java.instrument",
+                "java.management",
+                "jdk.unsupported",
+                "javafx.controls",
+                "javafx.media",
+                "javafx.web",
+                "javafx.swing",
+            )
             // Compose Desktop installers require MAJOR > 0
             val rawVersion = project.version.toString()
             val parts = rawVersion.split('.')

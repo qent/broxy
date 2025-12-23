@@ -2,6 +2,7 @@ package io.qent.broxy.ui.adapter.store.internal
 
 import io.qent.broxy.core.capabilities.CapabilityCache
 import io.qent.broxy.core.capabilities.ServerStatusTracker
+import io.qent.broxy.ui.adapter.models.UiAuthorizationPopup
 import io.qent.broxy.ui.adapter.models.UiHttpTransport
 import io.qent.broxy.ui.adapter.models.UiMcpServerConfig
 import io.qent.broxy.ui.adapter.models.UiPreset
@@ -30,12 +31,14 @@ internal data class StoreSnapshot(
     val inboundSsePort: Int = 3335,
     val requestTimeoutSeconds: Int = 60,
     val capabilitiesTimeoutSeconds: Int = 10,
+    val authorizationTimeoutSeconds: Int = 120,
     val connectionRetryCount: Int = 3,
     val capabilitiesRefreshIntervalSeconds: Int = 300,
     val showTrayIcon: Boolean = true,
     val remote: UiRemoteConnectionState = defaultRemoteState(),
     val remoteEnabled: Boolean = isRemoteIntegrationEnabled(),
     val pendingServerToggles: Set<String> = emptySet(),
+    val authorizationPopup: UiAuthorizationPopup? = null,
 )
 
 internal fun StoreSnapshot.withPresets(newPresets: List<UiPreset>): StoreSnapshot {
@@ -117,6 +120,7 @@ internal fun StoreSnapshot.toUiState(
         intents = intents,
         remote = remote,
         remoteEnabled = remoteEnabled,
+        authorizationPopup = authorizationPopup,
     )
 }
 

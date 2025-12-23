@@ -25,6 +25,7 @@ interface ProxyController {
         inbound: TransportConfig,
         callTimeoutSeconds: Int,
         capabilitiesTimeoutSeconds: Int,
+        authorizationTimeoutSeconds: Int,
         connectionRetryCount: Int,
         capabilitiesRefreshIntervalSeconds: Int,
     ): Result<Unit>
@@ -41,6 +42,7 @@ interface ProxyController {
         servers: List<McpServerConfig>,
         callTimeoutSeconds: Int,
         capabilitiesTimeoutSeconds: Int,
+        authorizationTimeoutSeconds: Int,
         connectionRetryCount: Int,
         capabilitiesRefreshIntervalSeconds: Int,
     ): Result<Unit>

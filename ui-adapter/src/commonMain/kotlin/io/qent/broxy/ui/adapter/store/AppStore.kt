@@ -35,9 +35,11 @@ import io.qent.broxy.ui.adapter.remote.RemoteConnector
 import io.qent.broxy.ui.adapter.remote.createRemoteConnector
 import io.qent.broxy.ui.adapter.services.fetchServerCapabilities
 import io.qent.broxy.ui.adapter.store.internal.AppStoreIntents
+import io.qent.broxy.ui.adapter.store.internal.AuthorizationPopupCoordinator
 import io.qent.broxy.ui.adapter.store.internal.ProxyRuntime
 import io.qent.broxy.ui.adapter.store.internal.StoreSnapshot
 import io.qent.broxy.ui.adapter.store.internal.StoreStateAccess
+import io.qent.broxy.ui.adapter.store.internal.registerAuthorizationPresenter
 import io.qent.broxy.ui.adapter.store.internal.toUiState
 import io.qent.broxy.ui.adapter.store.internal.withPresets
 import kotlinx.coroutines.CoroutineScope
@@ -115,8 +117,16 @@ class AppStore(
             publishReady = ::publishReady,
             remoteConnector = remoteConnector,
         )
+    private val authorizationCoordinator =
+        AuthorizationPopupCoordinator(
+            state = stateAccess,
+            intents = intents,
+            publishReady = ::publishReady,
+            logger = logger,
+        )
 
     init {
+        registerAuthorizationPresenter(authorizationCoordinator)
         observeRemote()
         observeProxyCapabilities()
         observeProxyStatuses()
@@ -147,6 +157,7 @@ class AppStore(
     }
 
     fun stop() {
+        registerAuthorizationPresenter(null)
         runCatching { proxyRuntime.stopInbound() }
         if (snapshot.remoteEnabled) {
             runCatching { remoteConnector.disconnect() }
@@ -266,6 +277,7 @@ class AppStore(
                     inboundSsePort = config.inboundSsePort,
                     requestTimeoutSeconds = config.requestTimeoutSeconds,
                     capabilitiesTimeoutSeconds = config.capabilitiesTimeoutSeconds,
+                    authorizationTimeoutSeconds = config.authorizationTimeoutSeconds,
                     connectionRetryCount = config.connectionRetryCount,
                     capabilitiesRefreshIntervalSeconds = config.capabilitiesRefreshIntervalSeconds.coerceAtLeast(30),
                     showTrayIcon = config.showTrayIcon,
@@ -283,6 +295,7 @@ class AppStore(
             inboundSsePort = snapshot.inboundSsePort,
             requestTimeoutSeconds = snapshot.requestTimeoutSeconds,
             capabilitiesTimeoutSeconds = snapshot.capabilitiesTimeoutSeconds,
+            authorizationTimeoutSeconds = snapshot.authorizationTimeoutSeconds,
             connectionRetryCount = snapshot.connectionRetryCount,
             showTrayIcon = snapshot.showTrayIcon,
             capabilitiesRefreshIntervalSeconds = snapshot.capabilitiesRefreshIntervalSeconds,

@@ -53,6 +53,7 @@ class JsonConfigurationRepositoryTest {
         assertEquals(65535, config.inboundSsePort)
         assertEquals(10, config.requestTimeoutSeconds)
         assertEquals(5, config.capabilitiesTimeoutSeconds)
+        assertEquals(120, config.authorizationTimeoutSeconds)
         assertEquals(3, config.connectionRetryCount)
         assertTrue(config.showTrayIcon)
         assertEquals(1, config.servers.size)

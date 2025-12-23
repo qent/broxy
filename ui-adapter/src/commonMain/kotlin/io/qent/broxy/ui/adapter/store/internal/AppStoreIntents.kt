@@ -190,9 +190,11 @@ internal class AppStoreIntents(
     override fun removeServer(id: String) {
         scope.launch {
             val previousServers = state.snapshot.servers
+            val previousPopup = state.snapshot.authorizationPopup
             val previousConfig = state.snapshotConfig()
             val updated = previousServers.filterNot { it.id == id }
-            state.updateSnapshot { copy(servers = updated) }
+            val clearedPopup = if (previousPopup?.serverId == id) null else previousPopup
+            state.updateSnapshot { copy(servers = updated, authorizationPopup = clearedPopup) }
             val result = configurationManager.removeServer(previousConfig, id)
             if (result.isFailure) {
                 revertServersOnFailure(
@@ -217,6 +219,7 @@ internal class AppStoreIntents(
         scope.launch {
             val previousServers = state.snapshot.servers
             val previousPendingToggles = state.snapshot.pendingServerToggles
+            val previousPopup = state.snapshot.authorizationPopup
             val previousConfig = state.snapshotConfig()
             val idx = previousServers.indexOfFirst { it.id == id }
             if (idx < 0) return@launch
@@ -228,7 +231,19 @@ internal class AppStoreIntents(
                 } else {
                     previousPendingToggles - id
                 }
-            state.updateSnapshot { copy(servers = updated, pendingServerToggles = updatedPending) }
+            val clearedPopup =
+                if (!enabled && previousPopup?.serverId == id) {
+                    null
+                } else {
+                    previousPopup
+                }
+            state.updateSnapshot {
+                copy(
+                    servers = updated,
+                    pendingServerToggles = updatedPending,
+                    authorizationPopup = clearedPopup,
+                )
+            }
             if (enabled) {
                 if (!capabilityRefresher.hasCachedSnapshot(id)) {
                     capabilityRefresher.markServerConnecting(id)
@@ -260,6 +275,20 @@ internal class AppStoreIntents(
                     state.updateSnapshot { copy(pendingServerToggles = pendingServerToggles - id) }
                 }
             }
+            publishReady()
+        }
+    }
+
+    override fun cancelAuthorization(serverId: String) {
+        dismissAuthorizationPopup(serverId)
+        toggleServer(serverId, enabled = false)
+    }
+
+    override fun dismissAuthorizationPopup(serverId: String) {
+        scope.launch {
+            val popup = state.snapshot.authorizationPopup
+            if (popup?.serverId != serverId) return@launch
+            state.updateSnapshot { copy(authorizationPopup = null) }
             publishReady()
         }
     }

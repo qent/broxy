@@ -86,6 +86,7 @@ fun runStdioProxy(
 
         val callTimeoutMillis = cfg.requestTimeoutSeconds.toLong() * 1_000L
         val capabilitiesTimeoutMillis = cfg.capabilitiesTimeoutSeconds.toLong() * 1_000L
+        val authorizationTimeoutMillis = cfg.authorizationTimeoutSeconds.toLong() * 1_000L
         val capabilitiesRefreshIntervalMillis =
             cfg.capabilitiesRefreshIntervalSeconds.coerceAtLeast(30).toLong() * 1_000L
         val authStateStore = OAuthStateStore(baseDir = baseDir, logger = sink)
@@ -114,6 +115,7 @@ fun runStdioProxy(
                             maxRetries = cfg.connectionRetryCount,
                             initialCallTimeoutMillis = callTimeoutMillis,
                             initialCapabilitiesTimeoutMillis = capabilitiesTimeoutMillis,
+                            initialAuthorizationTimeoutMillis = authorizationTimeoutMillis,
                         )
                     IsolatedMcpServerConnection(connection)
                 }

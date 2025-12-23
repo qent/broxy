@@ -61,7 +61,66 @@ class LoopbackAuthorizationCodeReceiver(
                             )
                         }
                         call.respondText(
-                            "Authorization received. You can close this window.",
+                            """
+                            <!doctype html>
+                            <html lang="en">
+                              <head>
+                                <meta charset="utf-8">
+                                <meta name="viewport" content="width=device-width, initial-scale=1">
+                                <title>Authorization complete</title>
+                                <style>
+                                  :root { color-scheme: light; }
+                                  body {
+                                    margin: 0;
+                                    padding: 32px;
+                                    font-family: "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+                                    background: #f6f7fb;
+                                    color: #1c1c1f;
+                                  }
+                                  .card {
+                                    max-width: 520px;
+                                    margin: 10vh auto 0;
+                                    background: #ffffff;
+                                    border-radius: 16px;
+                                    border: 1px solid #e6e7ec;
+                                    box-shadow: 0 16px 40px rgba(24, 29, 40, 0.12);
+                                    padding: 28px 32px;
+                                  }
+                                  .badge {
+                                    display: inline-flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    padding: 4px 10px;
+                                    font-size: 12px;
+                                    letter-spacing: 0.08em;
+                                    text-transform: uppercase;
+                                    border-radius: 999px;
+                                    background: #e7f5ec;
+                                    color: #1c6b3c;
+                                    margin-bottom: 16px;
+                                  }
+                                  h1 {
+                                    font-size: 22px;
+                                    margin: 0 0 12px;
+                                    font-weight: 600;
+                                  }
+                                  p {
+                                    margin: 0;
+                                    font-size: 15px;
+                                    line-height: 1.6;
+                                    color: #52545b;
+                                  }
+                                </style>
+                              </head>
+                              <body>
+                                <div class="card">
+                                  <div class="badge">Authorized</div>
+                                  <h1>Authorization complete</h1>
+                                  <p>You can return to Broxy. This window will close automatically.</p>
+                                </div>
+                              </body>
+                            </html>
+                            """.trimIndent(),
                             ContentType.Text.Html,
                         )
                     }
@@ -81,7 +140,11 @@ class LoopbackAuthorizationCodeReceiver(
         runCatching {
             val params =
                 try {
-                    withTimeout(timeoutMillis) { deferred.await() }
+                    if (timeoutMillis <= 0L) {
+                        deferred.await()
+                    } else {
+                        withTimeout(timeoutMillis) { deferred.await() }
+                    }
                 } catch (ex: TimeoutCancellationException) {
                     throw IllegalStateException("Timed out waiting for OAuth authorization response.")
                 }
