@@ -42,4 +42,29 @@ class KtorMcpClientAuthFlowTest {
             assertEquals(1, authorizer.ensureCount)
         }
     }
+
+    @Test
+    fun connect_skips_oauth_when_authorization_header_provided() {
+        runBlocking {
+            var factoryCalls = 0
+            val facade: SdkClientFacade = mock()
+            val client =
+                KtorMcpClient(
+                    mode = KtorMcpClient.Mode.StreamableHttp,
+                    url = "http://localhost",
+                    headersMap = mapOf("authorization" to "Bearer token"),
+                    connector = SdkConnector { facade },
+                    oauthAuthorizerFactory = { _, _, _, _ ->
+                        factoryCalls += 1
+                        FakeAuthorizer()
+                    },
+                    preauthorizeWithConnector = true,
+                )
+
+            val result = client.connect()
+
+            assertTrue(result.isSuccess)
+            assertEquals(0, factoryCalls)
+        }
+    }
 }

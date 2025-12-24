@@ -67,10 +67,17 @@ class KtorMcpClient(
     private val json = Json { ignoreUnknownKeys = true }
     private val authChallengeRecorder = OAuthChallengeRecorder()
     private val oauthState: OAuthState = authState ?: OAuthState()
-    private val autoOauthEnabled = authConfig == null
+    private val hasExplicitAuthorizationHeader =
+        headersMap.keys.any { it.equals(HttpHeaders.Authorization, ignoreCase = true) }
+    private val oauthAllowed = !hasExplicitAuthorizationHeader
+    private val autoOauthEnabled = oauthAllowed && authConfig == null
     private var oauthManager: OAuthAuthorizer? =
-        (authConfig as? AuthConfig.OAuth)?.let { cfg ->
-            oauthAuthorizerFactory(cfg, oauthState, resolveOAuthResourceUrl(url), logger)
+        if (oauthAllowed) {
+            (authConfig as? AuthConfig.OAuth)?.let { cfg ->
+                oauthAuthorizerFactory(cfg, oauthState, resolveOAuthResourceUrl(url), logger)
+            }
+        } else {
+            null
         }
 
     @Volatile
@@ -138,7 +145,7 @@ class KtorMcpClient(
             }
 
             val maxAttempts =
-                if (allowAuthRetry && (oauthManager != null || autoOauthEnabled)) {
+                if (allowAuthRetry && oauthAllowed && (oauthManager != null || autoOauthEnabled)) {
                     2
                 } else {
                     1
@@ -319,7 +326,12 @@ class KtorMcpClient(
 
     private fun buildRequestBuilder(): HttpRequestBuilder.() -> Unit =
         {
-            val token = oauthManager?.currentAccessToken() ?: oauthState.token?.accessToken
+            val token =
+                if (oauthAllowed) {
+                    oauthManager?.currentAccessToken() ?: oauthState.token?.accessToken
+                } else {
+                    null
+                }
             if (headersMap.isNotEmpty() || token != null) {
                 headers {
                     headersMap.forEach { (k, v) -> append(k, v) }
@@ -336,7 +348,7 @@ class KtorMcpClient(
         block: suspend () -> T,
     ): T {
         val maxAttempts =
-            if (oauthManager != null || autoOauthEnabled) {
+            if (oauthAllowed && (oauthManager != null || autoOauthEnabled)) {
                 2
             } else {
                 1
@@ -392,13 +404,13 @@ class KtorMcpClient(
 
     private fun resolveAuthManager(): OAuthAuthorizer? {
         oauthManager?.let { return it }
-        if (!autoOauthEnabled) return null
+        if (!oauthAllowed || !autoOauthEnabled) return null
         return getOrCreateOAuthManager()
     }
 
     private fun getOrCreateOAuthManager(): OAuthAuthorizer? {
         oauthManager?.let { return it }
-        if (!autoOauthEnabled) return null
+        if (!oauthAllowed || !autoOauthEnabled) return null
         val manager = oauthAuthorizerFactory(AuthConfig.OAuth(), oauthState, resolveOAuthResourceUrl(url), logger)
         oauthManager = manager
         return manager

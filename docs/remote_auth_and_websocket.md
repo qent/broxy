@@ -9,6 +9,8 @@ well-known metadata endpoints and no explicit `auth` block is required.
 - WebSocket (via HTTP handshake)
 
 STDIO transports do **not** use OAuth; use environment variables for credentials instead.
+If the transport `headers` include an explicit `Authorization` header, Broxy skips OAuth discovery
+and uses the provided headers as-is.
 
 ## Discovery flow (resource server)
 
