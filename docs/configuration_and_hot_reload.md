@@ -202,5 +202,5 @@ Manual triggers (tests/headless):
 
 File: `cli/src/main/kotlin/io/qent/broxy/cli/commands/ProxyCommand.kt`
 
-- `mcp.json` change -> `ProxyLifecycle.restartWithConfig(config)` (restart inbound + downstream).
+- `mcp.json` change -> `ProxyLifecycle.updateServers(config)` (diffs downstreams, keeps inbound running).
 - `preset_*.json` change -> `ProxyLifecycle.applyPreset(preset)` (re-sync SDK server, no inbound restart).

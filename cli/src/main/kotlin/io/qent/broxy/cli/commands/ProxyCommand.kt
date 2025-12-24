@@ -97,8 +97,8 @@ class ProxyCommand : CliktCommand(name = "proxy", help = "Run Broxy server") {
         watcher.addObserver(
             object : ConfigurationObserver {
                 override fun onConfigurationChanged(config: McpServersConfig) {
-                    logger.info("Configuration changed; restarting downstream connections")
-                    val result = proxyLifecycle.restartWithConfig(config)
+                    logger.info("Configuration changed; updating downstream connections")
+                    val result = proxyLifecycle.updateServers(config)
                     if (result.isSuccess) {
                         serversCfg = config
                     } else {

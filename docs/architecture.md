@@ -105,7 +105,7 @@ sequenceDiagram
 
 `ConfigurationWatcher` is used in CLI and UI:
 
-- `mcp.json` change -> `onConfigurationChanged(...)` -> `ProxyLifecycle.restartWithConfig(...)`.
+- `mcp.json` change -> `onConfigurationChanged(...)` -> `ProxyLifecycle.updateServers(...)`.
 - `preset_*.json` change -> `onPresetChanged(...)` -> `ProxyLifecycle.applyPreset(...)`.
 
 Inbound does not restart; the SDK server is re-synced with the new filtered capabilities.

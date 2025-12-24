@@ -324,6 +324,52 @@ class AppStoreTest {
         }
 
     @org.junit.Test
+    fun addServerUpdatesDownstreamsWithoutRestart() =
+        runTest {
+            val server =
+                McpServerConfig(
+                    id = "s1",
+                    name = "Server 1",
+                    transport = TransportConfig.StdioTransport(command = "cmd"),
+                    env = emptyMap(),
+                    enabled = true,
+                )
+            val config = McpServersConfig(servers = listOf(server))
+            val preset = Preset("main", "Main", emptyList())
+            val repository = FakeConfigurationRepository(config, mutableMapOf(preset.id to preset))
+            val capabilityFetcher = RecordingCapabilityFetcher(Result.success(UiServerCapabilities()))
+            val proxyController = FakeProxyController()
+            val proxyLifecycle = ProxyLifecycle(proxyController, noopLogger)
+            val logger = CollectingLogger(delegate = noopLogger)
+            val storeScope = TestScope(testScheduler)
+            val remoteConnector = NoOpRemoteConnector(defaultRemoteState())
+            val store =
+                AppStore(
+                    configurationRepository = repository,
+                    proxyLifecycle = proxyLifecycle,
+                    capabilityFetcher = capabilityFetcher::invoke,
+                    logger = logger,
+                    scope = storeScope,
+                    now = { testScheduler.currentTime },
+                    enableBackgroundRefresh = false,
+                    remoteConnector = remoteConnector,
+                )
+
+            store.start()
+            storeScope.advanceUntilIdle()
+
+            val readyState = store.state.value as UIState.Ready
+            readyState.intents.addServerBasic("s2", "Server 2")
+            storeScope.advanceUntilIdle()
+
+            assertEquals(1, proxyController.startCalls.size)
+            assertEquals(1, proxyController.updateServersCalls.size)
+            assertEquals(setOf("s1", "s2"), proxyController.updateServersCalls.last().map { it.id }.toSet())
+
+            storeScope.cancel()
+        }
+
+    @org.junit.Test
     fun refreshServerCapabilitiesForcesFetchWhenProxyNotRunning() =
         runTest {
             val server =

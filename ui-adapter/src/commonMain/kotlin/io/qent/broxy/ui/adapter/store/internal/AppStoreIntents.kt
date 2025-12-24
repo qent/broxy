@@ -2,6 +2,7 @@ package io.qent.broxy.ui.adapter.store.internal
 
 import io.qent.broxy.core.capabilities.CapabilityRefresher
 import io.qent.broxy.core.config.ConfigurationManager
+import io.qent.broxy.core.models.McpServersConfig
 import io.qent.broxy.core.proxy.runtime.ProxyLifecycle
 import io.qent.broxy.core.utils.CollectingLogger
 import io.qent.broxy.ui.adapter.models.UiMcpServerConfig
@@ -86,7 +87,7 @@ internal class AppStoreIntents(
                 val saved = result.getOrNull()
                 capabilityRefresher.syncWithServers(saved?.servers ?: updated)
                 triggerServerRefresh(setOf(ui.id), force = true)
-                proxyRuntime.ensureInboundRunning(forceRestart = true)
+                applyServerConfigToProxy(saved, "addOrUpdateServerUi")
             }
             publishReady()
         }
@@ -115,8 +116,9 @@ internal class AppStoreIntents(
                     "Failed to save servers",
                 )
             } else {
-                capabilityRefresher.syncWithServers(result.getOrNull()?.servers ?: updated)
-                proxyRuntime.ensureInboundRunning(forceRestart = true)
+                val saved = result.getOrNull()
+                capabilityRefresher.syncWithServers(saved?.servers ?: updated)
+                applyServerConfigToProxy(saved, "addServerBasic")
             }
             publishReady()
         }
@@ -183,7 +185,7 @@ internal class AppStoreIntents(
                     }
                 }
                 triggerServerRefresh(setOf(cfg.id), force = true)
-                proxyRuntime.ensureInboundRunning(forceRestart = true)
+                applyServerConfigToProxy(savedConfig, "upsertServer")
             }
             publishReady()
         }
@@ -206,9 +208,10 @@ internal class AppStoreIntents(
                     "Failed to save servers",
                 )
             } else {
-                capabilityRefresher.syncWithServers(result.getOrNull()?.servers ?: updated)
+                val saved = result.getOrNull()
+                capabilityRefresher.syncWithServers(saved?.servers ?: updated)
                 capabilityRefresher.markServerRemoved(id)
-                proxyRuntime.ensureInboundRunning(forceRestart = true)
+                applyServerConfigToProxy(saved, "removeServer")
             }
             publishReady()
         }
@@ -657,5 +660,20 @@ internal class AppStoreIntents(
         if (ids.isEmpty()) return
         if (proxyLifecycle.isRunning()) return
         scope.launch { capabilityRefresher.refreshServersById(ids, force) }
+    }
+
+    private suspend fun applyServerConfigToProxy(
+        config: McpServersConfig?,
+        operation: String,
+    ) {
+        if (config == null) return
+        if (proxyLifecycle.isRunning()) {
+            val updateResult = proxyLifecycle.updateServers(config)
+            if (updateResult.isFailure) {
+                logger.info("[AppStore] $operation updateServers failed: ${updateResult.exceptionOrNull()?.message}")
+            }
+            return
+        }
+        proxyRuntime.ensureInboundRunning()
     }
 }
