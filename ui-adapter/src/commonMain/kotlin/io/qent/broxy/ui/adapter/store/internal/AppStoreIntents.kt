@@ -18,7 +18,9 @@ import io.qent.broxy.ui.adapter.store.toTransportConfig
 import io.qent.broxy.ui.adapter.store.toUiPresetSummary
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import io.qent.broxy.ui.adapter.data.openExternalUrl as openExternalUrlPlatform
 import io.qent.broxy.ui.adapter.data.openLogsFolder as openLogsFolderPlatform
+import io.qent.broxy.ui.adapter.data.signalOAuthCancellation as signalOAuthCancellationPlatform
 
 internal class AppStoreIntents(
     private val scope: CoroutineScope,
@@ -280,8 +282,33 @@ internal class AppStoreIntents(
     }
 
     override fun cancelAuthorization(serverId: String) {
+        val popup = state.snapshot.authorizationPopup
+        if (popup?.serverId == serverId) {
+            scope.launch {
+                signalOAuthCancellationPlatform(popup.redirectUri)
+                    .onFailure {
+                        logger.info("[AppStore] cancelAuthorization signal failed: ${it.message}")
+                    }
+            }
+        }
+        capabilityRefresher.markServerDisabled(serverId)
         dismissAuthorizationPopup(serverId)
         toggleServer(serverId, enabled = false)
+    }
+
+    override fun openAuthorizationInBrowser(
+        serverId: String,
+        urlOverride: String?,
+    ) {
+        scope.launch {
+            val popup = state.snapshot.authorizationPopup
+            if (popup?.serverId != serverId) return@launch
+            val targetUrl = urlOverride?.trim()?.takeIf { it.isNotBlank() } ?: popup.authorizationUrl
+            val result = openExternalUrlPlatform(targetUrl)
+            if (result.isFailure) {
+                logger.info("[AppStore] openAuthorizationInBrowser failed: ${result.exceptionOrNull()?.message}")
+            }
+        }
     }
 
     override fun dismissAuthorizationPopup(serverId: String) {

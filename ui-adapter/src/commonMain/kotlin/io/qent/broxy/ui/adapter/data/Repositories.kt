@@ -12,3 +12,5 @@ expect fun provideDefaultLogger(): CollectingLogger
 expect fun provideCapabilityCachePersistence(logger: CollectingLogger): CapabilityCachePersistence
 
 expect fun openLogsFolder(): Result<Unit>
+
+expect fun openExternalUrl(url: String): Result<Unit>

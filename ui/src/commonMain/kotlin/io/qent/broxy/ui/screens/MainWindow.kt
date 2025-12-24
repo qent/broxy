@@ -172,6 +172,9 @@ fun MainWindow(
             AuthorizationPopupDialog(
                 popup = authPopup,
                 onCancel = { readyUi.intents.cancelAuthorization(authPopup.serverId) },
+                onOpenInBrowser = {
+                    readyUi.intents.openAuthorizationInBrowser(authPopup.serverId, authPopup.authorizationUrl)
+                },
                 onDismiss = { readyUi.intents.dismissAuthorizationPopup(authPopup.serverId) },
             )
         }

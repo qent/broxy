@@ -87,11 +87,12 @@ Add an `auth` block to a server to enable OAuth:
 
 ## UI authorization popup
 
-When running the desktop UI, authorization URLs open inside Broxy instead of an external browser:
+When running the desktop UI, Broxy opens the authorization URL in the system browser and shows a
+minimal popup to keep the flow visible:
 
-- The OAuth URL is rendered in an in-app webview popup centered in the main window.
-- The popup includes an explicit close button (outside clicks do not dismiss).
-- After a successful OAuth redirect, the popup shows the local success page and closes automatically.
+- The popup is centered in the main window and includes a close button (outside clicks do not dismiss).
+- Broxy opens the OAuth URL in the user's default browser as soon as the popup appears.
+- After a successful OAuth redirect, the popup closes automatically and capabilities are refreshed.
 - If the user closes the popup or authorization fails, the popup closes and the server is disabled
   (the UI toggle turns off).
 - While the popup is open, Broxy listens for the loopback callback without applying the authorization timeout.

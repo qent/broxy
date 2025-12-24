@@ -86,5 +86,10 @@ interface Intents {
 
     fun cancelAuthorization(serverId: String)
 
+    fun openAuthorizationInBrowser(
+        serverId: String,
+        urlOverride: String? = null,
+    )
+
     fun dismissAuthorizationPopup(serverId: String)
 }

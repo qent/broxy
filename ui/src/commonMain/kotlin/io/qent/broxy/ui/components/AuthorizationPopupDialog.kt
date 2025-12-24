@@ -7,5 +7,6 @@ import io.qent.broxy.ui.adapter.models.UiAuthorizationPopup
 expect fun AuthorizationPopupDialog(
     popup: UiAuthorizationPopup,
     onCancel: () -> Unit,
+    onOpenInBrowser: () -> Unit,
     onDismiss: () -> Unit,
 )

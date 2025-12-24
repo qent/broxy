@@ -31,6 +31,8 @@ import io.qent.broxy.ui.theme.AppTheme
  * @param dismissButton Optional secondary action shown before the confirm button.
  * @param maxContentHeight Optional max height for the scrollable content area.
  * @param enableScroll Enables scrolling for dialog content.
+ * @param dismissOnClickOutside Whether clicking outside dismisses the dialog.
+ * @param dismissOnBackPress Whether pressing back/escape dismisses the dialog.
  * @param confirmButton Primary action placed at the end of the action row.
  * @param content Dialog body that becomes scrollable when it exceeds the max height.
  */
@@ -45,6 +47,8 @@ fun AppDialog(
     dismissButton: (@Composable () -> Unit)? = null,
     maxContentHeight: Dp? = AppTheme.layout.dialogMaxHeight,
     enableScroll: Boolean = true,
+    dismissOnClickOutside: Boolean = true,
+    dismissOnBackPress: Boolean = true,
     confirmButton: @Composable () -> Unit,
     content: @Composable ColumnScope.() -> Unit,
 ) {
@@ -63,7 +67,12 @@ fun AppDialog(
 
     Dialog(
         onDismissRequest = onDismissRequest,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
+        properties =
+            DialogProperties(
+                usePlatformDefaultWidth = false,
+                dismissOnClickOutside = dismissOnClickOutside,
+                dismissOnBackPress = dismissOnBackPress,
+            ),
     ) {
         Surface(
             modifier =

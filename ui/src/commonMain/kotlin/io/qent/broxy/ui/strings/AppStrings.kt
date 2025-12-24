@@ -121,6 +121,8 @@ interface AppStrings {
 
     val authorizationPopupSubtitle: String
 
+    val authorizationDialogTitle: String
+
     val separatorDot: String
 
     val noDescriptionProvided: String
@@ -405,7 +407,10 @@ object EnglishStrings : AppStrings {
 
     override fun authorizationPopupTitle(name: String): String = "Authorize $name"
 
-    override val authorizationPopupSubtitle = "Finish sign-in in the embedded browser."
+    override val authorizationPopupSubtitle =
+        "Finish sign-in in the browser tab that just opened, then return here."
+
+    override val authorizationDialogTitle = "Server Authorization"
 
     override val separatorDot = " • "
 

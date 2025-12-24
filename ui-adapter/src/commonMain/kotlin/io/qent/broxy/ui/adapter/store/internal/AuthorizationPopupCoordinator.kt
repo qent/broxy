@@ -55,6 +55,7 @@ internal class AuthorizationPopupCoordinator(
                     }
                 }
                 publishReady()
+                intents.refreshServerCapabilities(server.id)
             }
             is AuthorizationResult.Cancelled,
             is AuthorizationResult.Failure,
