@@ -23,7 +23,7 @@ fun BroxyFab(
         shape = AppTheme.shapes.card,
         color = MaterialTheme.colorScheme.surface,
         contentColor = MaterialTheme.colorScheme.onSurface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
         shadowElevation = 0.dp,
     ) {
         Box(
