@@ -72,6 +72,7 @@ internal fun StoreSnapshot.toUiState(
                     !server.enabled -> UiServerConnStatus.Disabled
                     trackedStatus == UiServerConnStatus.Authorization -> UiServerConnStatus.Authorization
                     trackedStatus == UiServerConnStatus.Connecting -> UiServerConnStatus.Connecting
+                    trackedStatus == UiServerConnStatus.Error -> UiServerConnStatus.Error
                     snapshot != null -> UiServerConnStatus.Available
                     trackedStatus != null -> trackedStatus
                     else -> UiServerConnStatus.Connecting

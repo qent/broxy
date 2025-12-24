@@ -105,13 +105,15 @@ Before a refresh:
 As each server finishes:
 
 - disabled -> `Disabled`
+- fetch error -> `Error` (stores the latest error message for UI display, cached snapshots remain)
 - snapshot exists -> `Available`
-- no snapshot -> `Error` (stores the latest error message for UI display)
+- no snapshot -> `Error`
 
 `connectingSince(...)` is used by the UI to show a running timer while a server is connecting.
 
-UI status derivation treats `Connecting` from `ServerStatusTracker` as higher priority than cached
-snapshots so refresh-in-progress still shows the timer even if an older snapshot exists.
+UI status derivation treats `Authorization`, `Connecting`, and `Error` from `ServerStatusTracker` as
+higher priority than cached snapshots so refresh-in-progress still shows the timer and connection
+failures surface even if an older snapshot exists.
 
 For OAuth-capable HTTP/WS servers with no cached snapshot, the UI shows `Authorization` while OAuth
 is in progress, then switches to `Connecting` once authorization completes and capabilities are
@@ -171,7 +173,7 @@ Proxy capability updates are incremental: UI caches are updated only for servers
 present in the snapshot payload. Missing servers keep their previous status/cached
 data (typically `Connecting` during startup) so slow servers do not briefly show
 `Error` while other servers are still refreshing. If a refresh cycle fails for a
-server that has no cached capabilities, the proxy emits a status update so the UI
-switches to `Error` after retries are exhausted. During OAuth authorization, the
-proxy emits `Authorization` then `Connecting` status updates so the UI shows the
-authorization timer while interactive login is in progress.
+server, the proxy emits a status update so the UI switches to `Error` even when
+cached capabilities exist. During OAuth authorization, the proxy emits
+`Authorization` then `Connecting` status updates so the UI shows the authorization
+timer while interactive login is in progress.

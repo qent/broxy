@@ -2,7 +2,9 @@ package io.qent.broxy.ui.adapter.store.internal
 
 import io.qent.broxy.core.capabilities.CapabilityCache
 import io.qent.broxy.core.capabilities.CapabilityRefresher
+import io.qent.broxy.core.capabilities.ServerCapsSnapshot
 import io.qent.broxy.core.capabilities.ServerStatusTracker
+import io.qent.broxy.core.capabilities.ToolSummary
 import io.qent.broxy.core.utils.CollectingLogger
 import io.qent.broxy.core.utils.Logger
 import io.qent.broxy.ui.adapter.models.UiMcpServerConfig
@@ -79,6 +81,27 @@ class CapabilityRefresherTest {
             assertEquals(UiServerConnStatus.Error, tracker.statusFor("s1")?.toUiStatus())
             assertEquals("boom", tracker.errorMessageFor("s1"))
             assertTrue(cache.snapshot("s1") == null)
+            assertEquals(2, publishes.size)
+        }
+
+    @org.junit.Test
+    fun refreshFailureKeepsCacheButMarksError() =
+        runTest {
+            val refresher = createRefresher(Result.failure(IllegalStateException("boom")))
+            cache.put(
+                "s1",
+                ServerCapsSnapshot(
+                    serverId = "s1",
+                    name = "Server 1",
+                    tools = listOf(ToolSummary(name = "tool", description = "")),
+                ),
+            )
+
+            refresher.refreshServersById(setOf("s1"), force = true)
+
+            assertEquals(UiServerConnStatus.Error, tracker.statusFor("s1")?.toUiStatus())
+            assertEquals("boom", tracker.errorMessageFor("s1"))
+            assertNotNull(cache.snapshot("s1"))
             assertEquals(2, publishes.size)
         }
 

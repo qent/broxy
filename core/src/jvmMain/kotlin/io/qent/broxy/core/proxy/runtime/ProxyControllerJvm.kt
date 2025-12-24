@@ -411,7 +411,7 @@ private class JvmProxyController(
                     }
                     val connection = managedDownstreams[serverId]?.connection ?: return@launch
                     val status = connection.status
-                    if (status is ServerStatus.Error && serverId !in lastCapabilityServerIds) {
+                    if (status is ServerStatus.Error) {
                         _serverStatusUpdates.tryEmit(
                             ServerConnectionUpdate(
                                 serverId = serverId,

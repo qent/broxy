@@ -102,7 +102,12 @@ class CapabilityRefresher(
             logger.info("CapabilityRefresher getServerCaps('$serverId') failed: ${error.message}")
         }
         val finalSnapshot = fetched.snapshot ?: capabilityCache.snapshot(serverId)
-        val status = if (finalSnapshot != null) ServerConnectionStatus.Available else ServerConnectionStatus.Error
+        val status =
+            when {
+                fetched.error != null -> ServerConnectionStatus.Error
+                finalSnapshot != null -> ServerConnectionStatus.Available
+                else -> ServerConnectionStatus.Error
+            }
         if (status == ServerConnectionStatus.Error) {
             statusTracker.setError(serverId, fetched.error?.message)
         } else {
@@ -193,6 +198,7 @@ class CapabilityRefresher(
                         val status =
                             when {
                                 !stillEnabled -> ServerConnectionStatus.Disabled
+                                fetched.error != null -> ServerConnectionStatus.Error
                                 capsSnapshot != null -> ServerConnectionStatus.Available
                                 else -> ServerConnectionStatus.Error
                             }
