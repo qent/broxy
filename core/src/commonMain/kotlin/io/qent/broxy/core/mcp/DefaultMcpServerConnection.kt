@@ -214,6 +214,7 @@ class DefaultMcpServerConnection(
     private suspend fun connectClient(client: McpClient): Result<Unit> {
         val backoff = ExponentialBackoff()
         var lastError: Throwable? = null
+        val isAuthInteractive = client is AuthInteractiveMcpClient
         for (attempt in 1..maxRetries) {
             val timeoutMillis = connectTimeoutMillis
             logger.debug(
@@ -221,7 +222,11 @@ class DefaultMcpServerConnection(
             )
             val result =
                 try {
-                    withTimeout(timeoutMillis) { client.connect() }
+                    if (isAuthInteractive) {
+                        client.connect()
+                    } else {
+                        withTimeout(timeoutMillis) { client.connect() }
+                    }
                 } catch (t: TimeoutCancellationException) {
                     Result.failure(McpError.TimeoutError("Connect timed out after ${timeoutMillis}ms", t))
                 }

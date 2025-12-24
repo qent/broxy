@@ -95,6 +95,7 @@ When running the desktop UI, authorization URLs open inside Broxy instead of an 
 - If the user closes the popup or authorization fails, the popup closes and the server is disabled
   (the UI toggle turns off).
 - While the popup is open, Broxy listens for the loopback callback without applying the authorization timeout.
+- Interactive authorization does not use the connect retry timeout, so the popup is not reopened mid-flow.
 
 ## OAuth secure storage
 

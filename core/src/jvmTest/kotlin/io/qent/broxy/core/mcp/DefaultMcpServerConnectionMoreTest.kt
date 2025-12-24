@@ -165,4 +165,45 @@ class DefaultMcpServerConnectionMoreTest {
             assertEquals(10, authClient.lastConnectTimeoutMillis)
         }
     }
+
+    @Test
+    fun connect_does_not_time_out_during_interactive_auth() {
+        runBlocking {
+            val authClient =
+                object : McpClient, AuthInteractiveMcpClient {
+                    override val authorizationTimeoutMillis: Long = 0
+
+                    override suspend fun connect(): Result<Unit> {
+                        delay(50)
+                        return Result.success(Unit)
+                    }
+
+                    override suspend fun disconnect() {}
+
+                    override suspend fun fetchCapabilities(): Result<ServerCapabilities> = Result.success(ServerCapabilities())
+
+                    override suspend fun callTool(
+                        name: String,
+                        arguments: JsonObject,
+                    ): Result<kotlinx.serialization.json.JsonElement> = Result.success(buildJsonObject { put("ok", true) })
+
+                    override suspend fun getPrompt(
+                        name: String,
+                        arguments: Map<String, String>?,
+                    ): Result<JsonObject> = Result.success(JsonObject(emptyMap()))
+
+                    override suspend fun readResource(uri: String): Result<JsonObject> = Result.success(JsonObject(emptyMap()))
+                }
+
+            val conn =
+                DefaultMcpServerConnection(
+                    config(),
+                    clientFactory = { authClient },
+                    initialConnectTimeoutMillis = 10,
+                )
+
+            val result = conn.connect()
+            assertTrue(result.isSuccess)
+        }
+    }
 }

@@ -67,6 +67,13 @@ There are three timeouts:
 - `capabilitiesTimeoutMillis` - used by clients for list operations.
 - `connectTimeoutMillis` - timeout for `client.connect()`.
 
+Interactive OAuth note:
+
+- For clients that implement `AuthInteractiveMcpClient`, `DefaultMcpServerConnection` does not wrap
+  `client.connect()` in an outer timeout. The OAuth flow controls its own authorization timeout
+  (headless) or waits without a timeout when the UI popup is open, while network connect timeouts
+  are still enforced inside the client implementations.
+
 Update methods:
 
 - `updateCallTimeout(millis)`
