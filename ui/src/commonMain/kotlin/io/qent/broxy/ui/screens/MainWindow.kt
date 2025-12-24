@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.luminance
 import io.qent.broxy.ui.adapter.store.AppStore
 import io.qent.broxy.ui.adapter.store.UIState
 import io.qent.broxy.ui.components.AppNavigationRail
+import io.qent.broxy.ui.components.AppSnackbarHost
 import io.qent.broxy.ui.components.AuthorizationPopupDialog
 import io.qent.broxy.ui.components.GlobalHeader
 import io.qent.broxy.ui.strings.LocalStrings
@@ -89,7 +90,7 @@ fun MainWindow(
                     modifier = Modifier.fillMaxWidth(),
                 )
             },
-            snackbarHost = { SnackbarHost(snackbarHostState) },
+            snackbarHost = { AppSnackbarHost(snackbarHostState) },
             floatingActionButton = {
                 when (screen) {
                     Screen.Servers -> {
