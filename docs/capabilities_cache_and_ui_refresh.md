@@ -166,6 +166,8 @@ server validation and background refresh.
 When the proxy is running, UI snapshots are updated from proxy capability updates
 instead of triggering direct capability fetches. This avoids spawning duplicate
 downstream connections and keeps UI data in sync with `ProxyMcpServer` refreshes.
+Proxy capability/status updates are also applied while the proxy is starting so
+initial refresh failures are visible in the server list.
 Background refresh is disabled while proxy capability updates are active, and
 manual refresh falls back to UI polling only when the proxy is not running.
 

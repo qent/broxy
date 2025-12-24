@@ -20,6 +20,7 @@ import io.qent.broxy.ui.adapter.models.UiMcpServerConfig
 import io.qent.broxy.ui.adapter.models.UiMcpServersConfig
 import io.qent.broxy.ui.adapter.models.UiPresetDraft
 import io.qent.broxy.ui.adapter.models.UiPromptRef
+import io.qent.broxy.ui.adapter.models.UiProxyStatus
 import io.qent.broxy.ui.adapter.models.UiResourceRef
 import io.qent.broxy.ui.adapter.models.UiServerCapsSnapshot
 import io.qent.broxy.ui.adapter.models.UiServerDraft
@@ -243,7 +244,7 @@ class AppStore(
     private fun observeProxyCapabilities() {
         scope.launch {
             proxyLifecycle.capabilityUpdates.collect { snapshots ->
-                if (!proxyLifecycle.isRunning()) return@collect
+                if (!shouldApplyProxyUpdates()) return@collect
                 capabilityRefresher.applyProxySnapshots(snapshots)
             }
         }
@@ -252,7 +253,7 @@ class AppStore(
     private fun observeProxyStatuses() {
         scope.launch {
             proxyLifecycle.serverStatusUpdates.collect { update ->
-                if (!proxyLifecycle.isRunning()) return@collect
+                if (!shouldApplyProxyUpdates()) return@collect
                 capabilityRefresher.applyProxyStatus(update)
             }
         }
@@ -309,6 +310,11 @@ class AppStore(
         if (_state.value !is UIState.Error) {
             publishReady()
         }
+    }
+
+    private fun shouldApplyProxyUpdates(): Boolean {
+        if (proxyLifecycle.isRunning()) return true
+        return snapshot.proxyStatus is UiProxyStatus.Starting
     }
 
     private fun setErrorState(message: String) {

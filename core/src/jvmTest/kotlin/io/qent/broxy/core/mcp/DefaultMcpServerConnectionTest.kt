@@ -31,12 +31,13 @@ class DefaultMcpServerConnectionTest {
         client: FakeMcpClient,
         callTimeoutMillis: Long = 1_000L,
         capabilitiesTimeoutMillis: Long = 1_000L,
+        maxRetries: Int = 1,
     ): DefaultMcpServerConnection =
         DefaultMcpServerConnection(
             config = config,
             logger = NoopLogger,
             cacheTtlMs = Long.MAX_VALUE,
-            maxRetries = 1,
+            maxRetries = maxRetries,
             clientFactory = { client },
             cache = CapabilitiesCache(ttlMillis = Long.MAX_VALUE),
             initialCallTimeoutMillis = callTimeoutMillis,
@@ -170,6 +171,52 @@ class DefaultMcpServerConnectionTest {
             assertTrue(refreshed.isSuccess)
             assertEquals(caps, refreshed.getOrThrow())
             assertEquals(2, client.capabilitiesCalls)
+        }
+
+    @org.junit.Test
+    fun capabilitiesRetryAfterFetchFailure() =
+        runTest {
+            val caps = ServerCapabilities(tools = listOf(ToolDescriptor(name = "alpha")))
+            val client =
+                FakeMcpClient(
+                    capabilityResults =
+                        ArrayDeque(
+                            listOf(
+                                Result.failure(RuntimeException("boom")),
+                                Result.success(caps),
+                            ),
+                        ),
+                )
+            val connection = newConnection(client, maxRetries = 2)
+
+            val result = connection.getCapabilities(forceRefresh = true)
+
+            assertTrue(result.isSuccess)
+            assertEquals(caps, result.getOrThrow())
+            assertEquals(2, client.capabilitiesCalls)
+            assertEquals(2, client.connectCalls)
+        }
+
+    @org.junit.Test
+    fun capabilitiesDoesNotRetryWhenConnectFails() =
+        runTest {
+            val client =
+                FakeMcpClient(
+                    connectResults =
+                        ArrayDeque(
+                            listOf(
+                                Result.failure(IllegalStateException("nope")),
+                                Result.failure(IllegalStateException("nope")),
+                            ),
+                        ),
+                )
+            val connection = newConnection(client, maxRetries = 2)
+
+            val result = connection.getCapabilities(forceRefresh = true)
+
+            assertTrue(result.isFailure)
+            assertEquals(2, client.connectCalls)
+            assertEquals(0, client.capabilitiesCalls)
         }
 
     private class FakeMcpClient(

@@ -140,6 +140,13 @@ class StdioMcpClient(
                 try {
                     val timeoutMillis = resolveConnectTimeout()
                     val facade = withTimeout(timeoutMillis) { handshake.await() }
+                    if (!proc.isAlive) {
+                        val exitCode = runCatching { proc.exitValue() }.getOrDefault(-1)
+                        handleConnectFailure(proc)
+                        throw McpError.ConnectionError(
+                            "STDIO process '$command' exited with code $exitCode before initialization completed",
+                        )
+                    }
                     client = facade
                     logger.info("Connected stdio MCP process: $resolvedCommand ${args.joinToString(" ")}")
                 } catch (t: TimeoutCancellationException) {

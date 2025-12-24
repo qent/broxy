@@ -3,6 +3,7 @@ package io.qent.broxy.ui.adapter.store
 import io.qent.broxy.core.capabilities.CapabilityCacheEntry
 import io.qent.broxy.core.capabilities.CapabilityCachePersistence
 import io.qent.broxy.core.capabilities.ServerCapsSnapshot
+import io.qent.broxy.core.capabilities.ServerConnectionStatus
 import io.qent.broxy.core.capabilities.ServerConnectionUpdate
 import io.qent.broxy.core.capabilities.ToolSummary
 import io.qent.broxy.core.models.McpServerConfig
@@ -145,6 +146,106 @@ class AppStoreTest {
             assertEquals(listOf(4), proxyController.connectionRetryUpdates)
             assertTrue(capabilityFetcher.requestedIds.isEmpty())
             assertTrue(capabilityFetcher.requestedTimeouts.isEmpty())
+
+            storeScope.cancel()
+        }
+
+    @org.junit.Test
+    fun startAppliesProxyStatusUpdatesDuringStartup() =
+        runTest {
+            val server =
+                McpServerConfig(
+                    id = "s1",
+                    name = "Server 1",
+                    transport = TransportConfig.StdioTransport(command = "cmd"),
+                    env = emptyMap(),
+                    enabled = true,
+                )
+            val config = McpServersConfig(servers = listOf(server))
+            val preset =
+                Preset(
+                    id = "dev",
+                    name = "Dev",
+                    tools = emptyList(),
+                )
+            val repository =
+                FakeConfigurationRepository(
+                    config = config,
+                    presets = mutableMapOf(preset.id to preset),
+                )
+            val statusUpdates = MutableSharedFlow<ServerConnectionUpdate>(extraBufferCapacity = 4)
+            val proxyController =
+                object : ProxyController {
+                    override val logs = MutableSharedFlow<LogEvent>(extraBufferCapacity = 4)
+                    override val capabilityUpdates = MutableSharedFlow<List<ServerCapsSnapshot>>(replay = 1)
+                    override val serverStatusUpdates = statusUpdates
+
+                    override fun start(
+                        servers: List<UiMcpServerConfig>,
+                        preset: Preset,
+                        inbound: UiTransportConfig,
+                        callTimeoutSeconds: Int,
+                        capabilitiesTimeoutSeconds: Int,
+                        authorizationTimeoutSeconds: Int,
+                        connectionRetryCount: Int,
+                        capabilitiesRefreshIntervalSeconds: Int,
+                    ): Result<Unit> {
+                        statusUpdates.tryEmit(
+                            ServerConnectionUpdate(
+                                serverId = "s1",
+                                status = ServerConnectionStatus.Error,
+                                errorMessage = "boom",
+                            ),
+                        )
+                        return Result.success(Unit)
+                    }
+
+                    override fun stop(): Result<Unit> = Result.success(Unit)
+
+                    override fun applyPreset(preset: Preset): Result<Unit> = Result.success(Unit)
+
+                    override fun updateServers(
+                        servers: List<UiMcpServerConfig>,
+                        callTimeoutSeconds: Int,
+                        capabilitiesTimeoutSeconds: Int,
+                        authorizationTimeoutSeconds: Int,
+                        connectionRetryCount: Int,
+                        capabilitiesRefreshIntervalSeconds: Int,
+                    ): Result<Unit> = Result.success(Unit)
+
+                    override fun updateCallTimeout(seconds: Int) {}
+
+                    override fun updateCapabilitiesTimeout(seconds: Int) {}
+
+                    override fun updateConnectionRetryCount(count: Int) {}
+
+                    override fun currentProxy(): ProxyMcpServer? = null
+                }
+            val proxyLifecycle = ProxyLifecycle(proxyController, noopLogger)
+            val logger = CollectingLogger(delegate = noopLogger)
+            val storeScope = TestScope(testScheduler)
+            val remoteConnector = NoOpRemoteConnector(defaultRemoteState())
+            val store =
+                AppStore(
+                    configurationRepository = repository,
+                    proxyLifecycle = proxyLifecycle,
+                    capabilityFetcher = { _, _, _, _ -> Result.success(UiServerCapabilities()) },
+                    logger = logger,
+                    scope = storeScope,
+                    now = { testScheduler.currentTime },
+                    enableBackgroundRefresh = false,
+                    remoteConnector = remoteConnector,
+                )
+
+            store.start()
+            storeScope.advanceUntilIdle()
+
+            val state = store.state.value
+            assertTrue(state is UIState.Ready, "Expected Ready state, got $state")
+            val ready = state as UIState.Ready
+            val uiServer = ready.servers.first()
+            assertEquals(UiServerConnStatus.Error, uiServer.status)
+            assertEquals("boom", uiServer.errorMessage)
 
             storeScope.cancel()
         }

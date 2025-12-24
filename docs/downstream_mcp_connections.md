@@ -100,6 +100,13 @@ Error types:
 - `McpError.TimeoutError`
 - `McpError.ConnectionError`
 
+### Capability fetch retries
+
+`getCapabilities()` retries the whole session when capability fetch fails after a successful connect
+(for example, the downstream process exits right after startup). It uses the same `connectionRetryCount`
+and backoff, but does not add extra retries when the connect itself already failed with
+`ConnectionError` or `TimeoutError`.
+
 File: `core/src/commonMain/kotlin/io/qent/broxy/core/mcp/errors/McpError.kt`
 
 ## Capabilities cache (per server)
@@ -194,6 +201,9 @@ On timeout:
 
 - the process is destroyed (`destroyForcibly()`);
 - a `McpError.TimeoutError("STDIO connect timed out ...")` is returned.
+
+If the process exits right after startup (before MCP initialization completes), the client
+fails the connect attempt with a `ConnectionError` so upstream retry logic can run.
 
 ### stderr logging
 

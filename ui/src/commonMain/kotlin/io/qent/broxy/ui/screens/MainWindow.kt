@@ -21,6 +21,7 @@ import io.qent.broxy.ui.adapter.store.UIState
 import io.qent.broxy.ui.components.AppNavigationRail
 import io.qent.broxy.ui.components.AppSnackbarHost
 import io.qent.broxy.ui.components.AuthorizationPopupDialog
+import io.qent.broxy.ui.components.BroxyFab
 import io.qent.broxy.ui.components.GlobalHeader
 import io.qent.broxy.ui.strings.LocalStrings
 import io.qent.broxy.ui.theme.AppTheme
@@ -95,7 +96,7 @@ fun MainWindow(
                 when (screen) {
                     Screen.Servers -> {
                         if (state.serverEditor.value == null && state.serverDetailsId.value == null) {
-                            FloatingActionButton(onClick = { state.serverEditor.value = ServerEditorState.Create }) {
+                            BroxyFab(onClick = { state.serverEditor.value = ServerEditorState.Create }) {
                                 Icon(Icons.Outlined.Add, contentDescription = strings.addServerContentDescription)
                             }
                         }
@@ -103,7 +104,7 @@ fun MainWindow(
 
                     Screen.Presets -> {
                         if (state.presetEditor.value == null) {
-                            FloatingActionButton(onClick = { state.presetEditor.value = PresetEditorState.Create }) {
+                            BroxyFab(onClick = { state.presetEditor.value = PresetEditorState.Create }) {
                                 Icon(Icons.Outlined.Add, contentDescription = strings.addPresetContentDescription)
                             }
                         }
@@ -112,7 +113,7 @@ fun MainWindow(
                     Screen.Settings -> {
                         val fabState = settingsFabState.value
                         if (fabState != null) {
-                            FloatingActionButton(
+                            BroxyFab(
                                 onClick = {
                                     if (fabState.enabled) {
                                         fabState.onClick()
