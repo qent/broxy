@@ -9,7 +9,6 @@ import io.qent.broxy.core.models.TransportConfig
 import io.qent.broxy.core.utils.ConsoleLogger
 import io.qent.broxy.core.utils.ExponentialBackoff
 import io.qent.broxy.core.utils.Logger
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeout
@@ -103,43 +102,24 @@ class DefaultMcpServerConnection(
             cache.get()?.let { return Result.success(it) }
         }
         logger.debug("Fetching capabilities for '${config.name}' (forceRefresh=$forceRefresh)")
-        val attempts = maxRetries.coerceAtLeast(1)
-        val backoff = ExponentialBackoff()
-        var lastError: Throwable? = null
-        for (attempt in 1..attempts) {
-            logger.debug("Capability fetch attempt $attempt/$attempts for '${config.name}'")
-            val result =
-                withSession { client ->
-                    // Don't wrap with timeout here - fetchCapabilities() already has per-operation timeouts
-                    // This prevents the outer timeout from killing the entire operation when individual
-                    // operations (tools, prompts, resources) take time but succeed individually
-                    client.fetchCapabilities()
-                }
-            if (result.isSuccess) {
-                val caps = result.getOrThrow()
-                cache.put(caps)
-                logger.info(
-                    "Successfully fetched capabilities for '${config.name}': " +
-                        "${caps.tools.size} tools, ${caps.resources.size} resources, " +
-                        "${caps.prompts.size} prompts",
-                )
-                return Result.success(caps)
+        val result =
+            withSession { client ->
+                // Don't wrap with timeout here - fetchCapabilities() already has per-operation timeouts
+                // This prevents the outer timeout from killing the entire operation when individual
+                // operations (tools, prompts, resources) take time but succeed individually
+                client.fetchCapabilities()
             }
-            val error = result.exceptionOrNull()
-            lastError = error
-            logger.warn(
-                "Failed to fetch capabilities for '${config.name}' (attempt $attempt/$attempts): ${error?.message}",
-                error,
+        if (result.isSuccess) {
+            val caps = result.getOrThrow()
+            cache.put(caps)
+            logger.info(
+                "Successfully fetched capabilities for '${config.name}': " +
+                    "${caps.tools.size} tools, ${caps.resources.size} resources, " +
+                    "${caps.prompts.size} prompts",
             )
-            val canRetry = attempt < attempts && shouldRetryCapabilities(error)
-            if (!canRetry) {
-                logger.debug(
-                    "Capability fetch for '${config.name}' will not retry: ${error?.message ?: "unknown error"}",
-                )
-                break
-            }
-            delay(backoff.delayForAttempt(attempt))
+            return Result.success(caps)
         }
+        val lastError = result.exceptionOrNull()
         logger.error("Failed to fetch capabilities for '${config.name}'", lastError)
         val cached = cache.get()
         if (cached != null) {
@@ -202,14 +182,13 @@ class DefaultMcpServerConnection(
         val client = newClient()
         logger.debug("Opening MCP session for '${config.name}'")
         status = ServerStatus.Starting
-        val connectResult = connectClient(client)
+        val connectResult =
+            runCatching { connectClient(client) }
+                .getOrElse { Result.failure(it) }
         if (connectResult.isFailure) {
-            val error = connectResult.exceptionOrNull()
-            status = ServerStatus.Error(error?.message)
-            runCatching { client.disconnect() }
-                .onFailure { logger.warn("Error while disconnecting from '${config.name}'", it) }
-            persistAuthState()
-            return Result.failure(error ?: McpError.ConnectionError("Failed to connect", null))
+            val error = connectResult.exceptionOrNull() ?: McpError.ConnectionError("Failed to connect", null)
+            status = ServerStatus.Error(error.message)
+            return finalizeSession(client, Result.failure(error))
         }
         status = ServerStatus.Running
         val result =
@@ -221,14 +200,7 @@ class DefaultMcpServerConnection(
         if (result.isFailure) {
             status = ServerStatus.Error(result.exceptionOrNull()?.message)
         }
-        runCatching { client.disconnect() }
-            .onFailure { logger.warn("Error while disconnecting from '${config.name}'", it) }
-        persistAuthState()
-        if (status !is ServerStatus.Error) {
-            status = ServerStatus.Stopped
-        }
-        logger.debug("Closed MCP session for '${config.name}'")
-        return result
+        return finalizeSession(client, result)
     }
 
     private suspend fun connectClient(client: McpClient): Result<Unit> {
@@ -249,18 +221,41 @@ class DefaultMcpServerConnection(
                     }
                 } catch (t: TimeoutCancellationException) {
                     Result.failure(McpError.TimeoutError("Connect timed out after ${timeoutMillis}ms", t))
+                } catch (t: Throwable) {
+                    Result.failure(t)
                 }
             if (result.isSuccess) {
                 return Result.success(Unit)
-            } else {
-                lastError = result.exceptionOrNull()
-                logger.warn("Failed to connect to '${config.name}' (attempt $attempt/$maxRetries)", lastError)
-                if (attempt < maxRetries) {
-                    delay(backoff.delayForAttempt(attempt))
-                }
+            }
+            lastError = result.exceptionOrNull()
+            logger.warn(
+                "Failed to connect to '${config.name}' (attempt $attempt/$maxRetries): ${lastError?.message}",
+                lastError,
+            )
+            if (attempt < maxRetries) {
+                delay(backoff.delayForAttempt(attempt))
             }
         }
-        return Result.failure(McpError.ConnectionError("Failed to connect after $maxRetries attempts", lastError))
+        logger.warn("Failed to connect to '${config.name}' after $maxRetries attempts", lastError)
+        return Result.failure(resolveConnectFailure(lastError))
+    }
+
+    private fun resolveConnectFailure(lastError: Throwable?): Throwable {
+        if (lastError == null) {
+            return McpError.ConnectionError("Failed to connect after $maxRetries attempts", null)
+        }
+        if (lastError is McpError) {
+            return lastError
+        }
+        val base =
+            if (maxRetries > 1) {
+                "Failed to connect after $maxRetries attempts"
+            } else {
+                "Failed to connect"
+            }
+        val detail = lastError.message?.takeIf { it.isNotBlank() }
+        val message = if (detail == null) base else "$base: $detail"
+        return McpError.ConnectionError(message, lastError)
     }
 
     private fun persistAuthState() {
@@ -268,14 +263,17 @@ class DefaultMcpServerConnection(
         authStateObserver?.invoke(state)
     }
 
-    private fun shouldRetryCapabilities(error: Throwable?): Boolean {
-        if (error is CancellationException) return false
-        if (error is McpError.ConnectionError || error is McpError.TimeoutError) {
-            val message = error.message.orEmpty()
-            if (message.contains("Failed to connect after") || message.contains("Connect timed out")) {
-                return false
-            }
+    private suspend fun <T> finalizeSession(
+        client: McpClient,
+        result: Result<T>,
+    ): Result<T> {
+        runCatching { client.disconnect() }
+            .onFailure { logger.warn("Error while disconnecting from '${config.name}'", it) }
+        persistAuthState()
+        if (status !is ServerStatus.Error) {
+            status = ServerStatus.Stopped
         }
-        return true
+        logger.debug("Closed MCP session for '${config.name}'")
+        return result
     }
 }

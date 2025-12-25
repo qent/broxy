@@ -28,7 +28,7 @@ class DefaultMcpServerConnectionTest {
         )
 
     private fun newConnection(
-        client: FakeMcpClient,
+        client: McpClient,
         callTimeoutMillis: Long = 1_000L,
         capabilitiesTimeoutMillis: Long = 1_000L,
         maxRetries: Int = 1,
@@ -174,27 +174,24 @@ class DefaultMcpServerConnectionTest {
         }
 
     @org.junit.Test
-    fun capabilitiesRetryAfterFetchFailure() =
+    fun capabilitiesDoesNotRetryAfterFetchFailure() =
         runTest {
-            val caps = ServerCapabilities(tools = listOf(ToolDescriptor(name = "alpha")))
             val client =
                 FakeMcpClient(
                     capabilityResults =
                         ArrayDeque(
                             listOf(
                                 Result.failure(RuntimeException("boom")),
-                                Result.success(caps),
                             ),
                         ),
                 )
-            val connection = newConnection(client, maxRetries = 2)
+            val connection = newConnection(client, maxRetries = 3)
 
             val result = connection.getCapabilities(forceRefresh = true)
 
-            assertTrue(result.isSuccess)
-            assertEquals(caps, result.getOrThrow())
-            assertEquals(2, client.capabilitiesCalls)
-            assertEquals(2, client.connectCalls)
+            assertTrue(result.isFailure)
+            assertEquals(1, client.capabilitiesCalls)
+            assertEquals(1, client.connectCalls)
         }
 
     @org.junit.Test
@@ -217,6 +214,44 @@ class DefaultMcpServerConnectionTest {
             assertTrue(result.isFailure)
             assertEquals(2, client.connectCalls)
             assertEquals(0, client.capabilitiesCalls)
+        }
+
+    @org.junit.Test
+    fun connectRetriesWhenConnectThrows() =
+        runTest {
+            var attempts = 0
+            val client =
+                object : McpClient {
+                    override suspend fun connect(): Result<Unit> {
+                        attempts += 1
+                        if (attempts == 1) {
+                            throw IllegalStateException("boom")
+                        }
+                        return Result.success(Unit)
+                    }
+
+                    override suspend fun disconnect() {}
+
+                    override suspend fun fetchCapabilities(): Result<ServerCapabilities> = Result.success(ServerCapabilities())
+
+                    override suspend fun callTool(
+                        name: String,
+                        arguments: JsonObject,
+                    ): Result<JsonElement> = Result.success(JsonNull)
+
+                    override suspend fun getPrompt(
+                        name: String,
+                        arguments: Map<String, String>?,
+                    ): Result<JsonObject> = Result.success(JsonObject(emptyMap()))
+
+                    override suspend fun readResource(uri: String): Result<JsonObject> = Result.success(JsonObject(emptyMap()))
+                }
+            val connection = newConnection(client, maxRetries = 2)
+
+            val result = connection.connect()
+
+            assertTrue(result.isSuccess)
+            assertEquals(2, attempts)
         }
 
     private class FakeMcpClient(

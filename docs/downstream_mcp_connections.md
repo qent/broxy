@@ -100,12 +100,12 @@ Error types:
 - `McpError.TimeoutError`
 - `McpError.ConnectionError`
 
-### Capability fetch retries
+### Capability fetch (single attempt)
 
-`getCapabilities()` retries the whole session when capability fetch fails after a successful connect
-(for example, the downstream process exits right after startup). It uses the same `connectionRetryCount`
-and backoff, but does not add extra retries when the connect itself already failed with
-`ConnectionError` or `TimeoutError`.
+`getCapabilities()` performs a single session per call: it connects (using the configured
+`connectionRetryCount` + backoff) and then issues one capability fetch. There are no additional
+retries for the capability request itself. If the fetch fails, the connection returns the error
+or falls back to cached capabilities when the cache is still within TTL.
 
 File: `core/src/commonMain/kotlin/io/qent/broxy/core/mcp/errors/McpError.kt`
 
