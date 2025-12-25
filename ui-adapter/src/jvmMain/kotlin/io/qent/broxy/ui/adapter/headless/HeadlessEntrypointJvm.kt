@@ -176,14 +176,12 @@ fun runStdioProxy(
             }
         }
 
-        val initialRefreshJob =
-            refreshScope.launch {
-                refreshServers("Initial")
-            }
+        runBlocking {
+            proxy.refreshFilteredCapabilities()
+        }
         val periodicRefreshJob =
             if (capabilitiesRefreshIntervalMillis > 0 && refreshServerIds.isNotEmpty()) {
                 refreshScope.launch {
-                    initialRefreshJob.join()
                     while (isActive) {
                         delay(capabilitiesRefreshIntervalMillis)
                         refreshServers("Background")
@@ -200,7 +198,6 @@ fun runStdioProxy(
             }
         } finally {
             periodicRefreshJob?.cancel()
-            initialRefreshJob.cancel()
             refreshScope.cancel()
             runBlocking { runCatching { transport.close() } }
             runCatching { proxy.stop() }

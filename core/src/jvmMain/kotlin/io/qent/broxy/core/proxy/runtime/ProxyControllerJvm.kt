@@ -132,6 +132,7 @@ private class JvmProxyController(
                     cfg.id to createManagedDownstream(cfg)
                 }
             val downstreams = enabledConfigs.mapNotNull { managed[it.id]?.isolated }
+            val awaitInitialCapabilities = inbound is TransportConfig.StdioTransport
             resetRefreshLimiter(downstreams.size)
             try {
                 val proxy =
@@ -144,6 +145,13 @@ private class JvmProxyController(
                         },
                     )
                 proxy.start(preset, inbound)
+                managedDownstreams = managed
+                this.downstreams = downstreams
+                if (awaitInitialCapabilities) {
+                    runBlocking {
+                        proxy.refreshFilteredCapabilities()
+                    }
+                }
                 val inboundServer = InboundServerFactory.create(inbound, proxy, logger)
                 val status = inboundServer.start()
                 if (status is ServerStatus.Error) {
@@ -151,11 +159,15 @@ private class JvmProxyController(
                 }
                 this.proxy = proxy
                 this.inboundServer = inboundServer
-                managedDownstreams = managed
-                this.downstreams = downstreams
-                startInitialRefresh(proxy, downstreams)
+                if (!awaitInitialCapabilities) {
+                    startInitialRefresh(proxy, downstreams)
+                }
                 startPeriodicRefresh(proxy, downstreams)
             } catch (t: Throwable) {
+                this.proxy = null
+                inboundServer = null
+                managedDownstreams = emptyMap()
+                this.downstreams = emptyList()
                 runBlocking { managed.values.map { async { it.shutdown() } }.awaitAll() }
                 throw t
             }

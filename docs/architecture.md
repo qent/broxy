@@ -69,10 +69,13 @@ CLI starts the proxy and the configuration watcher:
     - downstream connections: `DefaultMcpServerConnection` for each enabled server;
     - proxy core: `ProxyMcpServer`;
     - inbound server: STDIO or Streamable HTTP (`InboundServerFactory`).
-3. `ProxyMcpServer.start(...)` stores the preset and returns immediately; downstream
-   capabilities are refreshed asynchronously per server with concurrency limits.
-   A background refresh loop (from `capabilitiesRefreshIntervalSeconds`) retries
-   missing/failed servers and keeps capabilities fresh.
+3. `ProxyMcpServer.start(...)` stores the preset and returns immediately. For STDIO
+   inbound, Broxy waits for the initial downstream capability refresh across all
+   enabled servers before starting the inbound session so the first list calls
+   are populated. For HTTP inbound, downstream capabilities are refreshed
+   asynchronously per server with concurrency limits. A background refresh loop
+   (from `capabilitiesRefreshIntervalSeconds`) retries missing/failed servers and
+   keeps capabilities fresh.
 4. The inbound adapter builds an MCP SDK `Server` via `buildSdkServer(proxy)` and exposes
    `tools/list`, `prompts/list`, `resources/list`, and handlers for `callTool/getPrompt/readResource`.
 

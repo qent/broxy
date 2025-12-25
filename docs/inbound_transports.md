@@ -34,6 +34,12 @@ Note: downstream supports more transports than inbound.
 3) builds SDK `Server` via `buildSdkServer(proxy)`;
 4) starts a session with `server.createSession(transport)`.
 
+Startup note:
+
+- Before the STDIO session is created, Broxy waits for the initial downstream
+  capability refresh across all enabled servers so `tools/list`, `prompts/list`,
+  and `resources/list` are populated on the first request.
+
 STDIO requires stdout to remain clean for the MCP protocol. CLI uses a stderr logger:
 
 - `cli/src/main/kotlin/io/qent/broxy/cli/support/StderrLogger.kt`
