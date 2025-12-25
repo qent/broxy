@@ -53,7 +53,7 @@ private fun AppSnackbar(
     val actionLabel = data.visuals.actionLabel
 
     Box(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth().padding(start = 84.dp),
         contentAlignment = Alignment.Center,
     ) {
         Surface(

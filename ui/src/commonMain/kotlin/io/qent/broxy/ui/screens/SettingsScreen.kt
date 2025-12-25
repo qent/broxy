@@ -217,12 +217,6 @@ private fun SettingsContent(
             verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
         ) {
             Spacer(Modifier.height(AppTheme.spacing.sm))
-            ThemeSetting(
-                themeStyle = themeStyle,
-                onThemeStyleChange = onThemeStyleChange,
-            )
-            TrayIconSetting(checked = showTrayIcon, onToggle = onToggleTrayIcon)
-            LogsSetting(onOpenFolder = onOpenLogsFolder)
             TimeoutSetting(
                 title = strings.httpPortTitle,
                 description = strings.httpPortDescription,
@@ -273,6 +267,12 @@ private fun SettingsContent(
                     }
                 },
             )
+            LogsSetting(onOpenFolder = onOpenLogsFolder)
+            ThemeSetting(
+                themeStyle = themeStyle,
+                onThemeStyleChange = onThemeStyleChange,
+            )
+            TrayIconSetting(checked = showTrayIcon, onToggle = onToggleTrayIcon)
         }
     }
 }
