@@ -75,7 +75,7 @@ private fun AppVerticalScrollbarInternal(
     val style =
         ScrollbarStyle(
             minimalHeight = AppTheme.spacing.sm,
-            thickness = AppTheme.spacing.md,
+            thickness = AppTheme.spacing.md - AppTheme.strokeWidths.thick,
             shape = RoundedCornerShape(AppTheme.radii.pill),
             hoverDurationMillis = 120,
             unhoverColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),

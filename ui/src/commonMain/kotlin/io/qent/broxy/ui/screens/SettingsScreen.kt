@@ -277,7 +277,11 @@ private fun SettingsContent(
         }
         AppVerticalScrollbar(
             scrollState = scrollState,
-            modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
+            modifier =
+                Modifier
+                    .align(Alignment.CenterEnd)
+                    .fillMaxHeight()
+                    .offset(x = -AppTheme.strokeWidths.hairline),
         )
     }
 }
