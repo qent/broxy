@@ -17,6 +17,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import io.qent.broxy.ui.adapter.models.UiServerCapsSnapshot
 import io.qent.broxy.ui.adapter.store.AppStore
 import io.qent.broxy.ui.adapter.store.UIState
+import io.qent.broxy.ui.components.AppVerticalScrollbar
 import io.qent.broxy.ui.components.CapabilitiesCard
 import io.qent.broxy.ui.components.CapabilitiesInlineSummary
 import io.qent.broxy.ui.components.CapabilityDisplayItem
@@ -171,6 +172,11 @@ private fun CapabilitiesContent(
 
             Spacer(Modifier.height(AppTheme.spacing.fab))
         }
+
+        AppVerticalScrollbar(
+            scrollState = scrollState,
+            modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
+        )
 
         SearchField(
             value = searchQuery,

@@ -4,6 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
@@ -17,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.adapter.models.UiPreset
 import io.qent.broxy.ui.adapter.store.AppStore
 import io.qent.broxy.ui.adapter.store.UIState
+import io.qent.broxy.ui.components.AppVerticalScrollbar
 import io.qent.broxy.ui.components.CapabilitiesInlineSummary
 import io.qent.broxy.ui.components.DeleteConfirmationDialog
 import io.qent.broxy.ui.components.HighlightedText
@@ -38,6 +40,7 @@ fun PresetsScreen(
     var query by rememberSaveable { mutableStateOf("") }
     var pendingDeletion: UiPreset? by remember { mutableStateOf<UiPreset?>(null) }
     val editor = state.presetEditor.value
+    val listState = rememberLazyListState()
 
     Box(modifier = Modifier.fillMaxSize().padding(horizontal = AppTheme.spacing.md)) {
         if (editor != null) {
@@ -76,6 +79,7 @@ fun PresetsScreen(
                                 trimmedQuery.isBlank() || p.name.contains(trimmedQuery, ignoreCase = true)
                             }
                         LazyColumn(
+                            state = listState,
                             modifier = Modifier.weight(1f, fill = true),
                             verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
                             contentPadding = PaddingValues(bottom = AppTheme.spacing.fab),
@@ -97,6 +101,11 @@ fun PresetsScreen(
                 }
             }
         }
+
+        AppVerticalScrollbar(
+            listState = listState,
+            modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
+        )
 
         SearchField(
             value = query,

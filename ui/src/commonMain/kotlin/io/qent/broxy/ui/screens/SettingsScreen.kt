@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.adapter.store.UIState
+import io.qent.broxy.ui.components.AppVerticalScrollbar
 import io.qent.broxy.ui.strings.LocalStrings
 import io.qent.broxy.ui.theme.AppTheme
 import io.qent.broxy.ui.theme.ThemeStyle
@@ -274,6 +275,10 @@ private fun SettingsContent(
             )
             TrayIconSetting(checked = showTrayIcon, onToggle = onToggleTrayIcon)
         }
+        AppVerticalScrollbar(
+            scrollState = scrollState,
+            modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
+        )
     }
 }
 

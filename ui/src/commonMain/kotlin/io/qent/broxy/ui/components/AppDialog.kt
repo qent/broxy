@@ -53,17 +53,15 @@ fun AppDialog(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val scrollState = rememberScrollState()
-    val contentModifier =
-        remember(enableScroll, maxContentHeight) {
-            var modifier: Modifier = Modifier
-            if (maxContentHeight != null) {
-                modifier = modifier.heightIn(max = maxContentHeight)
+    val heightModifier =
+        remember(maxContentHeight) {
+            if (maxContentHeight == null) {
+                Modifier
+            } else {
+                Modifier.heightIn(max = maxContentHeight)
             }
-            if (enableScroll) {
-                modifier = modifier.verticalScroll(scrollState)
-            }
-            modifier
         }
+    val scrollModifier = if (enableScroll) Modifier.verticalScroll(scrollState) else Modifier
 
     Dialog(
         onDismissRequest = onDismissRequest,
@@ -108,11 +106,21 @@ fun AppDialog(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.Top,
                     ) {
-                        Column(
-                            modifier = Modifier.weight(1f, fill = true).then(contentModifier),
-                            verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
-                            content = content,
-                        )
+                        Box(
+                            modifier = Modifier.weight(1f, fill = true).then(heightModifier),
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth().then(scrollModifier),
+                                verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
+                                content = content,
+                            )
+                            if (enableScroll) {
+                                AppVerticalScrollbar(
+                                    scrollState = scrollState,
+                                    modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
+                                )
+                            }
+                        }
                     }
                 }
                 HorizontalDivider()

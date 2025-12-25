@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.adapter.models.*
 import io.qent.broxy.ui.adapter.store.AppStore
 import io.qent.broxy.ui.adapter.store.UIState
+import io.qent.broxy.ui.components.AppVerticalScrollbar
 import io.qent.broxy.ui.components.CapabilitiesCard
 import io.qent.broxy.ui.components.CapabilityDisplayItem
 import io.qent.broxy.ui.components.EditorHeaderRow
@@ -222,6 +223,11 @@ fun PresetEditorScreen(
             )
             Spacer(Modifier.height(AppTheme.spacing.fab))
         }
+
+        AppVerticalScrollbar(
+            scrollState = scrollState,
+            modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
+        )
 
         SearchField(
             value = searchQuery,

@@ -7,6 +7,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.adapter.models.UiServerDraft
@@ -14,6 +15,7 @@ import io.qent.broxy.ui.adapter.models.UiStdioDraft
 import io.qent.broxy.ui.adapter.services.checkStdioCommandAvailability
 import io.qent.broxy.ui.adapter.store.AppStore
 import io.qent.broxy.ui.adapter.store.UIState
+import io.qent.broxy.ui.components.AppVerticalScrollbar
 import io.qent.broxy.ui.components.EditorHeaderRow
 import io.qent.broxy.ui.components.ServerForm
 import io.qent.broxy.ui.components.ServerFormStateFactory
@@ -98,94 +100,100 @@ fun ServerEditorScreen(
     val scrollState = rememberScrollState()
     val actionRowHeight = 40.dp
 
-    Column(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .verticalScroll(scrollState),
-        verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
-    ) {
-        Spacer(Modifier.height(AppTheme.spacing.xs))
-
-        EditorHeaderRow(
-            title = title,
-            onBack = onClose,
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(scrollState),
+            verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
         ) {
-            AppSecondaryButton(
-                onClick = onClose,
-                modifier = Modifier.height(actionRowHeight),
-            ) {
-                Text(strings.cancel, style = MaterialTheme.typography.labelSmall)
-            }
-            AppPrimaryButton(
-                onClick = {
-                    val readyUi = ui as? UIState.Ready ?: return@AppPrimaryButton
-                    scope.launch {
-                        val originalId = if (isCreate) null else (initialDraft.originalId ?: initialDraft.id)
-                        val draft =
-                            form.toDraft(
-                                id = resolvedId,
-                                name = resolvedName,
-                                originalId = originalId,
-                            )
+            Spacer(Modifier.height(AppTheme.spacing.xs))
 
-                        readyUi.intents.upsertServer(draft)
-                        onClose()
-                        notify(strings.savedName(draft.name))
+            EditorHeaderRow(
+                title = title,
+                onBack = onClose,
+            ) {
+                AppSecondaryButton(
+                    onClick = onClose,
+                    modifier = Modifier.height(actionRowHeight),
+                ) {
+                    Text(strings.cancel, style = MaterialTheme.typography.labelSmall)
+                }
+                AppPrimaryButton(
+                    onClick = {
+                        val readyUi = ui as? UIState.Ready ?: return@AppPrimaryButton
+                        scope.launch {
+                            val originalId = if (isCreate) null else (initialDraft.originalId ?: initialDraft.id)
+                            val draft =
+                                form.toDraft(
+                                    id = resolvedId,
+                                    name = resolvedName,
+                                    originalId = originalId,
+                                )
+
+                            readyUi.intents.upsertServer(draft)
+                            onClose()
+                            notify(strings.savedName(draft.name))
+                        }
+                    },
+                    enabled = canSubmit,
+                    modifier = Modifier.height(actionRowHeight),
+                ) {
+                    Text(primaryActionLabel, style = MaterialTheme.typography.labelSmall)
+                }
+            }
+
+            OutlinedTextField(
+                value = form.name,
+                onValueChange = { form = form.copy(name = it) },
+                label = { Text(strings.nameLabel) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+            )
+
+            ServerForm(
+                state = form,
+                onStateChange = { next ->
+                    if (next.command != form.command) {
+                        commandWarning = null
+                    }
+                    if (next.transportType != "STDIO") {
+                        commandWarning = null
+                    }
+                    form = next
+                },
+                commandWarning = commandWarning,
+                onCommandBlur = { command ->
+                    if (form.transportType != "STDIO") return@ServerForm
+                    val trimmed = command.trim()
+                    if (trimmed.isBlank()) {
+                        commandWarning = null
+                        return@ServerForm
+                    }
+                    val token = commandCheckToken + 1
+                    commandCheckToken = token
+                    val envMap = parseEnvMap(form.env)
+                    scope.launch {
+                        val result = checkStdioCommandAvailability(trimmed, envMap)
+                        if (commandCheckToken != token) return@launch
+                        val availability = result.getOrNull()
+                        commandWarning =
+                            if (availability == null || availability.isAvailable) {
+                                null
+                            } else {
+                                strings.commandNotFound
+                            }
                     }
                 },
-                enabled = canSubmit,
-                modifier = Modifier.height(actionRowHeight),
-            ) {
-                Text(primaryActionLabel, style = MaterialTheme.typography.labelSmall)
-            }
+            )
+
+            Spacer(Modifier.height(AppTheme.spacing.md))
         }
-
-        OutlinedTextField(
-            value = form.name,
-            onValueChange = { form = form.copy(name = it) },
-            label = { Text(strings.nameLabel) },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
+        AppVerticalScrollbar(
+            scrollState = scrollState,
+            modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
         )
-
-        ServerForm(
-            state = form,
-            onStateChange = { next ->
-                if (next.command != form.command) {
-                    commandWarning = null
-                }
-                if (next.transportType != "STDIO") {
-                    commandWarning = null
-                }
-                form = next
-            },
-            commandWarning = commandWarning,
-            onCommandBlur = { command ->
-                if (form.transportType != "STDIO") return@ServerForm
-                val trimmed = command.trim()
-                if (trimmed.isBlank()) {
-                    commandWarning = null
-                    return@ServerForm
-                }
-                val token = commandCheckToken + 1
-                commandCheckToken = token
-                val envMap = parseEnvMap(form.env)
-                scope.launch {
-                    val result = checkStdioCommandAvailability(trimmed, envMap)
-                    if (commandCheckToken != token) return@launch
-                    val availability = result.getOrNull()
-                    commandWarning =
-                        if (availability == null || availability.isAvailable) {
-                            null
-                        } else {
-                            strings.commandNotFound
-                        }
-                }
-            },
-        )
-
-        Spacer(Modifier.height(AppTheme.spacing.md))
     }
 }
 

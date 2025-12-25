@@ -3,6 +3,7 @@ package io.qent.broxy.ui.screens
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
@@ -20,6 +21,7 @@ import io.qent.broxy.ui.adapter.models.UiServer
 import io.qent.broxy.ui.adapter.models.UiServerConnStatus
 import io.qent.broxy.ui.adapter.store.AppStore
 import io.qent.broxy.ui.adapter.store.UIState
+import io.qent.broxy.ui.components.AppVerticalScrollbar
 import io.qent.broxy.ui.components.CapabilitiesInlineSummary
 import io.qent.broxy.ui.components.DeleteConfirmationDialog
 import io.qent.broxy.ui.components.HighlightedText
@@ -44,6 +46,7 @@ fun ServersScreen(
     var pendingDeletion: UiServer? by remember { mutableStateOf<UiServer?>(null) }
     val editor = state.serverEditor.value
     val viewingId = state.serverDetailsId.value
+    val listState = rememberLazyListState()
 
     Box(modifier = Modifier.fillMaxSize().padding(horizontal = AppTheme.spacing.md)) {
         if (editor != null) {
@@ -95,6 +98,7 @@ fun ServersScreen(
                                 trimmedQuery.isBlank() || cfg.name.contains(trimmedQuery, ignoreCase = true)
                             }
                         LazyColumn(
+                            state = listState,
                             modifier = Modifier.weight(1f, fill = true),
                             verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
                             contentPadding = PaddingValues(bottom = AppTheme.spacing.fab),
@@ -126,6 +130,11 @@ fun ServersScreen(
                 }
             }
         }
+
+        AppVerticalScrollbar(
+            listState = listState,
+            modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
+        )
 
         SearchField(
             value = query,
