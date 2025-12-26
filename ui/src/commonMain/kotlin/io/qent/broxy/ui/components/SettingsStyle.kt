@@ -129,7 +129,7 @@ private fun SettingsLikeItemImpl(
             }
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
+                verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.xs),
             ) {
                 if (titleContent == null) {
                     androidx.compose.material3.Text(
@@ -140,7 +140,6 @@ private fun SettingsLikeItemImpl(
                 } else {
                     titleContent()
                 }
-                Spacer(Modifier.height(2.dp))
                 descriptionContent()
                 supportingContent?.invoke(this)
             }

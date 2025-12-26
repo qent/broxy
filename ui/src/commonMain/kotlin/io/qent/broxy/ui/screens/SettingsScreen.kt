@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.adapter.store.UIState
 import io.qent.broxy.ui.components.AppVerticalScrollbar
+import io.qent.broxy.ui.components.SettingsLikeItem
 import io.qent.broxy.ui.strings.LocalStrings
 import io.qent.broxy.ui.theme.AppTheme
 import io.qent.broxy.ui.theme.ThemeStyle
@@ -397,38 +398,12 @@ private fun SettingItem(
     supportingContent: (@Composable ColumnScope.() -> Unit)? = null,
     control: @Composable RowScope.() -> Unit,
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-        shape = AppTheme.shapes.card,
-    ) {
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = AppTheme.spacing.lg, vertical = AppTheme.spacing.md),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
-            ) {
-                Text(title, style = MaterialTheme.typography.titleSmall)
-                Text(
-                    description,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                supportingContent?.invoke(this)
-            }
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm, Alignment.End),
-                verticalAlignment = Alignment.CenterVertically,
-                content = control,
-            )
-        }
-    }
+    SettingsLikeItem(
+        title = title,
+        description = description,
+        supportingContent = supportingContent,
+        control = control,
+    )
 }
 
 @Composable

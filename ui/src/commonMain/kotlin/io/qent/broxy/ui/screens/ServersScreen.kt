@@ -201,8 +201,16 @@ private fun ServerCard(
     val titleColor = MaterialTheme.colorScheme.onSurface.copy(alpha = if (isDisabled) disabledAlpha else 1f)
     val transportColor =
         MaterialTheme.colorScheme.primary.copy(alpha = if (isDisabled) disabledAlpha else 1f)
-    val separatorColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (isDisabled) disabledAlpha else 1f)
-    val statusTextColor = if (isDisabled) MaterialTheme.colorScheme.onSurfaceVariant else statusColor
+    val separatorColor =
+        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (isDisabled) disabledAlpha else 1f)
+    val subtitleColor =
+        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (isDisabled) disabledAlpha else 1f)
+    val statusTextColor =
+        if (isDisabled) {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        } else {
+            statusColor
+        }
     val connectingSeconds by rememberConnectingSeconds(isConnecting, cfg.connectingSinceEpochMillis)
     val showErrorStatus = cfg.enabled && cfg.status == UiServerConnStatus.Error
     val errorMessage = cfg.errorMessage?.takeIf { it.isNotBlank() }
