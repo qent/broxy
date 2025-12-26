@@ -115,7 +115,7 @@ private fun SettingsLikeItemImpl(
                 Modifier.fillMaxWidth().height(IntrinsicSize.Min)
             }
         Row(
-            modifier = rowModifier.padding(horizontal = AppTheme.spacing.lg, vertical = AppTheme.spacing.md),
+            modifier = rowModifier.padding(horizontal = AppTheme.spacing.md, vertical = AppTheme.spacing.md),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (leadingContent != null) {
@@ -125,7 +125,7 @@ private fun SettingsLikeItemImpl(
                 ) {
                     leadingContent()
                 }
-                Spacer(Modifier.width(AppTheme.spacing.md))
+                Spacer(Modifier.width(AppTheme.spacing.sm))
             }
             Column(
                 modifier = Modifier.weight(1f),
