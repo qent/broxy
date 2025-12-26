@@ -7,6 +7,7 @@ import androidx.compose.foundation.ScrollbarStyle
 import androidx.compose.foundation.VerticalScrollbar
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -17,6 +18,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.theme.AppTheme
 import androidx.compose.foundation.v2.ScrollbarAdapter as V2ScrollbarAdapter
 
@@ -75,7 +77,7 @@ private fun AppVerticalScrollbarInternal(
     val style =
         ScrollbarStyle(
             minimalHeight = AppTheme.spacing.sm,
-            thickness = AppTheme.spacing.md - AppTheme.strokeWidths.thick,
+            thickness = 8.dp,
             shape = RoundedCornerShape(AppTheme.radii.pill),
             hoverDurationMillis = 120,
             unhoverColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f),
