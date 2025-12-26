@@ -401,6 +401,13 @@ private fun SettingItem(
     SettingsLikeItem(
         title = title,
         description = description,
+        contentPadding =
+            PaddingValues(
+                start = AppTheme.spacing.md + AppTheme.spacing.sm,
+                end = AppTheme.spacing.md,
+                top = AppTheme.spacing.md,
+                bottom = AppTheme.spacing.md,
+            ),
         supportingContent = supportingContent,
         control = control,
     )

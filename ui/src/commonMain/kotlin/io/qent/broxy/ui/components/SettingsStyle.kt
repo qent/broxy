@@ -28,6 +28,7 @@ fun SettingsLikeItem(
     leadingContent: (@Composable () -> Unit)? = null,
     titleContent: (@Composable () -> Unit)? = null,
     border: BorderStroke? = null,
+    contentPadding: PaddingValues? = null,
     control: @Composable RowScope.() -> Unit,
 ) {
     SettingsLikeItemImpl(
@@ -46,6 +47,7 @@ fun SettingsLikeItem(
         leadingContent = leadingContent,
         titleContent = titleContent,
         border = border,
+        contentPadding = contentPadding,
         control = control,
     )
 }
@@ -61,6 +63,7 @@ fun SettingsLikeItem(
     leadingContent: (@Composable () -> Unit)? = null,
     titleContent: (@Composable () -> Unit)? = null,
     border: BorderStroke? = null,
+    contentPadding: PaddingValues? = null,
     control: @Composable RowScope.() -> Unit,
 ) {
     SettingsLikeItemImpl(
@@ -73,6 +76,7 @@ fun SettingsLikeItem(
         titleContent = titleContent,
         leadingContent = leadingContent,
         border = border,
+        contentPadding = contentPadding,
         control = control,
     )
 }
@@ -88,8 +92,11 @@ private fun SettingsLikeItemImpl(
     leadingContent: (@Composable () -> Unit)?,
     titleContent: (@Composable () -> Unit)?,
     border: BorderStroke? = null,
+    contentPadding: PaddingValues? = null,
     control: @Composable RowScope.() -> Unit,
 ) {
+    val resolvedContentPadding =
+        contentPadding ?: PaddingValues(horizontal = AppTheme.spacing.md, vertical = AppTheme.spacing.md)
     val clickModifier =
         if (onClick == null) {
             Modifier
@@ -115,7 +122,7 @@ private fun SettingsLikeItemImpl(
                 Modifier.fillMaxWidth().height(IntrinsicSize.Min)
             }
         Row(
-            modifier = rowModifier.padding(horizontal = AppTheme.spacing.md, vertical = AppTheme.spacing.md),
+            modifier = rowModifier.padding(resolvedContentPadding),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (leadingContent != null) {
