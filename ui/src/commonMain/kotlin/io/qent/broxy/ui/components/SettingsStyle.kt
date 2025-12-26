@@ -25,6 +25,7 @@ fun SettingsLikeItem(
     modifier: Modifier = Modifier,
     supportingContent: (@Composable ColumnScope.() -> Unit)? = null,
     onClick: (() -> Unit)? = null,
+    leadingContent: (@Composable () -> Unit)? = null,
     titleContent: (@Composable () -> Unit)? = null,
     border: BorderStroke? = null,
     control: @Composable RowScope.() -> Unit,
@@ -42,6 +43,7 @@ fun SettingsLikeItem(
         modifier = modifier,
         supportingContent = supportingContent,
         onClick = onClick,
+        leadingContent = leadingContent,
         titleContent = titleContent,
         border = border,
         control = control,
@@ -56,6 +58,7 @@ fun SettingsLikeItem(
     supportingContent: (@Composable ColumnScope.() -> Unit)? = null,
     onClick: (() -> Unit)? = null,
     titleColor: Color = MaterialTheme.colorScheme.onSurface,
+    leadingContent: (@Composable () -> Unit)? = null,
     titleContent: (@Composable () -> Unit)? = null,
     border: BorderStroke? = null,
     control: @Composable RowScope.() -> Unit,
@@ -68,6 +71,7 @@ fun SettingsLikeItem(
         supportingContent = supportingContent,
         onClick = onClick,
         titleContent = titleContent,
+        leadingContent = leadingContent,
         border = border,
         control = control,
     )
@@ -81,6 +85,7 @@ private fun SettingsLikeItemImpl(
     modifier: Modifier,
     supportingContent: (@Composable ColumnScope.() -> Unit)?,
     onClick: (() -> Unit)?,
+    leadingContent: (@Composable () -> Unit)?,
     titleContent: (@Composable () -> Unit)?,
     border: BorderStroke? = null,
     control: @Composable RowScope.() -> Unit,
@@ -103,13 +108,25 @@ private fun SettingsLikeItemImpl(
         border = border ?: BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         shape = AppTheme.shapes.card,
     ) {
+        val rowModifier =
+            if (leadingContent == null) {
+                Modifier.fillMaxWidth()
+            } else {
+                Modifier.fillMaxWidth().height(IntrinsicSize.Min)
+            }
         Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = AppTheme.spacing.lg, vertical = AppTheme.spacing.md),
+            modifier = rowModifier.padding(horizontal = AppTheme.spacing.lg, vertical = AppTheme.spacing.md),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            if (leadingContent != null) {
+                Box(
+                    modifier = Modifier.fillMaxHeight().aspectRatio(1f),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    leadingContent()
+                }
+                Spacer(Modifier.width(AppTheme.spacing.md))
+            }
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(2.dp),

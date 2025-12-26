@@ -14,7 +14,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.adapter.models.UiServerCapsSnapshot
+import io.qent.broxy.ui.adapter.models.UiServerIcon
 import io.qent.broxy.ui.adapter.store.AppStore
 import io.qent.broxy.ui.adapter.store.UIState
 import io.qent.broxy.ui.components.AppVerticalScrollbar
@@ -23,6 +25,7 @@ import io.qent.broxy.ui.components.CapabilitiesInlineSummary
 import io.qent.broxy.ui.components.CapabilityDisplayItem
 import io.qent.broxy.ui.components.SearchField
 import io.qent.broxy.ui.components.SearchFieldFabAlignedBottomPadding
+import io.qent.broxy.ui.components.ServerIconBadge
 import io.qent.broxy.ui.components.matchesCapabilityQuery
 import io.qent.broxy.ui.components.matchesResourceQuery
 import io.qent.broxy.ui.strings.LocalStrings
@@ -36,8 +39,9 @@ fun ServerCapabilitiesScreen(
 ) {
     val strings = LocalStrings.current
     val ui = store.state.collectAsState().value
-    val serverName =
-        (ui as? UIState.Ready)?.servers?.find { it.id == serverId }?.name ?: strings.serverFallbackName
+    val serverInfo = (ui as? UIState.Ready)?.servers?.find { it.id == serverId }
+    val serverName = serverInfo?.name ?: strings.serverFallbackName
+    val serverIcon = serverInfo?.icon ?: UiServerIcon.Default
 
     var capabilities by remember { mutableStateOf<UiServerCapsSnapshot?>(null) }
     var isLoading by remember { mutableStateOf(true) }
@@ -57,13 +61,20 @@ fun ServerCapabilitiesScreen(
         val caps = capabilities
         if (caps == null) {
             Column(Modifier.fillMaxSize()) {
-                HeaderRow(title = serverName, onBack = onClose)
+                HeaderRow(title = serverName, icon = serverIcon, onBack = onClose)
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(strings.couldNotLoadCapabilities, color = MaterialTheme.colorScheme.error)
                 }
             }
         } else {
-            CapabilitiesContent(caps, serverName, query, onQueryChange = { query = it }, onClose = onClose)
+            CapabilitiesContent(
+                caps,
+                serverName,
+                serverIcon,
+                query,
+                onQueryChange = { query = it },
+                onClose = onClose,
+            )
         }
     }
 }
@@ -72,6 +83,7 @@ fun ServerCapabilitiesScreen(
 private fun CapabilitiesContent(
     caps: UiServerCapsSnapshot,
     serverName: String,
+    serverIcon: UiServerIcon,
     searchQuery: String,
     onQueryChange: (String) -> Unit,
     onClose: () -> Unit,
@@ -134,6 +146,7 @@ private fun CapabilitiesContent(
 
             HeaderRow(
                 title = serverName,
+                icon = serverIcon,
                 onBack = onClose,
                 caps = caps,
             )
@@ -197,6 +210,7 @@ private fun CapabilitiesContent(
 @Composable
 private fun HeaderRow(
     title: String,
+    icon: UiServerIcon,
     onBack: () -> Unit,
     caps: UiServerCapsSnapshot? = null,
 ) {
@@ -209,6 +223,11 @@ private fun HeaderRow(
         IconButton(onClick = onBack) {
             Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = strings.back)
         }
+        ServerIconBadge(
+            icon = icon,
+            backgroundColor = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.size(28.dp),
+        )
         Text(
             text = title,
             style = MaterialTheme.typography.titleLarge,

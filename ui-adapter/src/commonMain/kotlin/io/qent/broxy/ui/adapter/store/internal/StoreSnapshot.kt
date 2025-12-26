@@ -2,6 +2,7 @@ package io.qent.broxy.ui.adapter.store.internal
 
 import io.qent.broxy.core.capabilities.CapabilityCache
 import io.qent.broxy.core.capabilities.ServerStatusTracker
+import io.qent.broxy.ui.adapter.icons.ServerIconResolver
 import io.qent.broxy.ui.adapter.models.UiAuthorizationPopup
 import io.qent.broxy.ui.adapter.models.UiHttpTransport
 import io.qent.broxy.ui.adapter.models.UiMcpServerConfig
@@ -94,6 +95,7 @@ internal fun StoreSnapshot.toUiState(
                 } else {
                     null
                 }
+            val icon = ServerIconResolver.resolve(server)
             UiServer(
                 id = server.id,
                 name = server.name,
@@ -101,6 +103,7 @@ internal fun StoreSnapshot.toUiState(
                 enabled = server.enabled,
                 canToggle = canToggle,
                 status = derivedStatus,
+                icon = icon,
                 errorMessage = errorMessage,
                 connectingSinceEpochMillis = connectingSince,
                 toolsCount = snapshot?.tools?.size,

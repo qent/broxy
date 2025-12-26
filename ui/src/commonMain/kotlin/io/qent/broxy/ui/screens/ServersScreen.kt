@@ -27,6 +27,7 @@ import io.qent.broxy.ui.components.DeleteConfirmationDialog
 import io.qent.broxy.ui.components.HighlightedText
 import io.qent.broxy.ui.components.SearchField
 import io.qent.broxy.ui.components.SearchFieldFabAlignedBottomPadding
+import io.qent.broxy.ui.components.ServerIconBadge
 import io.qent.broxy.ui.components.SettingsLikeItem
 import io.qent.broxy.ui.strings.LocalStrings
 import io.qent.broxy.ui.theme.AppTheme
@@ -227,6 +228,13 @@ private fun ServerCard(
     SettingsLikeItem(
         title = cfg.name,
         titleColor = titleColor,
+        leadingContent = {
+            ServerIconBadge(
+                icon = cfg.icon,
+                backgroundColor = titleColor,
+                modifier = Modifier.fillMaxSize(),
+            )
+        },
         titleContent = {
             HighlightedText(
                 text = cfg.name,

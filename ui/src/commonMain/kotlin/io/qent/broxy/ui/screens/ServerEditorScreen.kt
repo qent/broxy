@@ -10,6 +10,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import io.qent.broxy.ui.adapter.icons.ServerIconResolver
 import io.qent.broxy.ui.adapter.models.UiServerDraft
 import io.qent.broxy.ui.adapter.models.UiStdioDraft
 import io.qent.broxy.ui.adapter.services.checkStdioCommandAvailability
@@ -19,6 +20,7 @@ import io.qent.broxy.ui.components.AppVerticalScrollbar
 import io.qent.broxy.ui.components.EditorHeaderRow
 import io.qent.broxy.ui.components.ServerForm
 import io.qent.broxy.ui.components.ServerFormStateFactory
+import io.qent.broxy.ui.components.ServerIconBadge
 import io.qent.broxy.ui.components.toDraft
 import io.qent.broxy.ui.strings.LocalStrings
 import io.qent.broxy.ui.theme.AppTheme
@@ -79,6 +81,16 @@ fun ServerEditorScreen(
     val existingServerIds = (ui as? UIState.Ready)?.servers?.asSequence()?.map { it.id }?.toSet().orEmpty()
     val occupiedIds = if (isCreate) existingServerIds else existingServerIds - initialDraft.id
     val resolvedId = generateUniqueServerId(baseGeneratedId, occupiedIds)
+    val serverIcon =
+        remember(form, resolvedId, resolvedName) {
+            val draft =
+                form.toDraft(
+                    id = resolvedId,
+                    name = resolvedName,
+                    originalId = null,
+                )
+            ServerIconResolver.resolve(draft)
+        }
 
     val hasValidTransportFields =
         when (form.transportType) {
@@ -150,6 +162,15 @@ fun ServerEditorScreen(
                 label = { Text(strings.nameLabel) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
+                trailingIcon = {
+                    Box(modifier = Modifier.padding(end = AppTheme.spacing.xs)) {
+                        ServerIconBadge(
+                            icon = serverIcon,
+                            backgroundColor = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(32.dp),
+                        )
+                    }
+                },
             )
 
             ServerForm(

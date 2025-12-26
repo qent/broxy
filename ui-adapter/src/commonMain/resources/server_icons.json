@@ -1,0 +1,40 @@
+{
+  "rules": [
+    {
+      "icon": "brave",
+      "allOf": [
+        { "field": "transport", "pattern": "^stdio$" },
+        { "field": "command", "pattern": "^docker$" },
+        { "field": "args", "pattern": "docker\\.io/mcp/brave-search" }
+      ]
+    },
+    {
+      "icon": "context7",
+      "allOf": [
+        { "field": "transport", "pattern": "^streamable-http$" },
+        { "field": "url", "pattern": "^https://mcp\\.context7\\.com/mcp$" }
+      ]
+    },
+    {
+      "icon": "exa",
+      "allOf": [
+        { "field": "transport", "pattern": "^streamable-http$" },
+        { "field": "url", "pattern": "^https://mcp\\.exa\\.ai/mcp$" }
+      ]
+    },
+    {
+      "icon": "jetbrains",
+      "allOf": [
+        { "field": "transport", "pattern": "^http$" },
+        { "field": "headers.key", "pattern": "^IJ_MCP_SERVER_PROJECT_PATH$" }
+      ]
+    },
+    {
+      "icon": "notion",
+      "allOf": [
+        { "field": "transport", "pattern": "^streamable-http$" },
+        { "field": "url", "pattern": "^https://mcp\\.notion\\.com/mcp$" }
+      ]
+    }
+  ]
+}
