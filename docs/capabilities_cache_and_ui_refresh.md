@@ -16,6 +16,10 @@ UI (Compose Desktop) uses these snapshots to display compact summaries in:
 - server list cards (enabled + available servers);
 - preset summary rows.
 
+Server list cards also show a transport label derived from the transport config. STDIO uses "STDIO",
+except when the command resolves to `docker`, which is shown as "Docker" to highlight the Docker-based
+STDIO launch.
+
 Files:
 
 - `ui-adapter/src/commonMain/kotlin/io/qent/broxy/ui/adapter/store/AppStore.kt`

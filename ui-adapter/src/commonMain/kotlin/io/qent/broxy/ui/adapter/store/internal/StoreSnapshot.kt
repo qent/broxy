@@ -132,8 +132,17 @@ internal fun StoreSnapshot.toUiState(
 
 private fun UiTransportConfig.transportLabel(): String =
     when (this) {
-        is UiStdioTransport -> "STDIO"
+        is UiStdioTransport -> if (isDockerCommand()) "Docker" else "STDIO"
         is UiHttpTransport -> "SSE"
         is UiStreamableHttpTransport -> "HTTP"
         is UiWebSocketTransport -> "WebSocket"
     }
+
+private fun UiStdioTransport.isDockerCommand(): Boolean {
+    val trimmed = command.trim()
+    if (trimmed.isEmpty()) {
+        return false
+    }
+    val baseName = trimmed.substringAfterLast('/').substringAfterLast('\\')
+    return baseName.equals("docker", ignoreCase = true)
+}
