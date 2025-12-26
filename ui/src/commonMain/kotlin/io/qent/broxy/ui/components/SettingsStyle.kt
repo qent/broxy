@@ -11,6 +11,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.unit.Dp
@@ -84,7 +85,14 @@ private fun SettingsLikeItemImpl(
     border: BorderStroke? = null,
     control: @Composable RowScope.() -> Unit,
 ) {
-    val clickModifier = if (onClick == null) Modifier else Modifier.clickable(onClick = onClick)
+    val clickModifier =
+        if (onClick == null) {
+            Modifier
+        } else {
+            Modifier
+                .clip(AppTheme.shapes.card)
+                .clickable(onClick = onClick)
+        }
 
     Card(
         modifier =

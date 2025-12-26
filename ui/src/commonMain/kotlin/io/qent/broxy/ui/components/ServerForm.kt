@@ -8,6 +8,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.onPointerEvent
@@ -312,6 +313,7 @@ private fun RowScope.TransportOptionCard(
         modifier =
             Modifier
                 .weight(1f)
+                .clip(AppTheme.shapes.item)
                 .then(hoverModifier)
                 .clickable(onClick = onSelected),
         shape = AppTheme.shapes.item,
