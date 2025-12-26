@@ -14,18 +14,22 @@ import kotlin.io.path.pathString
 import kotlin.test.fail
 
 internal object BroxyCliTestEnvironment {
-    suspend fun startScenario(inboundScenario: InboundScenario): ScenarioHandle {
+    suspend fun startScenario(
+        inboundScenario: InboundScenario,
+        scenarioConfig: BroxyCliIntegrationConfig.ScenarioConfig = BroxyCliIntegrationConfig.DEFAULT_SCENARIO,
+    ): ScenarioHandle {
         val servers = startTestServers()
         val configDir =
             BroxyCliIntegrationFiles.prepareConfigDir(
                 servers.streamable.url,
                 servers.sse.url,
                 servers.ws.url,
+                scenario = scenarioConfig,
             )
         return try {
             when (inboundScenario) {
-                InboundScenario.STDIO -> createStdioHandle(configDir, servers)
-                InboundScenario.HTTP_STREAMABLE -> createHttpStreamableHandle(configDir, servers)
+                InboundScenario.STDIO -> createStdioHandle(configDir, servers, scenarioConfig)
+                InboundScenario.HTTP_STREAMABLE -> createHttpStreamableHandle(configDir, servers, scenarioConfig)
             }
         } catch (error: Throwable) {
             configDir.toFile().deleteRecursively()
@@ -37,9 +41,14 @@ internal object BroxyCliTestEnvironment {
     private suspend fun createStdioHandle(
         configDir: Path,
         servers: TestServers,
+        scenarioConfig: BroxyCliIntegrationConfig.ScenarioConfig,
     ): ScenarioHandle {
         val command =
-            BroxyCliIntegrationFiles.buildCliCommand(configDir, listOf("--inbound", "stdio"))
+            BroxyCliIntegrationFiles.buildCliCommand(
+                configDir,
+                listOf("--inbound", "stdio"),
+                presetId = scenarioConfig.presetId,
+            )
         BroxyCliIntegrationConfig.log(
             "Launching broxy CLI (STDIO) with config ${configDir.pathString}",
         )
@@ -69,6 +78,7 @@ internal object BroxyCliTestEnvironment {
     private suspend fun createHttpStreamableHandle(
         configDir: Path,
         servers: TestServers,
+        scenarioConfig: BroxyCliIntegrationConfig.ScenarioConfig,
     ): ScenarioHandle {
         var lastError: Throwable? = null
         repeat(BroxyCliIntegrationConfig.HTTP_INBOUND_ATTEMPTS) loop@{ attempt ->
@@ -78,6 +88,7 @@ internal object BroxyCliTestEnvironment {
                 BroxyCliIntegrationFiles.buildCliCommand(
                     configDir,
                     listOf("--inbound", "http", "--url", url),
+                    presetId = scenarioConfig.presetId,
                 )
             BroxyCliIntegrationConfig.log(
                 "Launching broxy CLI (HTTP Streamable) listening at $url (attempt ${attempt + 1})",

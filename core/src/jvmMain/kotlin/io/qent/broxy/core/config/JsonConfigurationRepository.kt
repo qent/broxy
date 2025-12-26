@@ -146,6 +146,7 @@ class JsonConfigurationRepository(
             root.capabilitiesRefreshIntervalSeconds
                 ?: DEFAULT_CAPABILITIES_REFRESH_INTERVAL_SECONDS
         val inboundSsePort = root.inboundSsePort ?: DEFAULT_INBOUND_SSE_PORT
+        val fallbackPromptsAndResourcesToTools = root.fallbackPromptsAndResourcesToTools ?: false
 
         return McpServersConfig(
             servers = servers,
@@ -157,6 +158,7 @@ class JsonConfigurationRepository(
             connectionRetryCount = connectionRetryCount.coerceAtLeast(1),
             showTrayIcon = showTrayIcon,
             capabilitiesRefreshIntervalSeconds = capabilitiesRefreshIntervalSeconds,
+            fallbackPromptsAndResourcesToTools = fallbackPromptsAndResourcesToTools,
         )
     }
 
@@ -172,6 +174,7 @@ class JsonConfigurationRepository(
                 connectionRetryCount = config.connectionRetryCount.coerceAtLeast(1),
                 showTrayIcon = config.showTrayIcon,
                 capabilitiesRefreshIntervalSeconds = config.capabilitiesRefreshIntervalSeconds,
+                fallbackPromptsAndResourcesToTools = config.fallbackPromptsAndResourcesToTools,
                 mcpServers =
                     config.servers.associate { s ->
                         s.id to
@@ -456,6 +459,7 @@ class JsonConfigurationRepository(
         val connectionRetryCount: Int? = null,
         val showTrayIcon: Boolean? = null,
         val capabilitiesRefreshIntervalSeconds: Int? = null,
+        val fallbackPromptsAndResourcesToTools: Boolean? = null,
         val mcpServers: Map<String, FileMcpServer>,
     )
 

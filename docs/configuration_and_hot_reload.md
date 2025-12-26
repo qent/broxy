@@ -40,6 +40,7 @@ Loader:
     - `connectionRetryCount` (default 3)
     - `capabilitiesRefreshIntervalSeconds` (default 300)
     - `showTrayIcon` (default true)
+    - `fallbackPromptsAndResourcesToTools` (default false)
     - `inboundSsePort` (default 3335; historical name, used for local Streamable HTTP)
     - `defaultPresetId` (optional)
 
@@ -58,6 +59,7 @@ the UI refresh cadence (minimum 30 seconds for each).
   "connectionRetryCount": 3,
   "capabilitiesRefreshIntervalSeconds": 300,
   "showTrayIcon": true,
+  "fallbackPromptsAndResourcesToTools": false,
   "mcpServers": {
     "github": {
       "name": "GitHub MCP",

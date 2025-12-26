@@ -16,6 +16,8 @@ import org.junit.jupiter.api.TestInstance.Lifecycle
 @TestInstance(Lifecycle.PER_CLASS)
 internal abstract class BaseBroxyCliIntegrationTest(
     private val inboundScenario: InboundScenario,
+    private val scenarioConfig: BroxyCliIntegrationConfig.ScenarioConfig = BroxyCliIntegrationConfig.DEFAULT_SCENARIO,
+    private val skipWarmup: Boolean = false,
 ) {
     private lateinit var scenarioHandle: ScenarioHandle
     protected val clientInteractions = McpClientInteractions()
@@ -23,9 +25,11 @@ internal abstract class BaseBroxyCliIntegrationTest(
     @BeforeAll
     fun setUp() =
         runBlocking {
-            scenarioHandle = BroxyCliTestEnvironment.startScenario(inboundScenario)
+            scenarioHandle = BroxyCliTestEnvironment.startScenario(inboundScenario, scenarioConfig)
             try {
-                warmUpClient()
+                if (!skipWarmup) {
+                    warmUpClient()
+                }
             } catch (error: Throwable) {
                 scenarioHandle.close()
                 throw error

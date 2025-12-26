@@ -79,6 +79,18 @@ File: `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/InboundServers.k
 - prompts: `server.addPrompt(...)` / `server.addPrompts(...)`
 - resources: `server.addResource(...)` / `server.addResources(...)`
 
+### Prompt/resource fallback tools
+
+When `fallbackPromptsAndResourcesToTools` is enabled in `mcp.json`, the inbound SDK server also
+registers prompts and resources as synthetic tools for clients that only support tools:
+
+- prompt tool name: `prompt:<promptName>`
+- resource tool name: `resource:<uriOrName>`
+
+The tool description matches the prompt/resource description, and arguments are preserved (prompt
+arguments are mapped to string tool properties; resource arguments are inferred from `{placeholder}`
+segments in resource URIs). Prompts/resources remain available via their native endpoints.
+
 File: `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/SdkServerFactory.kt`
 
 ### Runtime capability updates on preset change

@@ -5,6 +5,7 @@ import io.qent.broxy.core.utils.LogLevel
 
 internal object BroxyCliIntegrationConfig {
     const val PRESET_ID = "test"
+    const val FALLBACK_PRESET_ID = "fallback"
     const val TEST_TIMEOUT_MILLIS = 5_000L
     const val TEST_SERVER_HOME_PROPERTY = "broxy.testMcpServerHome"
     const val TEST_SERVER_COMMAND_PLACEHOLDER = "__TEST_MCP_SERVER_COMMAND__"
@@ -76,6 +77,26 @@ internal object BroxyCliIntegrationConfig {
     val EXPECTED_PROMPTS = PROMPT_EXPECTATIONS.keys
     val EXPECTED_RESOURCES = RESOURCE_EXPECTATIONS.keys
     val TEST_LOGGER = FilteredLogger(LogLevel.WARN)
+
+    data class ScenarioConfig(
+        val presetId: String,
+        val configResource: String,
+        val presetResource: String,
+    )
+
+    val DEFAULT_SCENARIO =
+        ScenarioConfig(
+            presetId = PRESET_ID,
+            configResource = "/integration/mcp.json",
+            presetResource = "/integration/preset_test.json",
+        )
+
+    val FALLBACK_SCENARIO =
+        ScenarioConfig(
+            presetId = FALLBACK_PRESET_ID,
+            configResource = "/integration/mcp_fallback.json",
+            presetResource = "/integration/preset_fallback.json",
+        )
 
     fun log(message: String) {
         println("[BroxyIT] $message")

@@ -95,6 +95,7 @@ private class FakeProxyController : ProxyController {
         val authorizationTimeoutSeconds: Int,
         val connectionRetryCount: Int,
         val capabilitiesRefreshIntervalSeconds: Int,
+        val fallbackPromptsAndResourcesToTools: Boolean,
     )
 
     override val logs: Flow<LogEvent> = emptyFlow()
@@ -112,6 +113,7 @@ private class FakeProxyController : ProxyController {
         authorizationTimeoutSeconds: Int,
         connectionRetryCount: Int,
         capabilitiesRefreshIntervalSeconds: Int,
+        fallbackPromptsAndResourcesToTools: Boolean,
     ): Result<Unit> {
         startCalls +=
             StartCall(
@@ -123,6 +125,7 @@ private class FakeProxyController : ProxyController {
                 authorizationTimeoutSeconds,
                 connectionRetryCount,
                 capabilitiesRefreshIntervalSeconds,
+                fallbackPromptsAndResourcesToTools,
             )
         return Result.success(Unit)
     }
@@ -138,6 +141,7 @@ private class FakeProxyController : ProxyController {
         authorizationTimeoutSeconds: Int,
         connectionRetryCount: Int,
         capabilitiesRefreshIntervalSeconds: Int,
+        fallbackPromptsAndResourcesToTools: Boolean,
     ): Result<Unit> = Result.success(Unit)
 
     override fun updateCallTimeout(seconds: Int) {}
@@ -145,6 +149,8 @@ private class FakeProxyController : ProxyController {
     override fun updateCapabilitiesTimeout(seconds: Int) {}
 
     override fun updateConnectionRetryCount(count: Int) {}
+
+    override fun updateFallbackPromptsAndResourcesToTools(enabled: Boolean) {}
 
     override fun currentProxy(): ProxyMcpServer? = null
 }

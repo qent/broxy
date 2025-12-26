@@ -1,0 +1,25 @@
+{
+  "id": "fallback",
+  "name": "fallback",
+  "tools": [],
+  "prompts": [
+    {
+      "serverId": "test-stdio",
+      "promptName": "hello_stdio"
+    },
+    {
+      "serverId": "test-stdio",
+      "promptName": "hello_stdio_plain"
+    }
+  ],
+  "resources": [
+    {
+      "serverId": "test-stdio",
+      "resourceKey": "test://resource/stdio"
+    },
+    {
+      "serverId": "test-stdio",
+      "resourceKey": "test://resource/stdio/{id}"
+    }
+  ]
+}

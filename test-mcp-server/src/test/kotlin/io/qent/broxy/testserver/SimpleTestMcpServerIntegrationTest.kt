@@ -200,12 +200,12 @@ class SimpleTestMcpServerIntegrationTest {
             "Tool capabilities should match test server definition",
         )
         assertEquals(
-            setOf(profile.resourceUri),
+            setOf(profile.resourceUri, profile.resourceTemplateUri),
             caps.resources.map { it.uri ?: it.name }.toSet(),
             "Resource capabilities should match test server definition",
         )
         assertEquals(
-            setOf(profile.promptName),
+            setOf(profile.promptName, profile.promptNoArgsName),
             caps.prompts.map { it.name }.toSet(),
             "Prompt capabilities should match test server definition",
         )
@@ -231,6 +231,11 @@ class SimpleTestMcpServerIntegrationTest {
             client.getPrompt(profile.promptName, mapOf(TestServerProfiles.PROMPT_ARGUMENT_NAME to name))
                 .getOrFail("prompt ${profile.promptName}")
         assertPromptContains(response, "${profile.promptPrefix} $name!")
+
+        val plainResponse =
+            client.getPrompt(profile.promptNoArgsName, null)
+                .getOrFail("prompt ${profile.promptNoArgsName}")
+        assertPromptContains(plainResponse, profile.promptNoArgsText)
     }
 
     private suspend fun verifyResources(
@@ -239,6 +244,10 @@ class SimpleTestMcpServerIntegrationTest {
     ) {
         val payload = client.readResource(profile.resourceUri).getOrFail("resource ${profile.resourceUri}")
         assertResourceContents(payload, profile.resourceText)
+
+        val templatePayload =
+            client.readResource(profile.resourceTemplateUri).getOrFail("resource ${profile.resourceTemplateUri}")
+        assertResourceContents(templatePayload, profile.resourceTemplateText)
     }
 
     private fun arithmeticArgs(args: ToolTestArgs): JsonObject =

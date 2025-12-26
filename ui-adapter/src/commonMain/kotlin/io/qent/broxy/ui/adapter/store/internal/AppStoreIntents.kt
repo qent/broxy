@@ -596,6 +596,25 @@ internal class AppStoreIntents(
         }
     }
 
+    override fun updateFallbackPromptsAndResourcesToTools(enabled: Boolean) {
+        scope.launch {
+            if (state.snapshot.fallbackPromptsAndResourcesToTools == enabled) return@launch
+            val previous = state.snapshot.fallbackPromptsAndResourcesToTools
+            val previousConfig = state.snapshotConfig()
+            state.updateSnapshot { copy(fallbackPromptsAndResourcesToTools = enabled) }
+            proxyLifecycle.updateFallbackPromptsAndResourcesToTools(enabled)
+            val result = configurationManager.updateFallbackPromptsAndResourcesToTools(previousConfig, enabled)
+            if (result.isFailure) {
+                val msg = result.exceptionOrNull()?.message ?: "Failed to update prompt/resource tool fallback"
+                logger.info("[AppStore] updateFallbackPromptsAndResourcesToTools failed: $msg")
+                state.updateSnapshot { copy(fallbackPromptsAndResourcesToTools = previous) }
+                proxyLifecycle.updateFallbackPromptsAndResourcesToTools(previous)
+                state.setError(msg)
+            }
+            publishReady()
+        }
+    }
+
     override fun openLogsFolder() {
         scope.launch {
             val result = openLogsFolderPlatform()

@@ -33,10 +33,17 @@ internal data class ModeProfile(
     val promptName: String,
     val promptDescription: String,
     val promptPrefix: String,
+    val promptNoArgsName: String,
+    val promptNoArgsDescription: String,
+    val promptNoArgsText: String,
     val resourceUri: String,
     val resourceName: String,
     val resourceDescription: String,
     val resourceText: String,
+    val resourceTemplateUri: String,
+    val resourceTemplateName: String,
+    val resourceTemplateDescription: String,
+    val resourceTemplateText: String,
 )
 
 internal object TestServerProfiles {
@@ -53,10 +60,17 @@ internal object TestServerProfiles {
             promptName = "hello_stdio",
             promptDescription = "Says hello via STDIO",
             promptPrefix = "Hello stdio",
+            promptNoArgsName = "hello_stdio_plain",
+            promptNoArgsDescription = "Says hello without arguments via STDIO",
+            promptNoArgsText = "Hello stdio!",
             resourceUri = "test://resource/stdio",
             resourceName = "stdio",
             resourceDescription = "STDIO sample text",
             resourceText = "STDIO resource content",
+            resourceTemplateUri = "test://resource/stdio/{id}",
+            resourceTemplateName = "stdio-template",
+            resourceTemplateDescription = "STDIO template text",
+            resourceTemplateText = "STDIO template resource content",
         )
 
     val STREAMABLE_HTTP =
@@ -69,10 +83,17 @@ internal object TestServerProfiles {
             promptName = "hello_http",
             promptDescription = "Says hello via Streamable HTTP",
             promptPrefix = "Hello http",
+            promptNoArgsName = "hello_http_plain",
+            promptNoArgsDescription = "Says hello without arguments via Streamable HTTP",
+            promptNoArgsText = "Hello http!",
             resourceUri = "test://resource/http",
             resourceName = "http",
             resourceDescription = "HTTP sample text",
             resourceText = "HTTP resource content",
+            resourceTemplateUri = "test://resource/http/{id}",
+            resourceTemplateName = "http-template",
+            resourceTemplateDescription = "HTTP template text",
+            resourceTemplateText = "HTTP template resource content",
         )
 
     val HTTP_SSE =
@@ -85,10 +106,17 @@ internal object TestServerProfiles {
             promptName = "hello_sse",
             promptDescription = "Says hello via HTTP SSE",
             promptPrefix = "Hello sse",
+            promptNoArgsName = "hello_sse_plain",
+            promptNoArgsDescription = "Says hello without arguments via HTTP SSE",
+            promptNoArgsText = "Hello sse!",
             resourceUri = "test://resource/sse",
             resourceName = "sse",
             resourceDescription = "SSE sample text",
             resourceText = "SSE resource content",
+            resourceTemplateUri = "test://resource/sse/{id}",
+            resourceTemplateName = "sse-template",
+            resourceTemplateDescription = "SSE template text",
+            resourceTemplateText = "SSE template resource content",
         )
 
     val WS =
@@ -101,10 +129,17 @@ internal object TestServerProfiles {
             promptName = "hello_ws",
             promptDescription = "Says hello via WebSocket",
             promptPrefix = "Hello ws",
+            promptNoArgsName = "hello_ws_plain",
+            promptNoArgsDescription = "Says hello without arguments via WebSocket",
+            promptNoArgsText = "Hello ws!",
             resourceUri = "test://resource/ws",
             resourceName = "ws",
             resourceDescription = "WebSocket sample text",
             resourceText = "WebSocket resource content",
+            resourceTemplateUri = "test://resource/ws/{id}",
+            resourceTemplateName = "ws-template",
+            resourceTemplateDescription = "WebSocket template text",
+            resourceTemplateText = "WebSocket template resource content",
         )
 
     val allProfiles = listOf(STDIO, STREAMABLE_HTTP, HTTP_SSE, WS)

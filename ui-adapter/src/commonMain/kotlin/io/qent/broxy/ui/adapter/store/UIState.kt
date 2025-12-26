@@ -25,6 +25,7 @@ sealed class UIState {
         val connectionRetryCount: Int,
         val capabilitiesRefreshIntervalSeconds: Int,
         val showTrayIcon: Boolean,
+        val fallbackPromptsAndResourcesToTools: Boolean,
         val intents: Intents,
         val remote: UiRemoteConnectionState,
         val remoteEnabled: Boolean,
@@ -73,6 +74,8 @@ interface Intents {
     fun updateCapabilitiesRefreshInterval(seconds: Int)
 
     fun updateTrayIconVisibility(visible: Boolean)
+
+    fun updateFallbackPromptsAndResourcesToTools(enabled: Boolean)
 
     fun openLogsFolder()
 

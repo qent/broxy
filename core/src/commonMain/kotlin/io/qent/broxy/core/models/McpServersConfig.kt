@@ -13,4 +13,5 @@ data class McpServersConfig(
     val connectionRetryCount: Int = 3,
     val showTrayIcon: Boolean = true,
     val capabilitiesRefreshIntervalSeconds: Int = 300,
+    val fallbackPromptsAndResourcesToTools: Boolean = false,
 )

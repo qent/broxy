@@ -69,6 +69,11 @@
       "type": "boolean",
       "description": "Whether the desktop UI should display a system tray icon.",
       "default": true
+    },
+    "fallbackPromptsAndResourcesToTools": {
+      "type": "boolean",
+      "description": "Expose prompts/resources as tools in the inbound server for clients that only support tools.",
+      "default": false
     }
   },
   "definitions": {

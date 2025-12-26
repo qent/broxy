@@ -14,10 +14,20 @@ internal object BroxyCliIntegrationFiles {
         httpServerUrl: String,
         sseServerUrl: String,
         wsServerUrl: String,
+        scenario: BroxyCliIntegrationConfig.ScenarioConfig = BroxyCliIntegrationConfig.DEFAULT_SCENARIO,
     ): Path {
         val dir = Files.createTempDirectory("broxy-cli-it-")
-        writeTestServerConfig(dir.resolve("mcp.json"), httpServerUrl, sseServerUrl, wsServerUrl)
-        copyResource("/integration/preset_test.json", dir.resolve("preset_test.json"))
+        writeTestServerConfig(
+            destination = dir.resolve("mcp.json"),
+            httpServerUrl = httpServerUrl,
+            sseServerUrl = sseServerUrl,
+            wsServerUrl = wsServerUrl,
+            templateResource = scenario.configResource,
+        )
+        copyResource(
+            scenario.presetResource,
+            dir.resolve("preset_${scenario.presetId}.json"),
+        )
         BroxyCliIntegrationConfig.log("Wrote integration config to ${dir.pathString}")
         return dir
     }
@@ -25,6 +35,7 @@ internal object BroxyCliIntegrationFiles {
     fun buildCliCommand(
         configDir: Path,
         inboundArgs: List<String>,
+        presetId: String = BroxyCliIntegrationConfig.PRESET_ID,
     ): List<String> =
         buildList {
             add(javaExecutable())
@@ -34,7 +45,7 @@ internal object BroxyCliIntegrationFiles {
             add("--config-dir")
             add(configDir.pathString)
             add("--preset-id")
-            add(BroxyCliIntegrationConfig.PRESET_ID)
+            add(presetId)
             add("--log-level")
             add(BroxyCliIntegrationConfig.CLI_LOG_LEVEL)
             addAll(inboundArgs)
@@ -60,8 +71,9 @@ internal object BroxyCliIntegrationFiles {
         httpServerUrl: String,
         sseServerUrl: String,
         wsServerUrl: String,
+        templateResource: String,
     ) {
-        val template = readResource("/integration/mcp.json")
+        val template = readResource(templateResource)
         val command = jsonEscape(resolveTestServerCommand())
         val resolved =
             template

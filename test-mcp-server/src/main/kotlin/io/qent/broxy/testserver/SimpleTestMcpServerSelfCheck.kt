@@ -165,11 +165,15 @@ class SimpleTestMcpServerSelfCheck(
             "Tool capabilities mismatch: ${caps.tools}"
         }
         require(
-            caps.resources.map { it.uri ?: it.name }.toSet() == setOf(profile.resourceUri),
+            caps.resources.map { it.uri ?: it.name }.toSet() ==
+                setOf(profile.resourceUri, profile.resourceTemplateUri),
         ) {
             "Resource capabilities mismatch: ${caps.resources}"
         }
-        require(caps.prompts.map { it.name }.toSet() == setOf(profile.promptName)) {
+        require(
+            caps.prompts.map { it.name }.toSet() ==
+                setOf(profile.promptName, profile.promptNoArgsName),
+        ) {
             "Prompt capabilities mismatch: ${caps.prompts}"
         }
     }
@@ -195,6 +199,11 @@ class SimpleTestMcpServerSelfCheck(
             client.getPrompt(profile.promptName, mapOf(TestServerProfiles.PROMPT_ARGUMENT_NAME to name))
                 .getOrThrow("prompt ${profile.promptName}")
         assertPromptContains(response, "${profile.promptPrefix} $name!")
+
+        val plainResponse =
+            client.getPrompt(profile.promptNoArgsName, null)
+                .getOrThrow("prompt ${profile.promptNoArgsName}")
+        assertPromptContains(plainResponse, profile.promptNoArgsText)
     }
 
     private suspend fun verifyResources(
@@ -203,6 +212,10 @@ class SimpleTestMcpServerSelfCheck(
     ) {
         val payload = client.readResource(profile.resourceUri).getOrThrow("resource ${profile.resourceUri}")
         assertResourceContents(payload, profile.resourceText)
+
+        val templatePayload =
+            client.readResource(profile.resourceTemplateUri).getOrThrow("resource ${profile.resourceTemplateUri}")
+        assertResourceContents(templatePayload, profile.resourceTemplateText)
     }
 
     private fun arithmeticArgs(args: ToolTestArgs): JsonObject =

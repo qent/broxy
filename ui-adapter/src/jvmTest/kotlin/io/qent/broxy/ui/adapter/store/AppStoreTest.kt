@@ -189,6 +189,7 @@ class AppStoreTest {
                         authorizationTimeoutSeconds: Int,
                         connectionRetryCount: Int,
                         capabilitiesRefreshIntervalSeconds: Int,
+                        fallbackPromptsAndResourcesToTools: Boolean,
                     ): Result<Unit> {
                         statusUpdates.tryEmit(
                             ServerConnectionUpdate(
@@ -211,6 +212,7 @@ class AppStoreTest {
                         authorizationTimeoutSeconds: Int,
                         connectionRetryCount: Int,
                         capabilitiesRefreshIntervalSeconds: Int,
+                        fallbackPromptsAndResourcesToTools: Boolean,
                     ): Result<Unit> = Result.success(Unit)
 
                     override fun updateCallTimeout(seconds: Int) {}
@@ -218,6 +220,8 @@ class AppStoreTest {
                     override fun updateCapabilitiesTimeout(seconds: Int) {}
 
                     override fun updateConnectionRetryCount(count: Int) {}
+
+                    override fun updateFallbackPromptsAndResourcesToTools(enabled: Boolean) {}
 
                     override fun currentProxy(): ProxyMcpServer? = null
                 }
@@ -904,6 +908,7 @@ class AppStoreTest {
             val authorizationTimeoutSeconds: Int,
             val connectionRetryCount: Int,
             val capabilitiesRefreshIntervalSeconds: Int,
+            val fallbackPromptsAndResourcesToTools: Boolean,
             val logsSubscriptionActive: Boolean,
         )
 
@@ -912,6 +917,7 @@ class AppStoreTest {
         val callTimeoutUpdates = mutableListOf<Int>()
         val capabilityTimeoutUpdates = mutableListOf<Int>()
         val connectionRetryUpdates = mutableListOf<Int>()
+        val fallbackPromptResourceUpdates = mutableListOf<Boolean>()
         val appliedPresets = mutableListOf<String>()
         val updateServersCalls = mutableListOf<List<UiMcpServerConfig>>()
 
@@ -924,6 +930,7 @@ class AppStoreTest {
             authorizationTimeoutSeconds: Int,
             connectionRetryCount: Int,
             capabilitiesRefreshIntervalSeconds: Int,
+            fallbackPromptsAndResourcesToTools: Boolean,
         ): Result<Unit> {
             startCalls +=
                 StartParams(
@@ -935,6 +942,7 @@ class AppStoreTest {
                     authorizationTimeoutSeconds = authorizationTimeoutSeconds,
                     connectionRetryCount = connectionRetryCount,
                     capabilitiesRefreshIntervalSeconds = capabilitiesRefreshIntervalSeconds,
+                    fallbackPromptsAndResourcesToTools = fallbackPromptsAndResourcesToTools,
                     logsSubscriptionActive = true,
                 )
             return startResult
@@ -954,6 +962,7 @@ class AppStoreTest {
             authorizationTimeoutSeconds: Int,
             connectionRetryCount: Int,
             capabilitiesRefreshIntervalSeconds: Int,
+            fallbackPromptsAndResourcesToTools: Boolean,
         ): Result<Unit> {
             updateServersCalls += servers
             return Result.success(Unit)
@@ -969,6 +978,10 @@ class AppStoreTest {
 
         override fun updateConnectionRetryCount(count: Int) {
             connectionRetryUpdates += count
+        }
+
+        override fun updateFallbackPromptsAndResourcesToTools(enabled: Boolean) {
+            fallbackPromptResourceUpdates += enabled
         }
 
         override fun currentProxy(): ProxyMcpServer? = null

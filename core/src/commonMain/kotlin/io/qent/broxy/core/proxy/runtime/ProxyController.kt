@@ -28,6 +28,7 @@ interface ProxyController {
         authorizationTimeoutSeconds: Int,
         connectionRetryCount: Int,
         capabilitiesRefreshIntervalSeconds: Int,
+        fallbackPromptsAndResourcesToTools: Boolean,
     ): Result<Unit>
 
     fun stop(): Result<Unit>
@@ -45,6 +46,7 @@ interface ProxyController {
         authorizationTimeoutSeconds: Int,
         connectionRetryCount: Int,
         capabilitiesRefreshIntervalSeconds: Int,
+        fallbackPromptsAndResourcesToTools: Boolean,
     ): Result<Unit>
 
     fun updateCallTimeout(seconds: Int)
@@ -52,6 +54,8 @@ interface ProxyController {
     fun updateCapabilitiesTimeout(seconds: Int)
 
     fun updateConnectionRetryCount(count: Int)
+
+    fun updateFallbackPromptsAndResourcesToTools(enabled: Boolean)
 
     fun currentProxy(): ProxyMcpServer?
 }

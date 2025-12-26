@@ -13,6 +13,7 @@ import io.modelcontextprotocol.kotlin.sdk.types.ContentTypes
 import io.modelcontextprotocol.kotlin.sdk.types.GetPromptResult
 import io.modelcontextprotocol.kotlin.sdk.types.Implementation
 import io.modelcontextprotocol.kotlin.sdk.types.Prompt
+import io.modelcontextprotocol.kotlin.sdk.types.PromptArgument
 import io.modelcontextprotocol.kotlin.sdk.types.ReadResourceResult
 import io.modelcontextprotocol.kotlin.sdk.types.Resource
 import io.modelcontextprotocol.kotlin.sdk.types.ServerCapabilities
@@ -33,6 +34,7 @@ import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import io.qent.broxy.core.mcp.ServerCapabilities as ProxyServerCapabilities
 
@@ -84,7 +86,13 @@ fun syncSdkServer(
             getPrompt = { name, arguments -> proxy.getPrompt(name, arguments) },
             readResource = { uri -> proxy.readResource(uri) },
         )
-    syncSdkServer(server, proxy.getCapabilities(), backend, logger)
+    syncSdkServer(
+        server = server,
+        capabilities = proxy.getCapabilities(),
+        backend = backend,
+        logger = logger,
+        fallbackPromptsAndResourcesToTools = proxy.shouldFallbackPromptsAndResourcesToTools(),
+    )
 }
 
 internal fun syncSdkServer(
@@ -92,6 +100,7 @@ internal fun syncSdkServer(
     capabilities: ProxyServerCapabilities,
     backend: ProxyBackend,
     logger: Logger = ConsoleLogger,
+    fallbackPromptsAndResourcesToTools: Boolean = false,
 ) {
     val json = Json { ignoreUnknownKeys = true }
 
@@ -165,8 +174,48 @@ internal fun syncSdkServer(
                 },
             )
         }
-    if (toolsToAdd.isNotEmpty()) {
-        server.addTools(toolsToAdd)
+
+    val promptFallbackTools =
+        if (fallbackPromptsAndResourcesToTools) {
+            capabilities.prompts.mapNotNull { prompt ->
+                val toolName = buildPromptFallbackToolName(prompt.name)
+                val inputSchema = buildPromptFallbackSchema(prompt.arguments)
+                buildFallbackTool(
+                    name = toolName,
+                    description = prompt.description ?: prompt.name,
+                    inputSchema = inputSchema,
+                    logger = logger,
+                    invokeBackend = { args ->
+                        val promptArgs = args.toPromptArguments()
+                        backend.getPrompt(prompt.name, promptArgs)
+                    },
+                )
+            }
+        } else {
+            emptyList()
+        }
+
+    val resourceFallbackTools =
+        if (fallbackPromptsAndResourcesToTools) {
+            capabilities.resources.mapNotNull { resource ->
+                val key = resource.uri ?: resource.name
+                val toolName = buildResourceFallbackToolName(key)
+                val inputSchema = buildResourceFallbackSchema(resource.uri)
+                buildFallbackTool(
+                    name = toolName,
+                    description = resource.description ?: resource.title ?: resource.name,
+                    inputSchema = inputSchema,
+                    logger = logger,
+                    invokeBackend = { _ -> backend.readResource(key) },
+                )
+            }
+        } else {
+            emptyList()
+        }
+
+    val allTools = (toolsToAdd + promptFallbackTools + resourceFallbackTools).distinctBy { it.tool.name }
+    if (allTools.isNotEmpty()) {
+        server.addTools(allTools)
     }
 
     val promptsToAdd =
@@ -256,6 +305,122 @@ internal fun syncSdkServer(
         server.addResources(resourcesToAdd)
     }
 }
+
+private fun buildFallbackTool(
+    name: String,
+    description: String,
+    inputSchema: ToolSchema,
+    logger: Logger,
+    invokeBackend: suspend (JsonObject) -> Result<JsonObject>,
+): RegisteredTool =
+    RegisteredTool(
+        tool =
+            Tool(
+                name = name,
+                title = null,
+                description = description,
+                inputSchema = inputSchema,
+                outputSchema = null,
+                annotations = null,
+            ),
+        handler = { req: CallToolRequest ->
+            logger.infoJson("llm_to_facade.request") {
+                put("toolName", JsonPrimitive(req.name))
+                put("arguments", req.arguments ?: JsonNull)
+                putIfNotNull("meta", req.meta?.json)
+            }
+            val arguments = req.arguments ?: JsonObject(emptyMap())
+            val result = invokeBackend(arguments)
+            if (result.isSuccess) {
+                val payload = result.getOrNull() ?: JsonObject(emptyMap())
+                val response =
+                    CallToolResult(
+                        content = listOf(TextContent(payload.toString())),
+                        isError = false,
+                        structuredContent = payload,
+                        meta = JsonObject(emptyMap()),
+                    )
+                logger.infoJson("facade_to_llm.response") {
+                    put("toolName", JsonPrimitive(req.name))
+                    put("response", Json.encodeToJsonElement(CallToolResult.serializer(), response))
+                }
+                response
+            } else {
+                val errMsg = result.exceptionOrNull()?.message ?: "Tool error"
+                logger.errorJson("facade_to_llm.error", result.exceptionOrNull()) {
+                    put("toolName", JsonPrimitive(req.name))
+                    put("errorMessage", JsonPrimitive(errMsg))
+                }
+                CallToolResult(
+                    content = listOf(TextContent(errMsg)),
+                    isError = true,
+                    structuredContent = JsonObject(mapOf("error" to JsonPrimitive(errMsg))),
+                    meta = JsonObject(emptyMap()),
+                )
+            }
+        },
+    )
+
+private fun JsonObject.toPromptArguments(): Map<String, String>? {
+    if (isEmpty()) return null
+    val args =
+        mapNotNull { (key, value) ->
+            when (value) {
+                JsonNull -> null
+                is JsonPrimitive -> key to (if (value.isString) value.content else value.toString())
+                else -> key to value.toString()
+            }
+        }.toMap()
+    return if (args.isEmpty()) null else args
+}
+
+private fun buildPromptFallbackSchema(arguments: List<PromptArgument>?): ToolSchema {
+    if (arguments.isNullOrEmpty()) return ToolSchema()
+    val required = arguments.filter { it.required == true }.map { it.name }.takeIf { it.isNotEmpty() }
+    val properties =
+        buildJsonObject {
+            arguments.forEach { arg ->
+                put(
+                    arg.name,
+                    buildJsonObject {
+                        put("type", JsonPrimitive("string"))
+                        arg.description?.let { put("description", JsonPrimitive(it)) }
+                        arg.title?.let { put("title", JsonPrimitive(it)) }
+                    },
+                )
+            }
+        }
+    return ToolSchema(properties = properties, required = required)
+}
+
+private fun buildResourceFallbackSchema(uri: String?): ToolSchema {
+    val placeholders =
+        uri
+            ?.let { RESOURCE_PLACEHOLDER_REGEX.findAll(it).map { match -> match.groupValues[1] }.toList() }
+            .orEmpty()
+            .distinct()
+    if (placeholders.isEmpty()) return ToolSchema()
+    val properties =
+        buildJsonObject {
+            placeholders.forEach { name ->
+                put(
+                    name,
+                    buildJsonObject {
+                        put("type", JsonPrimitive("string"))
+                    },
+                )
+            }
+        }
+    return ToolSchema(properties = properties, required = placeholders)
+}
+
+private fun buildPromptFallbackToolName(promptName: String): String = "${PROMPT_FALLBACK_PREFIX}:$promptName"
+
+private fun buildResourceFallbackToolName(resourceKey: String): String = "${RESOURCE_FALLBACK_PREFIX}:$resourceKey"
+
+private const val PROMPT_FALLBACK_PREFIX = "prompt"
+private const val RESOURCE_FALLBACK_PREFIX = "resource"
+private val RESOURCE_PLACEHOLDER_REGEX = "\\{([^}]+)}".toRegex()
 
 internal fun decodeCallToolResult(
     json: Json,

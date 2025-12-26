@@ -133,6 +133,7 @@ fun runStdioProxy(
                         runCatching { syncSdkServer(server, activeProxy, logger) }
                     }
                 },
+                fallbackPromptsAndResourcesToTools = cfg.fallbackPromptsAndResourcesToTools,
             )
         proxyRef = proxy
         proxy.start(preset, inbound)

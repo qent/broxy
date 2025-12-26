@@ -38,6 +38,7 @@ class ProxyLifecycle(
                 authorizationTimeoutSeconds = config.authorizationTimeoutSeconds,
                 connectionRetryCount = config.connectionRetryCount,
                 capabilitiesRefreshIntervalSeconds = config.capabilitiesRefreshIntervalSeconds,
+                fallbackPromptsAndResourcesToTools = config.fallbackPromptsAndResourcesToTools,
             )
         if (result.isSuccess) {
             currentConfig = config
@@ -96,6 +97,7 @@ class ProxyLifecycle(
                 authorizationTimeoutSeconds = config.authorizationTimeoutSeconds,
                 connectionRetryCount = config.connectionRetryCount,
                 capabilitiesRefreshIntervalSeconds = config.capabilitiesRefreshIntervalSeconds,
+                fallbackPromptsAndResourcesToTools = config.fallbackPromptsAndResourcesToTools,
             )
         if (result.isSuccess) {
             currentConfig = config
@@ -118,6 +120,11 @@ class ProxyLifecycle(
     fun updateConnectionRetryCount(count: Int) {
         controller.updateConnectionRetryCount(count)
         currentConfig = currentConfig?.copy(connectionRetryCount = count)
+    }
+
+    fun updateFallbackPromptsAndResourcesToTools(enabled: Boolean) {
+        controller.updateFallbackPromptsAndResourcesToTools(enabled)
+        currentConfig = currentConfig?.copy(fallbackPromptsAndResourcesToTools = enabled)
     }
 
     fun isRunning(): Boolean = currentPreset != null && currentInbound != null

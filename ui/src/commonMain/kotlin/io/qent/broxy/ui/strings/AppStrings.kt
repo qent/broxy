@@ -192,6 +192,10 @@ interface AppStrings {
 
     val showTrayIconDescription: String
 
+    val fallbackPromptsAndResourcesToToolsTitle: String
+
+    val fallbackPromptsAndResourcesToToolsDescription: String
+
     val logsTitle: String
 
     val logsDescription: String
@@ -217,6 +221,8 @@ interface AppStrings {
     fun refreshIntervalSaved(seconds: Int): String
 
     fun trayIconToggle(enabled: Boolean): String
+
+    fun fallbackPromptsAndResourcesToToolsToggle(enabled: Boolean): String
 
     val openingLogsFolder: String
 
@@ -481,6 +487,11 @@ object EnglishStrings : AppStrings {
 
     override val showTrayIconDescription = "Display the Broxy icon in the system tray."
 
+    override val fallbackPromptsAndResourcesToToolsTitle = "Prompts/resources as tools"
+
+    override val fallbackPromptsAndResourcesToToolsDescription =
+        "Expose prompts and resources as tools for clients that only support tools."
+
     override val logsTitle = "Logs"
 
     override val logsDescription = "Application logs are stored in the logs/ folder next to the configuration files."
@@ -506,6 +517,9 @@ object EnglishStrings : AppStrings {
     override fun refreshIntervalSaved(seconds: Int): String = "Refresh interval saved: ${seconds}s"
 
     override fun trayIconToggle(enabled: Boolean): String = if (enabled) "Tray icon enabled" else "Tray icon disabled"
+
+    override fun fallbackPromptsAndResourcesToToolsToggle(enabled: Boolean): String =
+        if (enabled) "Prompt/resource tool fallback enabled" else "Prompt/resource tool fallback disabled"
 
     override val openingLogsFolder = "Opening logs folder…"
 

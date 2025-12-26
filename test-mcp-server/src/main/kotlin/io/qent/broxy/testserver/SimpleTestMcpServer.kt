@@ -325,6 +325,25 @@ class SimpleTestMcpServer(
                 meta = JsonObject(emptyMap()),
             )
         }
+
+        server.addResource(
+            uri = profile.resourceTemplateUri,
+            name = profile.resourceTemplateName,
+            description = profile.resourceTemplateDescription,
+            mimeType = "text/plain",
+        ) { request ->
+            ReadResourceResult(
+                contents =
+                    listOf(
+                        TextResourceContents(
+                            text = profile.resourceTemplateText,
+                            uri = request.uri,
+                            mimeType = "text/plain",
+                        ),
+                    ),
+                meta = JsonObject(emptyMap()),
+            )
+        }
     }
 
     private fun registerPrompts(
@@ -353,6 +372,26 @@ class SimpleTestMcpServer(
                         PromptMessage(
                             role = Role.Assistant,
                             content = TextContent("${profile.promptPrefix} $name!"),
+                        ),
+                    ),
+                meta = JsonObject(emptyMap()),
+            )
+        }
+
+        server.addPrompt(
+            Prompt(
+                name = profile.promptNoArgsName,
+                description = profile.promptNoArgsDescription,
+                arguments = emptyList(),
+            ),
+        ) {
+            GetPromptResult(
+                description = profile.promptNoArgsDescription,
+                messages =
+                    listOf(
+                        PromptMessage(
+                            role = Role.Assistant,
+                            content = TextContent(profile.promptNoArgsText),
                         ),
                     ),
                 meta = JsonObject(emptyMap()),

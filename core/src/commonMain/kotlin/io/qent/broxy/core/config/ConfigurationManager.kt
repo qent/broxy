@@ -110,6 +110,11 @@ class ConfigurationManager(
         visible: Boolean,
     ): Result<McpServersConfig> = saveConfig(config.copy(showTrayIcon = visible))
 
+    fun updateFallbackPromptsAndResourcesToTools(
+        config: McpServersConfig,
+        enabled: Boolean,
+    ): Result<McpServersConfig> = saveConfig(config.copy(fallbackPromptsAndResourcesToTools = enabled))
+
     fun updateDefaultPresetId(
         config: McpServersConfig,
         presetId: String?,

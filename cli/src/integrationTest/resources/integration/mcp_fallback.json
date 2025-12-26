@@ -1,0 +1,32 @@
+{
+  "requestTimeoutSeconds": 60,
+  "showTrayIcon": true,
+  "fallbackPromptsAndResourcesToTools": true,
+  "mcpServers": {
+    "test-stdio": {
+      "name": "Test STDIO",
+      "enabled": true,
+      "transport": "stdio",
+      "command": "__TEST_MCP_SERVER_COMMAND__",
+      "args": []
+    },
+    "test-http": {
+      "name": "Test Streamable HTTP",
+      "enabled": true,
+      "transport": "streamable-http",
+      "url": "__TEST_MCP_SERVER_HTTP_URL__"
+    },
+    "test-sse": {
+      "name": "Test HTTP SSE",
+      "enabled": true,
+      "transport": "http",
+      "url": "__TEST_MCP_SERVER_SSE_URL__"
+    },
+    "test-ws": {
+      "name": "Test WebSocket",
+      "enabled": true,
+      "transport": "ws",
+      "url": "__TEST_MCP_SERVER_WS_URL__"
+    }
+  }
+}

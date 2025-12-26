@@ -91,6 +91,8 @@ class StoreSnapshotTest {
 
         override fun updateTrayIconVisibility(visible: Boolean) {}
 
+        override fun updateFallbackPromptsAndResourcesToTools(enabled: Boolean) {}
+
         override fun openLogsFolder() {}
 
         override fun startRemoteAuthorization() {}

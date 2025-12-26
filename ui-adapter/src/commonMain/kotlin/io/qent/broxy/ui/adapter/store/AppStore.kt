@@ -270,6 +270,7 @@ class AppStore(
             proxyLifecycle.updateCallTimeout(config.requestTimeoutSeconds)
             proxyLifecycle.updateCapabilitiesTimeout(config.capabilitiesTimeoutSeconds)
             proxyLifecycle.updateConnectionRetryCount(config.connectionRetryCount)
+            proxyLifecycle.updateFallbackPromptsAndResourcesToTools(config.fallbackPromptsAndResourcesToTools)
             updateSnapshot {
                 copy(
                     isLoading = false,
@@ -282,6 +283,7 @@ class AppStore(
                     connectionRetryCount = config.connectionRetryCount,
                     capabilitiesRefreshIntervalSeconds = config.capabilitiesRefreshIntervalSeconds.coerceAtLeast(30),
                     showTrayIcon = config.showTrayIcon,
+                    fallbackPromptsAndResourcesToTools = config.fallbackPromptsAndResourcesToTools,
                 ).withPresets(loadedPresets)
             }
             Result.success(Unit)
@@ -300,6 +302,7 @@ class AppStore(
             connectionRetryCount = snapshot.connectionRetryCount,
             showTrayIcon = snapshot.showTrayIcon,
             capabilitiesRefreshIntervalSeconds = snapshot.capabilitiesRefreshIntervalSeconds,
+            fallbackPromptsAndResourcesToTools = snapshot.fallbackPromptsAndResourcesToTools,
         )
 
     private fun publishReady() {

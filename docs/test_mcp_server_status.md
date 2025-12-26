@@ -26,10 +26,10 @@ mode on random free ports. It uses the Broxy MCP clients to verify:
 
 Mode-specific capabilities:
 
-- STDIO: `add_stdio`, `hello_stdio`, `test://resource/stdio`
-- Streamable HTTP: `subtract_http`, `hello_http`, `test://resource/http`
-- HTTP SSE: `multiply_sse`, `hello_sse`, `test://resource/sse`
-- WebSocket: `divide_ws`, `hello_ws`, `test://resource/ws`
+- STDIO: `add_stdio`, `hello_stdio`, `hello_stdio_plain`, `test://resource/stdio`, `test://resource/stdio/{id}`
+- Streamable HTTP: `subtract_http`, `hello_http`, `hello_http_plain`, `test://resource/http`, `test://resource/http/{id}`
+- HTTP SSE: `multiply_sse`, `hello_sse`, `hello_sse_plain`, `test://resource/sse`, `test://resource/sse/{id}`
+- WebSocket: `divide_ws`, `hello_ws`, `hello_ws_plain`, `test://resource/ws`, `test://resource/ws/{id}`
 
 The task exits non-zero if any checks fail or if any of the HTTP/WebSocket servers are unreachable.
 Successful output ends with `All SimpleTestMcpServer checks passed`.

@@ -65,6 +65,7 @@ fun SettingsScreen(
                     capabilitiesRefreshIntervalSeconds = ui.capabilitiesRefreshIntervalSeconds,
                     inboundSsePort = ui.inboundSsePort,
                     showTrayIcon = ui.showTrayIcon,
+                    fallbackPromptsAndResourcesToTools = ui.fallbackPromptsAndResourcesToTools,
                     onInboundSsePortSave = { port ->
                         ui.intents.updateInboundSsePort(port)
                         notify(strings.httpPortSaved(port))
@@ -89,6 +90,10 @@ fun SettingsScreen(
                         ui.intents.updateTrayIconVisibility(enabled)
                         notify(strings.trayIconToggle(enabled))
                     },
+                    onToggleFallbackPromptsAndResourcesToTools = { enabled ->
+                        ui.intents.updateFallbackPromptsAndResourcesToTools(enabled)
+                        notify(strings.fallbackPromptsAndResourcesToToolsToggle(enabled))
+                    },
                     onOpenLogsFolder = {
                         ui.intents.openLogsFolder()
                         notify(strings.openingLogsFolder)
@@ -111,12 +116,14 @@ private fun SettingsContent(
     capabilitiesRefreshIntervalSeconds: Int,
     inboundSsePort: Int,
     showTrayIcon: Boolean,
+    fallbackPromptsAndResourcesToTools: Boolean,
     onInboundSsePortSave: (Int) -> Unit,
     onRequestTimeoutSave: (Int) -> Unit,
     onCapabilitiesTimeoutSave: (Int) -> Unit,
     onConnectionRetryCountSave: (Int) -> Unit,
     onCapabilitiesRefreshIntervalSave: (Int) -> Unit,
     onToggleTrayIcon: (Boolean) -> Unit,
+    onToggleFallbackPromptsAndResourcesToTools: (Boolean) -> Unit,
     onOpenLogsFolder: () -> Unit,
 ) {
     val strings = LocalStrings.current
@@ -268,6 +275,10 @@ private fun SettingsContent(
                     }
                 },
             )
+            FallbackPromptsResourcesSetting(
+                checked = fallbackPromptsAndResourcesToTools,
+                onToggle = onToggleFallbackPromptsAndResourcesToTools,
+            )
             LogsSetting(onOpenFolder = onOpenLogsFolder)
             ThemeSetting(
                 themeStyle = themeStyle,
@@ -326,6 +337,34 @@ private fun LogsSetting(onOpenFolder: () -> Unit) {
             modifier = Modifier.width(SettingControlWidth).height(32.dp),
         ) {
             Text(strings.openFolder, style = MaterialTheme.typography.labelSmall)
+        }
+    }
+}
+
+@Composable
+private fun FallbackPromptsResourcesSetting(
+    checked: Boolean,
+    onToggle: (Boolean) -> Unit,
+) {
+    val strings = LocalStrings.current
+    SettingItem(
+        title = strings.fallbackPromptsAndResourcesToToolsTitle,
+        description = strings.fallbackPromptsAndResourcesToToolsDescription,
+    ) {
+        SettingControlBox {
+            Switch(
+                checked = checked,
+                onCheckedChange = onToggle,
+                modifier = Modifier.scale(0.7f),
+                colors =
+                    SwitchDefaults.colors(
+                        checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                        checkedTrackColor = MaterialTheme.colorScheme.primary,
+                        uncheckedThumbColor = MaterialTheme.colorScheme.outline,
+                        uncheckedTrackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        uncheckedBorderColor = MaterialTheme.colorScheme.outline,
+                    ),
+            )
         }
     }
 }

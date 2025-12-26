@@ -104,6 +104,9 @@ private class JvmProxyController(
     @Volatile
     private var connectionRetryCount: Int = 3
 
+    @Volatile
+    private var fallbackPromptsAndResourcesToTools: Boolean = false
+
     override val logs: Flow<LogEvent> get() = logger.events
     override val capabilityUpdates: Flow<List<ServerCapsSnapshot>> get() = _capabilityUpdates
     override val serverStatusUpdates: Flow<ServerConnectionUpdate> get() = _serverStatusUpdates
@@ -117,6 +120,7 @@ private class JvmProxyController(
         authorizationTimeoutSeconds: Int,
         connectionRetryCount: Int,
         capabilitiesRefreshIntervalSeconds: Int,
+        fallbackPromptsAndResourcesToTools: Boolean,
     ): Result<Unit> =
         runCatching {
             runCatching { stop() }
@@ -125,6 +129,7 @@ private class JvmProxyController(
             authorizationTimeoutMillis = authorizationTimeoutSeconds.toLong() * 1_000L
             this.connectionRetryCount = connectionRetryCount.coerceAtLeast(1)
             capabilitiesRefreshIntervalMillis = refreshIntervalMillis(capabilitiesRefreshIntervalSeconds)
+            this.fallbackPromptsAndResourcesToTools = fallbackPromptsAndResourcesToTools
 
             val enabledConfigs = servers.filter { it.enabled }
             val managed =
@@ -143,6 +148,7 @@ private class JvmProxyController(
                             inboundServer?.refreshCapabilities()
                             emitCapabilitySnapshots(capabilities)
                         },
+                        fallbackPromptsAndResourcesToTools = fallbackPromptsAndResourcesToTools,
                     )
                 proxy.start(preset, inbound)
                 managedDownstreams = managed
@@ -202,6 +208,7 @@ private class JvmProxyController(
         authorizationTimeoutSeconds: Int,
         connectionRetryCount: Int,
         capabilitiesRefreshIntervalSeconds: Int,
+        fallbackPromptsAndResourcesToTools: Boolean,
     ): Result<Unit> =
         runCatching {
             val proxy = this.proxy ?: error("Proxy is not running")
@@ -214,11 +221,13 @@ private class JvmProxyController(
             val previousCapabilitiesTimeoutMillis = capabilitiesTimeoutMillis
             val previousAuthorizationTimeoutMillis = authorizationTimeoutMillis
             val previousConnectionRetryCount = this.connectionRetryCount
+            val previousFallbackPromptsAndResourcesToTools = this.fallbackPromptsAndResourcesToTools
             callTimeoutMillis = callTimeoutSeconds.toLong() * 1_000L
             capabilitiesTimeoutMillis = capabilitiesTimeoutSeconds.toLong() * 1_000L
             authorizationTimeoutMillis = authorizationTimeoutSeconds.toLong() * 1_000L
             this.connectionRetryCount = connectionRetryCount.coerceAtLeast(1)
             capabilitiesRefreshIntervalMillis = refreshIntervalMillis(capabilitiesRefreshIntervalSeconds)
+            this.fallbackPromptsAndResourcesToTools = fallbackPromptsAndResourcesToTools
 
             val enabledConfigs = servers.filter { it.enabled }
             val nextById = enabledConfigs.associateBy { it.id }
@@ -270,6 +279,10 @@ private class JvmProxyController(
                 }
             }
 
+            if (previousFallbackPromptsAndResourcesToTools != fallbackPromptsAndResourcesToTools) {
+                proxy.updateFallbackPromptsAndResourcesToTools(fallbackPromptsAndResourcesToTools)
+            }
+
             proxy.updateDownstreams(downstreams)
             runBlocking {
                 val removedIds = toDisconnect.map { it.serverId }.toSet()
@@ -299,6 +312,12 @@ private class JvmProxyController(
     override fun updateConnectionRetryCount(count: Int) {
         connectionRetryCount = count.coerceAtLeast(1)
         managedDownstreams.values.forEach { it.connection.updateConnectionRetryCount(connectionRetryCount) }
+    }
+
+    override fun updateFallbackPromptsAndResourcesToTools(enabled: Boolean) {
+        fallbackPromptsAndResourcesToTools = enabled
+        proxy?.updateFallbackPromptsAndResourcesToTools(enabled)
+        inboundServer?.refreshCapabilities()
     }
 
     override fun currentProxy(): ProxyMcpServer? = proxy

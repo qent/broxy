@@ -24,6 +24,7 @@ class ProxyMcpServer(
     private val logger: Logger = ConsoleLogger,
     private val toolFilter: ToolFilter = DefaultToolFilter(),
     private val onCapabilitiesUpdated: ((Map<String, ServerCapabilities>) -> Unit)? = null,
+    fallbackPromptsAndResourcesToTools: Boolean = false,
 ) : ProxyServer {
     @Volatile
     private var status: ServerStatus = ServerStatus.Stopped
@@ -53,6 +54,9 @@ class ProxyMcpServer(
     @Volatile
     private var dispatcher: RequestDispatcher = buildDispatcher(downstreams)
 
+    @Volatile
+    private var fallbackPromptsAndResourcesToTools: Boolean = fallbackPromptsAndResourcesToTools
+
     override fun start(
         preset: Preset,
         transport: TransportConfig,
@@ -78,6 +82,12 @@ class ProxyMcpServer(
 
     /** Returns the current filtered capabilities view. */
     fun getCapabilities(): ServerCapabilities = filteredState.capabilities
+
+    fun shouldFallbackPromptsAndResourcesToTools(): Boolean = fallbackPromptsAndResourcesToTools
+
+    fun updateFallbackPromptsAndResourcesToTools(enabled: Boolean) {
+        fallbackPromptsAndResourcesToTools = enabled
+    }
 
     /** Applies a new preset at runtime and refreshes the filtered view. */
     fun applyPreset(preset: Preset) {
