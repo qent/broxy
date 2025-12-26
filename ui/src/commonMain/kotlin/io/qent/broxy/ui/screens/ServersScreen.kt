@@ -14,6 +14,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -213,6 +214,13 @@ private fun ServerCard(
             cfg.resourcesCount != null
     val showStatusText = isConnecting || showErrorStatus
     val canRefresh = cfg.enabled && !isConnecting
+    val density = LocalDensity.current
+    val iconSize =
+        with(density) {
+            MaterialTheme.typography.titleSmall.lineHeight.toDp() +
+                MaterialTheme.typography.bodySmall.lineHeight.toDp() +
+                2.dp
+        }
     val statusText =
         when {
             isConnecting ->
@@ -232,7 +240,7 @@ private fun ServerCard(
             ServerIconBadge(
                 icon = cfg.icon,
                 backgroundColor = titleColor,
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.size(iconSize),
             )
         },
         titleContent = {
