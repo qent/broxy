@@ -79,8 +79,6 @@ fun ServersScreen(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
         ) {
-            Spacer(Modifier.height(AppTheme.spacing.sm))
-
             when (ui) {
                 is UIState.Loading -> Text(strings.loading, style = MaterialTheme.typography.bodyMedium)
                 is UIState.Error -> Text(strings.errorMessage(ui.message), style = MaterialTheme.typography.bodyMedium)
@@ -101,7 +99,11 @@ fun ServersScreen(
                             state = listState,
                             modifier = Modifier.weight(1f, fill = true),
                             verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
-                            contentPadding = PaddingValues(bottom = AppTheme.spacing.fab),
+                            contentPadding =
+                                PaddingValues(
+                                    top = AppTheme.spacing.lg,
+                                    bottom = AppTheme.spacing.fab,
+                                ),
                         ) {
                             items(filtered, key = { it.id }) { cfg ->
                                 ServerCard(

@@ -224,7 +224,7 @@ private fun SettingsContent(
                     .padding(bottom = AppTheme.spacing.fab),
             verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
         ) {
-            Spacer(Modifier.height(AppTheme.spacing.sm))
+            Spacer(Modifier.height(AppTheme.spacing.xs))
             TimeoutSetting(
                 title = strings.httpPortTitle,
                 description = strings.httpPortDescription,
