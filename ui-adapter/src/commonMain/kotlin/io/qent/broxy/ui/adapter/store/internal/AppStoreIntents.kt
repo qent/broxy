@@ -36,6 +36,7 @@ internal class AppStoreIntents(
     private val restartRefreshJob: (Boolean) -> Unit,
     private val publishReady: () -> Unit,
     private val remoteConnector: RemoteConnector,
+    private val now: () -> Long,
 ) : Intents {
     override fun refresh() {
         scope.launch {
@@ -140,9 +141,6 @@ internal class AppStoreIntents(
             val updated = previousServers.toMutableList()
             val oldId = originalId?.takeIf { it != normalizedDraft.id }
             val isRename = oldId != null
-            if (isRename) {
-                updated.removeAll { it.id == oldId }
-            }
             val cfg =
                 UiMcpServerConfig(
                     id = normalizedDraft.id,
@@ -151,8 +149,23 @@ internal class AppStoreIntents(
                     transport = normalizedDraft.transport.toTransportConfig(),
                     env = normalizedDraft.env,
                 )
-            val idx = updated.indexOfFirst { it.id == cfg.id }
-            if (idx >= 0) updated[idx] = cfg else updated += cfg
+            if (isRename) {
+                val oldIndex = updated.indexOfFirst { it.id == oldId }
+                val existingIndex = updated.indexOfFirst { it.id == cfg.id }
+                if (existingIndex >= 0) {
+                    updated[existingIndex] = cfg
+                } else {
+                    if (oldIndex >= 0) {
+                        updated.removeAt(oldIndex)
+                    }
+                    val insertIndex = if (oldIndex >= 0) oldIndex else updated.size
+                    updated.add(insertIndex.coerceAtMost(updated.size), cfg)
+                }
+                updated.removeAll { it.id == oldId }
+            } else {
+                val idx = updated.indexOfFirst { it.id == cfg.id }
+                if (idx >= 0) updated[idx] = cfg else updated += cfg
+            }
             state.updateSnapshot { copy(servers = updated) }
 
             val renameResult =
@@ -374,7 +387,13 @@ internal class AppStoreIntents(
             val originalId = draft.originalId?.trim()?.takeIf { it.isNotBlank() }
             val trimmedId = draft.id.trim()
             val normalizedDraft = if (trimmedId == draft.id) draft else draft.copy(id = trimmedId)
-            val preset = normalizedDraft.toCorePreset()
+            val basePreset = normalizedDraft.toCorePreset()
+            val preset =
+                if (basePreset.createdAtEpochMillis == null) {
+                    basePreset.copy(createdAtEpochMillis = now())
+                } else {
+                    basePreset
+                }
             val previousSnapshot = state.snapshot
             val previousConfig = state.snapshotConfig()
             val isRename = originalId != null && originalId != preset.id
@@ -388,8 +407,24 @@ internal class AppStoreIntents(
 
             val updatedPresets = previousSnapshot.presets.toMutableList()
             val summary = preset.toUiPresetSummary()
-            val idx = updatedPresets.indexOfFirst { it.id == summary.id }
-            if (idx >= 0) updatedPresets[idx] = summary else updatedPresets += summary
+            if (isRename) {
+                val oldId = originalId ?: ""
+                val oldIndex = updatedPresets.indexOfFirst { it.id == oldId }
+                val existingIndex = updatedPresets.indexOfFirst { it.id == summary.id }
+                if (existingIndex >= 0) {
+                    updatedPresets[existingIndex] = summary
+                } else {
+                    if (oldIndex >= 0) {
+                        updatedPresets.removeAt(oldIndex)
+                    }
+                    val insertIndex = if (oldIndex >= 0) oldIndex else updatedPresets.size
+                    updatedPresets.add(insertIndex.coerceAtMost(updatedPresets.size), summary)
+                }
+                updatedPresets.removeAll { it.id == oldId }
+            } else {
+                val idx = updatedPresets.indexOfFirst { it.id == summary.id }
+                if (idx >= 0) updatedPresets[idx] = summary else updatedPresets += summary
+            }
 
             var selectedPresetId = previousSnapshot.selectedPresetId
             if (saveResult.isSuccess && isRename) {

@@ -117,6 +117,7 @@ class AppStore(
             restartRefreshJob = { enabled -> capabilityRefresher.restartBackgroundJob(enabled && enableBackgroundRefresh) },
             publishReady = ::publishReady,
             remoteConnector = remoteConnector,
+            now = now,
         )
     private val authorizationCoordinator =
         AuthorizationPopupCoordinator(
@@ -213,6 +214,7 @@ class AppStore(
                     promptsConfigured = preset.prompts != null,
                     resourcesConfigured = preset.resources != null,
                     originalId = preset.id,
+                    createdAtEpochMillis = preset.createdAtEpochMillis,
                 )
             }
             .onFailure { error ->

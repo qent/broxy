@@ -27,4 +27,5 @@ data class UiPresetDraft(
     val promptsConfigured: Boolean = true,
     val resourcesConfigured: Boolean = true,
     val originalId: String? = null,
+    val createdAtEpochMillis: Long? = null,
 )

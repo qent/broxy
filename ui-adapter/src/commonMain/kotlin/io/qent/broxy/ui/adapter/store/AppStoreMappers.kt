@@ -54,6 +54,7 @@ internal fun UiPresetDraft.toCorePreset(): UiPresetCore =
             } else {
                 null
             },
+        createdAtEpochMillis = createdAtEpochMillis,
     )
 
 internal fun UiTransportDraft.toTransportConfig(): UiTransportConfig =

@@ -18,6 +18,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.nio.file.StandardOpenOption
+import java.nio.file.attribute.BasicFileAttributes
 import kotlin.io.path.exists
 import kotlin.io.path.isRegularFile
 import kotlin.io.path.name
@@ -256,7 +257,12 @@ class JsonConfigurationRepository(
                 throw ConfigurationException("Invalid preset '${file.name}': ${e.message}")
             }
         if (preset.id != id) throw ConfigurationException("Preset file '${file.name}' id '${preset.id}' does not match requested id '$id'")
-        return preset
+        val createdAt = preset.createdAtEpochMillis ?: presetFileCreationMillis(file)
+        return if (createdAt == null || createdAt == preset.createdAtEpochMillis) {
+            preset
+        } else {
+            preset.copy(createdAtEpochMillis = createdAt)
+        }
     }
 
     override fun savePreset(preset: Preset) {
@@ -277,7 +283,7 @@ class JsonConfigurationRepository(
 
     override fun listPresets(): List<Preset> {
         if (!Files.exists(dir)) return emptyList()
-        val result = mutableListOf<Preset>()
+        val result = mutableListOf<PresetListing>()
         Files.newDirectoryStream(dir) { p ->
             val n = p.fileName.toString()
             n.startsWith("preset_") && n.endsWith(".json")
@@ -289,10 +295,23 @@ class JsonConfigurationRepository(
                             logger.warn("Failed to load preset file '${p.fileName}': ${it.message}")
                             null
                         }
-                if (preset != null) result.add(preset)
+                if (preset != null) {
+                    val createdAt = preset.createdAtEpochMillis ?: presetFileCreationMillis(p)
+                    result.add(PresetListing(preset = preset, createdAtEpochMillis = createdAt, fileName = p.fileName.toString()))
+                }
             }
         }
         return result
+            .sortedWith(
+                compareBy<PresetListing> { it.createdAtEpochMillis ?: Long.MAX_VALUE }
+                    .thenBy { it.fileName },
+            ).map { listing ->
+                if (listing.createdAtEpochMillis == null || listing.preset.createdAtEpochMillis == listing.createdAtEpochMillis) {
+                    listing.preset
+                } else {
+                    listing.preset.copy(createdAtEpochMillis = listing.createdAtEpochMillis)
+                }
+            }
     }
 
     override fun deletePreset(id: String) {
@@ -448,6 +467,20 @@ class JsonConfigurationRepository(
         if (serverIds.isEmpty()) return
         serverIds.forEach { authStateStore.remove(it) }
     }
+
+    private fun presetFileCreationMillis(file: Path): Long? {
+        return runCatching {
+            Files.readAttributes(file, BasicFileAttributes::class.java).creationTime().toMillis()
+        }.getOrElse {
+            null
+        }
+    }
+
+    private data class PresetListing(
+        val preset: Preset,
+        val createdAtEpochMillis: Long?,
+        val fileName: String,
+    )
 
     @Serializable
     private data class FileMcpRoot(

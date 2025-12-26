@@ -33,11 +33,23 @@ class ConfigurationManager(
     ): Result<ServerRenameResult> {
         val updated =
             mutateServers(config) { servers ->
+                val oldIndex = servers.indexOfFirst { it.id == oldId }
+                val existingIndex = servers.indexOfFirst { it.id == server.id }
                 if (oldId.isNotBlank() && oldId != server.id) {
-                    servers.removeAll { it.id == oldId }
+                    if (existingIndex >= 0) {
+                        servers[existingIndex] = server
+                        if (oldIndex >= 0 && oldIndex != existingIndex) {
+                            servers.removeAt(oldIndex)
+                        }
+                    } else if (oldIndex >= 0) {
+                        servers.removeAt(oldIndex)
+                        servers.add(oldIndex.coerceAtMost(servers.size), server)
+                    } else {
+                        servers += server
+                    }
+                } else {
+                    if (existingIndex >= 0) servers[existingIndex] = server else servers += server
                 }
-                val idx = servers.indexOfFirst { it.id == server.id }
-                if (idx >= 0) servers[idx] = server else servers += server
             }
         val saveResult = saveConfig(updated)
         if (saveResult.isFailure) {

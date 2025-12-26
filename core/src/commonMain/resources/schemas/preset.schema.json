@@ -37,6 +37,10 @@
         "$ref": "#/definitions/ResourceReference"
       },
       "default": []
+    },
+    "createdAtEpochMillis": {
+      "type": "integer",
+      "minimum": 0
     }
   },
   "definitions": {

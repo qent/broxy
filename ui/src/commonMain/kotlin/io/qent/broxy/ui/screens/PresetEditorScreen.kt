@@ -54,6 +54,7 @@ fun PresetEditorScreen(
                         promptsConfigured = true,
                         resourcesConfigured = true,
                         originalId = null,
+                        createdAtEpochMillis = null,
                     )
 
                 is PresetEditorState.Edit -> store.getPresetDraft(editor.presetId)
@@ -160,6 +161,7 @@ fun PresetEditorScreen(
                                     promptsConfigured = promptsConfigured,
                                     resourcesConfigured = resourcesConfigured,
                                     originalId = if (isCreate) null else (initialDraft.originalId ?: initialDraft.id),
+                                    createdAtEpochMillis = initialDraft.createdAtEpochMillis,
                                 )
                             readyUi.intents.upsertPreset(draft)
                             onClose()

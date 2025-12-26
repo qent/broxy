@@ -175,6 +175,11 @@ Rename semantics:
 Preset listing:
 
 - `JsonConfigurationRepository.listPresets()` reads all `preset_*.json` files and skips invalid ones with a warning.
+- Presets are ordered by `createdAtEpochMillis` (falls back to file creation time when missing).
+
+Preset metadata:
+
+- `createdAtEpochMillis` is stored when a preset is created; edits preserve it so list order remains stable.
 
 ## Hot reload: ConfigurationWatcher
 

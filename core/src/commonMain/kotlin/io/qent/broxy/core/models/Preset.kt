@@ -9,6 +9,7 @@ data class Preset(
     val tools: List<ToolReference> = emptyList(),
     val prompts: List<PromptReference>? = null,
     val resources: List<ResourceReference>? = null,
+    val createdAtEpochMillis: Long? = null,
 ) {
     companion object {
         const val EMPTY_PRESET_ID: String = "__empty__"
