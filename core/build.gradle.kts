@@ -40,7 +40,7 @@ kotlin {
                 implementation("io.ktor:ktor-client-mock:${property("ktorVersion")}")
                 implementation("io.ktor:ktor-server-test-host:${property("ktorVersion")}")
                 implementation("org.mockito:mockito-core:5.21.0")
-                implementation("org.mockito.kotlin:mockito-kotlin:6.1.0")
+                implementation("org.mockito.kotlin:mockito-kotlin:6.2.3")
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:${property("coroutinesVersion")}")
             }
         }
