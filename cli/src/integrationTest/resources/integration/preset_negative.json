@@ -1,0 +1,16 @@
+{
+  "id": "negative",
+  "name": "negative",
+  "tools": [
+    {
+      "serverId": "test-stdio",
+      "toolName": "add_stdio"
+    },
+    {
+      "serverId": "test-ws",
+      "toolName": "divide_ws"
+    }
+  ],
+  "prompts": [],
+  "resources": []
+}
