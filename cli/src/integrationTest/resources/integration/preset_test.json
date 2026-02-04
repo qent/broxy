@@ -1,0 +1,58 @@
+{
+  "id": "test",
+  "name": "test",
+  "tools": [
+    {
+      "serverId": "test-stdio",
+      "toolName": "add_stdio"
+    },
+    {
+      "serverId": "test-http",
+      "toolName": "subtract_http"
+    },
+    {
+      "serverId": "test-sse",
+      "toolName": "multiply_sse"
+    },
+    {
+      "serverId": "test-ws",
+      "toolName": "divide_ws"
+    }
+  ],
+  "prompts": [
+    {
+      "serverId": "test-stdio",
+      "promptName": "hello_stdio"
+    },
+    {
+      "serverId": "test-http",
+      "promptName": "hello_http"
+    },
+    {
+      "serverId": "test-sse",
+      "promptName": "hello_sse"
+    },
+    {
+      "serverId": "test-ws",
+      "promptName": "hello_ws"
+    }
+  ],
+  "resources": [
+    {
+      "serverId": "test-stdio",
+      "resourceKey": "test://resource/stdio"
+    },
+    {
+      "serverId": "test-http",
+      "resourceKey": "test://resource/http"
+    },
+    {
+      "serverId": "test-sse",
+      "resourceKey": "test://resource/sse"
+    },
+    {
+      "serverId": "test-ws",
+      "resourceKey": "test://resource/ws"
+    }
+  ]
+}
