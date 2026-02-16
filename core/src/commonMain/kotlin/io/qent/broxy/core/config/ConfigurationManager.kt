@@ -147,6 +147,11 @@ class ConfigurationManager(
                 config.copy(connectionRetryCount = count.coerceAtLeast(MIN_RETRY_COUNT)),
             )
 
+        fun updateIgnoreHttpsCertificateErrors(
+            config: McpServersConfig,
+            enabled: Boolean,
+        ): Result<McpServersConfig> = saveConfig(config.copy(ignoreHttpsCertificateErrors = enabled))
+
         fun updateInboundHttpPort(
             config: McpServersConfig,
             port: Int,

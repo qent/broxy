@@ -18,11 +18,21 @@ class McpClientFactory(
     fun create(
         config: TransportConfig,
         env: Map<String, String> = emptyMap(),
+        ignoreHttpsCertificateErrors: Boolean = false,
         logger: Logger = ConsoleLogger,
         auth: AuthConfig? = null,
         authState: OAuthState? = null,
         authorizationStatusListener: AuthorizationStatusListener? = null,
-    ): McpClient = provider.create(config, env, logger, auth, authState, authorizationStatusListener)
+    ): McpClient =
+        provider.create(
+            config,
+            env,
+            ignoreHttpsCertificateErrors,
+            logger,
+            auth,
+            authState,
+            authorizationStatusListener,
+        )
 }
 
 expect fun defaultMcpClientProvider(): McpClientProvider

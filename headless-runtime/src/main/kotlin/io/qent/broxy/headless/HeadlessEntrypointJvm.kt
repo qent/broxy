@@ -194,6 +194,7 @@ private fun buildDownstreams(
                         }
                     },
                     maxRetries = config.connectionRetryCount,
+                    ignoreHttpsCertificateErrors = config.ignoreHttpsCertificateErrors,
                     initialCallTimeoutMillis = timeouts.callTimeoutMillis,
                     initialCapabilitiesTimeoutMillis = timeouts.capabilitiesTimeoutMillis,
                     initialConnectTimeoutMillis = timeouts.connectTimeoutMillis,

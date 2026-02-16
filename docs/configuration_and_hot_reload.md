@@ -44,6 +44,7 @@ Loader:
     - `capabilitiesTimeoutSeconds` (default 30)
     - `authorizationTimeoutSeconds` (default 120)
     - `connectionRetryCount` (default 3)
+    - `ignoreHttpsCertificateErrors` (default false)
     - `capabilitiesRefreshIntervalSeconds` (default 300)
     - `fallbackPromptsAndResourcesToTools` (default false)
     - `adapterMode` (default false)
@@ -65,6 +66,10 @@ revert the toggle and surface a UI error state.
 `defaultPresetId` can also point to built-in presets such as `__empty__` ("No preset")
 and `__all_enabled__` ("All enabled servers").
 
+`ignoreHttpsCertificateErrors` is a global setting for all downstream HTTPS/WSS connections.
+When enabled, Broxy disables certificate validation in Ktor CIO clients (MCP transport and OAuth HTTP flows),
+which allows corporate/self-signed certificates but reduces TLS security guarantees.
+
 ### mcp.json example
 
 ```json
@@ -75,6 +80,7 @@ and `__all_enabled__` ("All enabled servers").
   "capabilitiesTimeoutSeconds": 30,
   "authorizationTimeoutSeconds": 120,
   "connectionRetryCount": 3,
+  "ignoreHttpsCertificateErrors": false,
   "capabilitiesRefreshIntervalSeconds": 300,
   "fallbackPromptsAndResourcesToTools": false,
   "adapterMode": false,

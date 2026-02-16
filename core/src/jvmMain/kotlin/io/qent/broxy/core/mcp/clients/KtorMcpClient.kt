@@ -13,6 +13,7 @@ import io.qent.broxy.core.mcp.auth.OAuthAuthorizer
 import io.qent.broxy.core.mcp.auth.OAuthChallenge
 import io.qent.broxy.core.mcp.auth.OAuthManager
 import io.qent.broxy.core.mcp.auth.OAuthState
+import io.qent.broxy.core.mcp.auth.createDefaultHttpClient
 import io.qent.broxy.core.mcp.auth.peekAuthorizationTimeoutMillis
 import io.qent.broxy.core.models.AuthConfig
 import io.qent.broxy.core.utils.ConsoleLogger
@@ -33,8 +34,17 @@ class KtorMcpClient(
     private val authConfig: AuthConfig? = null,
     private val authState: OAuthState? = null,
     private val connector: SdkConnector? = null,
+    private val ignoreHttpsCertificateErrors: Boolean = false,
     private val oauthAuthorizerFactory: (AuthConfig.OAuth, OAuthState, String, Logger) -> OAuthAuthorizer =
-        { cfg, state, resourceUrl, log -> OAuthManager(cfg, state, resourceUrl, log) },
+        { cfg, state, resourceUrl, log ->
+            OAuthManager(
+                cfg,
+                state,
+                resourceUrl,
+                log,
+                httpClientFactory = { createDefaultHttpClient(ignoreHttpsCertificateErrors) },
+            )
+        },
     private val preauthorizeWithConnector: Boolean = false,
     private val authorizationStatusListener: AuthorizationStatusListener? = null,
 ) : McpClient,
@@ -63,6 +73,7 @@ class KtorMcpClient(
             headersMap = headersMap,
             logger = logger,
             authCoordinator = authCoordinator,
+            ignoreHttpsCertificateErrors = ignoreHttpsCertificateErrors,
         )
     private val capabilityFetcher = CapabilityFetcher(logger)
     private val connectionManager = ConnectionManager()

@@ -19,6 +19,7 @@ actual suspend fun fetchServerCapabilities(
     config: UiMcpServerConfig,
     timeoutSeconds: Int,
     connectionRetryCount: Int,
+    ignoreHttpsCertificateErrors: Boolean,
     logger: Logger?,
     authorizationStatusListener: AuthorizationStatusListener?,
 ): Result<ServerCapabilities> {
@@ -55,6 +56,7 @@ actual suspend fun fetchServerCapabilities(
                 }
             },
             maxRetries = connectionRetryCount.coerceAtLeast(1),
+            ignoreHttpsCertificateErrors = ignoreHttpsCertificateErrors,
             initialCallTimeoutMillis = timeoutMillis,
             initialCapabilitiesTimeoutMillis = timeoutMillis,
             initialConnectTimeoutMillis = timeoutMillis,

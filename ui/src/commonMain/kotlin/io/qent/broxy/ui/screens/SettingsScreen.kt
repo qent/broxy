@@ -107,6 +107,7 @@ fun SettingsScreen(
                     requestTimeoutSeconds = ui.requestTimeoutSeconds,
                     capabilitiesTimeoutSeconds = ui.capabilitiesTimeoutSeconds,
                     connectionRetryCount = ui.connectionRetryCount,
+                    ignoreHttpsCertificateErrors = ui.ignoreHttpsCertificateErrors,
                     capabilitiesRefreshIntervalSeconds = ui.capabilitiesRefreshIntervalSeconds,
                     inboundHttpPort = ui.inboundHttpPort,
                     showTrayIcon = ui.showTrayIcon,
@@ -127,6 +128,10 @@ fun SettingsScreen(
                     onConnectionRetryCountSave = { count ->
                         ui.intents.updateConnectionRetryCount(count)
                         notify(strings.connectionRetryCountSaved(count))
+                    },
+                    onToggleIgnoreHttpsCertificateErrors = { enabled ->
+                        ui.intents.updateIgnoreHttpsCertificateErrors(enabled)
+                        notify(strings.ignoreHttpsCertificateErrorsToggle(enabled))
                     },
                     onCapabilitiesRefreshIntervalSave = { seconds ->
                         ui.intents.updateCapabilitiesRefreshInterval(seconds)
@@ -164,6 +169,7 @@ private fun SettingsContent(
     requestTimeoutSeconds: Int,
     capabilitiesTimeoutSeconds: Int,
     connectionRetryCount: Int,
+    ignoreHttpsCertificateErrors: Boolean,
     capabilitiesRefreshIntervalSeconds: Int,
     inboundHttpPort: Int,
     showTrayIcon: Boolean,
@@ -173,6 +179,7 @@ private fun SettingsContent(
     onRequestTimeoutSave: (Int) -> Unit,
     onCapabilitiesTimeoutSave: (Int) -> Unit,
     onConnectionRetryCountSave: (Int) -> Unit,
+    onToggleIgnoreHttpsCertificateErrors: (Boolean) -> Unit,
     onCapabilitiesRefreshIntervalSave: (Int) -> Unit,
     onToggleTrayIcon: (Boolean) -> Unit,
     onToggleFallbackPromptsAndResourcesToTools: (Boolean) -> Unit,
@@ -328,6 +335,10 @@ private fun SettingsContent(
                     }
                 },
             )
+            IgnoreHttpsCertificateErrorsSetting(
+                checked = ignoreHttpsCertificateErrors,
+                onToggle = onToggleIgnoreHttpsCertificateErrors,
+            )
             TimeoutSetting(
                 title = strings.capabilitiesRefreshTitle,
                 description = strings.capabilitiesRefreshDescription,
@@ -357,6 +368,34 @@ private fun SettingsContent(
                     .fillMaxHeight()
                     .offset(x = -AppTheme.strokeWidths.hairline),
         )
+    }
+}
+
+@Composable
+private fun IgnoreHttpsCertificateErrorsSetting(
+    checked: Boolean,
+    onToggle: (Boolean) -> Unit,
+) {
+    val strings = LocalStrings.current
+    SettingItem(
+        title = strings.ignoreHttpsCertificateErrorsTitle,
+        description = strings.ignoreHttpsCertificateErrorsDescription,
+    ) {
+        SettingControlBox {
+            Switch(
+                checked = checked,
+                onCheckedChange = onToggle,
+                modifier = Modifier.scale(TOGGLE_SCALE),
+                colors =
+                    SwitchDefaults.colors(
+                        checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                        checkedTrackColor = MaterialTheme.colorScheme.primary,
+                        uncheckedThumbColor = MaterialTheme.colorScheme.outline,
+                        uncheckedTrackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        uncheckedBorderColor = MaterialTheme.colorScheme.outline,
+                    ),
+            )
+        }
     }
 }
 

@@ -24,6 +24,7 @@ class ProxyControllerJvmTest {
                 capabilitiesTimeoutSeconds = 1,
                 authorizationTimeoutSeconds = 2,
                 connectionRetryCount = 2,
+                ignoreHttpsCertificateErrors = false,
                 capabilitiesRefreshIntervalSeconds = 30,
                 fallbackPromptsAndResourcesToTools = false,
                 adapterMode = false,
@@ -31,7 +32,20 @@ class ProxyControllerJvmTest {
 
         try {
             assertTrue(startResult.isSuccess)
-            assertTrue(controller.updateServers(emptyList(), 1, 1, 2, 2, 30, false, false).isSuccess)
+            assertTrue(
+                controller
+                    .updateServers(
+                        servers = emptyList(),
+                        callTimeoutSeconds = 1,
+                        capabilitiesTimeoutSeconds = 1,
+                        authorizationTimeoutSeconds = 2,
+                        connectionRetryCount = 2,
+                        ignoreHttpsCertificateErrors = false,
+                        capabilitiesRefreshIntervalSeconds = 30,
+                        fallbackPromptsAndResourcesToTools = false,
+                        adapterMode = false,
+                    ).isSuccess,
+            )
             controller.updateCallTimeout(2)
             controller.updateCapabilitiesTimeout(2)
             controller.updateConnectionRetryCount(3)
@@ -50,6 +64,7 @@ class ProxyControllerJvmTest {
                 capabilitiesTimeoutSeconds = 1,
                 authorizationTimeoutSeconds = 2,
                 connectionRetryCount = 2,
+                ignoreHttpsCertificateErrors = false,
                 capabilitiesRefreshIntervalSeconds = 30,
                 fallbackPromptsAndResourcesToTools = false,
                 adapterMode = false,

@@ -27,6 +27,7 @@ expect suspend fun fetchServerCapabilities(
     config: UiMcpServerConfig,
     timeoutSeconds: Int,
     connectionRetryCount: Int,
+    ignoreHttpsCertificateErrors: Boolean = false,
     logger: Logger? = null,
     authorizationStatusListener: AuthorizationStatusListener? = null,
 ): Result<ServerCapabilities>
@@ -41,6 +42,7 @@ expect suspend fun checkStdioCommandAvailability(
 suspend fun validateServerConnection(
     draft: UiServerDraft,
     connectionRetryCount: Int,
+    ignoreHttpsCertificateErrors: Boolean = false,
     logger: Logger? = null,
 ): Result<Unit> {
     val transport =
@@ -62,6 +64,7 @@ suspend fun validateServerConnection(
         cfg,
         timeoutSeconds = 10,
         connectionRetryCount = connectionRetryCount,
+        ignoreHttpsCertificateErrors = ignoreHttpsCertificateErrors,
         logger = logger,
         authorizationStatusListener = null,
     ).map { }

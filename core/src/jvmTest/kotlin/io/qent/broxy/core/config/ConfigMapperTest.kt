@@ -48,6 +48,7 @@ class ConfigMapperTest {
 
         assertEquals(65_535, config.inboundHttpPort)
         assertEquals(1, config.connectionRetryCount)
+        assertEquals(false, config.ignoreHttpsCertificateErrors)
         assertEquals(false, config.fallbackPromptsAndResourcesToTools)
         assertEquals(false, config.adapterMode)
         assertEquals("alpha", config.servers.single().name)

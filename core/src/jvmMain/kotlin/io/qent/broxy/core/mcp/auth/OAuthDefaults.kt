@@ -3,6 +3,7 @@ package io.qent.broxy.core.mcp.auth
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.HttpTimeout
+import io.qent.broxy.core.mcp.tls.configureCioCertificateValidation
 
 internal const val DEFAULT_OAUTH_TIMEOUT_MILLIS = 30_000L
 internal const val DEFAULT_AUTH_CODE_TIMEOUT_MILLIS = 120_000L
@@ -12,8 +13,9 @@ internal const val CODE_VERIFIER_BYTES = 32
 internal const val STATE_BYTES = 16
 internal const val PKCE_METHOD_S256 = "S256"
 
-internal fun createDefaultHttpClient(): HttpClient =
+internal fun createDefaultHttpClient(ignoreHttpsCertificateErrors: Boolean = false): HttpClient =
     HttpClient(CIO) {
+        configureCioCertificateValidation(ignoreHttpsCertificateErrors)
         expectSuccess = false
         install(HttpTimeout) {
             requestTimeoutMillis = DEFAULT_OAUTH_TIMEOUT_MILLIS

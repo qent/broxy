@@ -46,6 +46,7 @@ internal class ConfigMapper(
                 capabilitiesTimeoutSeconds = normalized.capabilitiesTimeoutSeconds,
                 authorizationTimeoutSeconds = normalized.authorizationTimeoutSeconds,
                 connectionRetryCount = normalized.connectionRetryCount,
+                ignoreHttpsCertificateErrors = normalized.ignoreHttpsCertificateErrors,
                 capabilitiesRefreshIntervalSeconds = normalized.capabilitiesRefreshIntervalSeconds,
                 fallbackPromptsAndResourcesToTools = normalized.fallbackPromptsAndResourcesToTools,
                 adapterMode = normalized.adapterMode,

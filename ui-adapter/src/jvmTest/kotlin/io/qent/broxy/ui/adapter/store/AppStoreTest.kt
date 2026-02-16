@@ -206,6 +206,7 @@ class AppStoreTest {
                         capabilitiesTimeoutSeconds: Int,
                         authorizationTimeoutSeconds: Int,
                         connectionRetryCount: Int,
+                        ignoreHttpsCertificateErrors: Boolean,
                         capabilitiesRefreshIntervalSeconds: Int,
                         fallbackPromptsAndResourcesToTools: Boolean,
                         adapterMode: Boolean,
@@ -230,6 +231,7 @@ class AppStoreTest {
                         capabilitiesTimeoutSeconds: Int,
                         authorizationTimeoutSeconds: Int,
                         connectionRetryCount: Int,
+                        ignoreHttpsCertificateErrors: Boolean,
                         capabilitiesRefreshIntervalSeconds: Int,
                         fallbackPromptsAndResourcesToTools: Boolean,
                         adapterMode: Boolean,
@@ -240,6 +242,8 @@ class AppStoreTest {
                     override fun updateCapabilitiesTimeout(seconds: Int) {}
 
                     override fun updateConnectionRetryCount(count: Int) {}
+
+                    override fun updateIgnoreHttpsCertificateErrors(enabled: Boolean) {}
 
                     override fun updateFallbackPromptsAndResourcesToTools(enabled: Boolean) {}
 
@@ -1237,6 +1241,7 @@ class AppStoreTest {
             val capabilitiesTimeoutSeconds: Int,
             val authorizationTimeoutSeconds: Int,
             val connectionRetryCount: Int,
+            val ignoreHttpsCertificateErrors: Boolean,
             val capabilitiesRefreshIntervalSeconds: Int,
             val fallbackPromptsAndResourcesToTools: Boolean,
             val adapterMode: Boolean,
@@ -1248,6 +1253,7 @@ class AppStoreTest {
         val callTimeoutUpdates = mutableListOf<Int>()
         val capabilityTimeoutUpdates = mutableListOf<Int>()
         val connectionRetryUpdates = mutableListOf<Int>()
+        val ignoreHttpsCertificateErrorsUpdates = mutableListOf<Boolean>()
         val fallbackPromptResourceUpdates = mutableListOf<Boolean>()
         val adapterModeUpdates = mutableListOf<Boolean>()
         val appliedPresets = mutableListOf<String>()
@@ -1261,6 +1267,7 @@ class AppStoreTest {
             capabilitiesTimeoutSeconds: Int,
             authorizationTimeoutSeconds: Int,
             connectionRetryCount: Int,
+            ignoreHttpsCertificateErrors: Boolean,
             capabilitiesRefreshIntervalSeconds: Int,
             fallbackPromptsAndResourcesToTools: Boolean,
             adapterMode: Boolean,
@@ -1274,6 +1281,7 @@ class AppStoreTest {
                     capabilitiesTimeoutSeconds = capabilitiesTimeoutSeconds,
                     authorizationTimeoutSeconds = authorizationTimeoutSeconds,
                     connectionRetryCount = connectionRetryCount,
+                    ignoreHttpsCertificateErrors = ignoreHttpsCertificateErrors,
                     capabilitiesRefreshIntervalSeconds = capabilitiesRefreshIntervalSeconds,
                     fallbackPromptsAndResourcesToTools = fallbackPromptsAndResourcesToTools,
                     adapterMode = adapterMode,
@@ -1295,6 +1303,7 @@ class AppStoreTest {
             capabilitiesTimeoutSeconds: Int,
             authorizationTimeoutSeconds: Int,
             connectionRetryCount: Int,
+            ignoreHttpsCertificateErrors: Boolean,
             capabilitiesRefreshIntervalSeconds: Int,
             fallbackPromptsAndResourcesToTools: Boolean,
             adapterMode: Boolean,
@@ -1313,6 +1322,10 @@ class AppStoreTest {
 
         override fun updateConnectionRetryCount(count: Int) {
             connectionRetryUpdates += count
+        }
+
+        override fun updateIgnoreHttpsCertificateErrors(enabled: Boolean) {
+            ignoreHttpsCertificateErrorsUpdates += enabled
         }
 
         override fun updateFallbackPromptsAndResourcesToTools(enabled: Boolean) {

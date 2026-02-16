@@ -24,6 +24,7 @@ class DefaultMcpServerConnection(
     private val logger: Logger = ConsoleLogger,
     private val cacheTtlMs: Long = DEFAULT_CACHE_TTL_MILLIS,
     private var maxRetries: Int = DEFAULT_MAX_RETRIES,
+    private var ignoreHttpsCertificateErrors: Boolean = false,
     private val authState: OAuthState? =
         when {
             config.auth is AuthConfig.OAuth -> OAuthState()
@@ -38,6 +39,7 @@ class DefaultMcpServerConnection(
         McpClientFactory(defaultMcpClientProvider()).create(
             config.transport,
             config.env,
+            ignoreHttpsCertificateErrors,
             logger,
             config.auth,
             authState,
@@ -80,6 +82,12 @@ class DefaultMcpServerConnection(
 
     init {
         maxRetries = maxRetries.coerceAtLeast(MIN_RETRY_COUNT)
+        if (ignoreHttpsCertificateErrors && config.transport.isTlsCapableTransport()) {
+            logger.warn(
+                "HTTPS certificate validation is disabled for '${config.name}'. " +
+                    "Use this only for trusted corporate/self-signed environments.",
+            )
+        }
         authState?.let { state ->
             runBlocking {
                 state.withLock {
@@ -105,6 +113,16 @@ class DefaultMcpServerConnection(
     fun updateConnectionRetryCount(count: Int) {
         maxRetries = count.coerceAtLeast(MIN_RETRY_COUNT)
         logger.info("Updated connection retries for '${config.name}' to $maxRetries")
+    }
+
+    fun updateIgnoreHttpsCertificateErrors(enabled: Boolean) {
+        ignoreHttpsCertificateErrors = enabled
+        if (enabled && config.transport.isTlsCapableTransport()) {
+            logger.warn(
+                "HTTPS certificate validation is disabled for '${config.name}'. " +
+                    "Use this only for trusted corporate/self-signed environments.",
+            )
+        }
     }
 
     fun updateAuthorizationTimeout(millis: Long) {
@@ -364,3 +382,8 @@ class DefaultMcpServerConnection(
         }
     }
 }
+
+private fun TransportConfig.isTlsCapableTransport(): Boolean =
+    this is TransportConfig.HttpTransport ||
+        this is TransportConfig.StreamableHttpTransport ||
+        this is TransportConfig.WebSocketTransport

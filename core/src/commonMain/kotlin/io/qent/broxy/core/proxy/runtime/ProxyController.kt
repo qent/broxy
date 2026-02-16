@@ -28,6 +28,7 @@ interface ProxyController {
         capabilitiesTimeoutSeconds: Int,
         authorizationTimeoutSeconds: Int,
         connectionRetryCount: Int,
+        ignoreHttpsCertificateErrors: Boolean,
         capabilitiesRefreshIntervalSeconds: Int,
         fallbackPromptsAndResourcesToTools: Boolean,
         adapterMode: Boolean,
@@ -48,6 +49,7 @@ interface ProxyController {
         capabilitiesTimeoutSeconds: Int,
         authorizationTimeoutSeconds: Int,
         connectionRetryCount: Int,
+        ignoreHttpsCertificateErrors: Boolean,
         capabilitiesRefreshIntervalSeconds: Int,
         fallbackPromptsAndResourcesToTools: Boolean,
         adapterMode: Boolean,
@@ -58,6 +60,8 @@ interface ProxyController {
     fun updateCapabilitiesTimeout(seconds: Int)
 
     fun updateConnectionRetryCount(count: Int)
+
+    fun updateIgnoreHttpsCertificateErrors(enabled: Boolean)
 
     fun updateFallbackPromptsAndResourcesToTools(enabled: Boolean)
 

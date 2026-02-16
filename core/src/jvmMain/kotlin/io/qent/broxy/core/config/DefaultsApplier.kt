@@ -27,6 +27,7 @@ internal class DefaultsApplier(
             authorizationTimeoutSeconds = root.authorizationTimeoutSeconds ?: defaults.authorizationTimeoutSeconds,
             connectionRetryCount =
                 (root.connectionRetryCount ?: defaults.connectionRetryCount).coerceAtLeast(MIN_RETRY_COUNT),
+            ignoreHttpsCertificateErrors = root.ignoreHttpsCertificateErrors ?: defaults.ignoreHttpsCertificateErrors,
             capabilitiesRefreshIntervalSeconds =
                 root.capabilitiesRefreshIntervalSeconds ?: defaults.capabilitiesRefreshIntervalSeconds,
             fallbackPromptsAndResourcesToTools = root.fallbackPromptsAndResourcesToTools ?: false,

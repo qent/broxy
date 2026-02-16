@@ -196,6 +196,7 @@ class ProxyRuntimeTest {
             capabilitiesTimeoutSeconds: Int,
             authorizationTimeoutSeconds: Int,
             connectionRetryCount: Int,
+            ignoreHttpsCertificateErrors: Boolean,
             capabilitiesRefreshIntervalSeconds: Int,
             fallbackPromptsAndResourcesToTools: Boolean,
             adapterMode: Boolean,
@@ -217,6 +218,7 @@ class ProxyRuntimeTest {
             capabilitiesTimeoutSeconds: Int,
             authorizationTimeoutSeconds: Int,
             connectionRetryCount: Int,
+            ignoreHttpsCertificateErrors: Boolean,
             capabilitiesRefreshIntervalSeconds: Int,
             fallbackPromptsAndResourcesToTools: Boolean,
             adapterMode: Boolean,
@@ -227,6 +229,8 @@ class ProxyRuntimeTest {
         override fun updateCapabilitiesTimeout(seconds: Int) {}
 
         override fun updateConnectionRetryCount(count: Int) {}
+
+        override fun updateIgnoreHttpsCertificateErrors(enabled: Boolean) {}
 
         override fun updateFallbackPromptsAndResourcesToTools(enabled: Boolean) {}
 

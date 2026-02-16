@@ -354,6 +354,7 @@ class AppStore(
             proxyRuntime.updateCallTimeout(uiConfig.requestTimeoutSeconds)
             proxyRuntime.updateCapabilitiesTimeout(uiConfig.capabilitiesTimeoutSeconds)
             proxyRuntime.updateConnectionRetryCount(uiConfig.connectionRetryCount)
+            proxyRuntime.updateIgnoreHttpsCertificateErrors(uiConfig.ignoreHttpsCertificateErrors)
             proxyRuntime.updateFallbackPromptsAndResourcesToTools(uiConfig.fallbackPromptsAndResourcesToTools)
             proxyRuntime.updateAdapterMode(uiConfig.adapterMode)
             updateSnapshot {
@@ -367,6 +368,7 @@ class AppStore(
                     capabilitiesTimeoutSeconds = uiConfig.capabilitiesTimeoutSeconds,
                     authorizationTimeoutSeconds = uiConfig.authorizationTimeoutSeconds,
                     connectionRetryCount = uiConfig.connectionRetryCount,
+                    ignoreHttpsCertificateErrors = uiConfig.ignoreHttpsCertificateErrors,
                     capabilitiesRefreshIntervalSeconds = clampRefreshIntervalSeconds(uiConfig.capabilitiesRefreshIntervalSeconds),
                     showTrayIcon = uiSettings.showTrayIcon,
                     fallbackPromptsAndResourcesToTools = uiConfig.fallbackPromptsAndResourcesToTools,
@@ -388,6 +390,7 @@ class AppStore(
             capabilitiesTimeoutSeconds = snapshot.capabilitiesTimeoutSeconds,
             authorizationTimeoutSeconds = snapshot.authorizationTimeoutSeconds,
             connectionRetryCount = snapshot.connectionRetryCount,
+            ignoreHttpsCertificateErrors = snapshot.ignoreHttpsCertificateErrors,
             capabilitiesRefreshIntervalSeconds = snapshot.capabilitiesRefreshIntervalSeconds,
             fallbackPromptsAndResourcesToTools = snapshot.fallbackPromptsAndResourcesToTools,
             adapterMode = snapshot.adapterMode,

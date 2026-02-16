@@ -12,6 +12,7 @@ private object DefaultJvmMcpClientProvider : McpClientProvider {
     override fun create(
         config: TransportConfig,
         env: Map<String, String>,
+        ignoreHttpsCertificateErrors: Boolean,
         logger: Logger,
         auth: AuthConfig?,
         authState: OAuthState?,
@@ -34,6 +35,7 @@ private object DefaultJvmMcpClientProvider : McpClientProvider {
                     logger = logger,
                     authConfig = auth,
                     authState = authState,
+                    ignoreHttpsCertificateErrors = ignoreHttpsCertificateErrors,
                     authorizationStatusListener = authorizationStatusListener,
                 )
 
@@ -45,6 +47,7 @@ private object DefaultJvmMcpClientProvider : McpClientProvider {
                     logger = logger,
                     authConfig = auth,
                     authState = authState,
+                    ignoreHttpsCertificateErrors = ignoreHttpsCertificateErrors,
                     authorizationStatusListener = authorizationStatusListener,
                 )
 
@@ -56,6 +59,7 @@ private object DefaultJvmMcpClientProvider : McpClientProvider {
                     logger = logger,
                     authConfig = auth,
                     authState = authState,
+                    ignoreHttpsCertificateErrors = ignoreHttpsCertificateErrors,
                     authorizationStatusListener = authorizationStatusListener,
                 )
         }

@@ -11,6 +11,7 @@ internal data class FileMcpRoot(
     val capabilitiesTimeoutSeconds: Int? = null,
     val authorizationTimeoutSeconds: Int? = null,
     val connectionRetryCount: Int? = null,
+    val ignoreHttpsCertificateErrors: Boolean? = null,
     val capabilitiesRefreshIntervalSeconds: Int? = null,
     val fallbackPromptsAndResourcesToTools: Boolean? = null,
     val adapterMode: Boolean? = null,

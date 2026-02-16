@@ -216,6 +216,10 @@ interface AppStrings {
 
     val connectionRetryCountDescription: String
 
+    val ignoreHttpsCertificateErrorsTitle: String
+
+    val ignoreHttpsCertificateErrorsDescription: String
+
     val capabilitiesRefreshTitle: String
 
     val capabilitiesRefreshDescription: String
@@ -253,6 +257,8 @@ interface AppStrings {
     fun capabilitiesTimeoutSaved(seconds: Int): String
 
     fun connectionRetryCountSaved(count: Int): String
+
+    fun ignoreHttpsCertificateErrorsToggle(enabled: Boolean): String
 
     fun refreshIntervalSaved(seconds: Int): String
 
@@ -553,6 +559,11 @@ object EnglishStrings : AppStrings {
 
     override val connectionRetryCountDescription = "Retry attempts when connecting to servers."
 
+    override val ignoreHttpsCertificateErrorsTitle = "Ignore HTTPS certificate errors"
+
+    override val ignoreHttpsCertificateErrorsDescription =
+        "Allow self-signed/invalid certificates for all downstream HTTPS/WSS MCP connections."
+
     override val capabilitiesRefreshTitle = "Capabilities refresh"
 
     override val capabilitiesRefreshDescription = "Background refresh interval (seconds)."
@@ -591,6 +602,9 @@ object EnglishStrings : AppStrings {
     override fun capabilitiesTimeoutSaved(seconds: Int): String = "Capabilities timeout saved: ${seconds}s"
 
     override fun connectionRetryCountSaved(count: Int): String = "Connection retries saved: $count"
+
+    override fun ignoreHttpsCertificateErrorsToggle(enabled: Boolean): String =
+        if (enabled) "HTTPS certificate errors ignored" else "HTTPS certificate validation enabled"
 
     override fun refreshIntervalSaved(seconds: Int): String = "Refresh interval saved: ${seconds}s"
 

@@ -92,6 +92,7 @@ private class FakeProxyController : ProxyController {
         val capabilitiesTimeoutSeconds: Int,
         val authorizationTimeoutSeconds: Int,
         val connectionRetryCount: Int,
+        val ignoreHttpsCertificateErrors: Boolean,
         val capabilitiesRefreshIntervalSeconds: Int,
         val fallbackPromptsAndResourcesToTools: Boolean,
         val adapterMode: Boolean,
@@ -111,6 +112,7 @@ private class FakeProxyController : ProxyController {
         capabilitiesTimeoutSeconds: Int,
         authorizationTimeoutSeconds: Int,
         connectionRetryCount: Int,
+        ignoreHttpsCertificateErrors: Boolean,
         capabilitiesRefreshIntervalSeconds: Int,
         fallbackPromptsAndResourcesToTools: Boolean,
         adapterMode: Boolean,
@@ -124,6 +126,7 @@ private class FakeProxyController : ProxyController {
                 capabilitiesTimeoutSeconds,
                 authorizationTimeoutSeconds,
                 connectionRetryCount,
+                ignoreHttpsCertificateErrors,
                 capabilitiesRefreshIntervalSeconds,
                 fallbackPromptsAndResourcesToTools,
                 adapterMode,
@@ -141,6 +144,7 @@ private class FakeProxyController : ProxyController {
         capabilitiesTimeoutSeconds: Int,
         authorizationTimeoutSeconds: Int,
         connectionRetryCount: Int,
+        ignoreHttpsCertificateErrors: Boolean,
         capabilitiesRefreshIntervalSeconds: Int,
         fallbackPromptsAndResourcesToTools: Boolean,
         adapterMode: Boolean,
@@ -151,6 +155,8 @@ private class FakeProxyController : ProxyController {
     override fun updateCapabilitiesTimeout(seconds: Int) = Unit
 
     override fun updateConnectionRetryCount(count: Int) = Unit
+
+    override fun updateIgnoreHttpsCertificateErrors(enabled: Boolean) = Unit
 
     override fun updateFallbackPromptsAndResourcesToTools(enabled: Boolean) = Unit
 

@@ -14,6 +14,7 @@ fun interface McpClientProvider {
     fun create(
         config: TransportConfig,
         env: Map<String, String>,
+        ignoreHttpsCertificateErrors: Boolean,
         logger: Logger,
         auth: AuthConfig?,
         authState: OAuthState?,

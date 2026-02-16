@@ -165,6 +165,12 @@ of servers without affecting others.
 
 File: `core/src/jvmMain/kotlin/io/qent/broxy/core/mcp/clients/KtorMcpClient.kt`
 
+TLS/certificate behavior:
+
+- Global `mcp.json` setting `ignoreHttpsCertificateErrors` controls HTTPS/WSS certificate validation for downstream HTTP/SSE/Streamable HTTP/WebSocket sessions.
+- When enabled, Ktor CIO clients use a permissive trust manager for both MCP transport connections and OAuth HTTP discovery/token calls.
+- This is intended for trusted corporate/self-signed environments only.
+
 Timeout behavior:
 
 - The client sets Ktor `HttpTimeout` for connect timeouts only; request/socket timeouts are not set so

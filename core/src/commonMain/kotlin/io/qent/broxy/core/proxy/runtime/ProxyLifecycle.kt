@@ -38,6 +38,7 @@ class ProxyLifecycle(
                 capabilitiesTimeoutSeconds = config.capabilitiesTimeoutSeconds,
                 authorizationTimeoutSeconds = config.authorizationTimeoutSeconds,
                 connectionRetryCount = config.connectionRetryCount,
+                ignoreHttpsCertificateErrors = config.ignoreHttpsCertificateErrors,
                 capabilitiesRefreshIntervalSeconds = config.capabilitiesRefreshIntervalSeconds,
                 fallbackPromptsAndResourcesToTools = config.fallbackPromptsAndResourcesToTools,
                 adapterMode = config.adapterMode,
@@ -93,6 +94,7 @@ class ProxyLifecycle(
                 capabilitiesTimeoutSeconds = config.capabilitiesTimeoutSeconds,
                 authorizationTimeoutSeconds = config.authorizationTimeoutSeconds,
                 connectionRetryCount = config.connectionRetryCount,
+                ignoreHttpsCertificateErrors = config.ignoreHttpsCertificateErrors,
                 capabilitiesRefreshIntervalSeconds = config.capabilitiesRefreshIntervalSeconds,
                 fallbackPromptsAndResourcesToTools = config.fallbackPromptsAndResourcesToTools,
                 adapterMode = config.adapterMode,
@@ -118,6 +120,11 @@ class ProxyLifecycle(
     override fun updateConnectionRetryCount(count: Int) {
         controller.updateConnectionRetryCount(count)
         currentConfig = currentConfig?.copy(connectionRetryCount = count)
+    }
+
+    override fun updateIgnoreHttpsCertificateErrors(enabled: Boolean) {
+        controller.updateIgnoreHttpsCertificateErrors(enabled)
+        currentConfig = currentConfig?.copy(ignoreHttpsCertificateErrors = enabled)
     }
 
     override fun updateFallbackPromptsAndResourcesToTools(enabled: Boolean) {

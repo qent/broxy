@@ -76,6 +76,10 @@ internal data class ManagedDownstream(
         connection.updateConnectionRetryCount(count)
     }
 
+    fun updateIgnoreHttpsCertificateErrors(enabled: Boolean) {
+        connection.updateIgnoreHttpsCertificateErrors(enabled)
+    }
+
     suspend fun shutdown() {
         runCatching { isolated.disconnect() }
         isolated.close()
@@ -106,11 +110,18 @@ internal class DownstreamManager(
         servers: List<McpServerConfig>,
         timeouts: TimeoutConfig,
         connectionRetryCount: Int,
+        ignoreHttpsCertificateErrors: Boolean,
     ): DownstreamSnapshot {
         val enabledConfigs = servers.filter { it.enabled }
         val managed = mutableMapOf<String, ManagedDownstream>()
         for (cfg in enabledConfigs) {
-            managed[cfg.id] = createManagedDownstream(cfg, timeouts, connectionRetryCount)
+            managed[cfg.id] =
+                createManagedDownstream(
+                    config = cfg,
+                    timeouts = timeouts,
+                    connectionRetryCount = connectionRetryCount,
+                    ignoreHttpsCertificateErrors = ignoreHttpsCertificateErrors,
+                )
         }
         val downstreams = enabledConfigs.mapNotNull { managed[it.id]?.isolated }
         return DownstreamSnapshot(managed = managed, downstreams = downstreams)
@@ -124,11 +135,25 @@ internal class DownstreamManager(
         nextTimeouts: TimeoutConfig,
         previousRetryCount: Int,
         nextRetryCount: Int,
+        previousIgnoreHttpsCertificateErrors: Boolean,
+        nextIgnoreHttpsCertificateErrors: Boolean,
     ): DownstreamUpdate {
         val enabledConfigs = servers.filter { it.enabled }
-        val updatePlan = buildUpdatePlan(enabledConfigs, current, nextTimeouts, nextRetryCount)
+        val updatePlan =
+            buildUpdatePlan(
+                enabledConfigs = enabledConfigs,
+                current = current,
+                nextTimeouts = nextTimeouts,
+                nextRetryCount = nextRetryCount,
+                nextIgnoreHttpsCertificateErrors = nextIgnoreHttpsCertificateErrors,
+            )
         applyTimeoutUpdates(updatePlan, previousTimeouts, nextTimeouts)
         applyRetryUpdates(updatePlan, previousRetryCount, nextRetryCount)
+        applyIgnoreHttpsCertificateErrorsUpdates(
+            plan = updatePlan,
+            previousIgnoreHttpsCertificateErrors = previousIgnoreHttpsCertificateErrors,
+            nextIgnoreHttpsCertificateErrors = nextIgnoreHttpsCertificateErrors,
+        )
         val downstreams = enabledConfigs.mapNotNull { updatePlan.updated[it.id]?.isolated }
         return DownstreamUpdate(
             snapshot = DownstreamSnapshot(managed = updatePlan.updated, downstreams = downstreams),
@@ -150,6 +175,7 @@ internal class DownstreamManager(
         current: Map<String, ManagedDownstream>,
         nextTimeouts: TimeoutConfig,
         nextRetryCount: Int,
+        nextIgnoreHttpsCertificateErrors: Boolean,
     ): UpdatePlan {
         val nextById = enabledConfigs.associateBy { it.id }
         val updated = mutableMapOf<String, ManagedDownstream>()
@@ -166,7 +192,13 @@ internal class DownstreamManager(
                 if (existing != null) {
                     toDisconnect += existing
                 }
-                val created = createManagedDownstream(cfg, nextTimeouts, nextRetryCount)
+                val created =
+                    createManagedDownstream(
+                        config = cfg,
+                        timeouts = nextTimeouts,
+                        connectionRetryCount = nextRetryCount,
+                        ignoreHttpsCertificateErrors = nextIgnoreHttpsCertificateErrors,
+                    )
                 updated[cfg.id] = created
                 changedIds += cfg.id
             }
@@ -216,10 +248,23 @@ internal class DownstreamManager(
         }
     }
 
+    private fun applyIgnoreHttpsCertificateErrorsUpdates(
+        plan: UpdatePlan,
+        previousIgnoreHttpsCertificateErrors: Boolean,
+        nextIgnoreHttpsCertificateErrors: Boolean,
+    ) {
+        if (previousIgnoreHttpsCertificateErrors == nextIgnoreHttpsCertificateErrors) return
+        plan.reusedIds.forEach { id ->
+            val managed = plan.updated[id] ?: return@forEach
+            managed.updateIgnoreHttpsCertificateErrors(nextIgnoreHttpsCertificateErrors)
+        }
+    }
+
     private suspend fun createManagedDownstream(
         config: McpServerConfig,
         timeouts: TimeoutConfig,
         connectionRetryCount: Int,
+        ignoreHttpsCertificateErrors: Boolean,
     ): ManagedDownstream {
         val authState = loadAuthState(config)
         val authorizationListener =
@@ -256,6 +301,7 @@ internal class DownstreamManager(
                 authorizationStatusListener = authorizationListener,
                 authStateObserver = authStateObserver,
                 maxRetries = connectionRetryCount,
+                ignoreHttpsCertificateErrors = ignoreHttpsCertificateErrors,
                 initialCallTimeoutMillis = timeouts.callTimeoutMillis,
                 initialCapabilitiesTimeoutMillis = timeouts.capabilitiesTimeoutMillis,
                 initialAuthorizationTimeoutMillis = timeouts.authorizationTimeoutMillis,

@@ -15,6 +15,7 @@ import io.ktor.http.Url
 import io.modelcontextprotocol.kotlin.sdk.client.mcpSse
 import io.modelcontextprotocol.kotlin.sdk.client.mcpStreamableHttp
 import io.modelcontextprotocol.kotlin.sdk.client.mcpWebSocket
+import io.qent.broxy.core.mcp.tls.configureCioCertificateValidation
 import io.qent.broxy.core.utils.Logger
 import kotlin.time.Duration.Companion.seconds
 
@@ -29,6 +30,7 @@ internal class TransportConnector(
     private val headersMap: Map<String, String>,
     private val logger: Logger,
     private val authCoordinator: AuthCoordinator,
+    private val ignoreHttpsCertificateErrors: Boolean,
 ) {
     private companion object {
         private const val NANOS_PER_MILLI = 1_000_000
@@ -56,6 +58,7 @@ internal class TransportConnector(
     private fun createHttpClient(connectTimeout: Long): HttpClient {
         val client =
             HttpClient(CIO) {
+                configureCioCertificateValidation(ignoreHttpsCertificateErrors)
                 if (mode == KtorMcpClient.Mode.Sse || mode == KtorMcpClient.Mode.StreamableHttp) install(SSE)
                 if (mode == KtorMcpClient.Mode.WebSocket) install(WebSockets)
                 install(HttpTimeout) {

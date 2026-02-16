@@ -55,6 +55,9 @@ private class JvmProxyController(
     private var connectionRetryCount: Int = DEFAULT_CONNECTION_RETRY_COUNT
 
     @Volatile
+    private var ignoreHttpsCertificateErrors: Boolean = false
+
+    @Volatile
     private var fallbackPromptsAndResourcesToTools: Boolean = false
 
     @Volatile
@@ -72,6 +75,7 @@ private class JvmProxyController(
         capabilitiesTimeoutSeconds: Int,
         authorizationTimeoutSeconds: Int,
         connectionRetryCount: Int,
+        ignoreHttpsCertificateErrors: Boolean,
         capabilitiesRefreshIntervalSeconds: Int,
         fallbackPromptsAndResourcesToTools: Boolean,
         adapterMode: Boolean,
@@ -86,6 +90,7 @@ private class JvmProxyController(
                     capabilitiesTimeoutSeconds = capabilitiesTimeoutSeconds,
                     authorizationTimeoutSeconds = authorizationTimeoutSeconds,
                     connectionRetryCount = connectionRetryCount,
+                    ignoreHttpsCertificateErrors = ignoreHttpsCertificateErrors,
                     capabilitiesRefreshIntervalSeconds = capabilitiesRefreshIntervalSeconds,
                     fallbackPromptsAndResourcesToTools = fallbackPromptsAndResourcesToTools,
                     adapterMode = adapterMode,
@@ -109,6 +114,7 @@ private class JvmProxyController(
         capabilitiesTimeoutSeconds: Int,
         authorizationTimeoutSeconds: Int,
         connectionRetryCount: Int,
+        ignoreHttpsCertificateErrors: Boolean,
         capabilitiesRefreshIntervalSeconds: Int,
         fallbackPromptsAndResourcesToTools: Boolean,
         adapterMode: Boolean,
@@ -121,6 +127,7 @@ private class JvmProxyController(
                     capabilitiesTimeoutSeconds = capabilitiesTimeoutSeconds,
                     authorizationTimeoutSeconds = authorizationTimeoutSeconds,
                     connectionRetryCount = connectionRetryCount,
+                    ignoreHttpsCertificateErrors = ignoreHttpsCertificateErrors,
                     capabilitiesRefreshIntervalSeconds = capabilitiesRefreshIntervalSeconds,
                     fallbackPromptsAndResourcesToTools = fallbackPromptsAndResourcesToTools,
                     adapterMode = adapterMode,
@@ -142,6 +149,11 @@ private class JvmProxyController(
     override fun updateConnectionRetryCount(count: Int) {
         connectionRetryCount = count.coerceAtLeast(MIN_RETRY_COUNT)
         managedDownstreams.values.forEach { it.updateConnectionRetryCount(connectionRetryCount) }
+    }
+
+    override fun updateIgnoreHttpsCertificateErrors(enabled: Boolean) {
+        ignoreHttpsCertificateErrors = enabled
+        managedDownstreams.values.forEach { it.updateIgnoreHttpsCertificateErrors(enabled) }
     }
 
     override fun updateFallbackPromptsAndResourcesToTools(enabled: Boolean) {
@@ -186,6 +198,7 @@ private class JvmProxyController(
         capabilitiesTimeoutSeconds: Int,
         authorizationTimeoutSeconds: Int,
         connectionRetryCount: Int,
+        ignoreHttpsCertificateErrors: Boolean,
         capabilitiesRefreshIntervalSeconds: Int,
         fallbackPromptsAndResourcesToTools: Boolean,
         adapterMode: Boolean,
@@ -195,6 +208,7 @@ private class JvmProxyController(
         capabilitiesTimeoutMillis = capabilitiesTimeoutSeconds.toLong() * MILLIS_PER_SECOND
         authorizationTimeoutMillis = authorizationTimeoutSeconds.toLong() * MILLIS_PER_SECOND
         this.connectionRetryCount = connectionRetryCount.coerceAtLeast(MIN_RETRY_COUNT)
+        this.ignoreHttpsCertificateErrors = ignoreHttpsCertificateErrors
         refreshScheduler.updateIntervalSeconds(capabilitiesRefreshIntervalSeconds)
         this.fallbackPromptsAndResourcesToTools = fallbackPromptsAndResourcesToTools
         this.adapterMode = adapterMode
@@ -205,7 +219,13 @@ private class JvmProxyController(
                 capabilitiesTimeoutMillis = capabilitiesTimeoutMillis,
                 authorizationTimeoutMillis = authorizationTimeoutMillis,
             )
-        val snapshot = downstreamManager.buildInitial(servers, timeouts, this.connectionRetryCount)
+        val snapshot =
+            downstreamManager.buildInitial(
+                servers = servers,
+                timeouts = timeouts,
+                connectionRetryCount = this.connectionRetryCount,
+                ignoreHttpsCertificateErrors = this.ignoreHttpsCertificateErrors,
+            )
         val downstreams = snapshot.downstreams
         val awaitInitialCapabilities = inbound is TransportConfig.StdioTransport
         refreshScheduler.resetLimiter(downstreams.size)
@@ -252,6 +272,7 @@ private class JvmProxyController(
         capabilitiesTimeoutSeconds: Int,
         authorizationTimeoutSeconds: Int,
         connectionRetryCount: Int,
+        ignoreHttpsCertificateErrors: Boolean,
         capabilitiesRefreshIntervalSeconds: Int,
         fallbackPromptsAndResourcesToTools: Boolean,
         adapterMode: Boolean,
@@ -266,12 +287,14 @@ private class JvmProxyController(
                 authorizationTimeoutMillis = authorizationTimeoutMillis,
             )
         val previousConnectionRetryCount = this.connectionRetryCount
+        val previousIgnoreHttpsCertificateErrors = this.ignoreHttpsCertificateErrors
         val previousFallbackPromptsAndResourcesToTools = this.fallbackPromptsAndResourcesToTools
         val previousAdapterMode = this.adapterMode
         callTimeoutMillis = callTimeoutSeconds.toLong() * MILLIS_PER_SECOND
         capabilitiesTimeoutMillis = capabilitiesTimeoutSeconds.toLong() * MILLIS_PER_SECOND
         authorizationTimeoutMillis = authorizationTimeoutSeconds.toLong() * MILLIS_PER_SECOND
         this.connectionRetryCount = connectionRetryCount.coerceAtLeast(MIN_RETRY_COUNT)
+        this.ignoreHttpsCertificateErrors = ignoreHttpsCertificateErrors
         refreshScheduler.updateIntervalSeconds(capabilitiesRefreshIntervalSeconds)
         this.fallbackPromptsAndResourcesToTools = fallbackPromptsAndResourcesToTools
         this.adapterMode = adapterMode
@@ -291,6 +314,8 @@ private class JvmProxyController(
                 nextTimeouts = nextTimeouts,
                 previousRetryCount = previousConnectionRetryCount,
                 nextRetryCount = this.connectionRetryCount,
+                previousIgnoreHttpsCertificateErrors = previousIgnoreHttpsCertificateErrors,
+                nextIgnoreHttpsCertificateErrors = this.ignoreHttpsCertificateErrors,
             )
 
         managedDownstreams = update.snapshot.managed

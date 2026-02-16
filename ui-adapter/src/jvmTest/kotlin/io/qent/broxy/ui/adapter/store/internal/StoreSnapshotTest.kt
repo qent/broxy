@@ -128,6 +128,8 @@ class StoreSnapshotTest {
 
         override fun updateConnectionRetryCount(count: Int) {}
 
+        override fun updateIgnoreHttpsCertificateErrors(enabled: Boolean) {}
+
         override fun updateCapabilitiesRefreshInterval(seconds: Int) {}
 
         override fun updateTrayIconVisibility(visible: Boolean) {}

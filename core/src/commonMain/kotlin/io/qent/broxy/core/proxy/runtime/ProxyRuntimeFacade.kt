@@ -37,6 +37,8 @@ interface ProxyRuntimeFacade {
 
     fun updateConnectionRetryCount(count: Int)
 
+    fun updateIgnoreHttpsCertificateErrors(enabled: Boolean)
+
     fun updateFallbackPromptsAndResourcesToTools(enabled: Boolean)
 
     fun updateAdapterMode(enabled: Boolean)

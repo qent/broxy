@@ -31,7 +31,17 @@ fun createAppStore(
     proxyFactory: (CollectingLogger) -> ProxyController = { createProxyController(it) },
     capabilityFetcher: CapabilityFetcher =
         { config, timeout, retries, authorizationStatusListener ->
-            fetchServerCapabilities(config.toUi(), timeout, retries, logger, authorizationStatusListener)
+            val ignoreHttpsCertificateErrors =
+                runCatching { repository.loadMcpConfig().ignoreHttpsCertificateErrors }
+                    .getOrDefault(false)
+            fetchServerCapabilities(
+                config = config.toUi(),
+                timeoutSeconds = timeout,
+                connectionRetryCount = retries,
+                ignoreHttpsCertificateErrors = ignoreHttpsCertificateErrors,
+                logger = logger,
+                authorizationStatusListener = authorizationStatusListener,
+            )
         },
     now: () -> Long = { System.currentTimeMillis() },
     enableBackgroundRefresh: Boolean = true,

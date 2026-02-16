@@ -873,6 +873,33 @@ internal class AppStoreIntents(
         }
     }
 
+    override fun updateIgnoreHttpsCertificateErrors(enabled: Boolean) {
+        scope.launch {
+            if (state.snapshot.ignoreHttpsCertificateErrors == enabled) return@launch
+            val previous = state.snapshot.ignoreHttpsCertificateErrors
+            val previousConfig = state.snapshotConfig()
+            state.updateSnapshot { copy(ignoreHttpsCertificateErrors = enabled) }
+            proxyRuntimeFacade.updateIgnoreHttpsCertificateErrors(enabled)
+            val result =
+                withContext(ioDispatcher) {
+                    configurationManager.settings.updateIgnoreHttpsCertificateErrors(previousConfig.toCore(), enabled)
+                }
+            if (result.isFailure) {
+                val msg =
+                    logFailure(
+                        logger,
+                        "updateIgnoreHttpsCertificateErrors",
+                        result.exceptionOrNull(),
+                        "Failed to update HTTPS certificate handling",
+                    )
+                state.updateSnapshot { copy(ignoreHttpsCertificateErrors = previous) }
+                proxyRuntimeFacade.updateIgnoreHttpsCertificateErrors(previous)
+                state.setError(msg)
+            }
+            publishReady()
+        }
+    }
+
     override fun updateCapabilitiesRefreshInterval(seconds: Int) {
         scope.launch {
             val clamped = clampRefreshIntervalSeconds(seconds)

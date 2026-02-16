@@ -57,6 +57,7 @@ class JsonConfigurationRepositoryTest {
         assertEquals(5, config.capabilitiesTimeoutSeconds)
         assertEquals(120, config.authorizationTimeoutSeconds)
         assertEquals(3, config.connectionRetryCount)
+        assertEquals(false, config.ignoreHttpsCertificateErrors)
         assertEquals(1, config.servers.size)
         val server = config.servers.single()
         assertEquals("alpha", server.id)

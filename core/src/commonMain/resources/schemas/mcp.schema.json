@@ -59,6 +59,11 @@
       "description": "Maximum connection attempts when connecting to downstream servers.",
       "default": 3
     },
+    "ignoreHttpsCertificateErrors": {
+      "type": "boolean",
+      "description": "Disable HTTPS/WSS certificate validation for downstream MCP connections (use only in trusted environments).",
+      "default": false
+    },
     "capabilitiesRefreshIntervalSeconds": {
       "type": "integer",
       "minimum": 30,

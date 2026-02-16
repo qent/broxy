@@ -29,6 +29,7 @@ sealed class UIState {
         val requestTimeoutSeconds: Int,
         val capabilitiesTimeoutSeconds: Int,
         val connectionRetryCount: Int,
+        val ignoreHttpsCertificateErrors: Boolean,
         val capabilitiesRefreshIntervalSeconds: Int,
         val showTrayIcon: Boolean,
         val fallbackPromptsAndResourcesToTools: Boolean,
@@ -81,6 +82,8 @@ interface Intents {
     fun updateCapabilitiesTimeout(seconds: Int)
 
     fun updateConnectionRetryCount(count: Int)
+
+    fun updateIgnoreHttpsCertificateErrors(enabled: Boolean)
 
     fun updateCapabilitiesRefreshInterval(seconds: Int)
 

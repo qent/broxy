@@ -11,6 +11,7 @@ data class McpServersConfig(
     val capabilitiesTimeoutSeconds: Int = 30,
     val authorizationTimeoutSeconds: Int = 120,
     val connectionRetryCount: Int = 3,
+    val ignoreHttpsCertificateErrors: Boolean = false,
     val capabilitiesRefreshIntervalSeconds: Int = 300,
     val fallbackPromptsAndResourcesToTools: Boolean = false,
     val adapterMode: Boolean = false,
