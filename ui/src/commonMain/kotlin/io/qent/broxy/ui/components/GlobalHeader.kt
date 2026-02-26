@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -41,7 +42,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarColors
 import androidx.compose.material3.TopAppBarDefaults
@@ -66,6 +66,8 @@ import io.qent.broxy.ui.adapter.models.UiRemoteConnectionState
 import io.qent.broxy.ui.adapter.models.UiRemoteStatus
 import io.qent.broxy.ui.adapter.store.Intents
 import io.qent.broxy.ui.adapter.store.UIState
+import io.qent.broxy.ui.liquidglass.GlassSurface
+import io.qent.broxy.ui.liquidglass.GlassSurfaceVariant
 import io.qent.broxy.ui.strings.AppStrings
 import io.qent.broxy.ui.strings.LocalStrings
 import io.qent.broxy.ui.theme.AppTheme
@@ -93,6 +95,7 @@ fun GlobalHeader(
     CenterAlignedTopAppBar(
         modifier = modifier.height(GLOBAL_HEADER_HEIGHT),
         expandedHeight = GLOBAL_HEADER_HEIGHT,
+        windowInsets = WindowInsets(0, 0, 0, 0),
         colors = colors,
         navigationIcon = {
             if (showRemoteActions) {
@@ -236,21 +239,17 @@ private fun AuthButton(
     modifier: Modifier = Modifier,
 ) {
     val strings = LocalStrings.current
-    val colors = MaterialTheme.colorScheme
     val gradientAlpha = if (enabled) 1f else AUTH_GRADIENT_DISABLED_ALPHA
     val gradient =
         Brush.horizontalGradient(
             listOf(Color(AUTH_GRADIENT_START), Color(AUTH_GRADIENT_END)).map { it.copy(alpha = gradientAlpha) },
         )
 
-    Surface(
+    GlassSurface(
+        shape = AppTheme.shapes.input,
+        variant = GlassSurfaceVariant.Regular,
         onClick = onClick,
         enabled = enabled,
-        shape = AppTheme.shapes.input,
-        color = colors.surface,
-        contentColor = colors.primary,
-        tonalElevation = 0.dp,
-        shadowElevation = 0.dp,
         border = BorderStroke(1.dp, gradient),
         modifier = modifier.height(HEADER_CONTROL_HEIGHT - 1.dp),
     ) {
@@ -487,16 +486,13 @@ private fun HeaderField(
         } else {
             Modifier.clickable(onClick = onClick)
         }
-    Surface(
+    GlassSurface(
         modifier =
             modifier
                 .height(HEADER_CONTROL_HEIGHT)
                 .then(clickModifier),
+        variant = GlassSurfaceVariant.Clear,
         shape = shape,
-        color = colors.surface,
-        contentColor = colors.onSurface,
-        tonalElevation = 0.dp,
-        shadowElevation = 0.dp,
         border = BorderStroke(AppTheme.strokeWidths.thin, colors.outline),
     ) {
         Row(

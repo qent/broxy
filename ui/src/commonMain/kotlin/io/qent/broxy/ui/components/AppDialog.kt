@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -19,7 +20,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import io.qent.broxy.ui.liquidglass.GlassCard
 import io.qent.broxy.ui.theme.AppTheme
 
 /**
@@ -86,7 +87,7 @@ fun AppDialog(
                 dismissOnBackPress = dismissOnBackPress,
             ),
     ) {
-        Surface(
+        GlassCard(
             modifier =
                 modifier
                     .padding(horizontal = AppTheme.spacing.xl, vertical = AppTheme.spacing.lg)
@@ -94,14 +95,12 @@ fun AppDialog(
                         min = minWidth,
                         max = maxWidth,
                     ),
-            shape = AppTheme.shapes.dialog,
-            tonalElevation = AppTheme.elevation.level3,
-            color = MaterialTheme.colorScheme.surface,
             border =
                 BorderStroke(
                     width = AppTheme.strokeWidths.thin,
                     color = MaterialTheme.colorScheme.outlineVariant,
                 ),
+            padding = PaddingValues(0.dp),
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Column(

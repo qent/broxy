@@ -16,7 +16,6 @@ import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -31,6 +30,8 @@ import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import io.qent.broxy.ui.liquidglass.GlassSurface
+import io.qent.broxy.ui.liquidglass.GlassSurfaceVariant
 import io.qent.broxy.ui.strings.LocalStrings
 import io.qent.broxy.ui.theme.AppTheme
 
@@ -55,7 +56,6 @@ fun SearchField(
         } else {
             MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
         }
-    val surfaceColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)
     BasicTextField(
         value = value,
         onValueChange = onValueChange,
@@ -68,11 +68,10 @@ fun SearchField(
                 .height(SearchFieldHeight)
                 .width(width),
         decorationBox = { innerTextField ->
-            Surface(
+            GlassSurface(
                 modifier = Modifier.fillMaxSize(),
+                variant = GlassSurfaceVariant.Regular,
                 shape = AppTheme.shapes.pill,
-                color = surfaceColor,
-                contentColor = MaterialTheme.colorScheme.onSurface,
                 border = BorderStroke(AppTheme.strokeWidths.thin, borderColor),
             ) {
                 Row(

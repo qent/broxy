@@ -7,7 +7,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -35,6 +37,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.qent.broxy.ui.adapter.models.UiProxyStatus
 import io.qent.broxy.ui.icons.rememberNavIconPainter
+import io.qent.broxy.ui.liquidglass.GlassPanel
+import io.qent.broxy.ui.liquidglass.GlassSurfaceVariant
 import io.qent.broxy.ui.strings.LocalStrings
 import io.qent.broxy.ui.theme.AppTheme
 import io.qent.broxy.ui.viewmodels.Screen
@@ -66,112 +70,114 @@ fun AppNavigationRail(
         )
     val settingsItem = NavItem(Screen.Settings, strings.navSettings, Icons.Outlined.Settings)
 
-    Column(
-        modifier =
-            modifier
-                .width(AppTheme.layout.navigationRailWidth)
-                .background(AppTheme.extendedColors.sidebarBackground)
-                .padding(vertical = AppTheme.spacing.md),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Top,
+    GlassPanel(
+        modifier = modifier.width(AppTheme.layout.navigationRailWidth).fillMaxHeight(),
+        variant = GlassSurfaceVariant.Clear,
+        padding = PaddingValues(vertical = AppTheme.spacing.md),
     ) {
         Column(
+            modifier = Modifier.fillMaxHeight().fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = AppTheme.spacing.sm),
+            verticalArrangement = Arrangement.Top,
         ) {
-            // Navigation Items
-            navItems.forEach { item ->
-                val isSelected = selected == item.screen
-                val backgroundColor = if (isSelected) colors.primary else Color.Transparent
-                val contentColor = if (isSelected) colors.onPrimary else colors.secondary
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = AppTheme.spacing.sm),
+            ) {
+                // Navigation Items
+                navItems.forEach { item ->
+                    val isSelected = selected == item.screen
+                    val backgroundColor = if (isSelected) colors.primary else Color.Transparent
+                    val contentColor = if (isSelected) colors.onPrimary else colors.secondary
 
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .clip(AppTheme.shapes.button)
+                                .background(backgroundColor)
+                                .clickable { onSelect(item.screen) }
+                                .padding(vertical = 7.dp, horizontal = 3.dp),
+                    ) {
+                        CompositionLocalProvider(
+                            LocalContentColor provides contentColor,
+                        ) {
+                            val iconPainter = if (item.screen == Screen.Clients) connectionNavPainter else null
+                            if (iconPainter != null) {
+                                Icon(
+                                    painter = iconPainter,
+                                    contentDescription = item.label,
+                                    modifier = Modifier.size(navIconSize),
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = item.icon,
+                                    contentDescription = item.label,
+                                    modifier = Modifier.size(navIconSize),
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(3.dp))
+
+                        Text(
+                            text = item.label,
+                            style =
+                                MaterialTheme.typography.labelMedium.copy(
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Medium,
+                                ),
+                            color = contentColor,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = AppTheme.spacing.sm),
+            ) {
+                val isSettingsSelected = selected == settingsItem.screen
+                val settingsBackground = if (isSettingsSelected) colors.primary else Color.Transparent
+                val settingsContent = if (isSettingsSelected) colors.onPrimary else colors.secondary
+
+                Box(
                     modifier =
                         Modifier
                             .fillMaxWidth()
                             .clip(AppTheme.shapes.button)
-                            .background(backgroundColor)
-                            .clickable { onSelect(item.screen) }
-                            .padding(vertical = 7.dp, horizontal = 3.dp),
+                            .background(settingsBackground)
+                            .clickable { onSelect(settingsItem.screen) }
+                            .padding(vertical = 8.dp),
+                    contentAlignment = Alignment.Center,
                 ) {
                     CompositionLocalProvider(
-                        LocalContentColor provides contentColor,
+                        LocalContentColor provides settingsContent,
                     ) {
-                        val iconPainter = if (item.screen == Screen.Clients) connectionNavPainter else null
-                        if (iconPainter != null) {
-                            Icon(
-                                painter = iconPainter,
-                                contentDescription = item.label,
-                                modifier = Modifier.size(navIconSize),
-                            )
-                        } else {
-                            Icon(
-                                imageVector = item.icon,
-                                contentDescription = item.label,
-                                modifier = Modifier.size(navIconSize),
-                            )
-                        }
+                        Icon(
+                            imageVector = settingsItem.icon,
+                            contentDescription = settingsItem.label,
+                            modifier = Modifier.size(navIconSize),
+                        )
                     }
-
-                    Spacer(modifier = Modifier.height(3.dp))
-
-                    Text(
-                        text = item.label,
-                        style =
-                            MaterialTheme.typography.labelMedium.copy(
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Medium,
-                            ),
-                        color = contentColor,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
                 }
+
+                ProxyStatusIndicator(status = proxyStatus, onClick = onToggleProxy)
             }
-        }
-
-        Spacer(modifier = Modifier.weight(1f))
-
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = AppTheme.spacing.sm),
-        ) {
-            val isSettingsSelected = selected == settingsItem.screen
-            val settingsBackground = if (isSettingsSelected) colors.primary else Color.Transparent
-            val settingsContent = if (isSettingsSelected) colors.onPrimary else colors.secondary
-
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .clip(AppTheme.shapes.button)
-                        .background(settingsBackground)
-                        .clickable { onSelect(settingsItem.screen) }
-                        .padding(vertical = 8.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                CompositionLocalProvider(
-                    LocalContentColor provides settingsContent,
-                ) {
-                    Icon(
-                        imageVector = settingsItem.icon,
-                        contentDescription = settingsItem.label,
-                        modifier = Modifier.size(navIconSize),
-                    )
-                }
-            }
-
-            ProxyStatusIndicator(status = proxyStatus, onClick = onToggleProxy)
         }
     }
 }

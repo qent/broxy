@@ -26,3 +26,7 @@ Recommended reading order:
 18. `docs/ai_clients.md` - AI client connectors and Codex integration.
 19. `docs/server_icons.md` - server icon rules and assets.
 20. `docs/distribution.md` - minimal DMG packaging and local build commands.
+21. `docs/liquid-glass/README.md` - Liquid Glass overview, runtime flags, and platform defaults.
+22. `docs/liquid-glass/MIGRATION_PLAN.md` - screen inventory and migration map.
+23. `docs/liquid-glass/MIGRATION.md` - migration progress and known compromises.
+24. `docs/liquid-glass/MACOS_VIBRANCY.md` - NSVisualEffectView integration details.

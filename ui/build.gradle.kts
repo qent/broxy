@@ -29,6 +29,7 @@ kotlin {
                 implementation(compose.desktop.currentOs)
                 implementation(project(":headless-runtime"))
                 implementation(project(":ui-adapter"))
+                implementation("net.java.dev.jna:jna:5.17.0")
             }
         }
         val desktopTest by getting {

@@ -84,6 +84,10 @@ UI renders `UIState` and calls intents, with no direct dependency on `core`. The
 indicator and the tray menu expose a click target that toggles the local HTTP inbound server.
 Navigation keeps server sub-views (list/editor/capabilities) under the MCP entry; selecting MCP always returns to the server list. Preset sub-views return to the preset list when the Presets menu item is selected.
 On macOS the window uses a transparent title bar; the global header exposes draggable regions only in the empty space around header controls. Background dragging is disabled (`apple.awt.draggableWindowBackground`) so only explicit drag areas move the window.
+The UI now includes a shared Liquid Glass layer (`ui/src/commonMain/.../liquidglass`) with
+`GlassConfig`, `GlassTokens`, and surface/control primitives. Defaults are platform-specific:
+macOS enables glass (unless Reduce Transparency is active), while Windows/Linux default to solid rendering.
+The settings screen exposes runtime toggles for glass, motion/transparency reduction, dimming policy, and debug background scenarios.
 
 ### `headless-runtime/` (STDIO proxy entrypoint)
 

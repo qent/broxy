@@ -14,6 +14,10 @@ import io.qent.broxy.ui.adapter.store.createAppStore
 import io.qent.broxy.ui.icons.createApplicationIconImage
 import io.qent.broxy.ui.icons.createTrayIconImage
 import io.qent.broxy.ui.icons.rememberApplicationIconPainter
+import io.qent.broxy.ui.liquidglass.defaultGlassConfig
+import io.qent.broxy.ui.liquidglass.macos.installMacosVibrancyBackground
+import io.qent.broxy.ui.liquidglass.macos.isMacOsDesktop
+import io.qent.broxy.ui.liquidglass.macos.systemReduceTransparencyEnabled
 import io.qent.broxy.ui.screens.MainWindow
 import io.qent.broxy.ui.strings.AppLanguage
 import io.qent.broxy.ui.strings.AppStrings
@@ -27,6 +31,8 @@ import java.awt.event.ActionListener
 import java.io.PushbackInputStream
 import java.util.Locale
 import java.awt.Color as AwtColor
+
+private val MacTransparentContentColor = AwtColor(0, 0, 0, 1)
 
 fun main(args: Array<String>) {
     // Headless STDIO mode: allow MCP clients to spawn the app as an MCP server.
@@ -43,7 +49,14 @@ fun main(args: Array<String>) {
 
     // Default: launch Desktop UI
     application {
-        val appState = remember { AppState() }
+        val isMacOs = remember { isMacOsDesktop() }
+        val systemReduceTransparency = remember(isMacOs) { if (isMacOs) systemReduceTransparencyEnabled() else false }
+        val appState =
+            remember {
+                AppState(
+                    initialGlassConfig = defaultGlassConfig(isMacOs = isMacOs, systemReduceTransparency = systemReduceTransparency),
+                )
+            }
         val store = remember { createAppStore() }
         LaunchedEffect(Unit) { store.start() }
 
@@ -56,7 +69,6 @@ fun main(args: Array<String>) {
         val trayActive = traySupported && trayPreference
         val language = remember { AppLanguage.fromTag(Locale.getDefault().toLanguageTag()) }
         val strings = remember(language) { AppStringsProvider.forLanguage(language) }
-        val isMacOs = remember { System.getProperty("os.name")?.contains("Mac", ignoreCase = true) == true }
         val isDarkTheme = appState.themeStyle.value == ThemeStyle.Dark
         val windowIconPainter = rememberApplicationIconPainter()
         val applicationIconImage = remember { createApplicationIconImage(size = 256) }
@@ -89,11 +101,21 @@ fun main(args: Array<String>) {
                 icon = windowIconPainter,
             ) {
                 val window = this.window
+                val glassConfig = appState.glassConfig.value
+                val useMacVibrancy =
+                    isMacOs &&
+                        glassConfig.vibrancyEnabled &&
+                        glassConfig.glassEnabled &&
+                        !glassConfig.reduceTransparency
                 // Set minimum window height (in pixels). Width left unconstrained.
                 SideEffect {
                     window.minimumSize = Dimension(780, 640)
                     (window as? Frame)?.iconImage = applicationIconImage
                     updateTaskbarIcon(applicationIconImage)
+                }
+                DisposableEffect(window, useMacVibrancy) {
+                    val handle = if (useMacVibrancy) installMacosVibrancyBackground(window) else null
+                    onDispose { handle?.dispose() }
                 }
 
                 LaunchedEffect(isWindowVisible) {
@@ -114,15 +136,22 @@ fun main(args: Array<String>) {
                         window.rootPane.putClientProperty("apple.awt.fullWindowContent", true)
                         window.rootPane.putClientProperty("apple.awt.transparentTitleBar", true)
                         window.rootPane.putClientProperty("apple.awt.windowTitleVisible", false)
+                        window.rootPane.putClientProperty("apple.awt.draggableWindowBackground", false)
                         val chromeColor =
                             if (isDarkTheme) {
                                 AwtColor(0x31, 0x46, 0x74)
                             } else {
                                 AwtColor(0xF9, 0xFA, 0xFB)
                             }
+                        val contentBackground =
+                            if (useMacVibrancy) {
+                                MacTransparentContentColor
+                            } else {
+                                chromeColor
+                            }
                         window.background = chromeColor
-                        window.rootPane.background = chromeColor
-                        window.contentPane.background = chromeColor
+                        window.rootPane.background = contentBackground
+                        window.contentPane.background = contentBackground
                         window.rootPane.repaint()
                         window.repaint()
                     }
@@ -139,7 +168,7 @@ fun main(args: Array<String>) {
                             Spacer(modifier)
                         }
                     },
-                    useTransparentTitleBar = isMacOs,
+                    useTransparentTitleBar = isMacOs || useMacVibrancy,
                 )
             }
         }
@@ -169,7 +198,7 @@ fun main(args: Array<String>) {
     }
 }
 
-internal fun shouldRunHeadlessStdioProxy(
+fun shouldRunHeadlessStdioProxy(
     args: Array<String>,
     stdinHasData: () -> Boolean,
 ): Boolean {

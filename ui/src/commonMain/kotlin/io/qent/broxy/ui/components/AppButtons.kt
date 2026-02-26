@@ -1,56 +1,22 @@
-@file:Suppress("FunctionNaming", "MatchingDeclarationName")
+@file:Suppress("FunctionNaming", "MatchingDeclarationName", "MagicNumber")
 
 package io.qent.broxy.ui.components
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonColors
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
+import io.qent.broxy.ui.liquidglass.GlassSurface
+import io.qent.broxy.ui.liquidglass.GlassSurfaceVariant
 import io.qent.broxy.ui.theme.AppTheme
 
-/**
- * Shared button colors and wrappers to keep button styling consistent across the app.
- */
-object AppButtonDefaults {
-    private const val DANGER_RED_HEX = 0xFFDC2626
-    private val DangerRed = Color(DANGER_RED_HEX)
-
-    @Composable
-    fun primaryColors(): ButtonColors =
-        ButtonDefaults.buttonColors(
-            containerColor = MaterialTheme.colorScheme.primary,
-            contentColor = MaterialTheme.colorScheme.onPrimary,
-            disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
-            disabledContentColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.5f),
-        )
-
-    @Composable
-    fun secondaryColors(): ButtonColors =
-        ButtonDefaults.outlinedButtonColors(
-            // Transparent/Surface
-            containerColor = MaterialTheme.colorScheme.surface,
-            // Accent color text
-            contentColor = MaterialTheme.colorScheme.primary,
-            disabledContainerColor = MaterialTheme.colorScheme.surface,
-            disabledContentColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
-        )
-
-    @Composable
-    fun dangerColors(): ButtonColors =
-        ButtonDefaults.buttonColors(
-            containerColor = DangerRed,
-            contentColor = Color.White,
-            disabledContainerColor = DangerRed.copy(alpha = 0.5f),
-            disabledContentColor = Color.White.copy(alpha = 0.7f),
-        )
-}
+private val DangerRed = Color(0xFFDC2626)
 
 @Composable
 fun AppPrimaryButton(
@@ -59,14 +25,20 @@ fun AppPrimaryButton(
     enabled: Boolean = true,
     content: @Composable RowScope.() -> Unit,
 ) {
-    Button(
-        onClick = onClick,
+    GlassSurface(
         modifier = modifier,
-        enabled = enabled,
+        variant = GlassSurfaceVariant.Regular,
         shape = AppTheme.shapes.button,
-        colors = AppButtonDefaults.primaryColors(),
-        content = content,
-    )
+        onClick = onClick,
+        enabled = enabled,
+        border = BorderStroke(AppTheme.strokeWidths.thin, MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxSize().padding(horizontal = AppTheme.spacing.md, vertical = AppTheme.spacing.xs),
+            verticalAlignment = Alignment.CenterVertically,
+            content = content,
+        )
+    }
 }
 
 @Composable
@@ -76,23 +48,20 @@ fun AppSecondaryButton(
     enabled: Boolean = true,
     content: @Composable RowScope.() -> Unit,
 ) {
-    OutlinedButton(
-        onClick = onClick,
+    GlassSurface(
         modifier = modifier,
-        enabled = enabled,
+        variant = GlassSurfaceVariant.Clear,
         shape = AppTheme.shapes.button,
-        colors = AppButtonDefaults.secondaryColors(),
-        border =
-            BorderStroke(
-                1.dp,
-                if (enabled) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
-                },
-            ),
-        content = content,
-    )
+        onClick = onClick,
+        enabled = enabled,
+        border = BorderStroke(AppTheme.strokeWidths.thin, MaterialTheme.colorScheme.outline.copy(alpha = 0.8f)),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxSize().padding(horizontal = AppTheme.spacing.md, vertical = AppTheme.spacing.xs),
+            verticalAlignment = Alignment.CenterVertically,
+            content = content,
+        )
+    }
 }
 
 @Composable
@@ -102,12 +71,18 @@ fun AppDangerButton(
     enabled: Boolean = true,
     content: @Composable RowScope.() -> Unit,
 ) {
-    Button(
-        onClick = onClick,
+    GlassSurface(
         modifier = modifier,
-        enabled = enabled,
+        variant = GlassSurfaceVariant.Regular,
         shape = AppTheme.shapes.button,
-        colors = AppButtonDefaults.dangerColors(),
-        content = content,
-    )
+        onClick = onClick,
+        enabled = enabled,
+        border = BorderStroke(AppTheme.strokeWidths.thin, DangerRed.copy(alpha = 0.85f)),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxSize().padding(horizontal = AppTheme.spacing.md, vertical = AppTheme.spacing.xs),
+            verticalAlignment = Alignment.CenterVertically,
+            content = content,
+        )
+    }
 }

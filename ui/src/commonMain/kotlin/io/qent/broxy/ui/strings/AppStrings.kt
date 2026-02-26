@@ -250,6 +250,44 @@ interface AppStrings {
 
     val themeLight: String
 
+    val glassEnabledTitle: String
+
+    val glassEnabledDescription: String
+
+    val reduceTransparencyTitle: String
+
+    val reduceTransparencyDescription: String
+
+    val reduceMotionTitle: String
+
+    val reduceMotionDescription: String
+
+    val vibrancyTitle: String
+
+    val vibrancyDescription: String
+
+    val dimmingPolicyTitle: String
+
+    val dimmingPolicyDescription: String
+
+    val dimmingPolicyAuto: String
+
+    val dimmingPolicyAlways: String
+
+    val dimmingPolicyNever: String
+
+    val glassBackgroundTitle: String
+
+    val glassBackgroundDescription: String
+
+    val glassBackgroundApp: String
+
+    val glassBackgroundBright: String
+
+    val glassBackgroundDark: String
+
+    val glassBackgroundNoisy: String
+
     fun httpPortSaved(port: Int): String
 
     fun requestTimeoutSaved(seconds: Int): String
@@ -267,6 +305,18 @@ interface AppStrings {
     fun fallbackPromptsAndResourcesToToolsToggle(enabled: Boolean): String
 
     fun adapterModeToggle(enabled: Boolean): String
+
+    fun glassEnabledToggle(enabled: Boolean): String
+
+    fun reduceTransparencyToggle(enabled: Boolean): String
+
+    fun reduceMotionToggle(enabled: Boolean): String
+
+    fun vibrancyToggle(enabled: Boolean): String
+
+    fun dimmingPolicyChanged(policyLabel: String): String
+
+    fun glassBackgroundChanged(label: String): String
 
     val openingLogsFolder: String
 
@@ -595,6 +645,44 @@ object EnglishStrings : AppStrings {
 
     override val themeLight = "Light"
 
+    override val glassEnabledTitle = "Glass style"
+
+    override val glassEnabledDescription = "Enable Liquid Glass surfaces for controls and navigation."
+
+    override val reduceTransparencyTitle = "Reduce transparency"
+
+    override val reduceTransparencyDescription = "Use more opaque surfaces for better readability."
+
+    override val reduceMotionTitle = "Reduce motion"
+
+    override val reduceMotionDescription = "Use immediate transitions instead of animated glass reactions."
+
+    override val vibrancyTitle = "macOS vibrancy background"
+
+    override val vibrancyDescription = "Use NSVisualEffectView with behind-window blur for the app window."
+
+    override val dimmingPolicyTitle = "Dimming policy"
+
+    override val dimmingPolicyDescription = "Controls the contrast layer under clear glass regions."
+
+    override val dimmingPolicyAuto = "Auto"
+
+    override val dimmingPolicyAlways = "Always"
+
+    override val dimmingPolicyNever = "Never"
+
+    override val glassBackgroundTitle = "Glass background"
+
+    override val glassBackgroundDescription = "Debug background used to validate glass contrast."
+
+    override val glassBackgroundApp = "App gradient"
+
+    override val glassBackgroundBright = "Bright"
+
+    override val glassBackgroundDark = "Dark"
+
+    override val glassBackgroundNoisy = "Noisy"
+
     override fun httpPortSaved(port: Int): String = "HTTP port saved: $port"
 
     override fun requestTimeoutSaved(seconds: Int): String = "Timeout saved: ${seconds}s"
@@ -614,6 +702,31 @@ object EnglishStrings : AppStrings {
         if (enabled) "Prompt/resource tool fallback enabled" else "Prompt/resource tool fallback disabled"
 
     override fun adapterModeToggle(enabled: Boolean): String = if (enabled) ADAPTER_ON else ADAPTER_OFF
+
+    override fun glassEnabledToggle(enabled: Boolean): String =
+        when {
+            enabled -> "Glass style enabled"
+            else -> "Glass style disabled"
+        }
+
+    override fun reduceTransparencyToggle(enabled: Boolean): String =
+        if (enabled) "Reduced transparency enabled" else "Reduced transparency disabled"
+
+    override fun reduceMotionToggle(enabled: Boolean): String =
+        when {
+            enabled -> "Reduced motion enabled"
+            else -> "Reduced motion disabled"
+        }
+
+    override fun vibrancyToggle(enabled: Boolean): String =
+        when {
+            enabled -> "macOS vibrancy enabled"
+            else -> "macOS vibrancy disabled"
+        }
+
+    override fun dimmingPolicyChanged(policyLabel: String): String = "Dimming policy: $policyLabel"
+
+    override fun glassBackgroundChanged(label: String): String = "Glass background: $label"
 
     override val openingLogsFolder = "Opening logs folder…"
 

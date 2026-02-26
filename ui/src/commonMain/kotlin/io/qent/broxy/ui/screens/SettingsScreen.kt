@@ -33,7 +33,6 @@ import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -56,6 +55,12 @@ import io.qent.broxy.ui.adapter.store.UIState
 import io.qent.broxy.ui.components.AppPrimaryButton
 import io.qent.broxy.ui.components.AppVerticalScrollbar
 import io.qent.broxy.ui.components.SettingsLikeItem
+import io.qent.broxy.ui.demo.GlassShowcaseScreen
+import io.qent.broxy.ui.liquidglass.DimmingPolicy
+import io.qent.broxy.ui.liquidglass.GlassBackgroundScenario
+import io.qent.broxy.ui.liquidglass.GlassConfig
+import io.qent.broxy.ui.liquidglass.GlassSurface
+import io.qent.broxy.ui.liquidglass.GlassSurfaceVariant
 import io.qent.broxy.ui.strings.LocalStrings
 import io.qent.broxy.ui.theme.AppTheme
 import io.qent.broxy.ui.theme.ThemeStyle
@@ -74,11 +79,15 @@ data class SettingsFabState(
 )
 
 @Composable
-@Suppress("LongMethod")
+@Suppress("LongMethod", "LongParameterList")
 fun SettingsScreen(
     ui: UIState,
     themeStyle: ThemeStyle,
     onThemeStyleChange: (ThemeStyle) -> Unit,
+    glassConfig: GlassConfig,
+    onGlassConfigChange: (GlassConfig) -> Unit,
+    backgroundScenario: GlassBackgroundScenario,
+    onBackgroundScenarioChange: (GlassBackgroundScenario) -> Unit,
     onFabStateChange: (SettingsFabState) -> Unit,
     notify: (String) -> Unit = {},
 ) {
@@ -103,6 +112,8 @@ fun SettingsScreen(
                     contentPadding = PaddingValues(horizontal = AppTheme.spacing.md),
                     themeStyle = themeStyle,
                     onThemeStyleChange = onThemeStyleChange,
+                    glassConfig = glassConfig,
+                    backgroundScenario = backgroundScenario,
                     onFabStateChange = onFabStateChange,
                     requestTimeoutSeconds = ui.requestTimeoutSeconds,
                     capabilitiesTimeoutSeconds = ui.capabilitiesTimeoutSeconds,
@@ -149,6 +160,30 @@ fun SettingsScreen(
                         ui.intents.updateAdapterMode(enabled)
                         notify(strings.adapterModeToggle(enabled))
                     },
+                    onToggleGlassEnabled = { enabled ->
+                        onGlassConfigChange(glassConfig.copy(glassEnabled = enabled))
+                        notify(strings.glassEnabledToggle(enabled))
+                    },
+                    onToggleReduceTransparency = { enabled ->
+                        onGlassConfigChange(glassConfig.copy(reduceTransparency = enabled))
+                        notify(strings.reduceTransparencyToggle(enabled))
+                    },
+                    onToggleReduceMotion = { enabled ->
+                        onGlassConfigChange(glassConfig.copy(reduceMotion = enabled))
+                        notify(strings.reduceMotionToggle(enabled))
+                    },
+                    onToggleVibrancy = { enabled ->
+                        onGlassConfigChange(glassConfig.copy(vibrancyEnabled = enabled))
+                        notify(strings.vibrancyToggle(enabled))
+                    },
+                    onDimmingPolicyChange = { policy ->
+                        onGlassConfigChange(glassConfig.copy(dimmingPolicy = policy))
+                        notify(strings.dimmingPolicyChanged(policy.name.lowercase()))
+                    },
+                    onBackgroundScenarioSave = { scenario ->
+                        onBackgroundScenarioChange(scenario)
+                        notify(strings.glassBackgroundChanged(scenario.name.lowercase()))
+                    },
                     onOpenLogsFolder = {
                         ui.intents.openLogsFolder()
                         notify(strings.openingLogsFolder)
@@ -165,6 +200,8 @@ private fun SettingsContent(
     contentPadding: PaddingValues,
     themeStyle: ThemeStyle,
     onThemeStyleChange: (ThemeStyle) -> Unit,
+    glassConfig: GlassConfig,
+    backgroundScenario: GlassBackgroundScenario,
     onFabStateChange: (SettingsFabState) -> Unit,
     requestTimeoutSeconds: Int,
     capabilitiesTimeoutSeconds: Int,
@@ -184,6 +221,12 @@ private fun SettingsContent(
     onToggleTrayIcon: (Boolean) -> Unit,
     onToggleFallbackPromptsAndResourcesToTools: (Boolean) -> Unit,
     onToggleAdapterMode: (Boolean) -> Unit,
+    onToggleGlassEnabled: (Boolean) -> Unit,
+    onToggleReduceTransparency: (Boolean) -> Unit,
+    onToggleReduceMotion: (Boolean) -> Unit,
+    onToggleVibrancy: (Boolean) -> Unit,
+    onDimmingPolicyChange: (DimmingPolicy) -> Unit,
+    onBackgroundScenarioSave: (GlassBackgroundScenario) -> Unit,
     onOpenLogsFolder: () -> Unit,
 ) {
     val strings = LocalStrings.current
@@ -291,6 +334,31 @@ private fun SettingsContent(
             verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
         ) {
             Spacer(Modifier.height(AppTheme.spacing.xs))
+            GlassEnabledSetting(
+                checked = glassConfig.glassEnabled,
+                onToggle = onToggleGlassEnabled,
+            )
+            ReduceTransparencySetting(
+                checked = glassConfig.reduceTransparency,
+                onToggle = onToggleReduceTransparency,
+            )
+            ReduceMotionSetting(
+                checked = glassConfig.reduceMotion,
+                onToggle = onToggleReduceMotion,
+            )
+            VibrancySetting(
+                checked = glassConfig.vibrancyEnabled,
+                onToggle = onToggleVibrancy,
+            )
+            DimmingPolicySetting(
+                policy = glassConfig.dimmingPolicy,
+                onPolicyChange = onDimmingPolicyChange,
+            )
+            BackgroundScenarioSetting(
+                scenario = backgroundScenario,
+                onScenarioSave = onBackgroundScenarioSave,
+            )
+            GlassShowcaseScreen(scenario = backgroundScenario)
             AdapterModeSetting(
                 checked = adapterMode,
                 onToggle = onToggleAdapterMode,
@@ -372,14 +440,217 @@ private fun SettingsContent(
 }
 
 @Composable
-private fun IgnoreHttpsCertificateErrorsSetting(
+private fun GlassEnabledSetting(
     checked: Boolean,
     onToggle: (Boolean) -> Unit,
 ) {
     val strings = LocalStrings.current
+    ToggleSetting(
+        title = strings.glassEnabledTitle,
+        description = strings.glassEnabledDescription,
+        checked = checked,
+        onToggle = onToggle,
+    )
+}
+
+@Composable
+private fun ReduceTransparencySetting(
+    checked: Boolean,
+    onToggle: (Boolean) -> Unit,
+) {
+    val strings = LocalStrings.current
+    ToggleSetting(
+        title = strings.reduceTransparencyTitle,
+        description = strings.reduceTransparencyDescription,
+        checked = checked,
+        onToggle = onToggle,
+    )
+}
+
+@Composable
+private fun ReduceMotionSetting(
+    checked: Boolean,
+    onToggle: (Boolean) -> Unit,
+) {
+    val strings = LocalStrings.current
+    ToggleSetting(
+        title = strings.reduceMotionTitle,
+        description = strings.reduceMotionDescription,
+        checked = checked,
+        onToggle = onToggle,
+    )
+}
+
+@Composable
+private fun VibrancySetting(
+    checked: Boolean,
+    onToggle: (Boolean) -> Unit,
+) {
+    val strings = LocalStrings.current
+    ToggleSetting(
+        title = strings.vibrancyTitle,
+        description = strings.vibrancyDescription,
+        checked = checked,
+        onToggle = onToggle,
+    )
+}
+
+@Composable
+@Suppress("LongMethod")
+private fun DimmingPolicySetting(
+    policy: DimmingPolicy,
+    onPolicyChange: (DimmingPolicy) -> Unit,
+) {
+    val strings = LocalStrings.current
+    var expanded by remember { mutableStateOf(false) }
+    val label =
+        when (policy) {
+            DimmingPolicy.Auto -> strings.dimmingPolicyAuto
+            DimmingPolicy.Always -> strings.dimmingPolicyAlways
+            DimmingPolicy.Never -> strings.dimmingPolicyNever
+        }
     SettingItem(
-        title = strings.ignoreHttpsCertificateErrorsTitle,
-        description = strings.ignoreHttpsCertificateErrorsDescription,
+        title = strings.dimmingPolicyTitle,
+        description = strings.dimmingPolicyDescription,
+    ) {
+        ExposedDropdownMenuBox(
+            expanded = expanded,
+            onExpandedChange = { expanded = !expanded },
+            modifier = Modifier.widthIn(min = SettingControlWidth, max = SettingControlWidth),
+        ) {
+            ThemeDropdownField(
+                text = label,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, enabled = true),
+                expanded = expanded,
+                shape = AppTheme.shapes.input,
+            )
+            ExposedDropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+                modifier =
+                    Modifier
+                        .background(color = MaterialTheme.colorScheme.surface, shape = AppTheme.shapes.input)
+                        .border(
+                            BorderStroke(AppTheme.strokeWidths.thin, MaterialTheme.colorScheme.outline),
+                            AppTheme.shapes.input,
+                        ),
+            ) {
+                DropdownMenuItem(
+                    text = { Text(strings.dimmingPolicyAuto, style = MaterialTheme.typography.bodySmall) },
+                    onClick = {
+                        expanded = false
+                        onPolicyChange(DimmingPolicy.Auto)
+                    },
+                )
+                DropdownMenuItem(
+                    text = { Text(strings.dimmingPolicyAlways, style = MaterialTheme.typography.bodySmall) },
+                    onClick = {
+                        expanded = false
+                        onPolicyChange(DimmingPolicy.Always)
+                    },
+                )
+                DropdownMenuItem(
+                    text = { Text(strings.dimmingPolicyNever, style = MaterialTheme.typography.bodySmall) },
+                    onClick = {
+                        expanded = false
+                        onPolicyChange(DimmingPolicy.Never)
+                    },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+@Suppress("LongMethod")
+private fun BackgroundScenarioSetting(
+    scenario: GlassBackgroundScenario,
+    onScenarioSave: (GlassBackgroundScenario) -> Unit,
+) {
+    val strings = LocalStrings.current
+    var expanded by remember { mutableStateOf(false) }
+    val label =
+        when (scenario) {
+            GlassBackgroundScenario.App -> strings.glassBackgroundApp
+            GlassBackgroundScenario.Bright -> strings.glassBackgroundBright
+            GlassBackgroundScenario.Dark -> strings.glassBackgroundDark
+            GlassBackgroundScenario.Noisy -> strings.glassBackgroundNoisy
+        }
+    SettingItem(
+        title = strings.glassBackgroundTitle,
+        description = strings.glassBackgroundDescription,
+    ) {
+        ExposedDropdownMenuBox(
+            expanded = expanded,
+            onExpandedChange = { expanded = !expanded },
+            modifier = Modifier.widthIn(min = SettingControlWidth, max = SettingControlWidth),
+        ) {
+            ThemeDropdownField(
+                text = label,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, enabled = true),
+                expanded = expanded,
+                shape = AppTheme.shapes.input,
+            )
+            ExposedDropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+                modifier =
+                    Modifier
+                        .background(color = MaterialTheme.colorScheme.surface, shape = AppTheme.shapes.input)
+                        .border(
+                            BorderStroke(AppTheme.strokeWidths.thin, MaterialTheme.colorScheme.outline),
+                            AppTheme.shapes.input,
+                        ),
+            ) {
+                DropdownMenuItem(
+                    text = { Text(strings.glassBackgroundApp, style = MaterialTheme.typography.bodySmall) },
+                    onClick = {
+                        expanded = false
+                        onScenarioSave(GlassBackgroundScenario.App)
+                    },
+                )
+                DropdownMenuItem(
+                    text = { Text(strings.glassBackgroundBright, style = MaterialTheme.typography.bodySmall) },
+                    onClick = {
+                        expanded = false
+                        onScenarioSave(GlassBackgroundScenario.Bright)
+                    },
+                )
+                DropdownMenuItem(
+                    text = { Text(strings.glassBackgroundDark, style = MaterialTheme.typography.bodySmall) },
+                    onClick = {
+                        expanded = false
+                        onScenarioSave(GlassBackgroundScenario.Dark)
+                    },
+                )
+                DropdownMenuItem(
+                    text = { Text(strings.glassBackgroundNoisy, style = MaterialTheme.typography.bodySmall) },
+                    onClick = {
+                        expanded = false
+                        onScenarioSave(GlassBackgroundScenario.Noisy)
+                    },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ToggleSetting(
+    title: String,
+    description: String,
+    checked: Boolean,
+    onToggle: (Boolean) -> Unit,
+) {
+    SettingItem(
+        title = title,
+        description = description,
     ) {
         SettingControlBox {
             Switch(
@@ -400,31 +671,31 @@ private fun IgnoreHttpsCertificateErrorsSetting(
 }
 
 @Composable
+private fun IgnoreHttpsCertificateErrorsSetting(
+    checked: Boolean,
+    onToggle: (Boolean) -> Unit,
+) {
+    val strings = LocalStrings.current
+    ToggleSetting(
+        title = strings.ignoreHttpsCertificateErrorsTitle,
+        description = strings.ignoreHttpsCertificateErrorsDescription,
+        checked = checked,
+        onToggle = onToggle,
+    )
+}
+
+@Composable
 private fun TrayIconSetting(
     checked: Boolean,
     onToggle: (Boolean) -> Unit,
 ) {
     val strings = LocalStrings.current
-    SettingItem(
+    ToggleSetting(
         title = strings.showTrayIconTitle,
         description = strings.showTrayIconDescription,
-    ) {
-        SettingControlBox {
-            Switch(
-                checked = checked,
-                onCheckedChange = onToggle,
-                modifier = Modifier.scale(TOGGLE_SCALE),
-                colors =
-                    SwitchDefaults.colors(
-                        checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
-                        checkedTrackColor = MaterialTheme.colorScheme.primary,
-                        uncheckedThumbColor = MaterialTheme.colorScheme.outline,
-                        uncheckedTrackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                        uncheckedBorderColor = MaterialTheme.colorScheme.outline,
-                    ),
-            )
-        }
-    }
+        checked = checked,
+        onToggle = onToggle,
+    )
 }
 
 @Composable
@@ -449,26 +720,12 @@ private fun FallbackPromptsResourcesSetting(
     onToggle: (Boolean) -> Unit,
 ) {
     val strings = LocalStrings.current
-    SettingItem(
+    ToggleSetting(
         title = strings.fallbackPromptsAndResourcesToToolsTitle,
         description = strings.fallbackPromptsAndResourcesToToolsDescription,
-    ) {
-        SettingControlBox {
-            Switch(
-                checked = checked,
-                onCheckedChange = onToggle,
-                modifier = Modifier.scale(TOGGLE_SCALE),
-                colors =
-                    SwitchDefaults.colors(
-                        checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
-                        checkedTrackColor = MaterialTheme.colorScheme.primary,
-                        uncheckedThumbColor = MaterialTheme.colorScheme.outline,
-                        uncheckedTrackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                        uncheckedBorderColor = MaterialTheme.colorScheme.outline,
-                    ),
-            )
-        }
-    }
+        checked = checked,
+        onToggle = onToggle,
+    )
 }
 
 @Composable
@@ -477,26 +734,12 @@ private fun AdapterModeSetting(
     onToggle: (Boolean) -> Unit,
 ) {
     val strings = LocalStrings.current
-    SettingItem(
+    ToggleSetting(
         title = strings.adapterModeTitle,
         description = strings.adapterModeDescription,
-    ) {
-        SettingControlBox {
-            Switch(
-                checked = checked,
-                onCheckedChange = onToggle,
-                modifier = Modifier.scale(TOGGLE_SCALE),
-                colors =
-                    SwitchDefaults.colors(
-                        checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
-                        checkedTrackColor = MaterialTheme.colorScheme.primary,
-                        uncheckedThumbColor = MaterialTheme.colorScheme.outline,
-                        uncheckedTrackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                        uncheckedBorderColor = MaterialTheme.colorScheme.outline,
-                    ),
-            )
-        }
-    }
+        checked = checked,
+        onToggle = onToggle,
+    )
 }
 
 @Composable
@@ -627,13 +870,10 @@ private fun ThemeDropdownField(
     expanded: Boolean,
     shape: Shape = AppTheme.shapes.input,
 ) {
-    Surface(
+    GlassSurface(
         modifier = modifier.height(SETTING_CONTROL_HEIGHT_DP.dp),
+        variant = GlassSurfaceVariant.Regular,
         shape = shape,
-        color = MaterialTheme.colorScheme.surface,
-        contentColor = MaterialTheme.colorScheme.onSurface,
-        tonalElevation = 0.dp,
-        shadowElevation = 0.dp,
         border = BorderStroke(AppTheme.strokeWidths.thin, MaterialTheme.colorScheme.outline),
     ) {
         Row(
@@ -705,13 +945,12 @@ private fun CompactInputSurface(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
-    Surface(
+    GlassSurface(
         modifier = modifier.height(SETTING_CONTROL_HEIGHT_DP.dp),
+        variant = GlassSurfaceVariant.Regular,
         shape = AppTheme.shapes.input,
-        color = MaterialTheme.colorScheme.surface,
-        contentColor = MaterialTheme.colorScheme.onSurface,
         border = BorderStroke(AppTheme.strokeWidths.thin, MaterialTheme.colorScheme.outline),
-        content = content,
+        content = { content() },
     )
 }
 

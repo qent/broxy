@@ -2,6 +2,8 @@ package io.qent.broxy.ui.viewmodels
 
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
+import io.qent.broxy.ui.liquidglass.GlassBackgroundScenario
+import io.qent.broxy.ui.liquidglass.GlassConfig
 import io.qent.broxy.ui.theme.ThemeStyle
 
 /**
@@ -11,9 +13,13 @@ import io.qent.broxy.ui.theme.ThemeStyle
 class AppState(
     initialScreen: Screen = Screen.Servers,
     initialTheme: ThemeStyle = ThemeStyle.Dark,
+    initialGlassConfig: GlassConfig,
+    initialGlassBackgroundScenario: GlassBackgroundScenario = GlassBackgroundScenario.App,
 ) {
     val currentScreen: MutableState<Screen> = mutableStateOf(initialScreen)
     val themeStyle: MutableState<ThemeStyle> = mutableStateOf(initialTheme)
+    val glassConfig: MutableState<GlassConfig> = mutableStateOf(initialGlassConfig)
+    val glassBackgroundScenario: MutableState<GlassBackgroundScenario> = mutableStateOf(initialGlassBackgroundScenario)
 
     // Sub-navigation inside Screens.Servers (keeps the Servers menu item active).
     val serverEditor: MutableState<ServerEditorState?> = mutableStateOf(null)
