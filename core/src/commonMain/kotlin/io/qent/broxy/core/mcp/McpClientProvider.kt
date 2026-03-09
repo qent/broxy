@@ -1,0 +1,23 @@
+package io.qent.broxy.core.mcp
+
+import io.qent.broxy.core.mcp.auth.AuthorizationStatusListener
+import io.qent.broxy.core.mcp.auth.OAuthState
+import io.qent.broxy.core.models.AuthConfig
+import io.qent.broxy.core.models.TransportConfig
+import io.qent.broxy.core.utils.Logger
+
+/**
+ * Abstraction for providing platform-specific McpClient instances.
+ */
+fun interface McpClientProvider {
+    @Suppress("LongParameterList")
+    fun create(
+        config: TransportConfig,
+        env: Map<String, String>,
+        ignoreHttpsCertificateErrors: Boolean,
+        logger: Logger,
+        auth: AuthConfig?,
+        authState: OAuthState?,
+        authorizationStatusListener: AuthorizationStatusListener?,
+    ): McpClient
+}

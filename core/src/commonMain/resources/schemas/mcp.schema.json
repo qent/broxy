@@ -1,0 +1,289 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://io.qent.broxy/schemas/mcp.schema.json",
+  "title": "MCP Servers Configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "mcpServers"
+  ],
+  "properties": {
+    "mcpServers": {
+      "type": "object",
+      "description": "Map of server IDs to MCP server definitions.",
+      "propertyNames": {
+        "type": "string",
+        "minLength": 1
+      },
+      "additionalProperties": {
+        "$ref": "#/definitions/FileMcpServer"
+      }
+    },
+    "defaultPresetId": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1,
+      "description": "Default preset ID to use in UI STDIO facade mode (when no preset is provided via CLI args).",
+      "default": null
+    },
+    "inboundHttpPort": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535,
+      "description": "Port for the local HTTP Streamable inbound server used by the desktop UI.",
+      "default": 3335
+    },
+    "requestTimeoutSeconds": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Timeout for MCP requests in seconds.",
+      "default": 60
+    },
+    "capabilitiesTimeoutSeconds": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Timeout for listing tools/resources/prompts from servers in seconds.",
+      "default": 30
+    },
+    "authorizationTimeoutSeconds": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Timeout for OAuth authorization (headless/CLI flows) in seconds.",
+      "default": 120
+    },
+    "connectionRetryCount": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Maximum connection attempts when connecting to downstream servers.",
+      "default": 3
+    },
+    "ignoreHttpsCertificateErrors": {
+      "type": "boolean",
+      "description": "Disable HTTPS/WSS certificate validation for downstream MCP connections (use only in trusted environments).",
+      "default": false
+    },
+    "capabilitiesRefreshIntervalSeconds": {
+      "type": "integer",
+      "minimum": 30,
+      "description": "How often (in seconds) Broxy refreshes cached server capabilities in the background.",
+      "default": 300
+    },
+    "fallbackPromptsAndResourcesToTools": {
+      "type": "boolean",
+      "description": "Expose prompts/resources as tools in the inbound server for clients that only support tools.",
+      "default": false
+    },
+    "adapterMode": {
+      "type": "boolean",
+      "description": "Expose a fixed adapter toolset and fetch available actions on demand.",
+      "default": false
+    }
+  },
+  "definitions": {
+    "FileMcpServer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "transport"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "transport": {
+          "type": "string",
+          "enum": [
+            "stdio",
+            "http",
+            "sse",
+            "ws"
+          ]
+        },
+        "command": {
+          "type": "string",
+          "minLength": 1
+        },
+        "args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "url": {
+          "type": "string",
+          "minLength": 1
+        },
+        "headers": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {}
+        },
+        "env": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {}
+        },
+        "iconPath": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Relative path to a custom server icon under the config directory (for example icons/my-icon.png)."
+        },
+        "auth": {
+          "$ref": "#/definitions/AuthConfig"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "transport": {
+                "const": "stdio"
+              }
+            },
+            "required": [
+              "transport"
+            ]
+          },
+          "then": {
+            "required": [
+              "command"
+            ],
+            "properties": {
+              "args": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "transport": {
+                "const": "http"
+              }
+            },
+            "required": [
+              "transport"
+            ]
+          },
+          "then": {
+            "required": [
+              "url"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "transport": {
+                "const": "sse"
+              }
+            },
+            "required": [
+              "transport"
+            ]
+          },
+          "then": {
+            "required": [
+              "url"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "transport": {
+                "const": "ws"
+              }
+            },
+            "required": [
+              "transport"
+            ]
+          },
+          "then": {
+            "required": [
+              "url"
+            ]
+          }
+        }
+      ]
+    },
+    "AuthConfig": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/OAuthConfig"
+        }
+      ]
+    },
+    "OAuthConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "const": "oauth"
+        },
+        "clientId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "clientSecret": {
+          "type": "string",
+          "minLength": 1
+        },
+        "clientIdMetadataUrl": {
+          "type": "string",
+          "minLength": 1
+        },
+        "redirectUri": {
+          "type": "string",
+          "minLength": 1
+        },
+        "clientName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tokenEndpointAuthMethod": {
+          "type": "string",
+          "enum": [
+            "none",
+            "client_secret_basic",
+            "client_secret_post"
+          ]
+        },
+        "authorizationServer": {
+          "type": "string",
+          "minLength": 1
+        },
+        "scopes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "allowDynamicRegistration": {
+          "type": "boolean",
+          "default": true
+        }
+      }
+    }
+  }
+}

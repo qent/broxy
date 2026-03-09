@@ -1,0 +1,454 @@
+@file:Suppress("MaxLineLength")
+
+package io.qent.broxy.core.mcp
+
+import io.qent.broxy.core.mcp.errors.McpError
+import io.qent.broxy.core.models.McpServerConfig
+import io.qent.broxy.core.models.TransportConfig
+import io.qent.broxy.core.utils.Logger
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlin.test.assertEquals
+import kotlin.test.assertIs
+import kotlin.test.assertSame
+import kotlin.test.assertTrue
+
+@OptIn(ExperimentalCoroutinesApi::class)
+class DefaultMcpServerConnectionTest {
+    private val config =
+        McpServerConfig(
+            id = "s1",
+            name = "Test Server",
+            transport = TransportConfig.StdioTransport(command = "echo"),
+            env = emptyMap(),
+            enabled = true,
+        )
+
+    private fun newConnection(
+        client: McpClient,
+        callTimeoutMillis: Long = 1_000L,
+        capabilitiesTimeoutMillis: Long = 1_000L,
+        maxRetries: Int = 1,
+    ): DefaultMcpServerConnection =
+        DefaultMcpServerConnection(
+            config = config,
+            logger = NoopLogger,
+            cacheTtlMs = Long.MAX_VALUE,
+            maxRetries = maxRetries,
+            clientFactory = { client },
+            cache = CapabilitiesCache(ttlMillis = Long.MAX_VALUE),
+            initialCallTimeoutMillis = callTimeoutMillis,
+            initialCapabilitiesTimeoutMillis = capabilitiesTimeoutMillis,
+            initialConnectTimeoutMillis = capabilitiesTimeoutMillis,
+        )
+
+    @org.junit.Test
+    fun connectOpensAndClosesSession() =
+        runTest {
+            val client = FakeMcpClient()
+            val connection = newConnection(client)
+
+            val result = connection.connect()
+
+            assertTrue(result.isSuccess)
+            assertEquals(ServerStatus.Stopped, connection.status)
+            assertEquals(1, client.connectCalls)
+            assertEquals(1, client.disconnectCalls)
+        }
+
+    @org.junit.Test
+    fun getCapabilitiesUsesCacheWhenAvailable() =
+        runTest {
+            val caps1 =
+                ServerCapabilities(
+                    tools = listOf(ToolDescriptor(name = "alpha")),
+                )
+            val caps2 =
+                ServerCapabilities(
+                    tools = listOf(ToolDescriptor(name = "beta")),
+                )
+            val client =
+                FakeMcpClient(
+                    capabilityResults = ArrayDeque(listOf(Result.success(caps1), Result.success(caps2))),
+                )
+            val connection = newConnection(client)
+
+            val first = connection.getCapabilities()
+            val second = connection.getCapabilities()
+
+            assertTrue(first.isSuccess)
+            assertTrue(second.isSuccess)
+            assertSame(first.getOrThrow(), second.getOrThrow(), "Second call should reuse cached capabilities")
+            assertEquals(1, client.capabilitiesCalls, "Client should be queried only once when cache is valid")
+        }
+
+    @org.junit.Test
+    fun forceRefreshFailureFallsBackToCachedCapabilities() =
+        runTest {
+            val cachedCaps =
+                ServerCapabilities(
+                    tools = listOf(ToolDescriptor(name = "alpha")),
+                )
+            val client =
+                FakeMcpClient(
+                    capabilityResults =
+                        ArrayDeque(
+                            listOf(
+                                Result.success(cachedCaps),
+                                Result.failure(RuntimeException("boom")),
+                            ),
+                        ),
+                )
+            val connection = newConnection(client)
+
+            val initial = connection.getCapabilities()
+            val refreshed = connection.getCapabilities(forceRefresh = true)
+
+            assertTrue(initial.isSuccess)
+            assertTrue(refreshed.isSuccess, "Failure on refresh should return cached result")
+            assertEquals(cachedCaps, refreshed.getOrThrow())
+            assertEquals(2, client.capabilitiesCalls)
+        }
+
+    @org.junit.Test
+    fun callToolRespectsTimeoutAndReturnsTimeoutError() =
+        runTest {
+            val client =
+                FakeMcpClient().apply {
+                    callToolDelayMillis = 50
+                    callToolResult = Result.success(JsonPrimitive("ok"))
+                }
+            val connection = newConnection(client, callTimeoutMillis = 10)
+            connection.updateCallTimeout(10)
+
+            val result = connection.callTool("slow", JsonObject(emptyMap()))
+
+            assertTrue(result.isFailure)
+            val error = result.exceptionOrNull()
+            assertIs<McpError.TimeoutError>(error)
+            assertEquals(1, client.callToolCalls)
+        }
+
+    @org.junit.Test
+    fun getPromptRespectsTimeoutAndReturnsTimeoutError() =
+        runTest {
+            val client =
+                FakeMcpClient().apply {
+                    getPromptDelayMillis = 50
+                }
+            val connection = newConnection(client, callTimeoutMillis = 10)
+
+            val result = connection.getPrompt("slow")
+
+            assertTrue(result.isFailure)
+            val error = result.exceptionOrNull()
+            assertIs<McpError.TimeoutError>(error)
+            assertEquals(1, client.getPromptCalls)
+        }
+
+    @org.junit.Test
+    fun readResourceRespectsTimeoutAndReturnsTimeoutError() =
+        runTest {
+            val client =
+                FakeMcpClient().apply {
+                    readResourceDelayMillis = 50
+                }
+            val connection = newConnection(client, callTimeoutMillis = 10)
+
+            val result = connection.readResource("slow://resource")
+
+            assertTrue(result.isFailure)
+            val error = result.exceptionOrNull()
+            assertIs<McpError.TimeoutError>(error)
+            assertEquals(1, client.readResourceCalls)
+        }
+
+    @org.junit.Test
+    fun capabilitiesTimeoutFailsWithoutCache() =
+        runTest {
+            val caps = ServerCapabilities(tools = listOf(ToolDescriptor(name = "alpha")))
+            val client =
+                FakeMcpClient(
+                    capabilityResults = ArrayDeque(listOf(Result.success(caps))),
+                ).apply {
+                    capabilityDelayMillis = 50
+                }
+            val connection = newConnection(client, capabilitiesTimeoutMillis = 10)
+
+            val result = connection.getCapabilities(forceRefresh = true)
+
+            assertTrue(result.isFailure)
+            val error = result.exceptionOrNull()
+            assertIs<McpError.TimeoutError>(error)
+            assertEquals(1, client.capabilitiesCalls)
+        }
+
+    @org.junit.Test
+    fun capabilitiesTimeoutFallsBackToCache() =
+        runTest {
+            val caps = ServerCapabilities(tools = listOf(ToolDescriptor(name = "alpha")))
+            val client =
+                FakeMcpClient(
+                    capabilityResults = ArrayDeque(listOf(Result.success(caps), Result.success(caps))),
+                )
+            val connection = newConnection(client, capabilitiesTimeoutMillis = 10)
+
+            val initial = connection.getCapabilities(forceRefresh = true)
+            assertTrue(initial.isSuccess)
+
+            client.capabilityDelayMillis = 50
+            val refreshed = connection.getCapabilities(forceRefresh = true)
+
+            assertTrue(refreshed.isSuccess)
+            assertEquals(caps, refreshed.getOrThrow())
+            assertEquals(2, client.capabilitiesCalls)
+        }
+
+    @org.junit.Test
+    fun capabilitiesDoesNotRetryAfterFetchFailure() =
+        runTest {
+            val client =
+                FakeMcpClient(
+                    capabilityResults =
+                        ArrayDeque(
+                            listOf(
+                                Result.failure(RuntimeException("boom")),
+                            ),
+                        ),
+                )
+            val connection = newConnection(client, maxRetries = 3)
+
+            val result = connection.getCapabilities(forceRefresh = true)
+
+            assertTrue(result.isFailure)
+            assertEquals(1, client.capabilitiesCalls)
+            assertEquals(1, client.connectCalls)
+        }
+
+    @org.junit.Test
+    fun capabilitiesDoesNotRetryWhenConnectFails() =
+        runTest {
+            val client =
+                FakeMcpClient(
+                    connectResults =
+                        ArrayDeque(
+                            listOf(
+                                Result.failure(IllegalStateException("nope")),
+                                Result.failure(IllegalStateException("nope")),
+                            ),
+                        ),
+                )
+            val connection = newConnection(client, maxRetries = 2)
+
+            val result = connection.getCapabilities(forceRefresh = true)
+
+            assertTrue(result.isFailure)
+            assertEquals(2, client.connectCalls)
+            assertEquals(0, client.capabilitiesCalls)
+        }
+
+    @org.junit.Test
+    fun connectRetriesWhenConnectThrows() =
+        runTest {
+            var attempts = 0
+            val client =
+                object : McpClient {
+                    override suspend fun connect(): Result<Unit> {
+                        attempts += 1
+                        if (attempts == 1) {
+                            error("boom")
+                        }
+                        return Result.success(Unit)
+                    }
+
+                    override suspend fun disconnect() = Unit
+
+                    override suspend fun fetchCapabilities(): Result<ServerCapabilities> = Result.success(ServerCapabilities())
+
+                    override suspend fun callTool(
+                        name: String,
+                        arguments: JsonObject,
+                    ): Result<JsonElement> = Result.success(JsonNull)
+
+                    override suspend fun getPrompt(
+                        name: String,
+                        arguments: Map<String, String>?,
+                    ): Result<JsonObject> = Result.success(JsonObject(emptyMap()))
+
+                    override suspend fun readResource(uri: String): Result<JsonObject> = Result.success(JsonObject(emptyMap()))
+                }
+            val connection = newConnection(client, maxRetries = 2)
+
+            val result = connection.connect()
+
+            assertTrue(result.isSuccess)
+            assertEquals(2, attempts)
+        }
+
+    @org.junit.Test
+    fun connectDoesNotRetryWhenCancelled() =
+        runTest {
+            val client =
+                FakeMcpClient(
+                    connectResults =
+                        ArrayDeque(
+                            listOf(
+                                Result.failure(CancellationException("cancelled")),
+                            ),
+                        ),
+                )
+            val connection = newConnection(client, maxRetries = 3)
+
+            val result = connection.connect()
+
+            assertTrue(result.isFailure)
+            assertIs<CancellationException>(result.exceptionOrNull())
+            assertEquals(1, client.connectCalls)
+        }
+
+    @org.junit.Test
+    fun callTool_returns_connection_error_when_connect_fails() =
+        runTest {
+            val client =
+                FakeMcpClient(
+                    connectResults =
+                        ArrayDeque(
+                            listOf(
+                                Result.failure(IllegalStateException("nope")),
+                                Result.failure(IllegalStateException("still nope")),
+                            ),
+                        ),
+                )
+            val connection = newConnection(client, maxRetries = 2)
+
+            val result = connection.callTool("ping", JsonObject(emptyMap()))
+
+            assertTrue(result.isFailure)
+            val error = result.exceptionOrNull()
+            assertIs<McpError.ConnectionError>(error)
+            assertTrue(error.message?.contains("Failed to connect") == true)
+            assertTrue(connection.status is ServerStatus.Error)
+            assertEquals(2, client.connectCalls)
+            assertEquals(0, client.callToolCalls)
+        }
+
+    private class FakeMcpClient(
+        connectResults: ArrayDeque<Result<Unit>> = ArrayDeque(listOf(Result.success(Unit))),
+        capabilityResults: ArrayDeque<Result<ServerCapabilities>> =
+            ArrayDeque(
+                listOf(
+                    Result.success(ServerCapabilities()),
+                ),
+            ),
+    ) : McpClient,
+        TimeoutConfigurableMcpClient {
+        private val connectQueue = connectResults
+        private val capsQueue = capabilityResults
+        private var lastCaps: Result<ServerCapabilities> =
+            capabilityResults.firstOrNull() ?: Result.success(ServerCapabilities())
+
+        var callToolDelayMillis: Long = 0
+        var capabilityDelayMillis: Long = 0
+        var callToolResult: Result<JsonElement> = Result.success(JsonNull)
+        var getPromptDelayMillis: Long = 0
+        var readResourceDelayMillis: Long = 0
+        private var configuredCapabilitiesTimeoutMillis: Long = Long.MAX_VALUE
+
+        var connectCalls: Int = 0
+        var disconnectCalls: Int = 0
+        var capabilitiesCalls: Int = 0
+        var callToolCalls: Int = 0
+        var getPromptCalls: Int = 0
+        var readResourceCalls: Int = 0
+
+        override suspend fun connect(): Result<Unit> {
+            connectCalls += 1
+            return if (connectQueue.isEmpty()) {
+                Result.success(Unit)
+            } else {
+                connectQueue.removeFirst()
+            }
+        }
+
+        override suspend fun disconnect() {
+            disconnectCalls += 1
+        }
+
+        override suspend fun fetchCapabilities(): Result<ServerCapabilities> {
+            capabilitiesCalls += 1
+            if (capabilityDelayMillis > 0) {
+                delay(capabilityDelayMillis)
+                if (capabilityDelayMillis > configuredCapabilitiesTimeoutMillis) {
+                    return Result.failure(
+                        McpError.TimeoutError(
+                            "Capabilities timed out after $configuredCapabilitiesTimeoutMillis ms",
+                        ),
+                    )
+                }
+            }
+            val result = if (capsQueue.isEmpty()) lastCaps else capsQueue.removeFirst()
+            lastCaps = result
+            return result
+        }
+
+        override suspend fun callTool(
+            name: String,
+            arguments: JsonObject,
+        ): Result<JsonElement> {
+            callToolCalls += 1
+            if (callToolDelayMillis > 0) {
+                delay(callToolDelayMillis)
+            }
+            return callToolResult
+        }
+
+        override suspend fun getPrompt(
+            name: String,
+            arguments: Map<String, String>?,
+        ): Result<JsonObject> {
+            getPromptCalls += 1
+            if (getPromptDelayMillis > 0) {
+                delay(getPromptDelayMillis)
+            }
+            return Result.success(JsonObject(emptyMap()))
+        }
+
+        override suspend fun readResource(uri: String): Result<JsonObject> {
+            readResourceCalls += 1
+            if (readResourceDelayMillis > 0) {
+                delay(readResourceDelayMillis)
+            }
+            return Result.success(JsonObject(emptyMap()))
+        }
+
+        @Suppress("UNUSED_PARAMETER")
+        override fun updateTimeouts(
+            connectTimeoutMillis: Long,
+            capabilitiesTimeoutMillis: Long,
+        ) {
+            configuredCapabilitiesTimeoutMillis = capabilitiesTimeoutMillis
+        }
+    }
+
+    private object NoopLogger : Logger {
+        override fun debug(message: String) = Unit
+
+        override fun info(message: String) = Unit
+
+        override fun warn(
+            message: String,
+            throwable: Throwable?,
+        ) = Unit
+
+        override fun error(
+            message: String,
+            throwable: Throwable?,
+        ) = Unit
+    }
+}

@@ -1,0 +1,22 @@
+{
+  "id": "mixed",
+  "name": "mixed",
+  "tools": [
+    {
+      "serverId": "test-stdio",
+      "toolName": "add_stdio"
+    }
+  ],
+  "prompts": [
+    {
+      "serverId": "test-http",
+      "promptName": "hello_http"
+    }
+  ],
+  "resources": [
+    {
+      "serverId": "test-sse",
+      "resourceKey": "test://resource/sse"
+    }
+  ]
+}
