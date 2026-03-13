@@ -1,0 +1,261 @@
+# Configuration, presets, and hot reload
+
+## Configuration files
+
+Default config directory:
+
+- `~/.config/broxy` (all platforms; Windows uses the same `~/.config` pattern based on user home).
+
+Logs are written next to configuration:
+
+- `~/.config/broxy/logs/YYYY-MM-DD.log`
+
+Custom server icons (desktop UI) are stored next to configuration:
+
+- `~/.config/broxy/icons/`
+
+Key files:
+
+- `mcp.json` - downstream server list and global settings.
+- `ui.json` - desktop UI settings (UI-only, not used by CLI).
+- `preset_<id>.json` - presets for filtering.
+- OAuth cache for HTTP/WS servers is stored in system secure storage.
+  - Cache entries are deleted when a server is removed from `mcp.json`.
+
+Loader:
+
+- `core/src/jvmMain/kotlin/io/qent/broxy/core/config/JsonConfigurationRepository.kt`
+
+## mcp.json structure and validation
+
+`JsonConfigurationRepository.loadMcpConfig()`:
+
+1) reads `mcp.json` (missing file -> empty config);
+2) decodes into `FileMcpRoot`;
+3) expands `mcpServers: Map<String, FileMcpServer>` into `McpServerConfig` list;
+4) validates:
+    - transport type and required fields (`command`/`url`);
+    - unique `serverId`;
+    - non-blank `id` and `name`;
+    - presence of env vars used by placeholders;
+    - optional `iconPath` values (stored as-is).
+5) applies defaults:
+    - `requestTimeoutSeconds` (default 60)
+    - `capabilitiesTimeoutSeconds` (default 30)
+    - `authorizationTimeoutSeconds` (default 120)
+    - `connectionRetryCount` (default 3)
+    - `ignoreHttpsCertificateErrors` (default false)
+    - `capabilitiesRefreshIntervalSeconds` (default 300)
+    - `fallbackPromptsAndResourcesToTools` (default false)
+    - `adapterMode` (default false)
+    - `inboundHttpPort` (default 3335; used for local Streamable HTTP + `/sse`)
+    - `defaultPresetId` (optional)
+
+`capabilitiesRefreshIntervalSeconds` drives both the proxy background refresh loop and
+the UI refresh cadence (minimum 30 seconds for each).
+
+`adapterMode` exposes a fixed MCP tool surface (get_available_actions / execute_action) so
+clients can fetch available actions on demand without refreshing tool lists after preset changes.
+When adapter mode is disabled, Broxy emits tools/prompts/resources list-changed notifications
+on capability updates so clients that support them can refresh without reconnecting.
+
+Desktop UI applies settings changes optimistically: toggles (including adapter mode) update the UI
+immediately, while persistence to `mcp.json` and proxy refreshes run in the background. Failures
+revert the toggle and surface a UI error state.
+
+`defaultPresetId` can also point to built-in presets such as `__empty__` ("No preset")
+and `__all_enabled__` ("All enabled servers").
+
+`ignoreHttpsCertificateErrors` is a global setting for all downstream HTTPS/WSS connections.
+When enabled, Broxy disables certificate validation in Ktor CIO clients (MCP transport and OAuth HTTP flows),
+which allows corporate/self-signed certificates but reduces TLS security guarantees.
+
+### mcp.json example
+
+```json
+{
+  "defaultPresetId": "developer",
+  "inboundHttpPort": 3335,
+  "requestTimeoutSeconds": 60,
+  "capabilitiesTimeoutSeconds": 30,
+  "authorizationTimeoutSeconds": 120,
+  "connectionRetryCount": 3,
+  "ignoreHttpsCertificateErrors": false,
+  "capabilitiesRefreshIntervalSeconds": 300,
+  "fallbackPromptsAndResourcesToTools": false,
+  "adapterMode": false,
+    "mcpServers": {
+      "github": {
+        "name": "GitHub MCP",
+        "transport": "stdio",
+        "command": "npx",
+        "args": [
+          "@modelcontextprotocol/server-github"
+        ],
+        "iconPath": "icons/github.png",
+        "env": {
+          "GITHUB_TOKEN": "${GITHUB_TOKEN}"
+        }
+      },
+    "slack": {
+      "name": "Slack MCP",
+      "transport": "http",
+      "url": "https://slack-mcp.example.com",
+      "auth": {
+        "type": "oauth",
+        "clientId": "slack-client-id",
+        "clientSecret": "${SLACK_CLIENT_SECRET}",
+        "redirectUri": "http://localhost:8080/callback",
+        "authorizationServer": "https://auth.slack.com",
+        "tokenEndpointAuthMethod": "client_secret_post"
+      }
+    },
+    "realtime": {
+      "name": "Realtime MCP",
+      "transport": "ws",
+      "url": "ws://localhost:8080/ws",
+      "headers": {
+        "X-Client": "broxy"
+      }
+    }
+  }
+}
+```
+
+## ui.json (UI-only settings)
+
+UI-only settings are stored in `ui.json` next to `mcp.json`. These settings are not read by CLI or core.
+
+- `showTrayIcon` (default true): whether the desktop UI displays a system tray icon.
+
+### ui.json example
+
+```json
+{
+  "showTrayIcon": true
+}
+```
+
+### serverId in Desktop UI
+
+- In `mcp.json`, `serverId` is the key of `mcpServers` and is part of the tool namespace: `serverId_toolName`.
+- Desktop UI auto-generates `serverId` from `name` (slugified).
+- Desktop UI server cards support drag-and-drop reordering; the saved `mcpServers` object keeps that order.
+- When renaming a server, `ConfigurationManager.renameServer(...)` updates `mcp.json` and rewrites all
+  `preset_*.json` references from the old id to the new id (best-effort; errors are logged).
+- New server ids created via UI/CLI must not contain `_` (to avoid `serverId_tool` namespace collisions).
+  Existing configs with `_` are supported but log a warning on load.
+- While editing a STDIO server, the Desktop UI checks command availability against the resolved user `PATH`
+  (login + interactive shell, plus standard Homebrew paths on macOS) when the command field loses focus and
+  shows a warning if the command cannot be found.
+
+## Supported downstream transports
+
+Parsing `transport` (string) into `TransportConfig`:
+
+- `"stdio"` -> `TransportConfig.StdioTransport(command, args)`
+- `"http"` -> `TransportConfig.StreamableHttpTransport(url, headers)`
+- `"sse"` -> `TransportConfig.HttpTransport(url, headers)`
+- `"ws"` -> `TransportConfig.WebSocketTransport(url, headers)`
+
+Notes:
+
+- Transport values are strict; legacy aliases are not accepted.
+- `headers` are supported for HTTP (streamable), SSE, and WebSocket.
+- `env` is used only for STDIO processes; for HTTP/WS it is stored but not consumed by transports.
+
+## OAuth auth block
+
+Downstream HTTP/SSE, Streamable HTTP, and WebSocket servers can include an `auth` block for OAuth.
+If the server supports dynamic client registration, Broxy can auto-discover OAuth parameters via
+`/.well-known` endpoints and no `auth` block is required.
+
+- `type`: `"oauth"`
+- `clientId`: pre-registered client id (preferred when present)
+- `clientSecret`: optional secret for confidential clients
+- `clientIdMetadataUrl`: HTTPS URL for Client ID Metadata Documents
+- `redirectUri`: loopback callback (`http://localhost:<port>/...`)
+- `redirectUri` requires an explicit port; only loopback HTTP is supported.
+- `authorizationServer`: issuer override if resource metadata is unavailable
+- `tokenEndpointAuthMethod`: `none`, `client_secret_basic`, `client_secret_post`
+- `scopes`: fallback scopes when discovery provides none
+- `allowDynamicRegistration`: toggle dynamic registration support
+
+Use `auth` only when the server does **not** support dynamic client registration or when you need
+pre-registered client credentials. `auth` is ignored for STDIO transports; use environment variables
+instead.
+
+## Environment placeholders
+
+Placeholders are supported in `env` values in two forms:
+
+- `${VAR}`
+- `{VAR}`
+
+Implementation:
+
+- `core/src/jvmMain/kotlin/io/qent/broxy/core/config/EnvironmentVariableResolver.kt`
+
+Behavior:
+
+- `JsonConfigurationRepository` checks missing placeholders and fails with a clear error.
+- For logging, env values are sanitized by key: TOKEN/SECRET/PASSWORD/KEY -> `"***"`.
+- When saving `mcp.json`, the repository preserves raw placeholder values for unchanged `env` and `auth`
+  fields so resolved secrets are not written back to disk.
+
+## preset_<id>.json
+
+Preset loading:
+
+- `JsonConfigurationRepository.loadPreset(id)`:
+    - verifies the file exists;
+    - parses JSON into `Preset`;
+    - validates that `preset.id` matches the file id.
+
+Rename semantics:
+
+- A preset id is part of the file name. Renaming means save under a new id and delete the old file.
+- Desktop UI generates ids from `name` and performs rename (save new id + delete old file).
+
+Preset listing:
+
+- `JsonConfigurationRepository.listPresets()` reads all `preset_*.json` files and skips invalid ones with a warning.
+- Presets are ordered by `orderIndex` (ascending).
+- Desktop UI preset cards support drag-and-drop reordering; to persist the custom order, Broxy rewrites
+  `orderIndex` values in `preset_*.json` files.
+
+Preset metadata:
+
+- `orderIndex` stores explicit list order. New presets are appended to the end by assigning the next index.
+
+## Hot reload: ConfigurationWatcher
+
+File: `core/src/jvmMain/kotlin/io/qent/broxy/core/config/ConfigurationWatcher.kt`
+
+Purpose: watch the config directory and notify observers.
+
+Key behaviors:
+
+- Uses `WatchService` with `ENTRY_CREATE/MODIFY/DELETE`.
+- Debounce (`debounceMillis`, default 300 ms).
+- When `mcp.json` changes -> `onConfigurationChanged(config)`.
+- When `preset_*.json` changes -> `onPresetChanged(preset)` if the file exists.
+- If the directory does not exist, the watcher logs and remains idle.
+
+Manual triggers (tests/headless):
+
+- `triggerConfigReload()`
+- `triggerPresetReload(id)`
+
+`emitInitialState`:
+
+- If `true`, the watcher emits an initial config event after debounce.
+- CLI uses `emitInitialState = false` because config is loaded before start. Desktop UI refreshes
+  configuration via `AppStore` intents and does not wire `ConfigurationWatcher` by default.
+
+## CLI usage of hot reload
+
+File: `cli/src/main/kotlin/io/qent/broxy/cli/commands/ProxyCommand.kt`
+
+- `mcp.json` change -> `ProxyLifecycle.updateServers(config)` (diffs downstreams, keeps inbound running).
+- `preset_*.json` change -> `ProxyLifecycle.applyPreset(preset)` (re-sync SDK server, no inbound restart).

@@ -1,0 +1,105 @@
+@file:Suppress("FunctionNaming")
+
+package io.qent.broxy.ui.components
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ChatBubbleOutline
+import androidx.compose.material.icons.outlined.Construction
+import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import io.qent.broxy.ui.strings.LocalStrings
+
+@Composable
+@Suppress("LongParameterList")
+fun CapabilitiesInlineSummary(
+    toolsCount: Int,
+    promptsCount: Int,
+    resourcesCount: Int,
+    modifier: Modifier = Modifier,
+    tint: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+    toolsTint: Color = tint,
+    promptsTint: Color = tint,
+    resourcesTint: Color = tint,
+    iconSize: Dp = 14.dp,
+    textStyle: TextStyle = MaterialTheme.typography.bodySmall,
+) {
+    val strings = LocalStrings.current
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        CapabilitiesInlineItem(
+            icon = Icons.Outlined.Construction,
+            contentDescription = strings.toolsLabel,
+            count = toolsCount,
+            tint = toolsTint,
+            iconSize = iconSize,
+            textStyle = textStyle,
+        )
+        CapabilitiesInlineItem(
+            icon = Icons.Outlined.ChatBubbleOutline,
+            contentDescription = strings.promptsLabel,
+            count = promptsCount,
+            tint = promptsTint,
+            iconSize = iconSize,
+            textStyle = textStyle,
+        )
+        CapabilitiesInlineItem(
+            icon = Icons.Outlined.Description,
+            contentDescription = strings.resourcesLabel,
+            count = resourcesCount,
+            tint = resourcesTint,
+            iconSize = iconSize,
+            textStyle = textStyle,
+        )
+    }
+}
+
+@Composable
+@Suppress("LongParameterList")
+private fun CapabilitiesInlineItem(
+    icon: ImageVector,
+    contentDescription: String,
+    count: Int,
+    tint: Color,
+    iconSize: Dp,
+    textStyle: TextStyle,
+) {
+    Row(
+        modifier = Modifier.widthIn(min = 29.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = tint,
+            modifier = Modifier.size(iconSize),
+        )
+        Spacer(Modifier.width(2.dp))
+        Text(
+            text = count.toString(),
+            style = textStyle,
+            color = tint,
+            modifier = Modifier.widthIn(min = 15.dp),
+            textAlign = TextAlign.Center,
+        )
+    }
+}
