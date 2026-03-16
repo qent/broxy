@@ -82,7 +82,7 @@ kotlin {
         val jvmTest by getting {
             dependencies {
                 implementation(kotlin("test"))
-                implementation("org.mockito:mockito-core:5.21.0")
+                implementation("org.mockito:mockito-core:5.23.0")
                 implementation("org.mockito.kotlin:mockito-kotlin:6.1.0")
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:${property("coroutinesVersion")}")
                 implementation("io.modelcontextprotocol:kotlin-sdk-core:${property("mcpSdkVersion")}")
