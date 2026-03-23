@@ -34,7 +34,7 @@ jobs:
           java-version: '17'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v5
+        uses: gradle/actions/setup-gradle@v6
 
       - name: Clean and build (runs tests)
         run: ./gradlew --no-daemon clean build
