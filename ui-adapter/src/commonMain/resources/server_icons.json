@@ -1,0 +1,589 @@
+{
+  "rules": [
+    {
+      "registryId": "aws-api",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^stdio$"
+        },
+        {
+          "field": "args",
+          "pattern": "awslabs\\.aws-api-mcp-server@latest"
+        }
+      ]
+    },
+    {
+      "registryId": "aws-diagram",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^stdio$"
+        },
+        {
+          "field": "args",
+          "pattern": "awslabs\\.aws-diagram-mcp-server"
+        }
+      ]
+    },
+    {
+      "registryId": "aws-documentation",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^stdio$"
+        },
+        {
+          "field": "args",
+          "pattern": "awslabs\\.aws-documentation-mcp-server@latest"
+        }
+      ]
+    },
+    {
+      "registryId": "aws-knowledge",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^http$"
+        },
+        {
+          "field": "url",
+          "pattern": "^https://knowledge-mcp\\.global\\.api\\.aws/?$"
+        }
+      ]
+    },
+    {
+      "registryId": "aws-pricing",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^stdio$"
+        },
+        {
+          "field": "args",
+          "pattern": "awslabs\\.aws-pricing-mcp-server@latest"
+        }
+      ]
+    },
+    {
+      "registryId": "azure",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^stdio$"
+        },
+        {
+          "field": "args",
+          "pattern": "@azure/mcp@latest"
+        }
+      ]
+    },
+    {
+      "registryId": "box",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^http$"
+        },
+        {
+          "field": "url",
+          "pattern": "^https://mcp\\.box\\.com/?$"
+        }
+      ]
+    },
+    {
+      "registryId": "brave",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^stdio$"
+        },
+        {
+          "field": "args",
+          "pattern": "@modelcontextprotocol/server-brave-search"
+        }
+      ]
+    },
+    {
+      "registryId": "browserbase",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^stdio$"
+        },
+        {
+          "field": "args",
+          "pattern": "@browserbasehq/mcp"
+        }
+      ]
+    },
+    {
+      "registryId": "chroma-mcp",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^stdio$"
+        },
+        {
+          "field": "args",
+          "pattern": "chroma-mcp"
+        }
+      ]
+    },
+    {
+      "registryId": "chrome-devtools-mcp",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^stdio$"
+        },
+        {
+          "field": "args",
+          "pattern": "chrome-devtools-mcp@latest"
+        }
+      ]
+    },
+    {
+      "registryId": "cloud-run",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^stdio$"
+        },
+        {
+          "field": "args",
+          "pattern": "@google-cloud/cloud-run-mcp"
+        }
+      ]
+    },
+    {
+      "registryId": "context7",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^http$"
+        },
+        {
+          "field": "url",
+          "pattern": "^https://mcp\\.context7\\.com/mcp/?$"
+        }
+      ]
+    },
+    {
+      "registryId": "database-toolbox",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^stdio$"
+        },
+        {
+          "field": "args",
+          "pattern": "@toolbox-sdk/server"
+        }
+      ]
+    },
+    {
+      "registryId": "dropbox",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^http$"
+        },
+        {
+          "field": "url",
+          "pattern": "^https://mcp\\.dropbox\\.com/dash/?$"
+        }
+      ]
+    },
+    {
+      "registryId": "elasticsearch",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^stdio$"
+        },
+        {
+          "field": "args",
+          "pattern": "docker\\.elastic\\.co/mcp/elasticsearch"
+        }
+      ]
+    },
+    {
+      "registryId": "exa",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^http$"
+        },
+        {
+          "field": "url",
+          "pattern": "^https://mcp\\.exa\\.ai/mcp/?$"
+        }
+      ]
+    },
+    {
+      "registryId": "filesystem",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^stdio$"
+        },
+        {
+          "field": "args",
+          "pattern": "@modelcontextprotocol/server-filesystem"
+        }
+      ]
+    },
+    {
+      "registryId": "firecrawl",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^stdio$"
+        },
+        {
+          "field": "args",
+          "pattern": "firecrawl-mcp"
+        }
+      ]
+    },
+    {
+      "registryId": "github",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^http$"
+        },
+        {
+          "field": "url",
+          "pattern": "^https://api\\.githubcopilot\\.com/mcp/?$"
+        }
+      ]
+    },
+    {
+      "registryId": "grafana",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^stdio$"
+        },
+        {
+          "field": "args",
+          "pattern": "mcp-grafana"
+        }
+      ]
+    },
+    {
+      "registryId": "graphlit",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^stdio$"
+        },
+        {
+          "field": "args",
+          "pattern": "graphlit-mcp-server"
+        }
+      ]
+    },
+    {
+      "registryId": "jetbrains",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^sse$"
+        },
+        {
+          "field": "url",
+          "pattern": "^http://localhost:64343/sse/?$"
+        }
+      ]
+    },
+    {
+      "registryId": "linear",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^http$"
+        },
+        {
+          "field": "url",
+          "pattern": "^https://mcp\\.linear\\.app/mcp/?$"
+        }
+      ]
+    },
+    {
+      "registryId": "mcp-clickhouse",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^stdio$"
+        },
+        {
+          "field": "args",
+          "pattern": "mcp-clickhouse"
+        }
+      ]
+    },
+    {
+      "registryId": "mcp-server-neon",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^http$"
+        },
+        {
+          "field": "url",
+          "pattern": "^https://mcp\\.neon\\.tech/mcp/?$"
+        }
+      ]
+    },
+    {
+      "registryId": "monday",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^sse$"
+        },
+        {
+          "field": "url",
+          "pattern": "^https://mcp\\.monday\\.com/sse/?$"
+        }
+      ]
+    },
+    {
+      "registryId": "mongodb",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^stdio$"
+        },
+        {
+          "field": "args",
+          "pattern": "mongodb-mcp-server@latest"
+        }
+      ]
+    },
+    {
+      "registryId": "notion",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^http$"
+        },
+        {
+          "field": "url",
+          "pattern": "^https://mcp\\.notion\\.com/mcp/?$"
+        }
+      ]
+    },
+    {
+      "registryId": "perplexity-ask",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^stdio$"
+        },
+        {
+          "field": "args",
+          "pattern": "@perplexity-ai/mcp-server"
+        }
+      ]
+    },
+    {
+      "registryId": "phoenix",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^stdio$"
+        },
+        {
+          "field": "args",
+          "pattern": "@arizeai/phoenix-mcp@latest"
+        }
+      ]
+    },
+    {
+      "registryId": "playwright",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^stdio$"
+        },
+        {
+          "field": "args",
+          "pattern": "@playwright/mcp@latest"
+        }
+      ]
+    },
+    {
+      "registryId": "postgres-mcp-pro",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^stdio$"
+        },
+        {
+          "field": "args",
+          "pattern": "postgres-mcp"
+        }
+      ]
+    },
+    {
+      "registryId": "redis",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^stdio$"
+        },
+        {
+          "field": "args",
+          "pattern": "redis-mcp-server@latest"
+        }
+      ]
+    },
+    {
+      "registryId": "semgrep",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^stdio$"
+        },
+        {
+          "field": "args",
+          "pattern": "semgrep-mcp"
+        }
+      ]
+    },
+    {
+      "registryId": "sentry",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^stdio$"
+        },
+        {
+          "field": "args",
+          "pattern": "@sentry/mcp-server"
+        }
+      ]
+    },
+    {
+      "registryId": "slack",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^http$"
+        },
+        {
+          "field": "url",
+          "pattern": "^https://mcp\\.slack\\.com/mcp/?$"
+        }
+      ]
+    },
+    {
+      "registryId": "sonarqube",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^stdio$"
+        },
+        {
+          "field": "args",
+          "pattern": "mcp/sonarqube:latest"
+        }
+      ]
+    },
+    {
+      "registryId": "stripe",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^http$"
+        },
+        {
+          "field": "url",
+          "pattern": "^https://mcp\\.stripe\\.com/?$"
+        }
+      ]
+    },
+    {
+      "registryId": "supabase",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^http$"
+        },
+        {
+          "field": "url",
+          "pattern": "^https://mcp\\.supabase\\.com/mcp/?$"
+        }
+      ]
+    },
+    {
+      "registryId": "tavily-mcp",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^stdio$"
+        },
+        {
+          "field": "args",
+          "pattern": "tavily-mcp@latest"
+        }
+      ]
+    },
+    {
+      "registryId": "terraform",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^stdio$"
+        },
+        {
+          "field": "args",
+          "pattern": "hashicorp/terraform-mcp-server:0\\.5\\.0"
+        }
+      ]
+    },
+    {
+      "registryId": "time",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^stdio$"
+        },
+        {
+          "field": "args",
+          "pattern": "mcp-server-time"
+        }
+      ]
+    },
+    {
+      "registryId": "todoist",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^http$"
+        },
+        {
+          "field": "url",
+          "pattern": "^https://ai\\.todoist\\.net/mcp/?$"
+        }
+      ]
+    },
+    {
+      "registryId": "vercel",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^http$"
+        },
+        {
+          "field": "url",
+          "pattern": "^https://mcp\\.vercel\\.com/?$"
+        }
+      ]
+    }
+  ]
+}

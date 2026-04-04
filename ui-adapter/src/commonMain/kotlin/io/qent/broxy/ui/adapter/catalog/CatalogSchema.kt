@@ -1,0 +1,30 @@
+package io.qent.broxy.ui.adapter.catalog
+
+import io.qent.broxy.registry.catalog.CATALOG_META_KEY as RegistryCatalogMetaKey
+import io.qent.broxy.registry.catalog.CatalogArgument as RegistryCatalogArgument
+import io.qent.broxy.registry.catalog.CatalogBundle as RegistryCatalogBundle
+import io.qent.broxy.registry.catalog.CatalogIcon as RegistryCatalogIcon
+import io.qent.broxy.registry.catalog.CatalogInput as RegistryCatalogInput
+import io.qent.broxy.registry.catalog.CatalogKeyValueInput as RegistryCatalogKeyValueInput
+import io.qent.broxy.registry.catalog.CatalogLocalTransport as RegistryCatalogLocalTransport
+import io.qent.broxy.registry.catalog.CatalogPackage as RegistryCatalogPackage
+import io.qent.broxy.registry.catalog.CatalogRegistryIndex as RegistryCatalogRegistryIndex
+import io.qent.broxy.registry.catalog.CatalogRegistryServerRef as RegistryCatalogRegistryServerRef
+import io.qent.broxy.registry.catalog.CatalogRemoteTransport as RegistryCatalogRemoteTransport
+import io.qent.broxy.registry.catalog.CatalogRepositoryMetadata as RegistryCatalogRepositoryMetadata
+import io.qent.broxy.registry.catalog.CatalogServerDetail as RegistryCatalogServerDetail
+
+const val CATALOG_META_KEY = RegistryCatalogMetaKey
+
+typealias CatalogRegistryIndex = RegistryCatalogRegistryIndex
+typealias CatalogRegistryServerRef = RegistryCatalogRegistryServerRef
+typealias CatalogBundle = RegistryCatalogBundle
+typealias CatalogServerDetail = RegistryCatalogServerDetail
+typealias CatalogIcon = RegistryCatalogIcon
+typealias CatalogPackage = RegistryCatalogPackage
+typealias CatalogRepositoryMetadata = RegistryCatalogRepositoryMetadata
+typealias CatalogRemoteTransport = RegistryCatalogRemoteTransport
+typealias CatalogLocalTransport = RegistryCatalogLocalTransport
+typealias CatalogArgument = RegistryCatalogArgument
+typealias CatalogInput = RegistryCatalogInput
+typealias CatalogKeyValueInput = RegistryCatalogKeyValueInput

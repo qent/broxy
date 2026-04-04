@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://io.qent.broxy/schemas/config.schema.json",
+  "title": "Broxy App Configuration",
+  "description": "Global Broxy settings stored in config.json. Unknown fields are allowed and ignored by Broxy.",
+  "type": "object",
+  "properties": {
+    "mcpFilePath": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Path to MCP server definitions file (Claude-compatible mcp.json)."
+    },
+    "defaultPresetId": {
+      "type": ["string", "null"],
+      "minLength": 1,
+      "description": "Default preset ID for UI/CLI flows.",
+      "default": null
+    },
+    "inboundHttpPort": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535,
+      "default": 3335
+    },
+    "requestTimeoutSeconds": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 60
+    },
+    "capabilitiesTimeoutSeconds": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 30
+    },
+    "authorizationTimeoutSeconds": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 120
+    },
+    "connectionRetryCount": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 3
+    },
+    "ignoreHttpsCertificateErrors": {
+      "type": "boolean",
+      "default": false
+    },
+    "capabilitiesRefreshIntervalSeconds": {
+      "type": "integer",
+      "minimum": 30,
+      "default": 300
+    },
+    "fallbackPromptsAndResourcesToTools": {
+      "type": "boolean",
+      "default": false
+    },
+    "adapterMode": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "additionalProperties": true
+}
