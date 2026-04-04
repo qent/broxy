@@ -76,6 +76,6 @@ internal class StreamableHttpServerTransport(
     override suspend fun close() {
         if (!initialized.get()) return
         initialized.set(false)
-        _onClose.invoke()
+        invokeOnCloseCallback()
     }
 }

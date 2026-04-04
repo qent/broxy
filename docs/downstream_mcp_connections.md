@@ -175,6 +175,10 @@ Timeout behavior:
 
 - The client sets Ktor `HttpTimeout` for connect timeouts only; request/socket timeouts are not set so
   per-call coroutine timeouts control request duration.
+- For Streamable HTTP, if the follow-up SSE `GET` endpoint responds with `404 Not Found`, `405 Method Not Allowed`,
+  or `Content-Type: application/json`, Broxy treats the server as JSON-only and keeps the connection alive.
+- Broxy uses the SDK-native Streamable HTTP client transport (`mcpStreamableHttp`) rather than a forked/custom transport;
+  the JSON-only fallback behavior above comes from MCP Kotlin SDK 0.10.0+.
 - `fetchCapabilities()` calls `getTools()`, `getResources()`, and `getPrompts()` in parallel with per-call
   timeouts, so the total wait is bounded by the slowest category.
 - `RealSdkClientFacade` skips list calls when the server capabilities (from `initialize`) report
@@ -192,8 +196,20 @@ Timeout behavior:
 - Discovers authorization server metadata via OAuth 2.0 and OpenID Connect well-known endpoints.
 - Requires PKCE (`S256`) support and sends the `resource` parameter on auth/token requests.
 - Handles step-up authorization on `insufficient_scope` and refresh tokens when available.
-- When metadata is available, completes OAuth before connecting to the MCP endpoint; otherwise falls
-  back to an unauthenticated probe and step-up authorization.
+- For dynamic registration, sends `token_endpoint_auth_method` only when configured.
+- If registration returns `token_endpoint_auth_method`, Broxy uses that server-issued value even if
+  discovery metadata advertises a different set.
+- If registration omits `token_endpoint_auth_method` and returns `client_secret`, Broxy infers one from
+  server metadata and OAuth defaults (prefers `client_secret_basic`, then `client_secret_post`).
+- If token exchange/refresh fails with `invalid_client` (or unsupported auth method), Broxy retries
+  with alternate auth methods and stores the working method in in-memory OAuth state.
+- When resource metadata is available and includes `authorization_servers`, Broxy completes OAuth
+  before connecting to the MCP endpoint.
+- Protected resource metadata field `resource` is accepted as both a single string and an array of
+  strings; when an array is returned Broxy uses the first non-empty value.
+- If pre-authorization metadata is present but does not include `authorization_servers`, Broxy treats
+  OAuth metadata as unavailable and continues without a token until an auth challenge is received.
+- In challenge-driven flows (`401/403`), missing `authorization_servers` remains a hard error.
 
 If the server supports dynamic client registration, Broxy can auto-discover OAuth parameters via
 `/.well-known` endpoints. Use the `oauth` block in `mcp.json` only for pre-registered credentials

@@ -1,11 +1,14 @@
 package io.qent.broxy.ui.adapter.catalog
 
+import io.qent.broxy.ui.adapter.models.UiAuthConfig
 import io.qent.broxy.ui.adapter.models.UiHttpDraft
 import io.qent.broxy.ui.adapter.models.UiStdioDraft
 import io.qent.broxy.ui.adapter.models.UiStreamableHttpDraft
+import kotlinx.serialization.json.JsonPrimitive
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 class CatalogInstallPlannerAdapterTest {
@@ -22,6 +25,24 @@ class CatalogInstallPlannerAdapterTest {
                         CatalogRemoteTransport(
                             type = "streamable-http",
                             url = "https://example.com/mcp",
+                            oauth =
+                                CatalogRemoteOAuth(
+                                    type = "oauth",
+                                    clientId = "{client_id}",
+                                    clientSecret = "{client_secret}",
+                                    callbackPort = JsonPrimitive("{callback_port}"),
+                                    authServerMetadataUrl = "https://mcp.example.com/.well-known/oauth-authorization-server",
+                                    redirectUri = "https://localhost:{callback_port}/callback",
+                                    tokenEndpointAuthMethod = "client_secret_post",
+                                    authorizationServer = "https://issuer.example.com",
+                                    allowDynamicRegistration = false,
+                                ),
+                            variables =
+                                mapOf(
+                                    "client_id" to CatalogInput(default = "id-1", isRequired = true),
+                                    "client_secret" to CatalogInput(default = "secret-1", isRequired = true, isSecret = true),
+                                    "callback_port" to CatalogInput(default = "3118"),
+                                ),
                         ),
                     ),
             )
@@ -44,6 +65,15 @@ class CatalogInstallPlannerAdapterTest {
         val transport = assertIs<UiStreamableHttpDraft>(installResult.draft.transport)
         assertEquals("https://example.com/mcp", transport.url)
         assertEquals(emptyMap(), transport.headers)
+        val auth = assertIs<UiAuthConfig.OAuth>(assertNotNull(installResult.draft.auth))
+        assertEquals("id-1", auth.clientId)
+        assertEquals("secret-1", auth.clientSecret)
+        assertEquals(3118, auth.callbackPort)
+        assertEquals("https://mcp.example.com/.well-known/oauth-authorization-server", auth.authServerMetadataUrl)
+        assertEquals("https://localhost:3118/callback", auth.redirectUri)
+        assertEquals("client_secret_post", auth.tokenEndpointAuthMethod)
+        assertEquals("https://issuer.example.com", auth.authorizationServer)
+        assertEquals(false, auth.allowDynamicRegistration)
     }
 
     @Test

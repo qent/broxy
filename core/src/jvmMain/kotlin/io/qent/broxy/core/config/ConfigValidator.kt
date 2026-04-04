@@ -97,8 +97,12 @@ internal class ConfigValidator(
         val scheme = uri.scheme?.lowercase() ?: errors.fail("Server '$serverId': oauth.redirectUri missing scheme")
         val host = uri.host ?: errors.fail("Server '$serverId': oauth.redirectUri missing host")
         val isLoopback = host == "localhost" || host == "127.0.0.1"
-        if (scheme != "http" || !isLoopback) {
-            errors.fail("Server '$serverId': oauth.redirectUri must use http://localhost or http://127.0.0.1")
+        val isSupportedScheme = scheme == "http" || scheme == "https"
+        if (!isSupportedScheme || !isLoopback) {
+            errors.fail(
+                "Server '$serverId': oauth.redirectUri must use http://localhost, https://localhost, " +
+                    "http://127.0.0.1, or https://127.0.0.1",
+            )
         }
         if (uri.port == -1) {
             errors.fail("Server '$serverId': oauth.redirectUri must include an explicit port")

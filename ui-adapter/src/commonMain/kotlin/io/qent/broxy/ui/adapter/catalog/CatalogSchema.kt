@@ -10,6 +10,7 @@ import io.qent.broxy.registry.catalog.CatalogLocalTransport as RegistryCatalogLo
 import io.qent.broxy.registry.catalog.CatalogPackage as RegistryCatalogPackage
 import io.qent.broxy.registry.catalog.CatalogRegistryIndex as RegistryCatalogRegistryIndex
 import io.qent.broxy.registry.catalog.CatalogRegistryServerRef as RegistryCatalogRegistryServerRef
+import io.qent.broxy.registry.catalog.CatalogRemoteOAuth as RegistryCatalogRemoteOAuth
 import io.qent.broxy.registry.catalog.CatalogRemoteTransport as RegistryCatalogRemoteTransport
 import io.qent.broxy.registry.catalog.CatalogRepositoryMetadata as RegistryCatalogRepositoryMetadata
 import io.qent.broxy.registry.catalog.CatalogServerDetail as RegistryCatalogServerDetail
@@ -24,6 +25,7 @@ typealias CatalogIcon = RegistryCatalogIcon
 typealias CatalogPackage = RegistryCatalogPackage
 typealias CatalogRepositoryMetadata = RegistryCatalogRepositoryMetadata
 typealias CatalogRemoteTransport = RegistryCatalogRemoteTransport
+typealias CatalogRemoteOAuth = RegistryCatalogRemoteOAuth
 typealias CatalogLocalTransport = RegistryCatalogLocalTransport
 typealias CatalogArgument = RegistryCatalogArgument
 typealias CatalogInput = RegistryCatalogInput

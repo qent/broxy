@@ -4,6 +4,7 @@ import io.qent.broxy.core.mcp.ServerCapabilities
 import io.qent.broxy.core.mcp.ToolDescriptor
 import io.qent.broxy.core.mcp.auth.AuthorizationPresenterRegistry
 import io.qent.broxy.core.mcp.auth.AuthorizationRequest
+import io.qent.broxy.core.models.AuthConfig
 import io.qent.broxy.core.models.McpServerConfig
 import io.qent.broxy.core.models.McpServersConfig
 import io.qent.broxy.core.models.Preset
@@ -22,8 +23,10 @@ import io.qent.broxy.ui.adapter.capabilities.CapabilityCachePersistence
 import io.qent.broxy.ui.adapter.capabilities.ServerCapsSnapshot
 import io.qent.broxy.ui.adapter.catalog.CatalogBundle
 import io.qent.broxy.ui.adapter.catalog.CatalogInput
+import io.qent.broxy.ui.adapter.catalog.CatalogInstallPlanner
 import io.qent.broxy.ui.adapter.catalog.CatalogLocalTransport
 import io.qent.broxy.ui.adapter.catalog.CatalogPackage
+import io.qent.broxy.ui.adapter.catalog.CatalogRemoteOAuth
 import io.qent.broxy.ui.adapter.catalog.CatalogRemoteTransport
 import io.qent.broxy.ui.adapter.catalog.CatalogServerDetail
 import io.qent.broxy.ui.adapter.clients.AiClientConnectionRequest
@@ -36,6 +39,7 @@ import io.qent.broxy.ui.adapter.data.ImportedServerHideRepository
 import io.qent.broxy.ui.adapter.data.ImportedServerInstallRepository
 import io.qent.broxy.ui.adapter.data.UiSettingsRepository
 import io.qent.broxy.ui.adapter.icons.ServerIconRepository
+import io.qent.broxy.ui.adapter.models.UiAuthConfig
 import io.qent.broxy.ui.adapter.models.UiPreset
 import io.qent.broxy.ui.adapter.models.UiPresetCore
 import io.qent.broxy.ui.adapter.models.UiPresetDraft
@@ -71,6 +75,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -600,6 +605,101 @@ class AppStoreTest {
         }
 
     @org.junit.Test
+    fun installCatalogServer_copiesRegistryOauthFieldsIntoSavedConfig() =
+        runTest {
+            val repository = FakeConfigurationRepository(config = McpServersConfig(), presets = mutableMapOf())
+            val capabilityFetcher = RecordingCapabilityFetcher(Result.success(ServerCapabilities()))
+            val proxyController = FakeProxyController()
+            val proxyLifecycle = ProxyLifecycle(proxyController, noopLogger)
+            val logger = CollectingLogger(delegate = noopLogger)
+            val storeScope = TestScope(testScheduler)
+            val remoteConnector = NoOpRemoteConnector(defaultRemoteState())
+            val catalogRepository =
+                FakeCatalogRepository(
+                    bundle =
+                        CatalogBundle(
+                            servers =
+                                listOf(
+                                    CatalogServerDetail(
+                                        name = "slack",
+                                        title = "Slack",
+                                        description = "desc",
+                                        version = "1.0.0",
+                                        remotes =
+                                            listOf(
+                                                CatalogRemoteTransport(
+                                                    type = "streamable-http",
+                                                    url = "https://mcp.slack.com/mcp",
+                                                    oauth =
+                                                        CatalogRemoteOAuth(
+                                                            type = "oauth",
+                                                            clientId = "{slack_client_id}",
+                                                            clientSecret = "{slack_client_secret}",
+                                                            callbackPort = JsonPrimitive("{slack_callback_port}"),
+                                                            redirectUri = "https://localhost:{slack_callback_port}/callback",
+                                                            tokenEndpointAuthMethod = "client_secret_post",
+                                                            allowDynamicRegistration = false,
+                                                        ),
+                                                    variables =
+                                                        mapOf(
+                                                            "slack_client_id" to CatalogInput(isRequired = true),
+                                                            "slack_client_secret" to CatalogInput(isRequired = true, isSecret = true),
+                                                            "slack_callback_port" to CatalogInput(default = "3118"),
+                                                        ),
+                                                ),
+                                            ),
+                                    ),
+                                ),
+                        ),
+                )
+            val store =
+                AppStore(
+                    configurationRepository = repository,
+                    proxyRuntime = proxyLifecycle,
+                    capabilityFetcher = capabilityFetcher::invoke,
+                    logger = logger,
+                    aiClientConnectors = emptyList(),
+                    scope = storeScope,
+                    ioDispatcher = ioDispatcher(storeScope),
+                    now = { testScheduler.currentTime },
+                    enableBackgroundRefresh = false,
+                    remoteConnector = remoteConnector,
+                    catalogRepository = catalogRepository,
+                )
+
+            store.start()
+            storeScope.advanceUntilIdle()
+            val ready = assertIs<UIState.Ready>(store.state.value)
+            ready.intents.installCatalogServer("slack")
+            storeScope.advanceUntilIdle()
+
+            val readyWithSession = assertIs<UIState.Ready>(store.state.value)
+            val session = assertNotNull(readyWithSession.pendingCatalogInstallSession)
+            val fieldValues = CatalogInstallPlanner.buildInitialFieldValues(session).toMutableMap()
+            fieldValues[session.fields.first { it.label == "slack_client_id" }.id] = "slack-client"
+            fieldValues[session.fields.first { it.label == "slack_client_secret" }.id] = "slack-secret"
+            val installDraft =
+                CatalogInstallPlanner
+                    .buildInstallResult(session = session, displayName = "", fieldValues = fieldValues)
+                    .getOrThrow()
+                    .draft
+
+            readyWithSession.intents.upsertCatalogServer(installDraft)
+            storeScope.advanceUntilIdle()
+
+            val savedServer = repository.config.servers.first { it.id == "slack" }
+            val savedAuth = assertIs<AuthConfig.OAuth>(savedServer.auth)
+            assertEquals("slack-client", savedAuth.clientId)
+            assertEquals("slack-secret", savedAuth.clientSecret)
+            assertEquals(3118, savedAuth.callbackPort)
+            assertEquals("https://localhost:3118/callback", savedAuth.redirectUri)
+            assertEquals("client_secret_post", savedAuth.tokenEndpointAuthMethod)
+            assertEquals(false, savedAuth.allowDynamicRegistration)
+
+            storeScope.cancel()
+        }
+
+    @org.junit.Test
     fun upsertCatalogServer_placesNewServerFirst_whenSavingFromInstallForm() =
         runTest {
             val existingServer =
@@ -673,6 +773,14 @@ class AppStoreTest {
                     enabled = true,
                     transport = UiStreamableHttpDraft(url = "https://api.example.com/acme"),
                     env = emptyMap(),
+                    auth =
+                        UiAuthConfig.OAuth(
+                            clientId = "slack-client",
+                            clientSecret = "slack-secret",
+                            callbackPort = 3118,
+                            tokenEndpointAuthMethod = "client_secret_post",
+                            allowDynamicRegistration = false,
+                        ),
                     originalId = null,
                     iconPath = null,
                 ),
@@ -684,12 +792,23 @@ class AppStoreTest {
             assertEquals("secured-http", updated.pendingCatalogInstalledServerId)
             assertTrue(updated.pendingCatalogInstalledServerRequestId > 0L)
             assertEquals(listOf("secured-http", "existing"), repository.config.servers.map { it.id })
+            val savedAuth =
+                assertIs<AuthConfig.OAuth>(
+                    repository.config.servers
+                        .first()
+                        .auth,
+                )
+            assertEquals("slack-client", savedAuth.clientId)
+            assertEquals("slack-secret", savedAuth.clientSecret)
+            assertEquals(3118, savedAuth.callbackPort)
+            assertEquals("client_secret_post", savedAuth.tokenEndpointAuthMethod)
+            assertEquals(false, savedAuth.allowDynamicRegistration)
 
             storeScope.cancel()
         }
 
     @org.junit.Test
-    fun upsertServer_keepsManualCreateOrderByAppendingNewServer() =
+    fun upsertServer_placesManualCreateAtTop_andSignalsFocusScroll() =
         runTest {
             val firstServer =
                 McpServerConfig(
@@ -744,9 +863,10 @@ class AppStoreTest {
             storeScope.advanceUntilIdle()
 
             val updated = assertIs<UIState.Ready>(store.state.value)
-            assertEquals(listOf("first", "second", "manual-new"), updated.servers.map { it.id })
-            assertEquals(null, updated.pendingCatalogInstalledServerId)
-            assertEquals(listOf("first", "second", "manual-new"), repository.config.servers.map { it.id })
+            assertEquals(listOf("manual-new", "first", "second"), updated.servers.map { it.id })
+            assertEquals("manual-new", updated.pendingCatalogInstalledServerId)
+            assertTrue(updated.pendingCatalogInstalledServerRequestId > 0L)
+            assertEquals(listOf("manual-new", "first", "second"), repository.config.servers.map { it.id })
 
             storeScope.cancel()
         }
@@ -1603,6 +1723,63 @@ class AppStoreTest {
         }
 
     @org.junit.Test
+    fun getServerDraft_returnsAuthConfiguration() =
+        runTest {
+            val server =
+                McpServerConfig(
+                    id = "s1",
+                    name = "Server 1",
+                    transport = TransportConfig.StreamableHttpTransport(url = "https://example.com/mcp"),
+                    env = emptyMap(),
+                    enabled = true,
+                    auth =
+                        AuthConfig.OAuth(
+                            clientId = "client-id",
+                            clientSecret = "client-secret",
+                            callbackPort = 3118,
+                            tokenEndpointAuthMethod = "client_secret_post",
+                            allowDynamicRegistration = false,
+                        ),
+                )
+            val repository =
+                FakeConfigurationRepository(
+                    config = McpServersConfig(servers = listOf(server)),
+                    presets = mutableMapOf(),
+                )
+            val capabilityFetcher = RecordingCapabilityFetcher(Result.success(ServerCapabilities()))
+            val proxyController = FakeProxyController()
+            val proxyLifecycle = ProxyLifecycle(proxyController, noopLogger)
+            val logger = CollectingLogger(delegate = noopLogger)
+            val storeScope = TestScope(testScheduler)
+            val store =
+                AppStore(
+                    configurationRepository = repository,
+                    proxyRuntime = proxyLifecycle,
+                    capabilityFetcher = capabilityFetcher::invoke,
+                    logger = logger,
+                    aiClientConnectors = emptyList(),
+                    scope = storeScope,
+                    ioDispatcher = ioDispatcher(storeScope),
+                    now = { testScheduler.currentTime },
+                    enableBackgroundRefresh = false,
+                    remoteConnector = NoOpRemoteConnector(defaultRemoteState()),
+                )
+
+            store.start()
+            storeScope.advanceUntilIdle()
+
+            val draft = assertNotNull(store.getServerDraft("s1"))
+            val auth = assertIs<UiAuthConfig.OAuth>(assertNotNull(draft.auth))
+            assertEquals("client-id", auth.clientId)
+            assertEquals("client-secret", auth.clientSecret)
+            assertEquals(3118, auth.callbackPort)
+            assertEquals("client_secret_post", auth.tokenEndpointAuthMethod)
+            assertEquals(false, auth.allowDynamicRegistration)
+
+            storeScope.cancel()
+        }
+
+    @org.junit.Test
     fun connectAndDisconnectAiClientRefreshesStatusAndImports() =
         runTest {
             val connector =
@@ -1706,9 +1883,13 @@ class AppStoreTest {
             val readyState = store.state.value as UIState.Ready
             readyState.intents.addServerBasic("s2", "Server 2")
             storeScope.advanceUntilIdle()
+            val updated = assertIs<UIState.Ready>(store.state.value)
 
             assertEquals(1, proxyController.startCalls.size)
             assertEquals(1, proxyController.updateServersCalls.size)
+            assertEquals(listOf("s2", "s1"), updated.servers.map { it.id })
+            assertEquals("s2", updated.pendingCatalogInstalledServerId)
+            assertTrue(updated.pendingCatalogInstalledServerRequestId > 0L)
             assertEquals(
                 setOf("s1", "s2"),
                 proxyController.updateServersCalls

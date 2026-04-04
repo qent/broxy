@@ -132,10 +132,10 @@ a flat A-Z list of import cards (no client header rows), without a drag handle, 
 inline client name in the transport row.
 The Catalog screen renders a separate searchable list of registry cards without drag-and-drop and supports
 conditional install flow: one-click install when no required user input is needed, or a schema-driven form
-when required fields must be entered. After a successful catalog install (in either mode), the UI navigates
-to the Servers screen and the newly installed server is placed first in the persisted server order.
-The Servers screen then clears local search, instantly scrolls to that server card, and consumes the
-single-use focus signal.
+when required fields must be entered. After creating a new server (catalog install, manual editor create,
+or imported-server create), the UI returns to the Servers screen with that server placed first in the
+persisted server order. The Servers screen then clears local search, instantly scrolls to that server card,
+and consumes the single-use focus signal.
 
 ### `headless-runtime/` (STDIO proxy entrypoint)
 

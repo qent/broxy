@@ -35,13 +35,6 @@ internal class OAuthDiscoveryService(
                     }
                 }
         val hasServerOverride = !config.authorizationServer.isNullOrBlank()
-        if (resourceMetadata == null && !hasServerOverride) {
-            if (force) {
-                error("Protected resource metadata not found for $resourceUrl")
-            }
-            return null
-        }
-
         val authorizationServers =
             resourceMetadata
                 ?.authorizationServers
@@ -53,8 +46,16 @@ internal class OAuthDiscoveryService(
                     )
                 }
         val authServerMetadataUrl = config.authServerMetadataUrl?.takeIf { it.isNotBlank() }
-        if (authorizationServers.isEmpty() && authServerMetadataUrl == null) {
-            error("OAuth authorization server list is empty for $resourceUrl")
+        if (
+            shouldSkipDiscovery(
+                resourceMetadata = resourceMetadata,
+                hasServerOverride = hasServerOverride,
+                authorizationServers = authorizationServers,
+                authServerMetadataUrl = authServerMetadataUrl,
+                force = force,
+            )
+        ) {
+            return null
         }
 
         val cachedIssuer = state.authorizationServer
@@ -91,4 +92,33 @@ internal class OAuthDiscoveryService(
         validatePkceSupport(authMeta)
         return OAuthDiscoveryResult(resourceMetadata, authMeta, issuer)
     }
+
+    private fun shouldSkipDiscovery(
+        resourceMetadata: ProtectedResourceMetadata?,
+        hasServerOverride: Boolean,
+        authorizationServers: List<String>,
+        authServerMetadataUrl: String?,
+        force: Boolean,
+    ): Boolean =
+        when {
+            resourceMetadata == null && !hasServerOverride -> {
+                if (force) {
+                    error("Protected resource metadata not found for $resourceUrl")
+                }
+                true
+            }
+
+            authorizationServers.isEmpty() && authServerMetadataUrl == null -> {
+                if (force) {
+                    error("OAuth authorization server list is empty for $resourceUrl")
+                }
+                logger.info(
+                    "OAuth metadata has no authorization servers for $resourceUrl; " +
+                        "skipping preauthorization until an auth challenge is received.",
+                )
+                true
+            }
+
+            else -> false
+        }
 }

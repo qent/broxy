@@ -177,6 +177,44 @@ class ConfigValidatorTest {
         validator.validate(config)
     }
 
+    @Test
+    fun validate_accepts_https_loopback_redirect_uri() {
+        val validator = ConfigValidator(ConfigErrorHandler(NoopLogger))
+        val localhostConfig =
+            McpServersConfig(
+                servers =
+                    listOf(
+                        server(
+                            "alpha",
+                            TransportConfig.StreamableHttpTransport("http://localhost:8080"),
+                            auth =
+                                AuthConfig.OAuth(
+                                    clientId = "client",
+                                    redirectUri = "https://localhost:8080/callback",
+                                ),
+                        ),
+                    ),
+            )
+        val loopbackConfig =
+            McpServersConfig(
+                servers =
+                    listOf(
+                        server(
+                            "beta",
+                            TransportConfig.StreamableHttpTransport("http://localhost:8080"),
+                            auth =
+                                AuthConfig.OAuth(
+                                    clientId = "client",
+                                    redirectUri = "https://127.0.0.1:8081/callback",
+                                ),
+                        ),
+                    ),
+            )
+
+        validator.validate(localhostConfig)
+        validator.validate(loopbackConfig)
+    }
+
     private fun server(
         id: String,
         transport: TransportConfig,

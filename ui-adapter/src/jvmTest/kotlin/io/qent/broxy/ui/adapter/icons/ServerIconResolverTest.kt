@@ -354,6 +354,208 @@ class ServerIconResolverTest {
     }
 
     @Test
+    fun resolvesSentryIconByRemoteUrlMatcher() {
+        val config =
+            UiMcpServerConfig(
+                id = "sentry-local",
+                name = "Sentry",
+                transport =
+                    UiStreamableHttpTransport(
+                        url = "https://mcp.sentry.dev/mcp/",
+                        headers = emptyMap(),
+                    ),
+            )
+        val entries = listOf(registryEntry("io.qent.broxy/sentry", "https://cdn.example/sentry.png"))
+
+        val icon = ServerIconResolver.resolve(config, entries)
+
+        assertEquals(UiServerIcon.Remote("https://cdn.example/sentry.png"), icon)
+    }
+
+    @Test
+    fun resolvesDeepwikiIconByRemoteUrlMatcher() {
+        val config =
+            UiMcpServerConfig(
+                id = "deepwiki-local",
+                name = "DeepWiki",
+                transport =
+                    UiStreamableHttpTransport(
+                        url = "https://mcp.deepwiki.com/mcp",
+                        headers = emptyMap(),
+                    ),
+            )
+        val entries = listOf(registryEntry("io.qent.broxy/deepwiki", "https://cdn.example/deepwiki.png"))
+
+        val icon = ServerIconResolver.resolve(config, entries)
+
+        assertEquals(UiServerIcon.Remote("https://cdn.example/deepwiki.png"), icon)
+    }
+
+    @Test
+    fun resolvesDesktopCommanderIconByStdioArgsMatcher() {
+        val config =
+            UiMcpServerConfig(
+                id = "desktop-commander-local",
+                name = "Desktop Commander",
+                transport =
+                    UiStdioTransport(
+                        command = "npx",
+                        args = listOf("-y", "@wonderwhy-er/desktop-commander@latest"),
+                    ),
+            )
+        val entries =
+            listOf(
+                registryEntry(
+                    "io.qent.broxy/desktop-commander",
+                    "https://cdn.example/desktop-commander.png",
+                ),
+            )
+
+        val icon = ServerIconResolver.resolve(config, entries)
+
+        assertEquals(UiServerIcon.Remote("https://cdn.example/desktop-commander.png"), icon)
+    }
+
+    @Test
+    fun resolvesGitlabIconByRemoteUrlMatcher() {
+        val config =
+            UiMcpServerConfig(
+                id = "gitlab-local",
+                name = "GitLab",
+                transport =
+                    UiStreamableHttpTransport(
+                        url = "https://gitlab.com/api/v4/mcp",
+                        headers = emptyMap(),
+                    ),
+            )
+        val entries = listOf(registryEntry("io.qent.broxy/gitlab", "https://cdn.example/gitlab.png"))
+
+        val icon = ServerIconResolver.resolve(config, entries)
+
+        assertEquals(UiServerIcon.Remote("https://cdn.example/gitlab.png"), icon)
+    }
+
+    @Test
+    fun resolvesElasticsearchIconByAgentBuilderPathMatcher() {
+        val config =
+            UiMcpServerConfig(
+                id = "elastic-local",
+                name = "Elastic",
+                transport =
+                    UiStreamableHttpTransport(
+                        url = "https://kibana.example.com/s/ops/api/agent_builder/mcp",
+                        headers = emptyMap(),
+                    ),
+            )
+        val entries =
+            listOf(
+                registryEntry(
+                    "io.qent.broxy/elasticsearch",
+                    "https://cdn.example/elasticsearch.png",
+                ),
+            )
+
+        val icon = ServerIconResolver.resolve(config, entries)
+
+        assertEquals(UiServerIcon.Remote("https://cdn.example/elasticsearch.png"), icon)
+    }
+
+    @Test
+    fun resolvesFirebaseIconBySplitArgsMatcher() {
+        val config =
+            UiMcpServerConfig(
+                id = "firebase-local",
+                name = "Firebase",
+                transport =
+                    UiStdioTransport(
+                        command = "npx",
+                        args = listOf("-y", "firebase-tools@latest", "mcp"),
+                    ),
+            )
+        val entries = listOf(registryEntry("io.qent.broxy/firebase", "https://cdn.example/firebase.png"))
+
+        val icon = ServerIconResolver.resolve(config, entries)
+
+        assertEquals(UiServerIcon.Remote("https://cdn.example/firebase.png"), icon)
+    }
+
+    @Test
+    fun resolvesHuggingFaceIconByRemoteUrlMatcher() {
+        val config =
+            UiMcpServerConfig(
+                id = "hf-local",
+                name = "Hugging Face",
+                transport =
+                    UiStreamableHttpTransport(
+                        url = "https://huggingface.co/mcp",
+                        headers = emptyMap(),
+                    ),
+            )
+        val entries = listOf(registryEntry("io.qent.broxy/huggingface", "https://cdn.example/huggingface.png"))
+
+        val icon = ServerIconResolver.resolve(config, entries)
+
+        assertEquals(UiServerIcon.Remote("https://cdn.example/huggingface.png"), icon)
+    }
+
+    @Test
+    fun resolvesMapboxIconByRemoteUrlMatcher() {
+        val config =
+            UiMcpServerConfig(
+                id = "mapbox-local",
+                name = "Mapbox",
+                transport =
+                    UiStreamableHttpTransport(
+                        url = "https://mcp.mapbox.com/mcp/",
+                        headers = emptyMap(),
+                    ),
+            )
+        val entries = listOf(registryEntry("io.qent.broxy/mapbox", "https://cdn.example/mapbox.png"))
+
+        val icon = ServerIconResolver.resolve(config, entries)
+
+        assertEquals(UiServerIcon.Remote("https://cdn.example/mapbox.png"), icon)
+    }
+
+    @Test
+    fun resolvesPaypalIconByRemoteUrlMatcher() {
+        val config =
+            UiMcpServerConfig(
+                id = "paypal-local",
+                name = "PayPal",
+                transport =
+                    UiStreamableHttpTransport(
+                        url = "https://mcp.paypal.com/http",
+                        headers = emptyMap(),
+                    ),
+            )
+        val entries = listOf(registryEntry("io.qent.broxy/paypal", "https://cdn.example/paypal.png"))
+
+        val icon = ServerIconResolver.resolve(config, entries)
+
+        assertEquals(UiServerIcon.Remote("https://cdn.example/paypal.png"), icon)
+    }
+
+    @Test
+    fun resolvesWixIconByRemoteUrlMatcher() {
+        val config =
+            UiMcpServerConfig(
+                id = "wix-local",
+                name = "Wix",
+                transport =
+                    UiStreamableHttpTransport(
+                        url = "https://mcp.wix.com/mcp",
+                        headers = emptyMap(),
+                    ),
+            )
+        val entries = listOf(registryEntry("io.qent.broxy/wix", "https://cdn.example/wix.png"))
+
+        val icon = ServerIconResolver.resolve(config, entries)
+
+        assertEquals(UiServerIcon.Remote("https://cdn.example/wix.png"), icon)
+    }
+
+    @Test
     fun serverIconRulesCoverSnapshotCatalogIdsWithoutLegacyEntries() {
         val raw =
             ServerIconResolverTest::class.java
@@ -364,6 +566,10 @@ class ServerIconResolverTest {
         val actualIds = ruleSet.rules.map { it.registryId }
         val expectedIds =
             setOf(
+                "apify",
+                "appium",
+                "asana",
+                "atlassian",
                 "aws-api",
                 "aws-diagram",
                 "aws-documentation",
@@ -378,25 +584,36 @@ class ServerIconResolverTest {
                 "cloud-run",
                 "context7",
                 "database-toolbox",
+                "deepwiki",
+                "desktop-commander",
                 "dropbox",
                 "elasticsearch",
                 "exa",
                 "filesystem",
+                "firebase",
                 "firecrawl",
                 "github",
+                "gitlab",
                 "grafana",
                 "graphlit",
+                "huggingface",
                 "jetbrains",
                 "linear",
+                "mapbox",
                 "mcp-clickhouse",
                 "mcp-server-neon",
+                "miro",
                 "monday",
                 "mongodb",
+                "n8n",
                 "notion",
+                "paypal",
                 "perplexity-ask",
                 "phoenix",
+                "pipedream",
                 "playwright",
                 "postgres-mcp-pro",
+                "postman",
                 "redis",
                 "semgrep",
                 "sentry",
@@ -409,9 +626,11 @@ class ServerIconResolverTest {
                 "time",
                 "todoist",
                 "vercel",
+                "wix",
+                "zapier",
             )
 
-        assertEquals(45, actualIds.size, "Unexpected rule count for 2026-04-02 snapshot")
+        assertEquals(62, actualIds.size, "Unexpected rule count for 2026-04-05 snapshot + compatibility rules")
         assertEquals(actualIds.toSet().size, actualIds.size, "Duplicate registryId in server_icons.json")
         assertEquals(expectedIds, actualIds.toSet(), "Rule IDs must exactly match the snapshot registry IDs")
     }

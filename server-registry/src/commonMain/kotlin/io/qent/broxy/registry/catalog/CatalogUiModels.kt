@@ -78,12 +78,27 @@ data class RegistryStdioDraft(
     val args: List<String>,
 ) : RegistryTransportDraft
 
+data class RegistryOAuthDraft(
+    val clientId: String? = null,
+    val clientSecret: String? = null,
+    val callbackPort: Int? = null,
+    val clientIdMetadataUrl: String? = null,
+    val authServerMetadataUrl: String? = null,
+    val redirectUri: String? = null,
+    val clientName: String? = null,
+    val tokenEndpointAuthMethod: String? = null,
+    val authorizationServer: String? = null,
+    val scopes: List<String>? = null,
+    val allowDynamicRegistration: Boolean = true,
+)
+
 data class RegistryServerDraft(
     val id: String,
     val name: String,
     val enabled: Boolean,
     val transport: RegistryTransportDraft,
     val env: Map<String, String>,
+    val auth: RegistryOAuthDraft? = null,
 )
 
 data class CatalogInstallResult(

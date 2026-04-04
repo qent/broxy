@@ -3,6 +3,7 @@ package io.qent.broxy.registry.catalog
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
@@ -105,7 +106,24 @@ data class CatalogRemoteTransport(
     val type: String,
     val url: String,
     val headers: List<CatalogKeyValueInput> = emptyList(),
+    val oauth: CatalogRemoteOAuth? = null,
     val variables: Map<String, CatalogInput> = emptyMap(),
+)
+
+@Serializable
+data class CatalogRemoteOAuth(
+    val type: String = "oauth",
+    val clientId: String? = null,
+    val clientSecret: String? = null,
+    val callbackPort: JsonElement? = null,
+    val clientIdMetadataUrl: String? = null,
+    val authServerMetadataUrl: String? = null,
+    val redirectUri: String? = null,
+    val clientName: String? = null,
+    val tokenEndpointAuthMethod: String? = null,
+    val authorizationServer: String? = null,
+    val scopes: List<String>? = null,
+    val allowDynamicRegistration: Boolean = true,
 )
 
 @Serializable

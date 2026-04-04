@@ -229,6 +229,7 @@ class AppStore(
             enabled = cfg.enabled,
             transport = draftTransport,
             env = cfg.env,
+            auth = cfg.auth,
             originalId = cfg.id,
             iconPath = cfg.iconPath,
         )

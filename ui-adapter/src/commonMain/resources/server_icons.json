@@ -1,6 +1,58 @@
 {
   "rules": [
     {
+      "registryId": "apify",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^http$"
+        },
+        {
+          "field": "url",
+          "pattern": "^https://mcp\\.apify\\.com/?$"
+        }
+      ]
+    },
+    {
+      "registryId": "appium",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^stdio$"
+        },
+        {
+          "field": "args",
+          "pattern": "appium-mcp"
+        }
+      ]
+    },
+    {
+      "registryId": "asana",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^http$"
+        },
+        {
+          "field": "url",
+          "pattern": "^https://mcp\\.asana\\.com/mcp/?$"
+        }
+      ]
+    },
+    {
+      "registryId": "atlassian",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^http$"
+        },
+        {
+          "field": "url",
+          "pattern": "^https://mcp\\.atlassian\\.com/v1/mcp/?$"
+        }
+      ]
+    },
+    {
       "registryId": "aws-api",
       "allOf": [
         {
@@ -183,6 +235,32 @@
       ]
     },
     {
+      "registryId": "deepwiki",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^http$"
+        },
+        {
+          "field": "url",
+          "pattern": "^https://mcp\\.deepwiki\\.com/mcp/?$"
+        }
+      ]
+    },
+    {
+      "registryId": "desktop-commander",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^stdio$"
+        },
+        {
+          "field": "args",
+          "pattern": "@wonderwhy-er/desktop-commander(?:@latest)?"
+        }
+      ]
+    },
+    {
       "registryId": "dropbox",
       "allOf": [
         {
@@ -200,11 +278,11 @@
       "allOf": [
         {
           "field": "transport",
-          "pattern": "^stdio$"
+          "pattern": "^http$"
         },
         {
-          "field": "args",
-          "pattern": "docker\\.elastic\\.co/mcp/elasticsearch"
+          "field": "url",
+          "pattern": "^https?://[^\\s]+/api/agent_builder/mcp/?$"
         }
       ]
     },
@@ -235,6 +313,23 @@
       ]
     },
     {
+      "registryId": "firebase",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^stdio$"
+        },
+        {
+          "field": "args",
+          "pattern": "firebase-tools(?:@latest)?"
+        },
+        {
+          "field": "args",
+          "pattern": "^mcp$"
+        }
+      ]
+    },
+    {
       "registryId": "firecrawl",
       "allOf": [
         {
@@ -257,6 +352,19 @@
         {
           "field": "url",
           "pattern": "^https://api\\.githubcopilot\\.com/mcp/?$"
+        }
+      ]
+    },
+    {
+      "registryId": "gitlab",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^http$"
+        },
+        {
+          "field": "url",
+          "pattern": "^https://gitlab\\.com/api/v4/mcp/?$"
         }
       ]
     },
@@ -287,6 +395,19 @@
       ]
     },
     {
+      "registryId": "huggingface",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^http$"
+        },
+        {
+          "field": "url",
+          "pattern": "^https://huggingface\\.co/mcp/?$"
+        }
+      ]
+    },
+    {
       "registryId": "jetbrains",
       "allOf": [
         {
@@ -309,6 +430,19 @@
         {
           "field": "url",
           "pattern": "^https://mcp\\.linear\\.app/mcp/?$"
+        }
+      ]
+    },
+    {
+      "registryId": "mapbox",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^http$"
+        },
+        {
+          "field": "url",
+          "pattern": "^https://mcp\\.mapbox\\.com/mcp/?$"
         }
       ]
     },
@@ -339,6 +473,19 @@
       ]
     },
     {
+      "registryId": "miro",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^http$"
+        },
+        {
+          "field": "url",
+          "pattern": "^https://mcp\\.miro\\.com/?$"
+        }
+      ]
+    },
+    {
       "registryId": "monday",
       "allOf": [
         {
@@ -365,6 +512,19 @@
       ]
     },
     {
+      "registryId": "n8n",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^stdio$"
+        },
+        {
+          "field": "args",
+          "pattern": "n8n-mcp"
+        }
+      ]
+    },
+    {
       "registryId": "notion",
       "allOf": [
         {
@@ -374,6 +534,19 @@
         {
           "field": "url",
           "pattern": "^https://mcp\\.notion\\.com/mcp/?$"
+        }
+      ]
+    },
+    {
+      "registryId": "paypal",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^sse$"
+        },
+        {
+          "field": "url",
+          "pattern": "^https://mcp\\.paypal\\.com/sse/?$"
         }
       ]
     },
@@ -404,6 +577,19 @@
       ]
     },
     {
+      "registryId": "pipedream",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^http$"
+        },
+        {
+          "field": "url",
+          "pattern": "^https://mcp\\.pipedream\\.net/v2/?$"
+        }
+      ]
+    },
+    {
       "registryId": "playwright",
       "allOf": [
         {
@@ -426,6 +612,19 @@
         {
           "field": "args",
           "pattern": "postgres-mcp"
+        }
+      ]
+    },
+    {
+      "registryId": "postman",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^http$"
+        },
+        {
+          "field": "url",
+          "pattern": "^https://mcp\\.postman\\.com(?:/(?:mcp|minimal|code))?/?$"
         }
       ]
     },
@@ -460,11 +659,11 @@
       "allOf": [
         {
           "field": "transport",
-          "pattern": "^stdio$"
+          "pattern": "^http$"
         },
         {
-          "field": "args",
-          "pattern": "@sentry/mcp-server"
+          "field": "url",
+          "pattern": "^https://mcp\\.sentry\\.dev/mcp/?$"
         }
       ]
     },
@@ -582,6 +781,32 @@
         {
           "field": "url",
           "pattern": "^https://mcp\\.vercel\\.com/?$"
+        }
+      ]
+    },
+    {
+      "registryId": "wix",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^http$"
+        },
+        {
+          "field": "url",
+          "pattern": "^https://mcp\\.wix\\.com/mcp/?$"
+        }
+      ]
+    },
+    {
+      "registryId": "zapier",
+      "allOf": [
+        {
+          "field": "transport",
+          "pattern": "^http$"
+        },
+        {
+          "field": "url",
+          "pattern": "^https://mcp\\.zapier\\.com/api/mcp/mcp/?$"
         }
       ]
     }

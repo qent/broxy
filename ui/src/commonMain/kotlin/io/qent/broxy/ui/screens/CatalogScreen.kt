@@ -29,6 +29,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
@@ -58,7 +59,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.onPointerEvent
+import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.ClipboardManager
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -655,10 +658,13 @@ private fun CatalogInstallStepItem(
         verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm),
     ) {
         Row(
-            modifier =
-                Modifier
+            modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = AppTheme.spacing.md + AppTheme.spacing.sm, bottom = AppTheme.spacing.md),
+                    .padding(
+                        start = AppTheme.spacing.md + AppTheme.spacing.sm,
+                        bottom = AppTheme.spacing.xs,
+                        top = AppTheme.spacing.sm
+                    ),
             verticalAlignment = Alignment.Top,
             horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm),
         ) {
@@ -668,11 +674,13 @@ private fun CatalogInstallStepItem(
                 color = MaterialTheme.colorScheme.onSurface,
             )
             if (markdown.isNotBlank()) {
-                CatalogInstallMarkdownText(
-                    markdown = markdown,
-                    onOpenExternalUrl = onOpenExternalUrl,
-                    modifier = Modifier.weight(1f),
-                )
+                SelectionContainer(modifier = Modifier.weight(1f)) {
+                    CatalogInstallMarkdownText(
+                        markdown = markdown,
+                        onOpenExternalUrl = onOpenExternalUrl,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
             }
         }
 
@@ -916,6 +924,7 @@ private fun CatalogCompactTextField(
                         modifier =
                             Modifier
                                 .size(18.dp)
+                                .pointerHoverIcon(PointerIcon.Default)
                                 .clickable(
                                     interactionSource = remember { MutableInteractionSource() },
                                     indication = null,

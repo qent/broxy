@@ -147,6 +147,18 @@ Supported fields include:
 
 - `type`, `clientId`, `clientSecret`, `clientIdMetadataUrl`, `redirectUri`, `callbackPort`,
   `authorizationServer`, `authServerMetadataUrl`, `tokenEndpointAuthMethod`, `scopes`, `allowDynamicRegistration`.
+- `redirectUri` supports loopback `http://...` and `https://...` (`localhost` / `127.0.0.1` only, explicit port required).
+  For `https://...`, Broxy automatically starts the OAuth callback listener with a temporary self-signed certificate.
+- `callbackPort` still builds `http://localhost:<callbackPort>/callback` when `redirectUri` is not explicitly set.
+  If both `redirectUri` and `callbackPort` are omitted, Broxy uses
+  `http://localhost:<random-port>/oauth/callback`.
+
+Slack-specific recommendation (remote `https://mcp.slack.com/mcp`):
+
+- use pre-registered credentials (`clientId` + `clientSecret`);
+- set `tokenEndpointAuthMethod` to `client_secret_post`;
+- set `callbackPort` (for example `3118`) and set/register `https://localhost:<port>/callback` in the Slack app;
+- set `allowDynamicRegistration` to `false`.
 
 `oauth` is ignored for STDIO transports.
 

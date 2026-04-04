@@ -97,6 +97,8 @@ Catalog install UI:
 - a newly installed catalog server is inserted at the top of the Servers list (persisted order in `mcp.json`).
 - after redirect, the Servers list clears the local search query, scrolls immediately to the installed
   server card, and consumes the one-shot focus signal to avoid repeated auto-scrolls.
+- the same top-insert + focus-scroll behavior is reused for other newly created servers saved from the
+  regular Server Editor flow.
 - one-click install starts the normal capabilities/auth flow in the background (including OAuth popup for
   remote HTTP/SSE/Streamable servers).
 
@@ -141,8 +143,12 @@ Field embedding rules:
 
 Form behavior:
 
-- fields are generated from server JSON (`variables`, `headers`, `environmentVariables`,
+- fields are generated from server JSON (`variables`, `headers`, `oauth`, `environmentVariables`,
   `runtimeArguments`, `packageArguments`, including nested variables);
+- remote OAuth fields are template-resolved via `remotes[].variables` as well (including `callbackPort`,
+  which is validated as integer after template resolution);
+- registry-provided remote OAuth overrides (`authServerMetadataUrl`, `authorizationServer`) are propagated
+  to installed server config and used by Broxy OAuth discovery;
 - only fields that can be provided by the user are shown;
 - fixed spec values are not rendered as inputs (for example, transport type and fixed server ID);
 - control types follow schema hints (`format`, `choices`, `isSecret`, `isRequired`, `default`, `placeholder`);
@@ -157,16 +163,19 @@ Form behavior:
   description and between steps;
 - description and step text use larger body typography for readability;
 - external links in steps are not underlined by default and become underlined on hover;
+- step instruction text is selectable/copyable directly in the install form;
 - input field cards reuse Settings-style layout (`SettingsLikeItem`) with a wider single-line control (`280dp`);
 - card title uses the schema/input name (with `*` suffix for required fields), while card description uses
   only schema `description`;
-- input controls include a paste-from-clipboard icon on the right; `isSecret` fields stay masked;
+- input controls include a paste-from-clipboard icon on the right with standart cursor on hover;
+  `isSecret` fields stay masked;
 - no generic raw multiline `env`/`headers` inputs;
 - in step mode, plain full-field listing is hidden (only step-embedded + required fallback fields are shown).
 
-Submit builds `UiServerDraft` through `ui-adapter` planner facade (`CatalogInstallPlanner.buildInstallResult(...)`)
-that delegates into `server-registry`, using form values,
-installs the server, and navigates to the Servers list with that new server shown first.
+Submit builds `UiServerDraft` (including optional OAuth auth draft for remote profiles) through
+`ui-adapter` planner facade (`CatalogInstallPlanner.buildInstallResult(...)`) that delegates into
+`server-registry`, using form values, installs the server, and navigates to the Servers list with
+that new server shown first.
 Required fields block submit.
 
 ## Catalog UI

@@ -21,12 +21,18 @@ internal suspend fun registerDynamicClient(
     registrationEndpoint: String,
     redirectUri: String,
     config: AuthConfig.OAuth,
+    tokenEndpointAuthMethodsSupported: List<String>?,
     json: Json,
     logger: Logger,
     resourceUrl: String,
 ): OAuthClientRegistration {
     logger.debug("OAuth dynamic client registration request to $registrationEndpoint")
-    val authMethod = resolveTokenEndpointAuthMethod(config.tokenEndpointAuthMethod, null, null)
+    val requestedAuthMethod =
+        config.tokenEndpointAuthMethod
+            ?.trim()
+            ?.lowercase()
+            ?.takeIf { it.isNotBlank() }
+            ?.let { resolveTokenEndpointAuthMethod(it, null, tokenEndpointAuthMethodsSupported) }
     val payload =
         buildJsonObject {
             put("client_name", JsonPrimitive(config.clientName ?: "Broxy"))
@@ -36,7 +42,9 @@ internal suspend fun registerDynamicClient(
                 add(JsonPrimitive("refresh_token"))
             }
             putJsonArray("response_types") { add(JsonPrimitive("code")) }
-            put("token_endpoint_auth_method", JsonPrimitive(authMethod))
+            if (!requestedAuthMethod.isNullOrBlank()) {
+                put("token_endpoint_auth_method", JsonPrimitive(requestedAuthMethod))
+            }
         }
     val response =
         client.post(registrationEndpoint) {
@@ -59,10 +67,17 @@ internal suspend fun registerDynamicClient(
             responseBody,
         )
     logger.debug("OAuth dynamic client registration succeeded for $resourceUrl")
+    val tokenEndpointAuthMethod =
+        resolveRegisteredTokenEndpointAuthMethod(
+            configured = requestedAuthMethod,
+            registered = registration.tokenEndpointAuthMethod,
+            clientSecret = registration.clientSecret,
+            supported = tokenEndpointAuthMethodsSupported,
+        )
     return OAuthClientRegistration(
         clientId = registration.clientId,
         clientSecret = registration.clientSecret,
-        tokenEndpointAuthMethod = registration.tokenEndpointAuthMethod?.lowercase() ?: authMethod,
+        tokenEndpointAuthMethod = tokenEndpointAuthMethod,
     )
 }
 
@@ -97,6 +112,7 @@ internal suspend fun resolveDynamicRegistrationLocked(
             registrationEndpoint,
             redirectUri,
             config,
+            authMeta.tokenEndpointAuthMethodsSupported,
             json,
             logger,
             resourceUrl,

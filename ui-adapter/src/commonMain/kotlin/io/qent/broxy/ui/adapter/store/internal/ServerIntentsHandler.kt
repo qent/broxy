@@ -105,7 +105,7 @@ internal class ServerIntentsHandler(
                 if (servers.any { it.id == id }) return@updateSnapshot this
                 val server = UiMcpServerConfig(id = id, name = name, transport = UiStdioTransport(command = ""), enabled = true)
                 newServer = server
-                val updated = servers.toMutableList().apply { add(server) }
+                val updated = servers.toMutableList().apply { add(0, server) }
                 copy(servers = updated)
             }
             val addedServer = newServer ?: return@launch
@@ -117,7 +117,7 @@ internal class ServerIntentsHandler(
             val currentServers = context.state.snapshot.servers
             val result =
                 withContext(context.ioDispatcher) {
-                    configGateway.upsertServer(context.state.snapshotConfig(), addedServer)
+                    configGateway.upsertServer(context.state.snapshotConfig(), addedServer, insertAtBeginning = true)
                 }
             if (result.isFailure) {
                 revertServersOnFailure(
@@ -130,6 +130,12 @@ internal class ServerIntentsHandler(
             } else {
                 val saved = result.getOrNull()
                 context.capabilityRefresher.syncWithServers(saved?.servers?.toCore() ?: currentServers.toCore())
+                context.state.updateSnapshot {
+                    copy(
+                        pendingCatalogInstalledServerId = addedServer.id,
+                        pendingCatalogInstalledServerRequestId = pendingCatalogInstalledServerRequestId + 1,
+                    )
+                }
                 applyServerConfigToProxy(context, saved, "addServerBasic")
             }
             context.publishReady()
@@ -139,9 +145,9 @@ internal class ServerIntentsHandler(
     fun upsertServer(draft: UiServerDraft) {
         upsertServerInternal(
             draft = draft,
-            placeNewServerFirst = false,
+            placeNewServerFirst = true,
             operationName = "upsertServer",
-            signalCatalogInstalledServerFocus = false,
+            signalCatalogInstalledServerFocus = true,
         )
     }
 
@@ -525,6 +531,7 @@ internal class ServerIntentsHandler(
                     enabled = normalizedDraft.enabled,
                     transport = normalizedDraft.transport.toTransportConfig(),
                     env = normalizedDraft.env,
+                    auth = normalizedDraft.auth,
                     iconPath = normalizedDraft.iconPath,
                 )
             val isNewServer = previousServers.none { it.id == cfg.id }

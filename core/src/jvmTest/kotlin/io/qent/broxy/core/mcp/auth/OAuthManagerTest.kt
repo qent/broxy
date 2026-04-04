@@ -42,7 +42,7 @@ class OAuthManagerTest {
         val resourceMetadata =
             """
                 |{
-                |  "resource": "https://mcp.example.com",
+                |  "resource": ["https://mcp.example.com"],
                 |  "authorization_servers": ["https://auth.example.com"],
                 |  "scopes_supported": ["files:read","files:write"]
                 |}
@@ -528,6 +528,7 @@ class OAuthManagerTest {
                             listOf("authorization_code", "refresh_token"),
                             grantTypes,
                         )
+                        assertEquals(null, payload["token_endpoint_auth_method"])
                         respond(
                             content =
                                 ByteReadChannel(

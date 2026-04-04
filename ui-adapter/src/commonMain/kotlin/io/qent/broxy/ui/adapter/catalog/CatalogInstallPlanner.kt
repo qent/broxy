@@ -1,10 +1,12 @@
 package io.qent.broxy.ui.adapter.catalog
 
 import io.qent.broxy.registry.catalog.RegistryHttpDraft
+import io.qent.broxy.registry.catalog.RegistryOAuthDraft
 import io.qent.broxy.registry.catalog.RegistryServerDraft
 import io.qent.broxy.registry.catalog.RegistryStdioDraft
 import io.qent.broxy.registry.catalog.RegistryStreamableHttpDraft
 import io.qent.broxy.registry.catalog.RegistryTransportDraft
+import io.qent.broxy.ui.adapter.models.UiAuthConfig
 import io.qent.broxy.ui.adapter.models.UiHttpDraft
 import io.qent.broxy.ui.adapter.models.UiServerDraft
 import io.qent.broxy.ui.adapter.models.UiStdioDraft
@@ -73,6 +75,7 @@ private fun RegistryServerDraft.toUiDraft(): UiServerDraft =
         enabled = enabled,
         transport = transport.toUiTransportDraft(),
         env = env,
+        auth = auth?.toUiAuth(),
         originalId = null,
         iconPath = null,
     )
@@ -83,3 +86,18 @@ private fun RegistryTransportDraft.toUiTransportDraft() =
         is RegistryHttpDraft -> UiHttpDraft(url = url, headers = headers)
         is RegistryStdioDraft -> UiStdioDraft(command = command, args = args)
     }
+
+private fun RegistryOAuthDraft.toUiAuth(): UiAuthConfig.OAuth =
+    UiAuthConfig.OAuth(
+        clientId = clientId,
+        clientSecret = clientSecret,
+        callbackPort = callbackPort,
+        clientIdMetadataUrl = clientIdMetadataUrl,
+        authServerMetadataUrl = authServerMetadataUrl,
+        redirectUri = redirectUri,
+        clientName = clientName,
+        tokenEndpointAuthMethod = tokenEndpointAuthMethod,
+        authorizationServer = authorizationServer,
+        scopes = scopes,
+        allowDynamicRegistration = allowDynamicRegistration,
+    )

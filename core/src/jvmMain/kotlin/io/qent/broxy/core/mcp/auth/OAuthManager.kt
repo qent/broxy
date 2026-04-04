@@ -225,6 +225,9 @@ class OAuthManager(
 
 private fun resolveRedirectUriOverride(config: AuthConfig.OAuth): String? {
     val explicit = config.redirectUri?.takeIf { it.isNotBlank() }
-    val fromPort = config.callbackPort?.let { callbackPort -> "http://localhost:$callbackPort/callback" }
+    val fromPort =
+        config.callbackPort?.let { callbackPort ->
+            "http://localhost:$callbackPort/callback"
+        }
     return explicit ?: fromPort
 }

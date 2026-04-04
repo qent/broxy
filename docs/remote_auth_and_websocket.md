@@ -17,7 +17,7 @@ and uses the provided headers as-is.
 Broxy follows the MCP OAuth specification with a pre-authorization step:
 
 1. Probe well-known Protected Resource Metadata endpoints before connecting to the MCP URL.
-2. If metadata is found, complete OAuth (including dynamic registration when enabled) before opening the MCP session.
+2. If metadata is found and contains `authorization_servers`, complete OAuth (including dynamic registration when enabled) before opening the MCP session.
 3. If metadata is not available, fall back to an unauthenticated MCP request and parse `WWW-Authenticate`
    (including `resource_metadata` and `scope`) for step-up authorization.
 
@@ -25,7 +25,13 @@ Well-known probe targets:
 - `/.well-known/oauth-protected-resource/<mcp-path>`
 - `/.well-known/oauth-protected-resource`
 
-The resource metadata **must** include `authorization_servers`.
+Protected resource metadata compatibility:
+- Broxy accepts `resource` as either a single string or an array of strings.
+- When an array is returned, Broxy uses the first non-empty value as the canonical resource URI.
+
+During challenge-driven authorization (`401/403`), the resource metadata **must** include
+`authorization_servers`. During pre-authorization (no challenge yet), Broxy treats metadata without
+`authorization_servers` as "OAuth not available yet" and continues unauthenticated.
 
 ## Authorization server metadata
 
@@ -72,19 +78,42 @@ Add an `oauth` block to a server to enable OAuth:
 - `clientId`: Pre-registered client ID (preferred when present).
 - `clientSecret`: Optional secret for confidential clients.
 - `clientIdMetadataUrl`: HTTPS URL for Client ID Metadata Documents.
-- `redirectUri`: Loopback callback (`http://localhost:<port>/...`) for the authorization code flow.
+- `redirectUri`: Loopback callback URI for the authorization code flow. Supported schemes are
+  `http` and `https` on `localhost` or `127.0.0.1` with an explicit port.
+  When `https` is used, Broxy starts a temporary loopback HTTPS listener with an auto-generated
+  self-signed certificate (no root certificate install required).
+- `callbackPort`: Convenience override for loopback callback
+  (`http://localhost:<callbackPort>/callback`). This remains HTTP by default.
+  When both `redirectUri` and `callbackPort` are omitted, Broxy defaults to
+  `http://localhost:<random-port>/oauth/callback`.
 - `authorizationServer`: Optional issuer override if resource metadata is unavailable.
 - `authServerMetadataUrl`: Optional HTTPS metadata URL override for OAuth discovery.
 - `tokenEndpointAuthMethod`: `none`, `client_secret_basic`, or `client_secret_post`.
 - `scopes`: Fallback scopes when discovery provides none.
 - `allowDynamicRegistration`: Enables dynamic client registration when supported.
 
+Slack note:
+
+- Slack MCP (`https://mcp.slack.com/mcp`) currently requires a pre-registered confidential client.
+- Recommended config: `clientId`, `clientSecret`, `tokenEndpointAuthMethod=client_secret_post`,
+  `callbackPort=3118` (or another fixed registered loopback port),
+  `redirectUri=https://localhost:3118/callback`, `allowDynamicRegistration=false`.
+
 ## Authorization flow
 
 - Uses OAuth 2.1 Authorization Code with PKCE (S256).
 - For dynamic client registration, requests `grant_types` with both `authorization_code` and `refresh_token`.
+- During dynamic registration, Broxy sends `token_endpoint_auth_method` only when it is explicitly configured.
 - Includes the `resource` parameter in both authorization and token requests, preferring the
   `resource` value from Protected Resource Metadata when present.
+- For dynamic registration, if the registration response includes `token_endpoint_auth_method`,
+  Broxy uses that value as-is (even when authorization-server metadata differs).
+- If dynamic registration omits `token_endpoint_auth_method` and returns `client_secret`,
+  Broxy infers a usable method from authorization-server metadata and OAuth defaults (prefers
+  `client_secret_basic` per RFC 7591, falls back to `client_secret_post` when required) before token exchange.
+- If token exchange returns `invalid_client` (or reports unsupported client auth), Broxy retries
+  the token request with alternate supported auth methods (`client_secret_basic` /
+  `client_secret_post` / `none`) and keeps the working method in the current OAuth state.
 - On `invalid_token` bearer challenges, Broxy clears the cached access token and forces a new OAuth flow.
 - Performs step-up authorization on `insufficient_scope` challenges.
 - Uses refresh tokens when provided.
@@ -99,7 +128,9 @@ minimal popup to keep the flow visible:
 - Broxy opens the OAuth URL in the user's default browser as soon as the popup appears.
 - The loopback callback success page is context-aware: it shows `<Server Name> Authorized` and uses the
   resolved registry icon URL when one is available for that server.
-- If no server context/icon can be resolved, the callback page falls back to the generic
+- If the OAuth redirect contains an `error` parameter (for example `error=access_denied`), the callback page
+  shows `<Server Name> Authorization failed` with a failed status instead of a success title.
+- For successful redirects with no server context/icon, the callback page falls back to the generic
   `Authorization complete` title and check icon.
 - After a successful OAuth redirect, the popup closes automatically and capabilities are refreshed.
 - If the user closes the popup or authorization fails, the popup closes and the server is disabled
@@ -107,6 +138,8 @@ minimal popup to keep the flow visible:
 - If the user clicks Cancel, Broxy disables the server and stops OAuth retries for that attempt.
 - While the popup is open, Broxy listens for the loopback callback without applying the authorization timeout.
 - Interactive authorization does not use the connect retry timeout, so the popup is not reopened mid-flow.
+- For `https://localhost` / `https://127.0.0.1` redirect URIs, the loopback callback listener
+  uses an auto-generated self-signed certificate for that OAuth session.
 
 ## OAuth secure storage
 

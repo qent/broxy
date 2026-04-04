@@ -29,14 +29,23 @@ Rule format:
 
 ## Snapshot coverage and matcher policy
 
-`server_icons.json` is synced with the GitHub catalog snapshot from **2026-04-02** (`qent/broxy-registry`,
-`index.json`) and includes minimal matchers for all **45** backend servers available in that snapshot.
+`server_icons.json` is synced with the current GitHub catalog snapshot (`qent/broxy-registry`, `index.json`)
+and includes matchers for all bundled catalog server IDs plus compatibility entries for legacy servers.
+
+Recent matcher updates:
+
+- added matchers for `deepwiki`, `desktop-commander`, and `gitlab`;
+- added remote URL matchers for `huggingface`, `mapbox`, `paypal`, and `wix`;
+- fixed `firebase` stdio matcher to validate two separate args (`firebase-tools@...` and `mcp`) instead of a
+  single combined regex.
 
 Bundled matcher policy:
 
 - remote `streamable-http`: `transport=^http$` + exact `url` regex (`/?$` allows optional trailing slash);
 - remote `sse`: `transport=^sse$` + exact `url` regex (`/?$` allows optional trailing slash);
 - `stdio`: `transport=^stdio$` + unique package/image token regex in `args`.
+- for variable-host remotes, rules match a stable URL suffix path (for example, Elastic
+  `/api/agent_builder/mcp`) instead of a fixed host.
 
 Bundled rules intentionally do not rely on `headers` or `env` because those fields are commonly user-specific.
 

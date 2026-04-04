@@ -3,12 +3,15 @@ package io.qent.broxy.core.mcp.auth
 import io.ktor.http.ContentType
 import io.ktor.server.application.call
 import io.ktor.server.engine.EmbeddedServer
+import io.ktor.server.engine.connector
 import io.ktor.server.engine.embeddedServer
+import io.ktor.server.engine.sslConnector
 import io.ktor.server.netty.Netty
 import io.ktor.server.netty.NettyApplicationEngine
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
+import io.netty.handler.ssl.util.SelfSignedCertificate
 import io.qent.broxy.core.utils.Logger
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
@@ -16,7 +19,9 @@ import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import java.net.URI
+import java.security.KeyStore
 import java.util.Locale
+import java.util.UUID
 
 class LoopbackAuthorizationCodeReceiver(
     redirectUriOverride: String?,
@@ -26,9 +31,16 @@ class LoopbackAuthorizationCodeReceiver(
     private companion object {
         private const val STOP_GRACE_MILLIS = 500L
         private const val STOP_TIMEOUT_MILLIS = 1_000L
+        private const val DEFAULT_CALLBACK_PATH = "/oauth/callback"
+        private const val TLS_KEY_ALIAS = "broxy-loopback-oauth"
 
         private const val TITLE_PLACEHOLDER = "__TITLE__"
         private const val STATUS_VISUAL_PLACEHOLDER = "__STATUS_VISUAL__"
+        private const val DESCRIPTION_PLACEHOLDER = "__DESCRIPTION__"
+        private const val STATUS_VALUE_PLACEHOLDER = "__STATUS_VALUE__"
+        private const val STATUS_VALUE_CLASS_PLACEHOLDER = "__STATUS_VALUE_CLASS__"
+        private const val NEXT_STEP_PLACEHOLDER = "__NEXT_STEP__"
+        private const val STATUS_ICON_CLASS_PLACEHOLDER = "__STATUS_ICON_CLASS__"
 
         private val completionPageStyles =
             """
@@ -41,6 +53,7 @@ class LoopbackAuthorizationCodeReceiver(
               --text-primary: #dfdfdf;
               --text-secondary: #94a3b8;
               --success: #4ade80;
+              --error: #f87171;
               --radius-md: 12px;
               --radius-lg: 16px;
               --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -88,11 +101,16 @@ class LoopbackAuthorizationCodeReceiver(
             .status-icon svg {
               width: 100%;
               height: 100%;
-              stroke: var(--success);
               stroke-width: 2.2;
               fill: none;
               stroke-linecap: round;
               stroke-linejoin: round;
+            }
+            .status-icon.success svg {
+              stroke: var(--success);
+            }
+            .status-icon.error svg {
+              stroke: var(--error);
             }
             .status-image {
               width: 100%;
@@ -140,6 +158,9 @@ class LoopbackAuthorizationCodeReceiver(
             .meta-value.success {
               color: var(--success);
             }
+            .meta-value.error {
+              color: var(--error);
+            }
             .footer-note {
               margin-top: 18px;
               font-size: 0.85rem;
@@ -175,23 +196,23 @@ class LoopbackAuthorizationCodeReceiver(
               <body>
                 <div class="card">
                   <div class="status">
-                    <span class="status-icon" aria-hidden="true">
+                    <span class="status-icon $STATUS_ICON_CLASS_PLACEHOLDER" aria-hidden="true">
                       $STATUS_VISUAL_PLACEHOLDER
                     </span>
                     <div>
                       <h1>$TITLE_PLACEHOLDER</h1>
                     </div>
                   </div>
-                  <p>OAuth client authorization succeeded. You can return to Broxy and continue setup.</p>
+                  <p>$DESCRIPTION_PLACEHOLDER</p>
                   <div class="divider"></div>
                   <div class="meta">
                     <div class="meta-row">
                       <span class="meta-label">Status</span>
-                      <span class="meta-value success">Success</span>
+                      <span class="meta-value $STATUS_VALUE_CLASS_PLACEHOLDER">$STATUS_VALUE_PLACEHOLDER</span>
                     </div>
                     <div class="meta-row">
                       <span class="meta-label">Next step</span>
-                      <span class="meta-value">Close this tab</span>
+                      <span class="meta-value">$NEXT_STEP_PLACEHOLDER</span>
                     </div>
                   </div>
                   <div class="footer-note">This window can be closed safely.</div>
@@ -200,10 +221,18 @@ class LoopbackAuthorizationCodeReceiver(
             </html>
             """.trimIndent()
 
-        private val fallbackStatusVisual =
+        private val fallbackSuccessStatusVisual =
             """
             <svg viewBox="0 0 24 24" role="img">
               <path d="M5 13l4 4L19 7"></path>
+            </svg>
+            """.trimIndent()
+
+        private val fallbackErrorStatusVisual =
+            """
+            <svg viewBox="0 0 24 24" role="img">
+              <path d="M18 6L6 18"></path>
+              <path d="M6 6l12 12"></path>
             </svg>
             """.trimIndent()
     }
@@ -216,44 +245,79 @@ class LoopbackAuthorizationCodeReceiver(
     )
 
     private val deferred = CompletableDeferred<CallbackParams>()
+    private val tlsArtifacts: TlsArtifacts?
     private val server: EmbeddedServer<NettyApplicationEngine, NettyApplicationEngine.Configuration>
     override val redirectUri: String
 
     init {
         val overrideUri = redirectUriOverride?.let(::parseUri)
+        val scheme = overrideUri?.scheme?.lowercase(Locale.ROOT) ?: "http"
         if (overrideUri != null) {
-            val scheme = overrideUri.scheme?.lowercase()
-            require(scheme == "http") { "Loopback redirect URI must use http scheme." }
+            require(scheme == "http" || scheme == "https") {
+                "Loopback redirect URI must use http or https scheme."
+            }
             require(overrideUri.host == "localhost" || overrideUri.host == "127.0.0.1") {
                 "Loopback redirect URI must target localhost."
             }
             require(overrideUri.port != -1) { "Loopback redirect URI must include an explicit port." }
         }
-        val host = overrideUri?.host ?: "127.0.0.1"
-        val path = overrideUri?.path?.takeIf { it.isNotBlank() } ?: "/oauth/callback"
+        val host = overrideUri?.host ?: "localhost"
+        val path = overrideUri?.path?.takeIf { it.isNotBlank() } ?: DEFAULT_CALLBACK_PATH
         val port = overrideUri?.port ?: 0
 
+        val configuredTlsArtifacts =
+            if (scheme == "https") {
+                createTlsArtifacts(host)
+            } else {
+                null
+            }
+        tlsArtifacts = configuredTlsArtifacts
         server =
-            embeddedServer(Netty, host = host, port = port) {
+            embeddedServer(
+                factory = Netty,
+                configure = {
+                    if (configuredTlsArtifacts == null) {
+                        connector {
+                            this.host = host
+                            this.port = port
+                        }
+                    } else {
+                        sslConnector(
+                            keyStore = configuredTlsArtifacts.keyStore,
+                            keyAlias = TLS_KEY_ALIAS,
+                            keyStorePassword = { configuredTlsArtifacts.keyPassword },
+                            privateKeyPassword = { configuredTlsArtifacts.keyPassword },
+                        ) {
+                            this.host = host
+                            this.port = port
+                        }
+                    }
+                },
+            ) {
                 routing {
                     get(path) {
                         logger.debug("OAuth callback received on $path")
-                        if (!deferred.isCompleted) {
-                            deferred.complete(
-                                CallbackParams(
-                                    code = call.request.queryParameters["code"],
-                                    state = call.request.queryParameters["state"],
-                                    error = call.request.queryParameters["error"],
-                                    errorDescription = call.request.queryParameters["error_description"],
-                                ),
+                        val params =
+                            CallbackParams(
+                                code = call.request.queryParameters["code"],
+                                state = call.request.queryParameters["state"],
+                                error = call.request.queryParameters["error"],
+                                errorDescription = call.request.queryParameters["error_description"],
                             )
+                        if (!deferred.isCompleted) {
+                            deferred.complete(params)
                         }
                         val completionContext = resolveCompletionPageContext()
-                        call.respondText(renderCompletionPage(completionContext), ContentType.Text.Html)
+                        call.respondText(renderCompletionPage(completionContext, params), ContentType.Text.Html)
                     }
                 }
             }
-        server.start(wait = false)
+        runCatching {
+            server.start(wait = false)
+        }.onFailure { error ->
+            configuredTlsArtifacts?.close()
+            throw error
+        }
         val actualPort =
             runBlocking {
                 server.engine
@@ -261,7 +325,7 @@ class LoopbackAuthorizationCodeReceiver(
                     .firstOrNull()
                     ?.port
             } ?: port
-        redirectUri = URI("http", null, host, actualPort, path, null, null).toString()
+        redirectUri = URI(scheme, null, host, actualPort, path, null, null).toString()
         logger.info("OAuth callback listening at $redirectUri")
     }
 
@@ -304,11 +368,29 @@ class LoopbackAuthorizationCodeReceiver(
             .onFailure { error ->
                 logger.warn("Failed to stop OAuth callback server: ${error.message}", error)
             }
+        runCatching { tlsArtifacts?.close() }
+            .onFailure { error ->
+                logger.warn("Failed to cleanup OAuth callback TLS artifacts: ${error.message}", error)
+            }
     }
 
     private fun parseUri(value: String): URI =
         runCatching { URI(value) }
             .getOrElse { throw IllegalArgumentException("Invalid redirect URI '$value'") }
+
+    @Suppress("DEPRECATION")
+    private fun createTlsArtifacts(host: String): TlsArtifacts {
+        val certificate = SelfSignedCertificate(host)
+        val password = UUID.randomUUID().toString().toCharArray()
+        val keyStore =
+            KeyStore
+                .getInstance("JKS")
+                .apply {
+                    load(null, password)
+                    setKeyEntry(TLS_KEY_ALIAS, certificate.key(), password, arrayOf(certificate.cert()))
+                }
+        return TlsArtifacts(keyStore = keyStore, keyPassword = password, certificate = certificate)
+    }
 
     private fun resolveCompletionPageContext(): AuthorizationCompletionPageContext? {
         val authResourceUrl = resourceUrl?.trim()?.takeIf { it.isNotEmpty() }
@@ -322,28 +404,61 @@ class LoopbackAuthorizationCodeReceiver(
             }.getOrNull()
     }
 
-    private fun renderCompletionPage(context: AuthorizationCompletionPageContext?): String {
-        val titleText = resolvePageTitle(context)
-        val statusVisual = renderStatusVisual(context)
+    private fun renderCompletionPage(
+        context: AuthorizationCompletionPageContext?,
+        params: CallbackParams,
+    ): String {
+        val isError = !params.error.isNullOrBlank()
+        val titleText = resolvePageTitle(context, isError)
+        val statusVisual = renderStatusVisual(context, isError)
+        val descriptionText =
+            params.error?.trim()?.takeIf { it.isNotEmpty() }?.let { errorCode ->
+                params.errorDescription?.trim()?.takeIf { it.isNotEmpty() }?.let { description ->
+                    "OAuth client authorization failed ($errorCode: $description)."
+                } ?: "OAuth client authorization failed ($errorCode)."
+            } ?: "OAuth client authorization succeeded. You can return to Broxy and continue setup."
+        val statusValue = if (isError) "Failed" else "Success"
+        val statusValueClass = if (isError) "error" else "success"
+        val nextStep = if (isError) "Return to Broxy and retry setup" else "Close this tab"
+        val statusIconClass = if (isError) "error" else "success"
         return completionPageTemplate
             .replace(TITLE_PLACEHOLDER, titleText)
+            .replace(DESCRIPTION_PLACEHOLDER, escapeHtml(descriptionText))
+            .replace(STATUS_VALUE_PLACEHOLDER, statusValue)
+            .replace(STATUS_VALUE_CLASS_PLACEHOLDER, statusValueClass)
+            .replace(NEXT_STEP_PLACEHOLDER, nextStep)
+            .replace(STATUS_ICON_CLASS_PLACEHOLDER, statusIconClass)
             .replace(STATUS_VISUAL_PLACEHOLDER, statusVisual)
     }
 
-    private fun resolvePageTitle(context: AuthorizationCompletionPageContext?): String {
+    private fun resolvePageTitle(
+        context: AuthorizationCompletionPageContext?,
+        isError: Boolean,
+    ): String {
         val serverName = context?.serverName?.trim()?.takeIf { it.isNotEmpty() }
-        val title = if (serverName != null) "$serverName Authorized" else "Authorization complete"
+        val title =
+            if (isError) {
+                if (serverName != null) "$serverName Authorization failed" else "Authorization failed"
+            } else {
+                if (serverName != null) "$serverName Authorized" else "Authorization complete"
+            }
         return escapeHtml(title)
     }
 
-    private fun renderStatusVisual(context: AuthorizationCompletionPageContext?): String {
+    private fun renderStatusVisual(
+        context: AuthorizationCompletionPageContext?,
+        isError: Boolean,
+    ): String {
+        if (isError) {
+            return fallbackErrorStatusVisual
+        }
         val iconUrl = sanitizeIconUrl(context?.iconUrl)
         return if (iconUrl != null) {
             """
             <img class="status-image" src="${escapeHtml(iconUrl)}" alt="">
             """.trimIndent()
         } else {
-            fallbackStatusVisual
+            fallbackSuccessStatusVisual
         }
     }
 
@@ -370,4 +485,16 @@ class LoopbackAuthorizationCodeReceiver(
                 )
             }
         }
+
+    @Suppress("DEPRECATION")
+    private data class TlsArtifacts(
+        val keyStore: KeyStore,
+        val keyPassword: CharArray,
+        val certificate: SelfSignedCertificate,
+    ) : AutoCloseable {
+        override fun close() {
+            certificate.delete()
+            keyPassword.fill('\u0000')
+        }
+    }
 }

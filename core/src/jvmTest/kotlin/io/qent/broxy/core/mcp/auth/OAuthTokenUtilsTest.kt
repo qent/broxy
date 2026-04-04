@@ -29,6 +29,55 @@ class OAuthTokenUtilsTest {
     }
 
     @Test
+    fun resolve_registered_token_endpoint_auth_method_prefers_registered_and_infers_secret_mode() {
+        assertEquals(
+            "client_secret_basic",
+            resolveRegisteredTokenEndpointAuthMethod(
+                configured = null,
+                registered = null,
+                clientSecret = "secret",
+                supported = listOf("client_secret_post", "client_secret_basic", "none"),
+            ),
+        )
+        assertEquals(
+            "client_secret_post",
+            resolveRegisteredTokenEndpointAuthMethod(
+                configured = null,
+                registered = null,
+                clientSecret = "secret",
+                supported = listOf("client_secret_post"),
+            ),
+        )
+        assertEquals(
+            "client_secret_basic",
+            resolveRegisteredTokenEndpointAuthMethod(
+                configured = null,
+                registered = null,
+                clientSecret = "secret",
+                supported = null,
+            ),
+        )
+        assertEquals(
+            "none",
+            resolveRegisteredTokenEndpointAuthMethod(
+                configured = null,
+                registered = "none",
+                clientSecret = null,
+                supported = listOf("none"),
+            ),
+        )
+        assertEquals(
+            "client_secret_basic",
+            resolveRegisteredTokenEndpointAuthMethod(
+                configured = null,
+                registered = "client_secret_basic",
+                clientSecret = "secret",
+                supported = listOf("client_secret_post"),
+            ),
+        )
+    }
+
+    @Test
     fun apply_client_auth_headers_adds_basic_auth() {
         val registration =
             OAuthClientRegistration(

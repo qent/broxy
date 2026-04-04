@@ -21,6 +21,44 @@ internal fun resolveTokenEndpointAuthMethod(
     return method
 }
 
+internal fun resolveRegisteredTokenEndpointAuthMethod(
+    configured: String?,
+    registered: String?,
+    clientSecret: String?,
+    supported: List<String>?,
+): String {
+    val normalizedRegistered = registered?.trim()?.lowercase()?.takeIf { it.isNotBlank() }
+    val normalizedConfigured = configured?.trim()?.lowercase()?.takeIf { it.isNotBlank() }
+    val hasClientSecret = !clientSecret.isNullOrBlank()
+    val (method, enforceSupportedValidation) =
+        when {
+            !normalizedRegistered.isNullOrBlank() -> {
+                // Some providers return registration values that are stricter than (or inconsistent with)
+                // discovery metadata, so dynamic registration should trust the server-issued method.
+                normalizedRegistered to false
+            }
+            !normalizedConfigured.isNullOrBlank() -> normalizedConfigured to true
+            hasClientSecret -> {
+                val supportedLower =
+                    supported
+                        ?.map { it.trim().lowercase() }
+                        ?.filter { it.isNotBlank() }
+                        .orEmpty()
+                val inferred =
+                    when {
+                        supportedLower.contains("client_secret_basic") -> "client_secret_basic"
+                        supportedLower.contains("client_secret_post") -> "client_secret_post"
+                        supportedLower.contains("none") -> "none"
+                        else -> "client_secret_basic"
+                    }
+                inferred to true
+            }
+            else -> "none" to true
+        }
+    val supportedForValidation = if (enforceSupportedValidation) supported else null
+    return resolveTokenEndpointAuthMethod(method, clientSecret, supportedForValidation)
+}
+
 internal fun HttpRequestBuilder.applyClientAuthHeaders(registration: OAuthClientRegistration) {
     if (registration.tokenEndpointAuthMethod == "client_secret_basic" && !registration.clientSecret.isNullOrBlank()) {
         val raw = "${registration.clientId}:${registration.clientSecret}"

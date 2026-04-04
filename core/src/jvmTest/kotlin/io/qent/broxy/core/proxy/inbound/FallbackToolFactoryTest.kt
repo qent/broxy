@@ -1,5 +1,6 @@
 package io.qent.broxy.core.proxy.inbound
 
+import io.modelcontextprotocol.kotlin.sdk.server.ClientConnection
 import io.modelcontextprotocol.kotlin.sdk.types.CallToolRequest
 import io.modelcontextprotocol.kotlin.sdk.types.CallToolRequestParams
 import io.modelcontextprotocol.kotlin.sdk.types.PromptArgument
@@ -12,6 +13,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import org.mockito.kotlin.mock
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -47,6 +49,7 @@ class FallbackToolFactoryTest {
 
         val tools = FallbackToolFactory.buildPromptFallbackTools(listOf(prompt), backend, NoopLogger)
         val tool = tools.single()
+        val clientConnection: ClientConnection = mock()
         val request =
             CallToolRequest(
                 CallToolRequestParams(
@@ -61,7 +64,7 @@ class FallbackToolFactoryTest {
                 ),
             )
 
-        val result = runBlocking { tool.handler(request) }
+        val result = runBlocking { tool.handler(clientConnection, request) }
 
         assertEquals(false, result.isError)
         assertNotNull(result.structuredContent)
@@ -81,6 +84,7 @@ class FallbackToolFactoryTest {
 
         val tools = FallbackToolFactory.buildResourceFallbackTools(listOf(resource), backend, NoopLogger)
         val tool = tools.single()
+        val clientConnection: ClientConnection = mock()
         val request =
             CallToolRequest(
                 CallToolRequestParams(
@@ -90,7 +94,7 @@ class FallbackToolFactoryTest {
                 ),
             )
 
-        val result = runBlocking { tool.handler(request) }
+        val result = runBlocking { tool.handler(clientConnection, request) }
 
         assertEquals(true, result.isError)
         assertTrue(result.structuredContent.toString().contains("missing"))

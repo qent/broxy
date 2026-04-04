@@ -142,6 +142,7 @@ internal fun importedCandidateToDraft(candidate: ImportedServerCandidate) =
         enabled = candidate.config.enabled,
         transport = candidate.config.transport.toDraft(),
         env = candidate.config.env,
+        auth = candidate.config.auth,
         originalId = null,
         iconPath = candidate.config.iconPath,
     )

@@ -1,5 +1,8 @@
 package io.qent.broxy.registry.catalog
 
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonPrimitive
+
 private val TEMPLATE_REGEX = Regex("\\{([^{}]+)}")
 
 object CatalogInstallPlanner {
@@ -138,6 +141,14 @@ object CatalogInstallPlanner {
                 } else {
                     emptyMap()
                 }
+            val auth =
+                when (profile.type) {
+                    CatalogConnectionType.StreamableHttp,
+                    CatalogConnectionType.Sse,
+                    -> resolveRemoteOAuth(requireNotNull(profile.remote), byId, fieldValues)
+
+                    CatalogConnectionType.StdioPackage -> null
+                }
 
             CatalogInstallResult(
                 draft =
@@ -147,6 +158,7 @@ object CatalogInstallPlanner {
                         enabled = true,
                         transport = transportDraft,
                         env = env,
+                        auth = auth,
                     ),
             )
         }
@@ -252,6 +264,140 @@ object CatalogInstallPlanner {
                 error("Remote URL is empty")
             }
         }
+    }
+
+    private fun resolveRemoteOAuth(
+        remote: CatalogRemoteTransport,
+        fields: Map<String, CatalogInstallField>,
+        values: Map<String, String>,
+    ): RegistryOAuthDraft? {
+        val oauth = remote.oauth ?: return null
+        return RegistryOAuthDraft(
+            clientId =
+                resolveOAuthString(
+                    value = oauth.clientId,
+                    remote = remote,
+                    fields = fields,
+                    values = values,
+                ),
+            clientSecret =
+                resolveOAuthString(
+                    value = oauth.clientSecret,
+                    remote = remote,
+                    fields = fields,
+                    values = values,
+                ),
+            callbackPort =
+                resolveOAuthCallbackPort(
+                    value = oauth.callbackPort,
+                    remote = remote,
+                    fields = fields,
+                    values = values,
+                ),
+            clientIdMetadataUrl =
+                resolveOAuthString(
+                    value = oauth.clientIdMetadataUrl,
+                    remote = remote,
+                    fields = fields,
+                    values = values,
+                ),
+            authServerMetadataUrl =
+                resolveOAuthString(
+                    value = oauth.authServerMetadataUrl,
+                    remote = remote,
+                    fields = fields,
+                    values = values,
+                ),
+            redirectUri =
+                resolveOAuthString(
+                    value = oauth.redirectUri,
+                    remote = remote,
+                    fields = fields,
+                    values = values,
+                ),
+            clientName =
+                resolveOAuthString(
+                    value = oauth.clientName,
+                    remote = remote,
+                    fields = fields,
+                    values = values,
+                ),
+            tokenEndpointAuthMethod =
+                resolveOAuthString(
+                    value = oauth.tokenEndpointAuthMethod,
+                    remote = remote,
+                    fields = fields,
+                    values = values,
+                ),
+            authorizationServer =
+                resolveOAuthString(
+                    value = oauth.authorizationServer,
+                    remote = remote,
+                    fields = fields,
+                    values = values,
+                ),
+            scopes = resolveOAuthScopes(oauth.scopes, remote, fields, values),
+            allowDynamicRegistration = oauth.allowDynamicRegistration,
+        )
+    }
+
+    private fun resolveOAuthString(
+        value: String?,
+        remote: CatalogRemoteTransport,
+        fields: Map<String, CatalogInstallField>,
+        values: Map<String, String>,
+    ): String? {
+        val raw = value?.trim() ?: return null
+        if (raw.isEmpty()) return null
+        val rendered =
+            renderTemplate(
+                template = raw,
+                scope = "remote.url",
+                variables = remote.variables,
+                fields = fields,
+                values = values,
+            ).trim()
+        return rendered.takeIf { it.isNotEmpty() }
+    }
+
+    private fun resolveOAuthScopes(
+        scopes: List<String>?,
+        remote: CatalogRemoteTransport,
+        fields: Map<String, CatalogInstallField>,
+        values: Map<String, String>,
+    ): List<String>? {
+        val resolved =
+            scopes
+                ?.map { scope ->
+                    renderTemplate(
+                        template = scope,
+                        scope = "remote.url",
+                        variables = remote.variables,
+                        fields = fields,
+                        values = values,
+                    ).trim()
+                }?.filter { it.isNotEmpty() }
+                .orEmpty()
+        return resolved.ifEmpty { null }
+    }
+
+    private fun resolveOAuthCallbackPort(
+        value: JsonElement?,
+        remote: CatalogRemoteTransport,
+        fields: Map<String, CatalogInstallField>,
+        values: Map<String, String>,
+    ): Int? {
+        val primitive = value as? JsonPrimitive ?: return null
+        val rendered =
+            renderTemplate(
+                template = primitive.content.trim(),
+                scope = "remote.url",
+                variables = remote.variables,
+                fields = fields,
+                values = values,
+            ).trim()
+        if (rendered.isEmpty()) return null
+        return rendered.toIntOrNull() ?: error("OAuth callbackPort must be an integer, got '$rendered'")
     }
 
     private fun resolveKeyValueInputs(

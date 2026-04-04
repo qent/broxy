@@ -560,7 +560,7 @@ private class StreamableHttpServerTransport : AbstractTransport() {
 
     override suspend fun close() {
         started = false
-        _onClose.invoke()
+        invokeOnCloseCallback()
     }
 }
 

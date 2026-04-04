@@ -7,6 +7,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class CatalogInstallPlannerTest {
@@ -168,6 +169,71 @@ class CatalogInstallPlannerTest {
         val transport = assertIs<RegistryStreamableHttpDraft>(draft.transport)
         assertEquals("https://api.example.com/ws-123", transport.url)
         assertEquals("Bearer secret-token", transport.headers["Authorization"])
+    }
+
+    @Test
+    fun buildInstallResult_for_remote_profile_maps_oauth_block_to_auth_draft() {
+        val detail =
+            CatalogServerDetail(
+                name = "slack",
+                title = "Slack",
+                description = "desc",
+                version = "1.0.0",
+                remotes =
+                    listOf(
+                        CatalogRemoteTransport(
+                            type = "streamable-http",
+                            url = "https://mcp.slack.com/mcp",
+                            oauth =
+                                CatalogRemoteOAuth(
+                                    type = "oauth",
+                                    clientId = "{slack_client_id}",
+                                    clientSecret = "{slack_client_secret}",
+                                    callbackPort = JsonPrimitive("{slack_callback_port}"),
+                                    authServerMetadataUrl = "https://mcp.slack.com/.well-known/oauth-authorization-server",
+                                    redirectUri = "https://localhost:{slack_callback_port}/callback",
+                                    tokenEndpointAuthMethod = "client_secret_post",
+                                    authorizationServer = "https://mcp.slack.com",
+                                    allowDynamicRegistration = false,
+                                ),
+                            variables =
+                                mapOf(
+                                    "slack_client_id" to CatalogInput(isRequired = true),
+                                    "slack_client_secret" to CatalogInput(isRequired = true, isSecret = true),
+                                    "slack_callback_port" to CatalogInput(default = "3118"),
+                                ),
+                        ),
+                    ),
+            )
+
+        val session = CatalogInstallPlanner.buildInstallSession(detail).getOrThrow()
+        val fieldIds = session.fields.map { it.id }.toSet()
+        assertTrue("remote.url.var.slack-client-id" in fieldIds)
+        assertTrue("remote.url.var.slack-client-secret" in fieldIds)
+        assertTrue("remote.url.var.slack-callback-port" in fieldIds)
+
+        val installResult =
+            CatalogInstallPlanner
+                .buildInstallResult(
+                    session = session,
+                    displayName = "Slack Prod",
+                    fieldValues =
+                        mapOf(
+                            "remote.url.var.slack-client-id" to "123.456",
+                            "remote.url.var.slack-client-secret" to "super-secret",
+                            "remote.url.var.slack-callback-port" to "3119",
+                        ),
+                ).getOrThrow()
+
+        val auth = assertNotNull(installResult.draft.auth)
+        assertEquals("123.456", auth.clientId)
+        assertEquals("super-secret", auth.clientSecret)
+        assertEquals(3119, auth.callbackPort)
+        assertEquals("https://mcp.slack.com/.well-known/oauth-authorization-server", auth.authServerMetadataUrl)
+        assertEquals("https://localhost:3119/callback", auth.redirectUri)
+        assertEquals("client_secret_post", auth.tokenEndpointAuthMethod)
+        assertEquals("https://mcp.slack.com", auth.authorizationServer)
+        assertEquals(false, auth.allowDynamicRegistration)
     }
 
     @Test

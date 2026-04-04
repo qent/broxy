@@ -97,6 +97,15 @@ Broxy accepts Claude-compatible OAuth fields:
 - `scopes`
 - `allowDynamicRegistration`
 
+OAuth loopback redirect behavior:
+
+- `redirectUri` supports `http://` and `https://` loopback URLs (`localhost` / `127.0.0.1`, explicit port required).
+- `callbackPort` remains a convenience for `http://localhost:<callbackPort>/callback` when `redirectUri` is omitted.
+- When both `redirectUri` and `callbackPort` are omitted, Broxy defaults to
+  `http://localhost:<random-port>/oauth/callback`.
+- When `redirectUri` uses `https`, Broxy starts a temporary OAuth callback listener with an auto-generated
+  self-signed certificate (no root certificate installation).
+
 ## Canonical output (Broxy save)
 
 Broxy writes a canonical `mcp.json` that is readable by Cursor and Claude Code:
