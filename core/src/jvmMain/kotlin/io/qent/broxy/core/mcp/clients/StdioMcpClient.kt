@@ -18,10 +18,19 @@ import io.modelcontextprotocol.kotlin.sdk.types.Method
 import io.modelcontextprotocol.kotlin.sdk.types.ReadResourceResult
 import io.modelcontextprotocol.kotlin.sdk.types.RequestId
 import io.qent.broxy.core.config.EnvironmentVariableResolver
+import io.qent.broxy.core.mcp.AuthInteractiveMcpClient
 import io.qent.broxy.core.mcp.McpClient
 import io.qent.broxy.core.mcp.ServerCapabilities
 import io.qent.broxy.core.mcp.TimeoutConfigurableMcpClient
+import io.qent.broxy.core.mcp.auth.AuthorizationPopupSessionRegistry
+import io.qent.broxy.core.mcp.auth.AuthorizationPresenterRegistry
+import io.qent.broxy.core.mcp.auth.AuthorizationRequest
+import io.qent.broxy.core.mcp.auth.BrowserLauncher
+import io.qent.broxy.core.mcp.auth.DesktopBrowserLauncher
+import io.qent.broxy.core.mcp.auth.resolveStdioAuthResourceUrl
+import io.qent.broxy.core.mcp.auth.sendAuthorizationRequest
 import io.qent.broxy.core.mcp.errors.McpError
+import io.qent.broxy.core.models.AuthConfig
 import io.qent.broxy.core.utils.CommandLocator
 import io.qent.broxy.core.utils.ConfigurationException
 import io.qent.broxy.core.utils.ConsoleLogger
@@ -39,19 +48,31 @@ import kotlinx.io.asSink
 import kotlinx.io.asSource
 import kotlinx.io.buffered
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import java.net.URI
+import java.net.URLDecoder
+import java.nio.charset.StandardCharsets
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.concurrent.thread
 
+@Suppress("TooManyFunctions", "LongParameterList")
 class StdioMcpClient(
+    private val serverId: String,
     private val command: String,
     private val args: List<String>,
     private val env: Map<String, String>,
     private val logger: Logger = ConsoleLogger,
+    private val authConfig: AuthConfig.OAuth? = null,
     private val connector: SdkConnector? = null,
+    private val browserLauncher: BrowserLauncher = DesktopBrowserLauncher(logger),
 ) : McpClient,
-    TimeoutConfigurableMcpClient {
+    TimeoutConfigurableMcpClient,
+    AuthInteractiveMcpClient {
     private var process: Process? = null
     private var client: SdkClientFacade? = null
     private var stderrThread: Thread? = null
@@ -65,12 +86,17 @@ class StdioMcpClient(
     @Volatile
     private var capabilitiesTimeoutMillis: Long = DEFAULT_CAPABILITIES_TIMEOUT_MILLIS
 
+    @Volatile
+    override var authorizationTimeoutMillis: Long = DEFAULT_CONNECT_TIMEOUT_MILLIS
+        private set
+
     override fun updateTimeouts(
         connectTimeoutMillis: Long,
         capabilitiesTimeoutMillis: Long,
     ) {
         this.connectTimeoutMillis = connectTimeoutMillis.coerceAtLeast(MIN_TIMEOUT_MILLIS)
         this.capabilitiesTimeoutMillis = capabilitiesTimeoutMillis.coerceAtLeast(MIN_TIMEOUT_MILLIS)
+        authorizationTimeoutMillis = this.connectTimeoutMillis
     }
 
     override suspend fun connect(): Result<Unit> =
@@ -79,6 +105,7 @@ class StdioMcpClient(
                 if (client != null || process?.isAlive == true) return@runCatching
                 connectWithConnector(connector, logger)?.let { facade ->
                     client = facade
+                    runStdioBootstrapOnConnect(facade)
                     return@runCatching
                 }
                 val resolvedEnv = resolveEnvironment(envResolver, logger, env, command)
@@ -99,6 +126,7 @@ class StdioMcpClient(
                         onFailure = ::handleConnectFailure,
                     )
                 client = facade
+                runStdioBootstrapOnConnect(facade)
                 logger.info("Connected stdio MCP process: ${resolution.resolvedCommand} ${args.joinToString(" ")}")
             }
         }
@@ -129,6 +157,7 @@ class StdioMcpClient(
             ServerCapabilities(tools = tools, resources = resources, prompts = prompts)
         }
 
+    @Suppress("TooGenericExceptionCaught")
     override suspend fun callTool(
         name: String,
         arguments: JsonObject,
@@ -181,12 +210,186 @@ class StdioMcpClient(
         client = null
     }
 
+    private suspend fun runStdioBootstrapOnConnect(sdkClient: SdkClientFacade) {
+        val bootstrap = authConfig?.stdioBootstrap ?: return
+
+        val bootstrapArgs =
+            buildJsonObject {
+                bootstrap.args.forEach { (key, value) ->
+                    put(key, JsonPrimitive(value))
+                }
+            }
+
+        val bootstrapResult =
+            runCatching {
+                sdkClient.callTool(bootstrap.tool, bootstrapArgs)
+            }.onFailure { ex ->
+                logger.warn(
+                    "STDIO OAuth bootstrap call failed for server '$serverId' tool='${bootstrap.tool}'.",
+                    ex,
+                )
+            }.getOrNull()
+        if (bootstrapResult != null) {
+            val authorizationUrl = extractAuthorizationUrl(bootstrapResult)
+            if (authorizationUrl == null) {
+                logger.warn(
+                    "STDIO OAuth bootstrap for '$serverId' did not produce 'Authorization URL: ...' in tool result.",
+                )
+            } else {
+                startAuthorizationFlowFromUrl(
+                    authorizationUrl = authorizationUrl,
+                    source = "connect",
+                    details = collectStringsFromResult(bootstrapResult),
+                )
+            }
+        }
+    }
+
+    private fun collectStringsFromResult(result: CallToolResult): String {
+        val element = json.encodeToJsonElement(CallToolResult.serializer(), result)
+        val strings = mutableListOf<String>()
+        collectStringLeaves(element, strings)
+        return strings.joinToString("\n")
+    }
+
+    private fun collectStringLeaves(
+        element: JsonElement,
+        target: MutableList<String>,
+    ) {
+        when (element) {
+            is JsonObject -> element.values.forEach { collectStringLeaves(it, target) }
+            is JsonArray -> element.forEach { collectStringLeaves(it, target) }
+            is JsonPrimitive -> if (element.isString) target += element.jsonPrimitive.content
+        }
+    }
+
+    @Suppress("ReturnCount")
+    private fun extractAuthorizationUrl(result: CallToolResult): String? {
+        val text = collectStringsFromResult(result)
+        return extractAuthorizationUrl(text)
+    }
+
+    @Suppress("ReturnCount")
+    private fun extractAuthorizationUrl(text: String): String? {
+        if (text.isBlank()) return null
+
+        val authorizationLabelMatch = AUTHORIZATION_URL_REGEX.find(text)
+        return authorizationLabelMatch?.groupValues?.getOrNull(1)?.let(::normalizeExtractedUrl)
+    }
+
+    private fun normalizeExtractedUrl(raw: String): String? {
+        val trimmed = raw.trim().trimEnd('.', ',', ';')
+        return trimmed.takeIf { it.isNotEmpty() }
+    }
+
+    @Suppress("ReturnCount")
+    private fun isSafeAuthorizationUrl(url: String): Boolean {
+        val uri = runCatching { URI(url) }.getOrNull() ?: return false
+        val scheme = uri.scheme?.lowercase() ?: return false
+        val host = uri.host?.lowercase() ?: return false
+        return when (scheme) {
+            "https" -> true
+            "http" -> host == "localhost" || host == "127.0.0.1"
+            else -> false
+        }
+    }
+
+    private fun extractRedirectUriFromAuthorizationUrl(url: String): String? {
+        val query = runCatching { URI(url) }.getOrNull()?.rawQuery ?: return null
+        val key = "redirect_uri"
+        return query
+            .split('&')
+            .mapNotNull { chunk ->
+                val index = chunk.indexOf('=')
+                if (index < 0) return@mapNotNull null
+                val encodedName = chunk.substring(0, index)
+                val encodedValue = chunk.substring(index + 1)
+                val name = URLDecoder.decode(encodedName, StandardCharsets.UTF_8)
+                if (!name.equals(key, ignoreCase = true)) {
+                    null
+                } else {
+                    URLDecoder.decode(encodedValue, StandardCharsets.UTF_8)
+                }
+            }.firstOrNull { it.isNotBlank() }
+    }
+
+    private suspend fun startAuthorizationFlowFromUrl(
+        authorizationUrl: String,
+        source: String,
+        details: String,
+    ) {
+        if (!isSafeAuthorizationUrl(authorizationUrl)) {
+            logger.warn(
+                "STDIO OAuth bootstrap for '$serverId' returned an unsafe authorization URL; ignoring.",
+            )
+            return
+        }
+
+        val redirectUri =
+            extractRedirectUriFromAuthorizationUrl(authorizationUrl)
+                ?: authConfig?.redirectUri
+                ?: ""
+        val request =
+            AuthorizationRequest(
+                resourceUrl = resolveStdioAuthResourceUrl(serverId),
+                authorizationUrl = authorizationUrl,
+                redirectUri = redirectUri,
+                allowDismissWithoutCancel = true,
+            )
+        val presenter = AuthorizationPresenterRegistry.current()
+        val shouldAwaitDismiss = presenter != null && request.allowDismissWithoutCancel
+        val sessionHandle =
+            if (shouldAwaitDismiss) {
+                AuthorizationPopupSessionRegistry.open(request.resourceUrl)
+            } else {
+                null
+            }
+        runCatching {
+            sendAuthorizationRequest(
+                presenter = presenter,
+                request = request,
+                browserLauncher = browserLauncher,
+                logger = logger,
+                resourceUrl = request.resourceUrl,
+            )
+            if (sessionHandle != null) {
+                AuthorizationPopupSessionRegistry.await(sessionHandle)
+            }
+        }.onSuccess {
+            logger.info(
+                "STDIO OAuth bootstrap started for '$serverId' (source=$source). Authorize in browser and retry.",
+            )
+        }.onFailure { ex ->
+            logger.warn(
+                "Failed to start STDIO OAuth bootstrap authorization flow for '$serverId' " +
+                    "(source=$source details='${trimForLog(details)}').",
+                ex,
+            )
+        }.also {
+            if (sessionHandle != null) {
+                AuthorizationPopupSessionRegistry.complete(sessionHandle)
+            }
+        }
+    }
+
+    private fun trimForLog(text: String): String =
+        text
+            .replace('\n', ' ')
+            .trim()
+            .take(MAX_AUTH_LOG_TEXT_LENGTH)
+
     companion object {
         private const val MIN_TIMEOUT_MILLIS = 1L
         private const val CLOSE_TIMEOUT_MILLIS = 2000L
         private const val THREAD_JOIN_MILLIS = 500L
         private const val DEFAULT_CONNECT_TIMEOUT_MILLIS = 10_000L
         private const val DEFAULT_CAPABILITIES_TIMEOUT_MILLIS = 10_000L
+        private const val MAX_AUTH_LOG_TEXT_LENGTH = 240
+
+        private val AUTHORIZATION_URL_REGEX =
+            Regex(
+                pattern = "(?i)authorization\\s*url\\s*:\\s*(https?://\\S+)",
+            )
     }
 }
 

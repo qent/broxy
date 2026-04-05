@@ -42,7 +42,7 @@ Broxy stores MCP server definitions in `mcp.json` (`mcpServers` map), while app 
 | `envFile` | string | Optional `.env` file path for `stdio` servers. |
 | `url` | string | Required for `type: "http"`, `"sse"`, `"ws"`. |
 | `headers` | object | Optional request headers for HTTP/SSE/WS. |
-| `oauth` | object | OAuth config for HTTP/SSE/WS servers. |
+| `oauth` | object | OAuth config for HTTP/SSE/WS and STDIO bootstrap flow (`stdioBootstrap`). |
 | `auth` | object | Cursor OAuth alias accepted on load (`auth` -> `oauth`). |
 | `name` | string | Broxy extension (Claude ignores unknown fields). |
 | `enabled` | boolean | Broxy extension (Claude ignores unknown fields). |
@@ -96,6 +96,13 @@ Broxy accepts Claude-compatible OAuth fields:
 - `authServerMetadataUrl`
 - `scopes`
 - `allowDynamicRegistration`
+- `stdioBootstrap` (`tool`, optional `args`)
+
+`stdioBootstrap` constraints:
+
+- allowed only for `type: "stdio"` servers;
+- `tool` must be non-empty;
+- `args` keys must be non-empty.
 
 OAuth loopback redirect behavior:
 
@@ -105,6 +112,14 @@ OAuth loopback redirect behavior:
   `http://localhost:<random-port>/oauth/callback`.
 - When `redirectUri` uses `https`, Broxy starts a temporary OAuth callback listener with an auto-generated
   self-signed certificate (no root certificate installation).
+
+STDIO bootstrap behavior:
+
+- on every STDIO `connect`, Broxy calls `oauth.stdioBootstrap.tool` when configured;
+- it extracts an authorization URL from the tool result and opens the system browser;
+- extraction requires `Authorization URL: ...` (no markdown/plain URL fallback parsing);
+- only safe URLs are accepted (`https://...` or loopback `http://localhost|127.0.0.1`);
+- the user retries the original call manually (Broxy does not auto-retry).
 
 ## Canonical output (Broxy save)
 

@@ -147,7 +147,11 @@ object CatalogInstallPlanner {
                     CatalogConnectionType.Sse,
                     -> resolveRemoteOAuth(requireNotNull(profile.remote), byId, fieldValues)
 
-                    CatalogConnectionType.StdioPackage -> null
+                    CatalogConnectionType.StdioPackage ->
+                        resolvePackageOAuth(
+                            pkg = requireNotNull(profile.pkg),
+                            resolvedEnv = env,
+                        )
                 }
 
             CatalogInstallResult(
@@ -398,6 +402,86 @@ object CatalogInstallPlanner {
             ).trim()
         if (rendered.isEmpty()) return null
         return rendered.toIntOrNull() ?: error("OAuth callbackPort must be an integer, got '$rendered'")
+    }
+
+    private fun resolvePackageOAuth(
+        pkg: CatalogPackage,
+        resolvedEnv: Map<String, String>,
+    ): RegistryOAuthDraft? {
+        val oauth = pkg.oauth ?: return null
+        val stdioBootstrap =
+            oauth.stdioBootstrap?.let { bootstrap ->
+                val tool = bootstrap.tool.trim()
+                if (tool.isEmpty()) {
+                    error("STDIO OAuth bootstrap tool cannot be blank")
+                }
+                RegistryStdioBootstrapDraft(
+                    tool = tool,
+                    args =
+                        bootstrap.args
+                            .entries
+                            .mapNotNull { (key, value) ->
+                                key
+                                    .trim()
+                                    .takeIf { it.isNotEmpty() }
+                                    ?.let { normalized ->
+                                        normalized to resolvePackageOAuthString(value, resolvedEnv).orEmpty()
+                                    }
+                            }.toMap(LinkedHashMap()),
+                )
+            }
+        return RegistryOAuthDraft(
+            clientId = resolvePackageOAuthString(oauth.clientId, resolvedEnv),
+            clientSecret = resolvePackageOAuthString(oauth.clientSecret, resolvedEnv),
+            callbackPort = resolvePackageOAuthCallbackPort(oauth.callbackPort, resolvedEnv),
+            clientIdMetadataUrl = resolvePackageOAuthString(oauth.clientIdMetadataUrl, resolvedEnv),
+            authServerMetadataUrl = resolvePackageOAuthString(oauth.authServerMetadataUrl, resolvedEnv),
+            redirectUri = resolvePackageOAuthString(oauth.redirectUri, resolvedEnv),
+            clientName = resolvePackageOAuthString(oauth.clientName, resolvedEnv),
+            tokenEndpointAuthMethod = resolvePackageOAuthString(oauth.tokenEndpointAuthMethod, resolvedEnv),
+            authorizationServer = resolvePackageOAuthString(oauth.authorizationServer, resolvedEnv),
+            scopes =
+                oauth.scopes
+                    ?.mapNotNull { resolvePackageOAuthString(it, resolvedEnv) }
+                    ?.ifEmpty { null },
+            allowDynamicRegistration = oauth.allowDynamicRegistration,
+            stdioBootstrap = stdioBootstrap,
+        )
+    }
+
+    private fun resolvePackageOAuthCallbackPort(
+        value: JsonElement?,
+        resolvedEnv: Map<String, String>,
+    ): Int? {
+        val primitive = value as? JsonPrimitive ?: return null
+        val rendered = resolvePackageOAuthString(primitive.content, resolvedEnv).orEmpty()
+        if (rendered.isEmpty()) return null
+        return rendered.toIntOrNull() ?: error("OAuth callbackPort must be an integer, got '$rendered'")
+    }
+
+    private fun resolvePackageOAuthString(
+        value: String?,
+        resolvedEnv: Map<String, String>,
+    ): String? {
+        val raw = value?.trim() ?: return null
+        if (raw.isEmpty()) return null
+        val rendered =
+            TEMPLATE_REGEX.replace(raw) { match ->
+                val key = match.groupValues[1].trim()
+                if (key.isEmpty()) return@replace match.value
+                resolvePackageOAuthVariable(key, resolvedEnv) ?: match.value
+            }
+        return rendered.trim().takeIf { it.isNotEmpty() }
+    }
+
+    private fun resolvePackageOAuthVariable(
+        key: String,
+        resolvedEnv: Map<String, String>,
+    ): String? {
+        resolvedEnv[key]?.let { return it }
+        resolvedEnv[key.uppercase()]?.let { return it }
+        val normalized = key.lowercase()
+        return resolvedEnv.entries.firstOrNull { (envKey, _) -> envKey.lowercase() == normalized }?.value
     }
 
     private fun resolveKeyValueInputs(

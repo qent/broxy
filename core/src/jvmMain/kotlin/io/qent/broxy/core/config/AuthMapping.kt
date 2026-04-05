@@ -43,6 +43,27 @@ internal class AuthMapping(
                             context,
                         ),
                     scopes = auth.scopes?.filter { it.isNotBlank() },
+                    stdioBootstrap =
+                        auth.stdioBootstrap?.let { bootstrap ->
+                            AuthConfig.StdioBootstrap(
+                                tool =
+                                    resolveAuthValue(
+                                        bootstrap.tool,
+                                        serverId,
+                                        "oauth.stdioBootstrap.tool",
+                                        context,
+                                    ) ?: "",
+                                args =
+                                    bootstrap.args.mapValues { (key, value) ->
+                                        resolveAuthValue(
+                                            value,
+                                            serverId,
+                                            "oauth.stdioBootstrap.args.$key",
+                                            context,
+                                        ) ?: ""
+                                    },
+                            )
+                        },
                 )
         }
     }

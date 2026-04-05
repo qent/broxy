@@ -6,6 +6,7 @@ data class UiAuthorizationPopup(
     val resourceUrl: String,
     val authorizationUrl: String,
     val redirectUri: String,
+    val allowDismissWithoutCancel: Boolean = false,
     val status: UiAuthorizationPopupStatus = UiAuthorizationPopupStatus.Pending,
 )
 

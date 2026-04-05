@@ -1,20 +1,13 @@
 package io.qent.broxy.headless
 
-import io.qent.broxy.core.mcp.auth.resolveOAuthResourceUrl
 import io.qent.broxy.core.models.McpServerConfig
 import io.qent.broxy.core.models.McpServersConfig
-import io.qent.broxy.core.models.TransportConfig
 import java.nio.file.Path
 import java.nio.file.Paths
 import kotlin.math.min
+import io.qent.broxy.core.mcp.auth.resolveAuthResourceUrl as resolveAuthResourceUrlCore
 
-internal fun resolveAuthResourceUrl(config: McpServerConfig): String? =
-    when (val transport = config.transport) {
-        is TransportConfig.HttpTransport -> resolveOAuthResourceUrl(transport.url)
-        is TransportConfig.StreamableHttpTransport -> resolveOAuthResourceUrl(transport.url)
-        is TransportConfig.WebSocketTransport -> resolveOAuthResourceUrl(transport.url)
-        else -> null
-    }
+internal fun resolveAuthResourceUrl(config: McpServerConfig): String? = resolveAuthResourceUrlCore(config)
 
 internal fun resolveTimeouts(config: McpServersConfig): HeadlessTimeouts {
     val callTimeoutMillis = config.requestTimeoutSeconds.toLong() * MILLIS_PER_SECOND

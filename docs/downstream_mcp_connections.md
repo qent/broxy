@@ -80,6 +80,9 @@ Interactive OAuth note:
   `client.connect()` in an outer timeout. The OAuth flow controls its own authorization timeout
   (headless) or waits without a timeout when the UI popup is open, while network connect timeouts
   are still enforced inside the client implementations.
+- `StdioMcpClient` is also treated as interactive for STDIO bootstrap popup flows. The MCP
+  handshake still uses the internal connect timeout, but after bootstrap URL handoff Broxy can
+  wait for popup dismissal without an outer `DefaultMcpServerConnection` timeout.
 
 Update methods:
 
@@ -254,6 +257,32 @@ fails the connect attempt with a `ConnectionError` so upstream retry logic can r
 
 A dedicated thread reads `proc.errorStream` and logs lines as
 `logger.warn("[STDERR][cmd] ...")`.
+
+### Legacy OAuth bootstrap for STDIO
+
+`StdioMcpClient` can orchestrate auth bootstrap when `oauth.stdioBootstrap` is configured:
+
+- trigger condition:
+  - every STDIO `connect`.
+- bootstrap execution:
+  - calls `oauth.stdioBootstrap.tool` with static `oauth.stdioBootstrap.args`;
+- URL handling:
+  - extracts URL only from `Authorization URL: ...`;
+  - accepts only `https://...` or loopback `http://localhost|127.0.0.1`.
+- popup request:
+  - sends `AuthorizationRequest` using synthetic resource URL `broxy://stdio/<serverId>`;
+  - sets `allowDismissWithoutCancel=true` so popup close does not disable server.
+- popup/session coordination:
+  - when a desktop authorization presenter is available, Broxy opens a popup session and waits for
+    popup dismissal before finishing `connect`;
+  - while the popup is open, the underlying STDIO MCP process stays alive so server-side callback
+    handlers can continue listening on the loopback port.
+- redirect URI source:
+  - first `redirect_uri` query param in extracted URL;
+  - fallback to `oauth.redirectUri`.
+- retry behavior:
+  - if bootstrap tool fails or returns no `Authorization URL: ...`, Broxy logs and continues connect;
+  - no automatic retry of the failed original call; user performs manual retry after authorization.
 
 ### LoggingTransport: MCP message tracing
 

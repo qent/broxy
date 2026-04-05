@@ -11,7 +11,9 @@ import io.modelcontextprotocol.kotlin.sdk.types.JSONRPCRequest
 import io.modelcontextprotocol.kotlin.sdk.types.JSONRPCResponse
 import io.modelcontextprotocol.kotlin.sdk.types.Method
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.JsonObject
 import kotlin.test.Test
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 import io.modelcontextprotocol.kotlin.sdk.types.ServerCapabilities as SdkServerCapabilities
 
@@ -29,9 +31,28 @@ class RealSdkClientFacadeTest {
             assertTrue(prompts.isEmpty())
         }
 
+    @Test
+    fun callTool_rethrows_transport_failure() {
+        runBlocking {
+            val client = Client(Implementation(name = "test", version = "0"))
+            val transport =
+                FakeTransport(
+                    serverCapabilities = SdkServerCapabilities(),
+                    failRequestsAfterInitialize = true,
+                )
+            client.connect(transport)
+            val facade = RealSdkClientFacade(client)
+
+            assertFailsWith<IllegalStateException> {
+                facade.callTool("echo", JsonObject(emptyMap()))
+            }
+        }
+    }
+
     private class FakeTransport(
         private val serverCapabilities: SdkServerCapabilities,
         private val serverInfo: Implementation = Implementation(name = "server", version = "0"),
+        private val failRequestsAfterInitialize: Boolean = false,
     ) : Transport {
         private var onMessage: (suspend (JSONRPCMessage) -> Unit)? = null
         private var onClose: (() -> Unit)? = null
@@ -72,15 +93,19 @@ class RealSdkClientFacadeTest {
         }
 
         private suspend fun handleRequest(request: JSONRPCRequest) {
-            if (request.method != Method.Defined.Initialize.value) {
-                error("Unexpected request method: ${request.method}")
+            if (request.method == Method.Defined.Initialize.value) {
+                val response =
+                    JSONRPCResponse(
+                        id = request.id,
+                        result = InitializeResult(capabilities = serverCapabilities, serverInfo = serverInfo),
+                    )
+                onMessage?.invoke(response)
+                return
             }
-            val response =
-                JSONRPCResponse(
-                    id = request.id,
-                    result = InitializeResult(capabilities = serverCapabilities, serverInfo = serverInfo),
-                )
-            onMessage?.invoke(response)
+            if (failRequestsAfterInitialize) {
+                error("Transport send failed")
+            }
+            error("Unexpected request method: ${request.method}")
         }
     }
 }

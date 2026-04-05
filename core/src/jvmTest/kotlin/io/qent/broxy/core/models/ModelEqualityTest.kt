@@ -63,6 +63,11 @@ class ModelEqualityTest {
                 authorizationServer = "https://auth.example.com",
                 scopes = listOf("files:read"),
                 allowDynamicRegistration = true,
+                stdioBootstrap =
+                    AuthConfig.StdioBootstrap(
+                        tool = "start_google_auth",
+                        args = mapOf("service_name" to "Gmail"),
+                    ),
             )
 
         val variants =
@@ -76,6 +81,7 @@ class ModelEqualityTest {
                 base.copy(authorizationServer = "https://auth2.example.com"),
                 base.copy(scopes = listOf("files:write")),
                 base.copy(allowDynamicRegistration = false),
+                base.copy(stdioBootstrap = AuthConfig.StdioBootstrap(tool = "other_tool")),
             )
 
         variants.forEach { variant ->

@@ -79,6 +79,11 @@ class ModelsSerializationTest {
                         clientId = "client",
                         redirectUri = "http://localhost:8080/callback",
                         tokenEndpointAuthMethod = "client_secret_basic",
+                        stdioBootstrap =
+                            AuthConfig.StdioBootstrap(
+                                tool = "start_google_auth",
+                                args = mapOf("service_name" to "Gmail"),
+                            ),
                     ),
             )
         val encoded = json.encodeToString(McpServerConfig.serializer(), cfg)

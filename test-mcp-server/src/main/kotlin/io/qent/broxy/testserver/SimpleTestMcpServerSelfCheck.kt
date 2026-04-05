@@ -65,6 +65,7 @@ class SimpleTestMcpServerSelfCheck(
         println("[SelfCheck] Verifying STDIO mode...")
         val client =
             StdioMcpClient(
+                serverId = "self-check-stdio",
                 command = serverExecutable(serverHome),
                 args = listOf("--mode", "stdio"),
                 env = emptyMap(),

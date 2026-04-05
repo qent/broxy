@@ -1,5 +1,6 @@
 package io.qent.broxy.ui.adapter.store.internal
 
+import io.qent.broxy.core.mcp.auth.AuthorizationPopupSessionRegistry
 import io.qent.broxy.ui.adapter.capabilities.ServerStateUpdate
 import io.qent.broxy.ui.adapter.models.UiMcpServerConfig
 import io.qent.broxy.ui.adapter.models.UiServer
@@ -175,6 +176,9 @@ internal class ServerIntentsHandler(
             val previousConfig = context.state.snapshotConfig()
             val removedIconPath = previousServers.firstOrNull { it.id == id }?.iconPath
             val updated = previousServers.filterNot { it.id == id }
+            if (previousPopup?.serverId == id) {
+                AuthorizationPopupSessionRegistry.complete(previousPopup.resourceUrl)
+            }
             val clearedPopup = if (previousPopup?.serverId == id) null else previousPopup
             context.state.updateSnapshot { copy(servers = updated, authorizationPopup = clearedPopup) }
             val result =
@@ -212,6 +216,9 @@ internal class ServerIntentsHandler(
             if (idx < 0) return@launch
             val updated = previousServers.toMutableList()
             updated[idx] = updated[idx].copy(enabled = enabled)
+            if (!enabled && previousPopup?.serverId == id) {
+                AuthorizationPopupSessionRegistry.complete(previousPopup.resourceUrl)
+            }
             val clearedPopup =
                 if (!enabled && previousPopup?.serverId == id) {
                     null
@@ -382,6 +389,7 @@ internal class ServerIntentsHandler(
         context.scope.launch {
             val popup = context.state.snapshot.authorizationPopup
             if (popup?.serverId != serverId) return@launch
+            AuthorizationPopupSessionRegistry.complete(popup.resourceUrl)
             context.state.updateSnapshot { copy(authorizationPopup = null) }
             context.publishReady()
         }

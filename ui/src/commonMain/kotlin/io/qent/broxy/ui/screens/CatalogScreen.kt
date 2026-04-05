@@ -658,12 +658,13 @@ private fun CatalogInstallStepItem(
         verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm),
     ) {
         Row(
-            modifier = Modifier
+            modifier =
+                Modifier
                     .fillMaxWidth()
                     .padding(
                         start = AppTheme.spacing.md + AppTheme.spacing.sm,
                         bottom = AppTheme.spacing.xs,
-                        top = AppTheme.spacing.sm
+                        top = AppTheme.spacing.sm,
                     ),
             verticalAlignment = Alignment.Top,
             horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm),

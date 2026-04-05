@@ -116,6 +116,27 @@ class CatalogInstallPlannerAdapterTest {
                             identifier = "@example/server",
                             runtimeHint = "npx",
                             transport = CatalogLocalTransport(type = "stdio"),
+                            environmentVariables =
+                                listOf(
+                                    CatalogKeyValueInput(
+                                        name = "USER_GOOGLE_EMAIL",
+                                        isRequired = true,
+                                    ),
+                                ),
+                            oauth =
+                                CatalogRemoteOAuth(
+                                    type = "oauth",
+                                    redirectUri = "http://localhost:8111/oauth2callback",
+                                    stdioBootstrap =
+                                        CatalogStdioBootstrap(
+                                            tool = "start_google_auth",
+                                            args =
+                                                mapOf(
+                                                    "service_name" to "gmail",
+                                                    "user_google_email" to "{USER_GOOGLE_EMAIL}",
+                                                ),
+                                        ),
+                                ),
                         ),
                     ),
             )
@@ -125,10 +146,24 @@ class CatalogInstallPlannerAdapterTest {
                 .buildInstallResult(
                     session = stdioSession,
                     displayName = "STDIO Prod",
-                    fieldValues = emptyMap(),
+                    fieldValues =
+                        mapOf(
+                            "package.env.0.user-google-email" to "to.dolfin@gmail.com",
+                        ),
                 ).getOrThrow()
         val stdioTransport = assertIs<UiStdioDraft>(stdioInstallResult.draft.transport)
         assertEquals("npx", stdioTransport.command)
         assertEquals(listOf("@example/server"), stdioTransport.args)
+        val stdioAuth = assertIs<UiAuthConfig.OAuth>(assertNotNull(stdioInstallResult.draft.auth))
+        assertEquals("http://localhost:8111/oauth2callback", stdioAuth.redirectUri)
+        assertNotNull(stdioAuth.stdioBootstrap)
+        assertEquals("start_google_auth", stdioAuth.stdioBootstrap.tool)
+        assertEquals(
+            mapOf(
+                "service_name" to "gmail",
+                "user_google_email" to "to.dolfin@gmail.com",
+            ),
+            stdioAuth.stdioBootstrap.args,
+        )
     }
 }

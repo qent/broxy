@@ -90,6 +90,12 @@ data class RegistryOAuthDraft(
     val authorizationServer: String? = null,
     val scopes: List<String>? = null,
     val allowDynamicRegistration: Boolean = true,
+    val stdioBootstrap: RegistryStdioBootstrapDraft? = null,
+)
+
+data class RegistryStdioBootstrapDraft(
+    val tool: String,
+    val args: Map<String, String> = emptyMap(),
 )
 
 data class RegistryServerDraft(

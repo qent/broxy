@@ -28,7 +28,7 @@ class ConfigValidatorTest {
     }
 
     @Test
-    fun validate_rejects_oauth_on_stdio_transport() {
+    fun validate_accepts_oauth_on_stdio_transport_with_bootstrap() {
         val validator = ConfigValidator(ConfigErrorHandler(NoopLogger))
         val config =
             McpServersConfig(
@@ -39,8 +39,34 @@ class ConfigValidatorTest {
                             TransportConfig.StdioTransport("cmd"),
                             auth =
                                 AuthConfig.OAuth(
-                                    clientId = "client",
-                                    redirectUri = "http://localhost:8080/callback",
+                                    stdioBootstrap =
+                                        AuthConfig.StdioBootstrap(
+                                            tool = "start_google_auth",
+                                            args = mapOf("service_name" to "Gmail"),
+                                        ),
+                                ),
+                        ),
+                    ),
+            )
+        validator.validate(config)
+    }
+
+    @Test
+    fun validate_rejects_stdio_bootstrap_for_remote_transport() {
+        val validator = ConfigValidator(ConfigErrorHandler(NoopLogger))
+        val config =
+            McpServersConfig(
+                servers =
+                    listOf(
+                        server(
+                            "alpha",
+                            TransportConfig.StreamableHttpTransport("http://localhost:8080"),
+                            auth =
+                                AuthConfig.OAuth(
+                                    stdioBootstrap =
+                                        AuthConfig.StdioBootstrap(
+                                            tool = "start_google_auth",
+                                        ),
                                 ),
                         ),
                     ),

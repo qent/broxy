@@ -140,13 +140,25 @@ Notes:
 
 ## OAuth block (`oauth`)
 
-Downstream HTTP/SSE/WS servers can include an `oauth` block.
-If the server supports dynamic client registration, Broxy can auto-discover OAuth parameters and `oauth` may be omitted.
+Downstream servers can include an `oauth` block.
+
+- HTTP/SSE/WS use MCP OAuth (discovery/challenge/token flow).
+- STDIO can use legacy bootstrap orchestration via `oauth.stdioBootstrap`.
+
+If a remote server supports dynamic client registration, Broxy can auto-discover OAuth parameters
+and `oauth` may be omitted.
 
 Supported fields include:
 
 - `type`, `clientId`, `clientSecret`, `clientIdMetadataUrl`, `redirectUri`, `callbackPort`,
-  `authorizationServer`, `authServerMetadataUrl`, `tokenEndpointAuthMethod`, `scopes`, `allowDynamicRegistration`.
+  `authorizationServer`, `authServerMetadataUrl`, `tokenEndpointAuthMethod`, `scopes`,
+  `allowDynamicRegistration`, `stdioBootstrap`.
+- `stdioBootstrap` shape:
+  - `tool` (required, non-empty)
+  - `args` (optional `string -> string` map)
+- Validation rules:
+  - `stdioBootstrap` is allowed only for `type: "stdio"`;
+  - for non-stdio servers this field is rejected.
 - `redirectUri` supports loopback `http://...` and `https://...` (`localhost` / `127.0.0.1` only, explicit port required).
   For `https://...`, Broxy automatically starts the OAuth callback listener with a temporary self-signed certificate.
 - `callbackPort` still builds `http://localhost:<callbackPort>/callback` when `redirectUri` is not explicitly set.
@@ -160,7 +172,8 @@ Slack-specific recommendation (remote `https://mcp.slack.com/mcp`):
 - set `callbackPort` (for example `3118`) and set/register `https://localhost:<port>/callback` in the Slack app;
 - set `allowDynamicRegistration` to `false`.
 
-`oauth` is ignored for STDIO transports.
+For `type: "stdio"` servers, `oauth` is used only for bootstrap orchestration (`stdioBootstrap` and
+optional `redirectUri` fallback). Protocol OAuth discovery/token exchange is not performed over STDIO.
 
 Input normalization:
 
@@ -190,7 +203,7 @@ Implementation:
 Behavior:
 
 - Interpolation is applied on load for transport fields (`command`, `args[]`, `url`, `headers` values),
-  `env`, and OAuth string fields.
+  `env`, and OAuth string fields (including `stdioBootstrap.tool` and `stdioBootstrap.args.*`).
 - `workspaceFolder` is the directory of the active `mcp.json`.
 - `workspaceFolderBasename` is the directory name of `workspaceFolder`.
 - `${input:NAME}` lookup order:

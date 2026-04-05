@@ -96,6 +96,7 @@ fun AuthConfig.toUi(): UiAuthConfig =
                 authorizationServer = authorizationServer,
                 scopes = scopes,
                 allowDynamicRegistration = allowDynamicRegistration,
+                stdioBootstrap = stdioBootstrap?.toUi(),
             )
     }
 
@@ -114,8 +115,21 @@ fun UiAuthConfig.toCore(): AuthConfig =
                 authorizationServer = authorizationServer,
                 scopes = scopes,
                 allowDynamicRegistration = allowDynamicRegistration,
+                stdioBootstrap = stdioBootstrap?.toCore(),
             )
     }
+
+private fun AuthConfig.StdioBootstrap.toUi(): UiStdioBootstrap =
+    UiStdioBootstrap(
+        tool = tool,
+        args = args,
+    )
+
+private fun UiStdioBootstrap.toCore(): AuthConfig.StdioBootstrap =
+    AuthConfig.StdioBootstrap(
+        tool = tool,
+        args = args,
+    )
 
 fun Preset.toUi(): UiPresetCore =
     UiPresetCore(

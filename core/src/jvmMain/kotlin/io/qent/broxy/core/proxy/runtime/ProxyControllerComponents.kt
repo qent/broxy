@@ -8,9 +8,10 @@ import io.qent.broxy.core.mcp.ServerStatus
 import io.qent.broxy.core.mcp.auth.AuthorizationStatusListener
 import io.qent.broxy.core.mcp.auth.OAuthState
 import io.qent.broxy.core.mcp.auth.OAuthStateStore
-import io.qent.broxy.core.mcp.auth.resolveOAuthResourceUrl
+import io.qent.broxy.core.mcp.auth.resolveAuthResourceUrl
 import io.qent.broxy.core.mcp.auth.restoreFromLocked
 import io.qent.broxy.core.mcp.auth.toSnapshotLocked
+import io.qent.broxy.core.models.AuthConfig
 import io.qent.broxy.core.models.McpServerConfig
 import io.qent.broxy.core.models.Preset
 import io.qent.broxy.core.models.TransportConfig
@@ -309,7 +310,11 @@ internal class DownstreamManager(
         return ManagedDownstream(connection, IsolatedMcpServerConnection(connection))
     }
 
+    @Suppress("ReturnCount")
     private suspend fun loadAuthState(config: McpServerConfig): OAuthState? {
+        if (config.transport is TransportConfig.StdioTransport && config.auth !is AuthConfig.OAuth) {
+            return null
+        }
         val resourceUrl = resolveAuthResourceUrl(config) ?: return null
         val state = OAuthState()
         authStateStore.load(config.id, resourceUrl)?.let { snapshot ->
@@ -322,18 +327,13 @@ internal class DownstreamManager(
         config: McpServerConfig,
         state: OAuthState,
     ) {
+        if (config.transport is TransportConfig.StdioTransport && config.auth !is AuthConfig.OAuth) {
+            return
+        }
         val resourceUrl = resolveAuthResourceUrl(config) ?: return
         val snapshot = state.toSnapshotLocked(resourceUrl)
         authStateStore.save(config.id, snapshot)
     }
-
-    private fun resolveAuthResourceUrl(config: McpServerConfig): String? =
-        when (val transport = config.transport) {
-            is TransportConfig.HttpTransport -> resolveOAuthResourceUrl(transport.url)
-            is TransportConfig.StreamableHttpTransport -> resolveOAuthResourceUrl(transport.url)
-            is TransportConfig.WebSocketTransport -> resolveOAuthResourceUrl(transport.url)
-            else -> null
-        }
 }
 
 internal class ProxyRuntimeLifecycle(

@@ -9,6 +9,7 @@ import io.qent.broxy.core.mcp.auth.OAuthState
 import io.qent.broxy.core.mcp.auth.OAuthStateStore
 import io.qent.broxy.core.mcp.auth.restoreFromLocked
 import io.qent.broxy.core.mcp.auth.toSnapshotLocked
+import io.qent.broxy.core.models.AuthConfig
 import io.qent.broxy.core.models.McpServersConfig
 import io.qent.broxy.core.models.Preset
 import io.qent.broxy.core.models.TransportConfig
@@ -173,7 +174,11 @@ private fun buildDownstreams(
     config.servers
         .filter { it.enabled }
         .map { serverCfg ->
-            val resourceUrl = resolveAuthResourceUrl(serverCfg)
+            val resourceUrl =
+                when {
+                    serverCfg.transport is TransportConfig.StdioTransport && serverCfg.auth !is AuthConfig.OAuth -> null
+                    else -> resolveAuthResourceUrl(serverCfg)
+                }
             val authState =
                 resourceUrl?.let {
                     OAuthState().also { state ->

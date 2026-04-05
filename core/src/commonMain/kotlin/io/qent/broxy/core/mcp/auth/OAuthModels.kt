@@ -1,5 +1,6 @@
 package io.qent.broxy.core.mcp.auth
 
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.descriptors.PrimitiveKind
@@ -33,7 +34,7 @@ data class ProtectedResourceMetadata(
  * We normalize both shapes to a single canonical string value and use the first non-blank
  * item when an array is returned.
  */
-object ResourceUriSerializer : kotlinx.serialization.KSerializer<String?> {
+object ResourceUriSerializer : KSerializer<String?> {
     override val descriptor: SerialDescriptor =
         PrimitiveSerialDescriptor("ResourceUri", PrimitiveKind.STRING)
 

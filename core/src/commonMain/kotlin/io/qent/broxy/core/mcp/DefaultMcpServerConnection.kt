@@ -37,6 +37,7 @@ class DefaultMcpServerConnection(
     private val authStateObserver: ((OAuthState) -> Unit)? = null,
     private val clientFactory: () -> McpClient = {
         McpClientFactory(defaultMcpClientProvider()).create(
+            serverId = config.id,
             config.transport,
             config.env,
             ignoreHttpsCertificateErrors,

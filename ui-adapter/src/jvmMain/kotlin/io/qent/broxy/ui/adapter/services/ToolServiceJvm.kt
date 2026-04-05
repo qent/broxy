@@ -12,6 +12,7 @@ import io.qent.broxy.core.utils.CommandLocator
 import io.qent.broxy.core.utils.ConsoleLogger
 import io.qent.broxy.core.utils.Logger
 import io.qent.broxy.ui.adapter.models.UiMcpServerConfig
+import io.qent.broxy.ui.adapter.models.UiStdioTransport
 import io.qent.broxy.ui.adapter.models.toCore
 import kotlinx.coroutines.runBlocking
 
@@ -31,7 +32,9 @@ actual suspend fun fetchServerCapabilities(
     )
     val timeoutMillis = timeoutSeconds.coerceAtLeast(1).toLong() * 1_000L
     val authStore = OAuthStateStore(logger = connLogger)
-    val resourceUrl = resolveAuthResourceUrl(config)
+    val resourceUrl =
+        resolveAuthResourceUrl(config)
+            ?.takeUnless { config.transport is UiStdioTransport && config.auth == null }
     val coreConfig = config.toCore()
     val authState =
         resourceUrl?.let {

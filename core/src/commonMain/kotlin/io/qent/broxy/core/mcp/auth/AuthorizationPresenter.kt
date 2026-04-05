@@ -4,6 +4,7 @@ data class AuthorizationRequest(
     val resourceUrl: String,
     val authorizationUrl: String,
     val redirectUri: String,
+    val allowDismissWithoutCancel: Boolean = false,
 )
 
 data class AuthorizationCompletionPageContext(

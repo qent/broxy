@@ -2,6 +2,7 @@ package io.qent.broxy.ui.adapter.store
 
 import io.qent.broxy.core.mcp.ServerCapabilities
 import io.qent.broxy.core.mcp.ToolDescriptor
+import io.qent.broxy.core.mcp.auth.AuthorizationPopupSessionRegistry
 import io.qent.broxy.core.mcp.auth.AuthorizationPresenterRegistry
 import io.qent.broxy.core.mcp.auth.AuthorizationRequest
 import io.qent.broxy.core.models.AuthConfig
@@ -58,6 +59,7 @@ import io.qent.broxy.ui.adapter.remote.defaultRemoteState
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -69,6 +71,7 @@ import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
@@ -2775,9 +2778,12 @@ class AppStoreTest {
                     ),
                 )
             storeScope.advanceUntilIdle()
+            val dismissHandle = AuthorizationPopupSessionRegistry.open("https://api.example.com/mcp")
+            val dismissWaiter = storeScope.async { AuthorizationPopupSessionRegistry.await(dismissHandle) }
             intents.openAuthorizationInBrowser("s1", "not a valid url")
             intents.dismissAuthorizationPopup("s1")
             storeScope.advanceUntilIdle()
+            withTimeout(2_000L) { dismissWaiter.await() }
 
             AuthorizationPresenterRegistry
                 .current()
@@ -2789,8 +2795,11 @@ class AppStoreTest {
                     ),
                 )
             storeScope.advanceUntilIdle()
+            val cancelHandle = AuthorizationPopupSessionRegistry.open("https://api.example.com/mcp")
+            val cancelWaiter = storeScope.async { AuthorizationPopupSessionRegistry.await(cancelHandle) }
             intents.cancelAuthorization("s1")
             storeScope.advanceUntilIdle()
+            withTimeout(2_000L) { cancelWaiter.await() }
             assertEquals(
                 false,
                 repository.config.servers

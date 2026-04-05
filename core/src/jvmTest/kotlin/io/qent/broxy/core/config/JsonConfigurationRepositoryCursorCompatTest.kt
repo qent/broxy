@@ -168,6 +168,45 @@ class JsonConfigurationRepositoryCursorCompatTest {
     }
 
     @Test
+    fun save_and_load_stdio_oauth_bootstrap_roundtrip() {
+        val dir = Files.createTempDirectory("broxy-config")
+        val repo = JsonConfigurationRepository(baseDir = dir, logger = ConfigTestLogger)
+        val config =
+            McpServersConfig(
+                servers =
+                    listOf(
+                        McpServerConfig(
+                            id = "google-stdio",
+                            name = "google-stdio",
+                            transport = TransportConfig.StdioTransport(command = "uvx", args = listOf("workspace-mcp")),
+                            auth =
+                                AuthConfig.OAuth(
+                                    redirectUri = "http://localhost:8000/oauth2callback",
+                                    stdioBootstrap =
+                                        AuthConfig.StdioBootstrap(
+                                            tool = "start_google_auth",
+                                            args = mapOf("service_name" to "Google Workspace"),
+                                        ),
+                                ),
+                        ),
+                    ),
+                mcpFilePath = dir.resolve("mcp.json").toString(),
+            )
+
+        repo.saveMcpConfig(config)
+        val savedText = Files.readString(dir.resolve("mcp.json"))
+        assertTrue(savedText.contains("\"stdioBootstrap\""))
+        assertTrue(savedText.contains("\"tool\": \"start_google_auth\""))
+
+        val loaded = repo.loadMcpConfig()
+        val loadedAuth = loaded.servers.single().auth as AuthConfig.OAuth
+        val loadedBootstrap = loadedAuth.stdioBootstrap
+        assertEquals("start_google_auth", loadedBootstrap?.tool)
+        assertEquals("Google Workspace", loadedBootstrap?.args?.get("service_name"))
+        assertEquals("http://localhost:8000/oauth2callback", loadedAuth.redirectUri)
+    }
+
+    @Test
     fun roundTrip_cursor_and_claude_mcp_json_stays_connectable() {
         val dir = Files.createTempDirectory("broxy-config")
         Files.writeString(

@@ -172,11 +172,16 @@ Form behavior:
 - no generic raw multiline `env`/`headers` inputs;
 - in step mode, plain full-field listing is hidden (only step-embedded + required fallback fields are shown).
 
-Submit builds `UiServerDraft` (including optional OAuth auth draft for remote profiles) through
+Submit builds `UiServerDraft` (including optional OAuth auth draft for remote profiles and STDIO package
+`oauth` blocks such as `stdioBootstrap`) through
 `ui-adapter` planner facade (`CatalogInstallPlanner.buildInstallResult(...)`) that delegates into
 `server-registry`, using form values, installs the server, and navigates to the Servers list with
 that new server shown first.
 Required fields block submit.
+
+For STDIO package OAuth templates, `stdioBootstrap.args` values may reference resolved package environment
+inputs using `{ENV_NAME}` placeholders (for example `{USER_GOOGLE_EMAIL}`), and Broxy resolves them during
+install draft construction.
 
 ## Catalog UI
 

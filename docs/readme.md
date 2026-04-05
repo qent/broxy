@@ -18,7 +18,7 @@ Recommended reading order:
 10. `docs/claude_code_mcp_format.md` - canonical Cursor/Claude `mcp.json` format, field mapping, and interoperability rules.
 11. `docs/inbound_transports.md` - inbound STDIO and Streamable HTTP transports and SDK adapter.
 12. `docs/cli_mode.md` - CLI flags, defaults, and hot reload behavior.
-13. `docs/remote_auth_and_websocket.md` - OAuth for downstream HTTP/WS servers and authorization flows.
+13. `docs/remote_auth_and_websocket.md` - OAuth for downstream HTTP/WS servers plus STDIO bootstrap auth flow.
 14. `docs/capabilities_cache_and_ui_refresh.md` - UI snapshots, cache, statuses, and background refresh.
 15. `docs/logging_and_observability.md` - log formats, key events, and tracing guidance.
 16. `docs/testing.md` - testing practices and test entry points.

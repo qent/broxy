@@ -1,4 +1,4 @@
-# Remote auth (OAuth) for downstream HTTP/WS
+# Remote auth (OAuth) for downstream transports
 
 Broxy supports OAuth authorization for downstream MCP servers using HTTP-based transports. If the
 server supports dynamic client registration, Broxy can auto-discover OAuth parameters via the
@@ -8,7 +8,13 @@ well-known metadata endpoints and no explicit `oauth` block is required.
 - Streamable HTTP
 - WebSocket (via HTTP handshake)
 
-STDIO transports do **not** use OAuth; use environment variables for credentials instead.
+For STDIO transports, Broxy supports a legacy bootstrap flow via `oauth.stdioBootstrap`:
+
+- it does not implement protocol OAuth 2.1 over STDIO;
+- on connect, Broxy calls the configured bootstrap tool, extracts an authorization URL,
+  opens the browser, and shows the popup;
+- user retries the original tool call manually after completing authorization.
+
 If the transport `headers` include an explicit `Authorization` header, Broxy skips OAuth discovery
 and uses the provided headers as-is.
 
@@ -91,6 +97,9 @@ Add an `oauth` block to a server to enable OAuth:
 - `tokenEndpointAuthMethod`: `none`, `client_secret_basic`, or `client_secret_post`.
 - `scopes`: Fallback scopes when discovery provides none.
 - `allowDynamicRegistration`: Enables dynamic client registration when supported.
+- `stdioBootstrap`: Legacy STDIO-only bootstrap config:
+  - `tool`: required tool name called on STDIO connect;
+  - `args`: optional static `string -> string` arguments passed to that bootstrap tool.
 
 Slack note:
 
@@ -119,6 +128,20 @@ Slack note:
 - Uses refresh tokens when provided.
 - Headless/CLI OAuth waits are bounded by `authorizationTimeoutSeconds`.
 
+## STDIO bootstrap flow (`oauth.stdioBootstrap`)
+
+For `type: "stdio"` servers, Broxy can orchestrate a manual browser authorization flow:
+
+- trigger: every STDIO `connect` when `oauth.stdioBootstrap` is configured;
+- action: call bootstrap tool from `oauth.stdioBootstrap` with static `args`;
+- URL extraction: strict `Authorization URL: ...` parsing only;
+- safe URL policy: only `https://...` or loopback `http://localhost|127.0.0.1`;
+- redirect URI: from URL query param `redirect_uri`, fallback to `oauth.redirectUri`;
+- if bootstrap tool invocation fails or returns no `Authorization URL: ...`, Broxy logs and continues connect;
+- with desktop UI presenter, Broxy keeps the STDIO connect flow open until the popup is dismissed;
+- while the popup is open, the matching STDIO MCP process remains running so downstream callback handling stays active;
+- user retries calls manually after browser auth.
+
 ## UI authorization popup
 
 When running the desktop UI, Broxy opens the authorization URL in the system browser and shows a
@@ -133,10 +156,18 @@ minimal popup to keep the flow visible:
 - For successful redirects with no server context/icon, the callback page falls back to the generic
   `Authorization complete` title and check icon.
 - After a successful OAuth redirect, the popup closes automatically and capabilities are refreshed.
-- If the user closes the popup or authorization fails, the popup closes and the server is disabled
-  (the UI toggle turns off).
-- If the user clicks Cancel, Broxy disables the server and stops OAuth retries for that attempt.
-- While the popup is open, Broxy listens for the loopback callback without applying the authorization timeout.
+- Standard HTTP/SSE/WS OAuth popup behavior:
+  - if the user closes the popup or authorization fails, the popup closes and the server is disabled
+    (the UI toggle turns off);
+  - if the user clicks Cancel, Broxy disables the server and stops OAuth retries for that attempt.
+- STDIO bootstrap popup behavior (`allowDismissWithoutCancel=true`):
+  - user can close the popup without disabling the server;
+  - this closes only the popup; manual retry remains available;
+  - popup close also releases the waiting STDIO bootstrap connect flow.
+- For HTTP/SSE/WS OAuth, while the popup is open Broxy listens for the loopback callback without applying
+  the authorization timeout.
+- For STDIO bootstrap, Broxy opens browser + popup and waits for popup dismissal; callback listener logic
+  remains owned by the downstream STDIO MCP server process.
 - Interactive authorization does not use the connect retry timeout, so the popup is not reopened mid-flow.
 - For `https://localhost` / `https://127.0.0.1` redirect URIs, the loopback callback listener
   uses an auto-generated self-signed certificate for that OAuth session.

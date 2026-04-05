@@ -32,15 +32,17 @@ internal class ConfigValidator(
 
     private fun validateAuthConfig(
         serverId: String,
+        transport: TransportConfig,
         auth: AuthConfig,
     ) {
         when (auth) {
-            is AuthConfig.OAuth -> validateOAuthConfig(serverId, auth)
+            is AuthConfig.OAuth -> validateOAuthConfig(serverId, transport, auth)
         }
     }
 
     private fun validateOAuthConfig(
         serverId: String,
+        transport: TransportConfig,
         auth: AuthConfig.OAuth,
     ) {
         validateCallbackPort(serverId, auth.callbackPort)
@@ -49,6 +51,7 @@ internal class ConfigValidator(
         validateAuthServerMetadataUrl(serverId, auth.authServerMetadataUrl)
         validateAuthorizationServer(serverId, auth.authorizationServer)
         validateTokenEndpointAuthMethod(errors, serverId, auth.tokenEndpointAuthMethod)
+        validateStdioBootstrap(serverId, transport, auth.stdioBootstrap)
     }
 
     private fun validateServerBasics(server: McpServerConfig) {
@@ -82,10 +85,26 @@ internal class ConfigValidator(
 
     private fun validateAuth(server: McpServerConfig) {
         val auth = server.auth ?: return
-        if (server.transport is TransportConfig.StdioTransport) {
-            errors.fail("Server '${server.id}': oauth is not supported for stdio transport")
+        validateAuthConfig(server.id, server.transport, auth)
+    }
+
+    private fun validateStdioBootstrap(
+        serverId: String,
+        transport: TransportConfig,
+        stdioBootstrap: AuthConfig.StdioBootstrap?,
+    ) {
+        if (stdioBootstrap == null) return
+        if (transport !is TransportConfig.StdioTransport) {
+            errors.fail("Server '$serverId': oauth.stdioBootstrap is supported only for stdio transport")
         }
-        validateAuthConfig(server.id, auth)
+        if (stdioBootstrap.tool.isBlank()) {
+            errors.fail("Server '$serverId': oauth.stdioBootstrap.tool cannot be blank")
+        }
+        stdioBootstrap.args.keys.forEach { key ->
+            if (key.isBlank()) {
+                errors.fail("Server '$serverId': oauth.stdioBootstrap.args keys cannot be blank")
+            }
+        }
     }
 
     private fun validateRedirectUri(

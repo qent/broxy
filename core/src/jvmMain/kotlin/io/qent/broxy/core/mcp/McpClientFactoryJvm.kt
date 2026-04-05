@@ -10,6 +10,7 @@ import io.qent.broxy.core.utils.Logger
 
 private object DefaultJvmMcpClientProvider : McpClientProvider {
     override fun create(
+        serverId: String,
         config: TransportConfig,
         env: Map<String, String>,
         ignoreHttpsCertificateErrors: Boolean,
@@ -21,10 +22,12 @@ private object DefaultJvmMcpClientProvider : McpClientProvider {
         when (config) {
             is TransportConfig.StdioTransport ->
                 StdioMcpClient(
+                    serverId = serverId,
                     command = config.command,
                     args = config.args,
                     env = env,
                     logger = logger,
+                    authConfig = auth as? AuthConfig.OAuth,
                 )
 
             is TransportConfig.HttpTransport ->

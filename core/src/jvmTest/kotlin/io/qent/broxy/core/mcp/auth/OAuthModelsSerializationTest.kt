@@ -19,9 +19,13 @@ class OAuthModelsSerializationTest {
 
     @Test
     fun protected_resource_metadata_accepts_array_resource() {
+        val payload =
+            """
+            {"resource":[" ","https://mcp.example.com","https://backup.example.com"],"authorization_servers":["https://auth.example.com"]}
+            """.trimIndent()
         val metadata =
             json.decodeFromString<ProtectedResourceMetadata>(
-                """{"resource":[" ","https://mcp.example.com","https://backup.example.com"],"authorization_servers":["https://auth.example.com"]}""",
+                payload,
             )
 
         assertEquals("https://mcp.example.com", metadata.resource)

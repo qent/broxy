@@ -137,6 +137,13 @@ when a snapshot is already available. `Authorization` and `Connecting` are shown
 snapshot exists (initial connect); refresh activity for cached servers is indicated by the refresh
 affordance instead of swapping the status.
 
+STDIO bootstrap exception:
+
+- when an authorization popup is active for a STDIO server with
+  `allowDismissWithoutCancel=true` (`oauth.stdioBootstrap` flow), the server card is forced to
+  `Connecting` and capability counts are hidden until the popup is dismissed;
+- this masking applies even if a cached capability snapshot exists.
+
 For OAuth-capable HTTP/WS servers with no cached snapshot, the UI shows `Authorization` while OAuth
 is in progress, then switches to `Connecting` once authorization completes and capabilities are
 being fetched. In the desktop UI popup flow, authorization waits as long as the popup is open; in
@@ -150,7 +157,8 @@ When a server is toggled from the UI:
   card stays `Available` (no `Authorization`/`Connecting` states) until a refresh is due or the user
   forces a refresh. If no cache exists, the UI shows `Authorization` when OAuth starts (if required),
   then `Connecting` with the timer starting from the connection attempt until capabilities arrive,
-  and finally `Available`.
+  and finally `Available`. For STDIO bootstrap popup sessions, the card stays `Connecting` and hides
+  capability counts until the popup is closed.
 - Disable: the switch flips off immediately and stays interactive. Any in-flight refresh or
   authorization flow for the server is cancelled, timers stop, and the card renders as `Disabled`.
   Rapid on/off sequences are allowed; background updates are serialized so the latest toggle wins.

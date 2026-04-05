@@ -47,6 +47,11 @@ class UiCoreMappersTest {
                                     authorizationServer = "https://example.test/auth",
                                     scopes = listOf("read", "write"),
                                     allowDynamicRegistration = false,
+                                    stdioBootstrap =
+                                        AuthConfig.StdioBootstrap(
+                                            tool = "start_google_auth",
+                                            args = mapOf("service_name" to "Gmail"),
+                                        ),
                                 ),
                         ),
                         McpServerConfig(

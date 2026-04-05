@@ -12,6 +12,7 @@ import io.qent.broxy.core.utils.Logger
 fun interface McpClientProvider {
     @Suppress("LongParameterList")
     fun create(
+        serverId: String,
         config: TransportConfig,
         env: Map<String, String>,
         ignoreHttpsCertificateErrors: Boolean,

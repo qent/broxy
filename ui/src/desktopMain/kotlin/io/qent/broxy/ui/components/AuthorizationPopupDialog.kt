@@ -26,6 +26,8 @@ actual fun AuthorizationPopupDialog(
     val openedInBrowser = remember(popup.serverId, popup.authorizationUrl) { mutableStateOf(false) }
     val onDismissLatest = rememberUpdatedState(onDismiss)
     val accentColor = Color(0xFF16A34A)
+    val dismissAction = if (popup.allowDismissWithoutCancel) onDismiss else onCancel
+    val dismissLabel = if (popup.allowDismissWithoutCancel) strings.close else strings.cancel
     if (isSuccess) {
         LaunchedEffect(popup.serverId, popup.status) {
             delay(1_200)
@@ -39,10 +41,10 @@ actual fun AuthorizationPopupDialog(
         description = strings.authorizationPopupSubtitle,
         icon = Icons.Outlined.VerifiedUser,
         accentColor = accentColor,
-        onDismiss = onCancel,
+        onDismiss = dismissAction,
         dismissOnClickOutside = false,
         dismissOnBackPress = false,
-        confirmButton = { AppSecondaryButton(onClick = onCancel) { Text(strings.cancel) } },
+        confirmButton = { AppSecondaryButton(onClick = dismissAction) { Text(dismissLabel) } },
     )
     LaunchedEffect(popup.serverId, popup.authorizationUrl) {
         if (!openedInBrowser.value) {

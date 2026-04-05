@@ -55,6 +55,7 @@ internal object BroxyCliTestEnvironment {
         )
         val client =
             StdioMcpClient(
+                serverId = "broxy-cli-stdio",
                 command = command.first(),
                 args = command.drop(1),
                 env = emptyMap(),

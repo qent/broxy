@@ -9,6 +9,7 @@ import io.qent.broxy.registry.catalog.RegistryTransportDraft
 import io.qent.broxy.ui.adapter.models.UiAuthConfig
 import io.qent.broxy.ui.adapter.models.UiHttpDraft
 import io.qent.broxy.ui.adapter.models.UiServerDraft
+import io.qent.broxy.ui.adapter.models.UiStdioBootstrap
 import io.qent.broxy.ui.adapter.models.UiStdioDraft
 import io.qent.broxy.ui.adapter.models.UiStreamableHttpDraft
 import io.qent.broxy.registry.catalog.CatalogInstallPlanner as RegistryCatalogInstallPlanner
@@ -100,4 +101,8 @@ private fun RegistryOAuthDraft.toUiAuth(): UiAuthConfig.OAuth =
         authorizationServer = authorizationServer,
         scopes = scopes,
         allowDynamicRegistration = allowDynamicRegistration,
+        stdioBootstrap =
+            stdioBootstrap?.let { bootstrap ->
+                UiStdioBootstrap(tool = bootstrap.tool, args = bootstrap.args)
+            },
     )

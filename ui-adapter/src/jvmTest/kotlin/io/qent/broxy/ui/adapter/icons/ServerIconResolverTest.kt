@@ -524,8 +524,8 @@ class ServerIconResolverTest {
                 id = "paypal-local",
                 name = "PayPal",
                 transport =
-                    UiStreamableHttpTransport(
-                        url = "https://mcp.paypal.com/http",
+                    UiHttpTransport(
+                        url = "https://mcp.paypal.com/sse",
                         headers = emptyMap(),
                     ),
             )

@@ -125,7 +125,7 @@ class RealSdkClientFacade(
             )
         }.onFailure { ex ->
             logger.warn("Failed to call tool '$name': ${ex.message}", ex)
-        }.getOrNull()
+        }.getOrElse { throw it }
 
     override suspend fun getPrompt(
         name: String,

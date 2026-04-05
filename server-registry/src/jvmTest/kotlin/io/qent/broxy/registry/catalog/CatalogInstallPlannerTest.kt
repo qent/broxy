@@ -406,4 +406,69 @@ class CatalogInstallPlannerTest {
         )
         assertEquals("token-value", draft.env["TIME_TOKEN"])
     }
+
+    @Test
+    fun buildInstallResult_for_stdio_package_profile_maps_oauth_stdio_bootstrap() {
+        val detail =
+            CatalogServerDetail(
+                name = "google-workspace",
+                title = "Google Workspace",
+                description = "desc",
+                version = "latest",
+                packages =
+                    listOf(
+                        CatalogPackage(
+                            registryType = "pypi",
+                            identifier = "workspace-mcp",
+                            runtimeHint = "uvx",
+                            transport = CatalogLocalTransport(type = "stdio"),
+                            environmentVariables =
+                                listOf(
+                                    CatalogKeyValueInput(
+                                        name = "USER_GOOGLE_EMAIL",
+                                        isRequired = true,
+                                    ),
+                                ),
+                            oauth =
+                                CatalogRemoteOAuth(
+                                    type = "oauth",
+                                    redirectUri = "http://localhost:8000/oauth2callback",
+                                    stdioBootstrap =
+                                        CatalogStdioBootstrap(
+                                            tool = "start_google_auth",
+                                            args =
+                                                mapOf(
+                                                    "service_name" to "gmail",
+                                                    "user_google_email" to "{USER_GOOGLE_EMAIL}",
+                                                ),
+                                        ),
+                                ),
+                        ),
+                    ),
+            )
+
+        val session = CatalogInstallPlanner.buildInstallSession(detail).getOrThrow()
+        val installResult =
+            CatalogInstallPlanner
+                .buildInstallResult(
+                    session = session,
+                    displayName = "",
+                    fieldValues =
+                        mapOf(
+                            "package.env.0.user-google-email" to "to.dolfin@gmail.com",
+                        ),
+                ).getOrThrow()
+
+        val auth = assertNotNull(installResult.draft.auth)
+        assertEquals("http://localhost:8000/oauth2callback", auth.redirectUri)
+        assertNotNull(auth.stdioBootstrap)
+        assertEquals("start_google_auth", auth.stdioBootstrap.tool)
+        assertEquals(
+            mapOf(
+                "service_name" to "gmail",
+                "user_google_email" to "to.dolfin@gmail.com",
+            ),
+            auth.stdioBootstrap.args,
+        )
+    }
 }

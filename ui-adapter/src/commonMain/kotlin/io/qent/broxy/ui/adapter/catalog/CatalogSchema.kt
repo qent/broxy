@@ -14,6 +14,7 @@ import io.qent.broxy.registry.catalog.CatalogRemoteOAuth as RegistryCatalogRemot
 import io.qent.broxy.registry.catalog.CatalogRemoteTransport as RegistryCatalogRemoteTransport
 import io.qent.broxy.registry.catalog.CatalogRepositoryMetadata as RegistryCatalogRepositoryMetadata
 import io.qent.broxy.registry.catalog.CatalogServerDetail as RegistryCatalogServerDetail
+import io.qent.broxy.registry.catalog.CatalogStdioBootstrap as RegistryCatalogStdioBootstrap
 
 const val CATALOG_META_KEY = RegistryCatalogMetaKey
 
@@ -26,6 +27,7 @@ typealias CatalogPackage = RegistryCatalogPackage
 typealias CatalogRepositoryMetadata = RegistryCatalogRepositoryMetadata
 typealias CatalogRemoteTransport = RegistryCatalogRemoteTransport
 typealias CatalogRemoteOAuth = RegistryCatalogRemoteOAuth
+typealias CatalogStdioBootstrap = RegistryCatalogStdioBootstrap
 typealias CatalogLocalTransport = RegistryCatalogLocalTransport
 typealias CatalogArgument = RegistryCatalogArgument
 typealias CatalogInput = RegistryCatalogInput

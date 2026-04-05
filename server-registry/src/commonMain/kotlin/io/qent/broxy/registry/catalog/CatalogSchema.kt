@@ -91,6 +91,7 @@ data class CatalogPackage(
     val runtimeArguments: List<CatalogArgument> = emptyList(),
     val packageArguments: List<CatalogArgument> = emptyList(),
     val environmentVariables: List<CatalogKeyValueInput> = emptyList(),
+    val oauth: CatalogRemoteOAuth? = null,
 )
 
 @Serializable
@@ -124,6 +125,13 @@ data class CatalogRemoteOAuth(
     val authorizationServer: String? = null,
     val scopes: List<String>? = null,
     val allowDynamicRegistration: Boolean = true,
+    val stdioBootstrap: CatalogStdioBootstrap? = null,
+)
+
+@Serializable
+data class CatalogStdioBootstrap(
+    val tool: String,
+    val args: Map<String, String> = emptyMap(),
 )
 
 @Serializable

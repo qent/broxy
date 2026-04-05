@@ -50,6 +50,7 @@ class SimpleTestMcpServerIntegrationTest {
         runBlocking {
             val client =
                 StdioMcpClient(
+                    serverId = "test-mcp-server-integration-stdio",
                     command = serverExecutable,
                     args = listOf("--mode", "stdio"),
                     env = emptyMap(),

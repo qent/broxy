@@ -97,13 +97,20 @@ internal fun StoreSnapshot.toUiState(
     val registryIconUrls = ServerIconResolver.registryIconUrlsFromMetadata(registryMetadata)
     val uiServers =
         servers.map { server ->
-            val snapshot = cache.snapshot(server.id)
+            val cachedSnapshot = cache.snapshot(server.id)
+            val isStdioPopupPending =
+                server.enabled &&
+                    server.transport is UiStdioTransport &&
+                    authorizationPopup?.serverId == server.id &&
+                    authorizationPopup.allowDismissWithoutCancel
+            val snapshot = if (isStdioPopupPending) null else cachedSnapshot
             val trackedStatus = statuses.statusFor(server.id)?.toUiStatus()
             val matchedMetadata = ServerIconResolver.resolveMatchedMetadata(server, registryMetadata)
             val derivedStatus =
                 when {
                     !server.enabled -> UiServerConnStatus.Disabled
                     trackedStatus == UiServerConnStatus.Error -> UiServerConnStatus.Error
+                    isStdioPopupPending -> UiServerConnStatus.Connecting
                     snapshot != null -> UiServerConnStatus.Available
                     trackedStatus == UiServerConnStatus.Authorization -> UiServerConnStatus.Authorization
                     trackedStatus == UiServerConnStatus.Connecting -> UiServerConnStatus.Connecting

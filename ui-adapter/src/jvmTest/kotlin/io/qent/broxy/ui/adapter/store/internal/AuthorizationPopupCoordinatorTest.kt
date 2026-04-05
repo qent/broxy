@@ -1,6 +1,7 @@
 package io.qent.broxy.ui.adapter.store.internal
 
 import io.qent.broxy.core.mcp.auth.AuthorizationCompletionPageContext
+import io.qent.broxy.core.mcp.auth.AuthorizationPopupSessionRegistry
 import io.qent.broxy.core.mcp.auth.AuthorizationRequest
 import io.qent.broxy.core.mcp.auth.AuthorizationResult
 import io.qent.broxy.core.utils.Logger
@@ -13,8 +14,12 @@ import io.qent.broxy.ui.adapter.models.UiMcpServerConfig
 import io.qent.broxy.ui.adapter.models.UiMcpServersConfig
 import io.qent.broxy.ui.adapter.models.UiServer
 import io.qent.broxy.ui.adapter.models.UiServerDraft
+import io.qent.broxy.ui.adapter.models.UiStdioTransport
 import io.qent.broxy.ui.adapter.models.UiStreamableHttpTransport
 import io.qent.broxy.ui.adapter.store.Intents
+import kotlinx.coroutines.async
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -53,6 +58,71 @@ class AuthorizationPopupCoordinatorTest {
         assertNotNull(popup)
         assertEquals("context7", popup.serverId)
         assertEquals(UiAuthorizationPopupStatus.Pending, popup.status)
+    }
+
+    @Test
+    fun onAuthorizationRequest_sets_popup_for_known_stdio_server() {
+        val server =
+            UiMcpServerConfig(
+                id = "google-stdio",
+                name = "Google",
+                transport = UiStdioTransport(command = "uvx", args = listOf("workspace-mcp")),
+            )
+        var snapshot = StoreSnapshot(isLoading = false, servers = listOf(server))
+        val state =
+            StoreStateAccess(
+                snapshotProvider = { snapshot },
+                snapshotUpdater = { block -> snapshot = snapshot.block() },
+                snapshotConfigProvider = { UiMcpServersConfig(servers = snapshot.servers) },
+                errorHandler = {},
+            )
+        val intents = RecordingIntents()
+        val coordinator = AuthorizationPopupCoordinator(state, intents, publishReady = {}, logger = NoOpLogger)
+
+        coordinator.onAuthorizationRequest(
+            AuthorizationRequest(
+                resourceUrl = "broxy://stdio/google-stdio",
+                authorizationUrl = "https://auth.example/authorize",
+                redirectUri = "http://127.0.0.1/callback",
+            ),
+        )
+
+        val popup = snapshot.authorizationPopup
+        assertNotNull(popup)
+        assertEquals("google-stdio", popup.serverId)
+        assertEquals(UiAuthorizationPopupStatus.Pending, popup.status)
+    }
+
+    @Test
+    fun onAuthorizationRequest_propagates_allow_dismiss_without_cancel() {
+        val server =
+            UiMcpServerConfig(
+                id = "google-stdio-dismiss",
+                name = "Google",
+                transport = UiStdioTransport(command = "uvx", args = listOf("workspace-mcp")),
+            )
+        var snapshot = StoreSnapshot(isLoading = false, servers = listOf(server))
+        val state =
+            StoreStateAccess(
+                snapshotProvider = { snapshot },
+                snapshotUpdater = { block -> snapshot = snapshot.block() },
+                snapshotConfigProvider = { UiMcpServersConfig(servers = snapshot.servers) },
+                errorHandler = {},
+            )
+        val coordinator = AuthorizationPopupCoordinator(state, NoOpIntents, publishReady = {}, logger = NoOpLogger)
+
+        coordinator.onAuthorizationRequest(
+            AuthorizationRequest(
+                resourceUrl = "broxy://stdio/google-stdio-dismiss",
+                authorizationUrl = "https://auth.example/authorize",
+                redirectUri = "http://127.0.0.1/callback",
+                allowDismissWithoutCancel = true,
+            ),
+        )
+
+        val popup = snapshot.authorizationPopup
+        assertNotNull(popup)
+        assertTrue(popup.allowDismissWithoutCancel)
     }
 
     @Test
@@ -153,6 +223,48 @@ class AuthorizationPopupCoordinatorTest {
 
         assertTrue(intents.refreshedServerIds.isEmpty())
         assertTrue(intents.toggledServerIds.isEmpty())
+    }
+
+    @Test
+    fun onAuthorizationResult_cancelled_completes_stdio_popup_session() {
+        val server =
+            UiMcpServerConfig(
+                id = "google-stdio",
+                name = "Google",
+                transport = UiStdioTransport(command = "uvx", args = listOf("workspace-mcp")),
+                enabled = true,
+            )
+        var snapshot = StoreSnapshot(isLoading = false, servers = listOf(server))
+        val state =
+            StoreStateAccess(
+                snapshotProvider = { snapshot },
+                snapshotUpdater = { block -> snapshot = snapshot.block() },
+                snapshotConfigProvider = { UiMcpServersConfig(servers = snapshot.servers) },
+                errorHandler = {},
+            )
+        val intents = RecordingIntents()
+        val coordinator = AuthorizationPopupCoordinator(state, intents, publishReady = {}, logger = NoOpLogger)
+        val resourceUrl = "broxy://stdio/google-stdio"
+        coordinator.onAuthorizationRequest(
+            AuthorizationRequest(
+                resourceUrl = resourceUrl,
+                authorizationUrl = "https://auth.example/authorize",
+                redirectUri = "http://127.0.0.1/callback",
+                allowDismissWithoutCancel = true,
+            ),
+        )
+
+        runBlocking {
+            val handle = AuthorizationPopupSessionRegistry.open(resourceUrl)
+            val waiter = async { AuthorizationPopupSessionRegistry.await(handle) }
+            coordinator.onAuthorizationResult(
+                AuthorizationResult.Cancelled(
+                    resourceUrl = resourceUrl,
+                    message = "cancelled",
+                ),
+            )
+            withTimeout(2_000L) { waiter.await() }
+        }
     }
 
     @Test

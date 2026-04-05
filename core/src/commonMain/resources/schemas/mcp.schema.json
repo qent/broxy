@@ -209,6 +209,29 @@
         "allowDynamicRegistration": {
           "type": "boolean",
           "default": true
+        },
+        "stdioBootstrap": {
+          "$ref": "#/definitions/StdioBootstrapConfig"
+        }
+      },
+      "additionalProperties": true
+    },
+    "StdioBootstrapConfig": {
+      "type": "object",
+      "required": [
+        "tool"
+      ],
+      "properties": {
+        "tool": {
+          "type": "string",
+          "minLength": 1
+        },
+        "args": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {}
         }
       },
       "additionalProperties": true

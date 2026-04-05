@@ -6,11 +6,24 @@ import io.qent.broxy.ui.adapter.models.UiStreamableHttpTransport
 import kotlinx.coroutines.test.runTest
 import java.nio.file.Files
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class ToolServiceJvmTest {
+    @Test
+    fun resolveAuthResourceUrl_returns_synthetic_value_for_stdio() {
+        val config =
+            UiMcpServerConfig(
+                id = "google-stdio",
+                name = "google-stdio",
+                transport = UiStdioTransport(command = "uvx"),
+            )
+
+        assertEquals("broxy://stdio/google-stdio", resolveAuthResourceUrl(config))
+    }
+
     @Test
     fun checkStdioCommandAvailability_returns_unavailable_for_blank_command() =
         runTest {

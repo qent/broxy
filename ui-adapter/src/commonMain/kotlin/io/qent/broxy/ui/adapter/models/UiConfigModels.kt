@@ -63,8 +63,14 @@ sealed interface UiAuthConfig {
         val authorizationServer: String? = null,
         val scopes: List<String>? = null,
         val allowDynamicRegistration: Boolean = true,
+        val stdioBootstrap: UiStdioBootstrap? = null,
     ) : UiAuthConfig
 }
+
+data class UiStdioBootstrap(
+    val tool: String,
+    val args: Map<String, String> = emptyMap(),
+)
 
 data class UiPresetCore(
     val id: String,

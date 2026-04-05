@@ -1,6 +1,7 @@
 package io.qent.broxy.ui.adapter.store.internal
 
 import io.qent.broxy.core.mcp.auth.AuthorizationCompletionPageContext
+import io.qent.broxy.core.mcp.auth.AuthorizationPopupSessionRegistry
 import io.qent.broxy.core.mcp.auth.AuthorizationPresenter
 import io.qent.broxy.core.mcp.auth.AuthorizationRequest
 import io.qent.broxy.core.mcp.auth.AuthorizationResult
@@ -38,6 +39,7 @@ internal class AuthorizationPopupCoordinator(
                         resourceUrl = request.resourceUrl,
                         authorizationUrl = request.authorizationUrl,
                         redirectUri = request.redirectUri,
+                        allowDismissWithoutCancel = request.allowDismissWithoutCancel,
                         status = UiAuthorizationPopupStatus.Pending,
                     ),
             )
@@ -71,6 +73,19 @@ internal class AuthorizationPopupCoordinator(
             is AuthorizationResult.Cancelled,
             is AuthorizationResult.Failure,
             -> {
+                state.snapshot.authorizationPopup
+                    ?.takeIf { it.serverId == server.id }
+                    ?.let { popup ->
+                        runCatching {
+                            AuthorizationPopupSessionRegistry.complete(popup.resourceUrl)
+                        }.onFailure { ex ->
+                            logInfo(
+                                logger,
+                                "authorizationResult",
+                                "failed to complete popup session for '${popup.resourceUrl}': ${ex.message}",
+                            )
+                        }
+                    }
                 state.updateSnapshot {
                     val popup = authorizationPopup
                     if (popup != null && popup.serverId == server.id) {

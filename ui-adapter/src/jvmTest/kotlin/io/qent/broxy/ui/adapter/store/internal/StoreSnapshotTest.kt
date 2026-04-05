@@ -10,6 +10,7 @@ import io.qent.broxy.ui.adapter.catalog.CatalogIcon
 import io.qent.broxy.ui.adapter.catalog.CatalogRepositoryMetadata
 import io.qent.broxy.ui.adapter.catalog.CatalogServerDetail
 import io.qent.broxy.ui.adapter.catalog.CatalogServerEntry
+import io.qent.broxy.ui.adapter.models.UiAuthorizationPopup
 import io.qent.broxy.ui.adapter.models.UiMcpServerConfig
 import io.qent.broxy.ui.adapter.models.UiServerConnStatus
 import io.qent.broxy.ui.adapter.models.UiStdioTransport
@@ -152,6 +153,52 @@ class StoreSnapshotTest {
         val server = ready.servers.first()
         assertEquals(UiServerConnStatus.Available, server.status)
         assertEquals(null, server.connectingSinceEpochMillis)
+    }
+
+    @Test
+    fun stdioAuthorizationPopupMasksCachedCapabilitiesUntilDismiss() {
+        val cache = CapabilityCache(now = { 0L })
+        cache.put(
+            "s1",
+            ServerCapsSnapshot(
+                serverId = "s1",
+                name = "Server 1",
+                tools = listOf(ToolSummary(name = "tool", description = "")),
+            ),
+        )
+        val tracker = ServerStatusTracker()
+        val snapshot =
+            StoreSnapshot(
+                isLoading = false,
+                servers =
+                    listOf(
+                        UiMcpServerConfig(
+                            id = "s1",
+                            name = "Server 1",
+                            transport = UiStdioTransport(command = "cmd"),
+                            env = emptyMap(),
+                            enabled = true,
+                        ),
+                    ),
+                authorizationPopup =
+                    UiAuthorizationPopup(
+                        serverId = "s1",
+                        serverName = "Server 1",
+                        resourceUrl = "broxy://stdio/s1",
+                        authorizationUrl = "https://auth.example/authorize",
+                        redirectUri = "http://127.0.0.1:8111/callback",
+                        allowDismissWithoutCancel = true,
+                    ),
+            )
+
+        val state = snapshot.toUiState(NoOpIntents, cache, tracker)
+
+        val ready = assertIs<UIState.Ready>(state)
+        val server = ready.servers.first()
+        assertEquals(UiServerConnStatus.Connecting, server.status)
+        assertEquals(null, server.toolsCount)
+        assertEquals(null, server.promptsCount)
+        assertEquals(null, server.resourcesCount)
     }
 
     private object NoOpIntents : Intents {

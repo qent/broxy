@@ -19,5 +19,12 @@ sealed class AuthConfig {
         val authorizationServer: String? = null,
         val scopes: List<String>? = null,
         val allowDynamicRegistration: Boolean = true,
+        val stdioBootstrap: StdioBootstrap? = null,
     ) : AuthConfig()
+
+    @Serializable
+    data class StdioBootstrap(
+        val tool: String,
+        val args: Map<String, String> = emptyMap(),
+    )
 }

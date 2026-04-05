@@ -16,6 +16,7 @@ class McpClientFactory(
 ) {
     @Suppress("LongParameterList")
     fun create(
+        serverId: String,
         config: TransportConfig,
         env: Map<String, String> = emptyMap(),
         ignoreHttpsCertificateErrors: Boolean = false,
@@ -25,6 +26,7 @@ class McpClientFactory(
         authorizationStatusListener: AuthorizationStatusListener? = null,
     ): McpClient =
         provider.create(
+            serverId,
             config,
             env,
             ignoreHttpsCertificateErrors,

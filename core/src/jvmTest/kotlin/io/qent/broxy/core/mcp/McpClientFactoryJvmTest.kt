@@ -13,6 +13,7 @@ class McpClientFactoryJvmTest {
 
         val stdio =
             factory.create(
+                serverId = "stdio",
                 TransportConfig.StdioTransport(command = "cmd", args = listOf("--x")),
                 env = mapOf("K" to "V"),
             )
@@ -20,6 +21,7 @@ class McpClientFactoryJvmTest {
 
         val http =
             factory.create(
+                serverId = "http",
                 TransportConfig.HttpTransport(
                     url = "http://localhost:1234/mcp",
                     headers = mapOf("h" to "v"),
@@ -29,6 +31,7 @@ class McpClientFactoryJvmTest {
 
         val stream =
             factory.create(
+                serverId = "stream",
                 TransportConfig.StreamableHttpTransport(
                     url = "http://localhost:1234/mcp",
                     headers = mapOf("h" to "v"),
@@ -38,6 +41,7 @@ class McpClientFactoryJvmTest {
 
         val ws =
             factory.create(
+                serverId = "ws",
                 TransportConfig.WebSocketTransport(
                     url = "ws://localhost:1235/mcp",
                     headers = mapOf("h" to "v"),
