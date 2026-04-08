@@ -1,0 +1,25 @@
+{
+  "requestTimeoutSeconds": 60,
+  "adapterMode": true,
+  "mcpServers": {
+    "test-stdio": {
+      "name": "Test STDIO",
+      "enabled": true,
+      "type": "stdio",
+      "command": "__TEST_MCP_SERVER_COMMAND__",
+      "args": ["--capabilities", "tools"]
+    },
+    "test-http": {
+      "name": "Test Streamable HTTP",
+      "enabled": true,
+      "type": "http",
+      "url": "__TEST_MCP_SERVER_HTTP_URL__"
+    },
+    "test-sse": {
+      "name": "Test HTTP SSE",
+      "enabled": true,
+      "type": "sse",
+      "url": "__TEST_MCP_SERVER_SSE_URL__"
+    }
+  }
+}

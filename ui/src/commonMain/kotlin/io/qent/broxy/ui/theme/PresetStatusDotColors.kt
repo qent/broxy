@@ -1,0 +1,4 @@
+package io.qent.broxy.ui.theme
+
+const val PRESET_STATUS_DOT_NO_CAPABILITIES_HEX = 0xFFC62828
+const val PRESET_STATUS_DOT_PARTIAL_HEX = 0xFFD97706
