@@ -32,4 +32,7 @@ The UI reads them via the `LocalStrings` composition local, and the desktop tray
 
 - In composables, read `val strings = LocalStrings.current` and use it for UI text.
 - For non-composable helpers, pass `AppStrings` as a parameter instead of embedding literals.
+- Schedule builder UI (card helper text, pattern selector labels including `Disabled`, advanced cron labels,
+  validation text, human-readable schedule summaries) is defined in `AppStrings`; update all related keys/functions
+  when changing scheduling UX.
 - Internal detection tokens (for example port-in-use matching) live in `AppTextTokens` and should remain stable.

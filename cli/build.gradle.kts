@@ -5,6 +5,7 @@ import java.util.jar.JarFile
 
 plugins {
     kotlin("jvm")
+    kotlin("plugin.serialization")
 }
 
 kotlin {
@@ -12,6 +13,8 @@ kotlin {
 }
 
 dependencies {
+    implementation(project(":agents"))
+    implementation(project(":agents-codex"))
     implementation(project(":core"))
     implementation("com.github.ajalt.clikt:clikt:${property("cliktVersion")}")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:${property("serializationVersion")}")

@@ -174,6 +174,8 @@ tasks.register("testAll") {
     group = "verification"
     description = "Runs all tests across modules (unit + integration)."
     dependsOn(
+        ":agents:test",
+        ":agents-codex:test",
         ":core:jvmTest",
         ":server-registry:jvmTest",
         ":headless-runtime:test",

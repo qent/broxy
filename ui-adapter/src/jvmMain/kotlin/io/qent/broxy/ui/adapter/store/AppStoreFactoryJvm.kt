@@ -8,6 +8,7 @@ import io.qent.broxy.core.proxy.runtime.createProxyController
 import io.qent.broxy.core.repository.ConfigurationRepository
 import io.qent.broxy.core.utils.AppCacheDir
 import io.qent.broxy.core.utils.CollectingLogger
+import io.qent.broxy.ui.adapter.agents.provideAgentGateway
 import io.qent.broxy.ui.adapter.capabilities.CapabilityCachePersistence
 import io.qent.broxy.ui.adapter.capabilities.CapabilityFetcher
 import io.qent.broxy.ui.adapter.clients.provideAiClientConnectors
@@ -19,6 +20,7 @@ import io.qent.broxy.ui.adapter.data.provideDefaultLogger
 import io.qent.broxy.ui.adapter.data.provideImportedServerHideRepository
 import io.qent.broxy.ui.adapter.data.provideImportedServerInstallRepository
 import io.qent.broxy.ui.adapter.data.provideServerIconRepository
+import io.qent.broxy.ui.adapter.data.provideSystemPicker
 import io.qent.broxy.ui.adapter.data.provideUiSettingsRepository
 import io.qent.broxy.ui.adapter.icons.ServerIconRepository
 import io.qent.broxy.ui.adapter.models.toUi
@@ -30,6 +32,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
+import java.time.ZoneId
 
 fun createAppStore(
     scope: CoroutineScope = CoroutineScope(Dispatchers.Default),
@@ -77,13 +80,16 @@ fun createAppStore(
             configurationRepository = repository,
             uiSettingsRepository = uiSettingsRepository,
             serverIconRepository = serverIconRepository,
+            systemPicker = provideSystemPicker(),
             proxyRuntime = proxyLifecycle,
             capabilityFetcher = capabilityFetcher,
             logger = logger,
             aiClientConnectors = provideAiClientConnectors(),
+            agentGateway = provideAgentGateway(repository, logger),
             scope = scope,
             ioDispatcher = ioDispatcher,
             now = now,
+            timezoneIdProvider = { ZoneId.systemDefault().id },
             enableBackgroundRefresh = enableBackgroundRefresh,
             remoteConnector = remoteConnector,
             importedServerHideRepository = provideImportedServerHideRepository(),

@@ -36,8 +36,10 @@ import io.qent.broxy.ui.adapter.clients.AiClientDescriptor
 import io.qent.broxy.ui.adapter.clients.AiClientImportServer
 import io.qent.broxy.ui.adapter.clients.AiClientStatus
 import io.qent.broxy.ui.adapter.data.CatalogRepository
+import io.qent.broxy.ui.adapter.data.FilePickRequest
 import io.qent.broxy.ui.adapter.data.ImportedServerHideRepository
 import io.qent.broxy.ui.adapter.data.ImportedServerInstallRepository
+import io.qent.broxy.ui.adapter.data.SystemPicker
 import io.qent.broxy.ui.adapter.data.UiSettingsRepository
 import io.qent.broxy.ui.adapter.icons.ServerIconRepository
 import io.qent.broxy.ui.adapter.models.UiAuthConfig
@@ -149,7 +151,13 @@ class AppStoreTest {
             val logger = CollectingLogger(delegate = noopLogger)
             val storeScope = TestScope(testScheduler)
             val remoteConnector = NoOpRemoteConnector(defaultRemoteState())
-            val uiSettingsRepository = FakeUiSettingsRepository(UiSettings(showTrayIcon = false))
+            val uiSettingsRepository =
+                FakeUiSettingsRepository(
+                    UiSettings(
+                        showTrayIcon = false,
+                        agentRunNotificationsEnabled = false,
+                    ),
+                )
             val store =
                 AppStore(
                     configurationRepository = repository,
@@ -191,6 +199,7 @@ class AppStoreTest {
             assertEquals(4, ready.connectionRetryCount)
             assertEquals(180, ready.capabilitiesRefreshIntervalSeconds)
             assertEquals(false, ready.showTrayIcon)
+            assertEquals(false, ready.agentRunNotificationsEnabled)
             assertEquals(listOf(42), proxyController.callTimeoutUpdates)
             assertEquals(listOf(24), proxyController.capabilityTimeoutUpdates)
             assertEquals(listOf(4), proxyController.connectionRetryUpdates)
@@ -1615,6 +1624,7 @@ class AppStoreTest {
             val serverState = readyState.servers.first()
             assertEquals(UiServerConnStatus.Disabled, serverState.status)
             assertTrue(store.listEnabledServerCaps().isEmpty())
+            assertEquals(listOf("s1"), store.listSelectableServerCaps().map { it.serverId })
 
             storeScope.cancel()
         }
@@ -3019,6 +3029,56 @@ class AppStoreTest {
             } finally {
                 storeScope.cancel()
             }
+        }
+
+    @org.junit.Test
+    fun pickAgentWorkspaceDirectory_delegatesToSystemPicker_andLogsFailure() =
+        runTest {
+            val repository = FakeConfigurationRepository(McpServersConfig(), mutableMapOf())
+            val proxyController = FakeProxyController()
+            val proxyLifecycle = ProxyLifecycle(proxyController, noopLogger)
+            val logger = CollectingLogger(delegate = noopLogger)
+            val storeScope = TestScope(testScheduler)
+            val remoteConnector = NoOpRemoteConnector(defaultRemoteState())
+            var recordedInitialPath: String? = null
+            val picker =
+                object : SystemPicker {
+                    override fun pickDirectory(initialPath: String?): Result<String?> {
+                        recordedInitialPath = initialPath
+                        return Result.failure(IllegalStateException("picker_failed"))
+                    }
+
+                    override fun pickFile(request: FilePickRequest): Result<String?> = Result.success(null)
+                }
+            val store =
+                AppStore(
+                    configurationRepository = repository,
+                    systemPicker = picker,
+                    proxyRuntime = proxyLifecycle,
+                    capabilityFetcher = { _, _, _, _ -> Result.success(ServerCapabilities()) },
+                    logger = logger,
+                    aiClientConnectors = emptyList(),
+                    scope = storeScope,
+                    ioDispatcher = ioDispatcher(storeScope),
+                    now = { testScheduler.currentTime },
+                    enableBackgroundRefresh = false,
+                    remoteConnector = remoteConnector,
+                )
+
+            val result = store.pickAgentWorkspaceDirectory("/tmp/workspace")
+            storeScope.advanceUntilIdle()
+
+            assertTrue(result.isFailure)
+            assertEquals("/tmp/workspace", recordedInitialPath)
+            val errorState = assertIs<UIState.Error>(store.state.value)
+            assertEquals("picker_failed", errorState.message)
+            assertTrue(
+                logger.events.replayCache.any {
+                    it.message.contains("[AppStore] pickAgentWorkspaceDirectory(initialPath=/tmp/workspace) failed: picker_failed")
+                },
+            )
+
+            storeScope.cancel()
         }
 
     private fun importServer(

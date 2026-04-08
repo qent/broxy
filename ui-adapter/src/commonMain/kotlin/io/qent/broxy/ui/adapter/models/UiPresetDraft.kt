@@ -6,6 +6,11 @@ data class UiToolRef(
     val enabled: Boolean = true,
 )
 
+data class UiAgentToolRef(
+    val agentId: String,
+    val enabled: Boolean = true,
+)
+
 data class UiPromptRef(
     val serverId: String,
     val promptName: String,
@@ -22,6 +27,7 @@ data class UiPresetDraft(
     val id: String,
     val name: String,
     val tools: List<UiToolRef> = emptyList(),
+    val agentTools: List<UiAgentToolRef> = emptyList(),
     val prompts: List<UiPromptRef> = emptyList(),
     val resources: List<UiResourceRef> = emptyList(),
     val promptsConfigured: Boolean = true,

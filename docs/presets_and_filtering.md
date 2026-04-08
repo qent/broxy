@@ -37,6 +37,7 @@ data class Preset(
     val id: String,
     val name: String,
     val tools: List<ToolReference> = emptyList(),
+    val agentTools: List<AgentToolReference> = emptyList(),
     val prompts: List<PromptReference>? = null,
     val resources: List<ResourceReference>? = null
 )
@@ -49,12 +50,15 @@ References:
   `core/src/commonMain/kotlin/io/qent/broxy/core/models/PromptReference.kt`
 - `ResourceReference(serverId, resourceKey, enabled)` -
   `core/src/commonMain/kotlin/io/qent/broxy/core/models/ResourceReference.kt`
+- `AgentToolReference(agentId, enabled)` -
+  `core/src/commonMain/kotlin/io/qent/broxy/core/models/AgentToolReference.kt`
 
 Notes:
 
 - If `prompts` or `resources` are omitted in JSON, they deserialize as `null`, which means
   "do not restrict" (include all items from in-scope servers).
 - If `prompts` or `resources` are present but empty, the filter restricts them to none.
+- If `agentTools` is omitted in JSON, it deserializes as `emptyList()` (backward compatible).
 - `Preset.empty()` produces empty lists for tools/prompts/resources and therefore exposes no capabilities.
 
 ### Preset semantics matrix
@@ -319,3 +323,18 @@ Implementation notes:
 - preset-pinned routes create lightweight additional `ProxyMcpServer` instances that reuse the same
   downstream connection objects and the same raw capability snapshots, while keeping their own
   preset/filter state.
+
+## Preset-level agent tools in UI
+
+Preset editor includes an `Agents` block (after MCP servers):
+
+- selectable list of available agents with checkbox + description;
+- non-expandable cards (same visual language as MCP server cards);
+- selected missing refs are preserved in draft/save payload even when target agent is unavailable.
+
+Agent editor includes the same `Agents` block (after `Capabilities Source`):
+
+- current edited agent is excluded from selectable list;
+- for source mode `Capabilities Source = preset`, effective refs are:
+  `preset.agentTools + agent.agentTools` (dedupe by `agentId`);
+- unresolved refs remain persisted and are not dropped during edit/save.

@@ -6,6 +6,9 @@ import io.qent.broxy.ui.adapter.catalog.CatalogInstallPlanner
 import io.qent.broxy.ui.adapter.catalog.CatalogInstallSession
 import io.qent.broxy.ui.adapter.catalog.CatalogServerEntry
 import io.qent.broxy.ui.adapter.icons.ServerIconResolver
+import io.qent.broxy.ui.adapter.models.UiAgent
+import io.qent.broxy.ui.adapter.models.UiAgentOperation
+import io.qent.broxy.ui.adapter.models.UiAgentProviderSettings
 import io.qent.broxy.ui.adapter.models.UiAgenticInstallPermissionPopup
 import io.qent.broxy.ui.adapter.models.UiAiClient
 import io.qent.broxy.ui.adapter.models.UiAuthorizationPopup
@@ -18,6 +21,7 @@ import io.qent.broxy.ui.adapter.models.UiPreset
 import io.qent.broxy.ui.adapter.models.UiPresetCore
 import io.qent.broxy.ui.adapter.models.UiProxyStatus
 import io.qent.broxy.ui.adapter.models.UiRemoteConnectionState
+import io.qent.broxy.ui.adapter.models.UiRunSummary
 import io.qent.broxy.ui.adapter.models.UiServer
 import io.qent.broxy.ui.adapter.models.UiServerConnStatus
 import io.qent.broxy.ui.adapter.models.UiStdioTransport
@@ -43,6 +47,11 @@ internal data class StoreSnapshot(
     val catalogUpdatedAtEpochMillis: Long? = null,
     val mcpFilePath: String = "mcp.json",
     val presets: List<UiPreset> = emptyList(),
+    val agents: List<UiAgent> = emptyList(),
+    val runs: List<UiRunSummary> = emptyList(),
+    val latestFailedRunByAgentId: Map<String, UiRunSummary> = emptyMap(),
+    val agentOperations: Map<String, UiAgentOperation> = emptyMap(),
+    val agentProviderSettings: UiAgentProviderSettings = UiAgentProviderSettings(),
     val clients: List<UiAiClient> = emptyList(),
     val proxyStatus: UiProxyStatus = UiProxyStatus.Stopped,
     val defaultPresetId: String? = null,
@@ -56,6 +65,7 @@ internal data class StoreSnapshot(
     val ignoreHttpsCertificateErrors: Boolean = false,
     val capabilitiesRefreshIntervalSeconds: Int = 300,
     val showTrayIcon: Boolean = true,
+    val agentRunNotificationsEnabled: Boolean = true,
     val fallbackPromptsAndResourcesToTools: Boolean = false,
     val adapterMode: Boolean = false,
     val agenticModeEnabled: Boolean = false,
@@ -180,6 +190,9 @@ internal fun StoreSnapshot.toUiState(
                 )
             },
         presets = presets,
+        agents = agents,
+        runs = runs,
+        agentProviderSettings = agentProviderSettings,
         clients = clients,
         activeProxyPresetId = activeProxyPresetId,
         pendingImportedServerCreate = pendingImportedServerCreate,
@@ -203,6 +216,7 @@ internal fun StoreSnapshot.toUiState(
         ignoreHttpsCertificateErrors = ignoreHttpsCertificateErrors,
         capabilitiesRefreshIntervalSeconds = capabilitiesRefreshIntervalSeconds,
         showTrayIcon = showTrayIcon,
+        agentRunNotificationsEnabled = agentRunNotificationsEnabled,
         fallbackPromptsAndResourcesToTools = fallbackPromptsAndResourcesToTools,
         adapterMode = adapterMode,
         agenticModeEnabled = agenticModeEnabled,

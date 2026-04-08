@@ -45,6 +45,14 @@ broxy:
     allowlistFqNames:
       - "io.qent.broxy.core.config.requirePathSafePresetId"
       - "io.qent.broxy.core.models.BuiltInPresetResolver.isBuiltIn"
+      - "io.qent.broxy.agents.application.defaultAgentService"
+      - "io.qent.broxy.agents.application.emptyMcpConfigProvider"
+      - "io.qent.broxy.ui.createDesktopSystemNotificationCenter"
+      - "io.qent.broxy.ui.screens.generationRuntimeOptions"
+      - "io.qent.broxy.ui.adapter.store.AppStore.agentNotificationPermissionRequests"
+      - "io.qent.broxy.ui.adapter.store.AppStore.agentRunNotifications"
+      - "io.qent.broxy.ui.adapter.store.AppStore.clearAgentGenerationError"
+      - "io.qent.broxy.ui.adapter.store.AppStore.listServerConfigs"
     allowlistFqNamePrefixes: []
     excludedPathRegexes:
       - ".*/generated/.*"

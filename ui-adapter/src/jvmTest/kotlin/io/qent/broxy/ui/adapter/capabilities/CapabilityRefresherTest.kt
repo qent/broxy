@@ -121,6 +121,52 @@ class CapabilityRefresherTest {
         }
 
     @Test
+    fun listCachedServerCaps_includes_disabled_servers_when_cached() =
+        runTest {
+            val configs =
+                listOf(
+                    McpServerConfig(
+                        id = "s1",
+                        name = "Server 1",
+                        transport = TransportConfig.StdioTransport(command = "noop"),
+                        enabled = true,
+                    ),
+                    McpServerConfig(
+                        id = "s2",
+                        name = "Server 2",
+                        transport = TransportConfig.StdioTransport(command = "noop"),
+                        enabled = false,
+                    ),
+                    McpServerConfig(
+                        id = "s3",
+                        name = "Server 3",
+                        transport = TransportConfig.StdioTransport(command = "noop"),
+                        enabled = false,
+                    ),
+                )
+            val cache = CapabilityCache({ 0L })
+            cache.put("s1", ServerCapsSnapshot(serverId = "s1", name = "Server 1"))
+            cache.put("s2", ServerCapsSnapshot(serverId = "s2", name = "Server 2"))
+            val refresher =
+                CapabilityRefresher(
+                    scope = this,
+                    capabilityFetcher = { _, _, _, _ -> Result.success(ServerCapabilities()) },
+                    capabilityCache = cache,
+                    statusTracker = ServerStatusTracker { 0L },
+                    logger = NoopLogger,
+                    serversProvider = { configs },
+                    capabilitiesTimeoutProvider = { 5 },
+                    connectionRetryCountProvider = { 3 },
+                    publishUpdate = {},
+                    refreshIntervalMillis = { 0L },
+                )
+
+            val caps = refresher.listCachedServerCaps(configs.map { it.id })
+
+            assertEquals(setOf("s1", "s2"), caps.map { it.serverId }.toSet())
+        }
+
+    @Test
     fun updateServerState_disables_and_cancels_inflight_refresh() =
         runTest {
             val started = CompletableDeferred<Unit>()

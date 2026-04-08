@@ -203,6 +203,105 @@ Tool downstream events include `downstreamName` (same as `downstreamTool`).
   - `resourceUri` (string)
   - `errorMessage` (string)
 
+### Agent runtime JSON events
+
+Agent runtime logs are written through the same logger pipeline (`CollectingLogger` + `DailyFileLogger`) and
+appear in `${configDir}/logs/YYYY-MM-DD.log`.
+
+- `agent.run.started`
+  - `agentId` (string)
+  - `trigger` (`MANUAL` or `SCHEDULED`)
+  - `startedAtEpochMillis` (number)
+  - `promptLength` (number)
+- `agent.run.operation`
+  - `agentId` (string)
+  - `operation` (`PREPARING_RUN`, `LOADING_CAPABILITIES`, `LLM_REQUEST`, `LLM_THINKING`, `LLM_RESPONSE_GENERATION`, `TOOL_EXECUTION`)
+  - `step` (number, optional)
+  - `serverId` (string, optional, tool execution only)
+  - `toolName` (string, optional, tool execution only)
+- `agent.run.finished`
+  - `agentId` (string)
+  - `trigger` (string)
+  - `status` (`SUCCESS`, `FAILED`, `SKIPPED`)
+  - `runtime` (`LANGCHAIN` or `CODEX_CLI`)
+  - `provider` (string; `OPENAI`/`ANTHROPIC`/`LM_STUDIO` for `LANGCHAIN`, `CODEX_CLI` for Codex runtime)
+  - `model` (string; LangChain model or Codex CLI model)
+  - `temperature` (number, `LANGCHAIN` only)
+  - `reasoningEffort` (string, `CODEX_CLI` only)
+  - `durationMillis` (number)
+  - `startedAtEpochMillis` / `finishedAtEpochMillis` (number)
+  - `responseLength` (number, optional)
+  - `errorMessage` (string, optional)
+- `agent.run.skipped`
+  - `agentId` (string)
+  - `trigger` (string)
+  - `reason` (string)
+- `agent.llm.model.selected`
+  - `agentId` (string)
+  - `provider` (string)
+  - `model` (string)
+  - `temperature` (number)
+  - `baseUrlOverride` (boolean)
+  - `baseUrl` (string, optional)
+- `agent.llm.connection.succeeded` / `agent.llm.connection.failed`
+  - `agentId` (string)
+  - `provider` (string)
+  - `model` (string)
+  - `step` (number)
+- `agent.tool.call.request`
+  - `agentId` (string)
+  - `toolName` (string)
+  - `step` (number)
+  - `argumentCount` (number)
+  - `argumentKeys` (array of strings)
+- `agent.tool.call.succeeded` / `agent.tool.call.failed`
+  - `agentId` (string)
+  - `toolName` (string)
+  - `step` (number)
+  - `responseLength` (number, success only)
+  - `errorMessage` (string, failure only)
+- `agent.execution.started` / `agent.execution.finished` / `agent.execution.failed`
+  - envelope events for one executor run with `agentId`, provider/model, and summary fields.
+- `agent.description.generation.started`
+  - `agentId` (string)
+  - `runtime` (`LANGCHAIN` or `CODEX_CLI`)
+  - `contextLength` (number)
+  - runtime/model fields:
+    - LangChain: `provider`, `model`, `temperature`
+    - Codex: `provider=CODEX_CLI`, `model`, `reasoningEffort`
+- `agent.description.generation.succeeded`
+  - `agentId` (string)
+  - `runtime` (string)
+  - `wordCount` (number)
+  - `retryUsed` (boolean)
+- `agent.description.generation.failed`
+  - `agentId` (string)
+  - `runtime` (string)
+  - `wordCount` (number, optional)
+  - `retryUsed` (boolean)
+  - `errorMessage` (string)
+- `agent.generation.started`
+  - `runtime` (`LANGCHAIN` or `CODEX_CLI`)
+  - `requestLength` (number)
+  - `serverCount` (number)
+  - `toolCount` / `promptCount` / `resourceCount` (number)
+- `agent.generation.stage.started`
+  - `stage` (`SELECTING_SERVERS`, `SELECTING_CAPABILITIES`, `FINALIZING_AGENT`)
+  - `candidateCount` (number)
+- `agent.generation.stage.succeeded`
+  - `stage` (`SELECTING_SERVERS`, `SELECTING_CAPABILITIES`, `FINALIZING_AGENT`)
+  - `selectedCount` (number)
+- `agent.generation.succeeded`
+  - `runtime` (string)
+  - `agentName` (string)
+  - `toolCount` / `promptCount` / `resourceCount` (number)
+  - `selectedServerCount` (number)
+  - `candidateCapabilityCount` (number)
+- `agent.generation.failed`
+  - `runtime` (string)
+  - `stage` (string, optional)
+  - `errorMessage` (string)
+
 ## Key logging points
 
 ### LLM -> facade -> downstream -> facade -> LLM

@@ -27,6 +27,7 @@ connector list provided by `provideAiClientConnectors` (currently a fixed, curat
 `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/clients/AiClientConnectorsJvm.kt`).
 Each client row renders an external-link icon immediately after the client name; hovering this icon
 shows the target URL in the global bottom hover bar, and clicking opens the connector info page.
+The navigation rail entry for Clients is placed in the bottom icon-only section, above Agent Settings.
 
 ## Architecture
 
@@ -204,6 +205,8 @@ Rules:
 - Only the `[mcp_servers.broxy]` block is modified; other sections remain untouched.
 - Connect/disconnect avoids adding extra blank lines; the file keeps a single blank separator around
   the Broxy block.
+- This connector is independent from the agent `Codex CLI` runtime:
+  runtime launches use per-run isolated MCP endpoints and do not mutate `~/.codex/config.toml`.
 
 ## MCP JSON connectors
 

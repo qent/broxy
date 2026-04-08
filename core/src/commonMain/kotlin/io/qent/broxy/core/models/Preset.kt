@@ -7,6 +7,7 @@ data class Preset(
     val id: String,
     val name: String,
     val tools: List<ToolReference> = emptyList(),
+    val agentTools: List<AgentToolReference> = emptyList(),
     val prompts: List<PromptReference>? = null,
     val resources: List<ResourceReference>? = null,
     val orderIndex: Int = 0,
@@ -21,6 +22,7 @@ data class Preset(
                 id = EMPTY_PRESET_ID,
                 name = "Empty preset",
                 tools = emptyList(),
+                agentTools = emptyList(),
                 prompts = emptyList(),
                 resources = emptyList(),
             )
@@ -30,6 +32,7 @@ data class Preset(
                 id = ALL_ENABLED_PRESET_ID,
                 name = "All enabled servers",
                 tools = emptyList(),
+                agentTools = emptyList(),
                 prompts = null,
                 resources = null,
             )

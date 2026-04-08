@@ -49,6 +49,8 @@ kotlin {
         val jvmMain by getting {
             kotlin.srcDir(broCloudGeneratedDir)
             dependencies {
+                implementation(project(":agents"))
+                implementation(project(":agents-codex"))
                 implementation("io.modelcontextprotocol:kotlin-sdk-server:${property("mcpSdkVersion")}")
                 if (broCloudUseLocal) {
                     val broCloudDependency = "io.qent.broxy:bro-cloud:$projectVersion"

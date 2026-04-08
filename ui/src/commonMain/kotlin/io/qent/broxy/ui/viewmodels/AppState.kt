@@ -26,13 +26,25 @@ class AppState(
 
     // Sub-navigation inside Screens.Catalog.
     val catalogInstall: MutableState<CatalogInstallSession?> = mutableStateOf(null)
+
+    // Sub-navigation inside Screens.Agents (keeps the Agents menu item active).
+    val agentEditor: MutableState<AgentEditorState?> = mutableStateOf(null)
+    val agentLaunchId: MutableState<String?> = mutableStateOf(null)
+    val agentDetailsId: MutableState<String?> = mutableStateOf(null)
+    val agentGenerateMode: MutableState<Boolean> = mutableStateOf(false)
+
+    // Sub-navigation inside Screens.Runs (keeps the Runs menu item active).
+    val runDetailsId: MutableState<String?> = mutableStateOf(null)
 }
 
 enum class Screen {
     Servers,
     Catalog,
     Presets,
+    Agents,
+    Runs,
     Clients,
+    AgentSettings,
     Settings,
 }
 
@@ -56,4 +68,12 @@ sealed interface ServerEditorState {
     data class Edit(
         val serverId: String,
     ) : ServerEditorState
+}
+
+sealed interface AgentEditorState {
+    data object Create : AgentEditorState
+
+    data class Edit(
+        val agentId: String,
+    ) : AgentEditorState
 }

@@ -13,7 +13,10 @@ import io.qent.broxy.ui.adapter.capabilities.FileCapabilityCachePersistence
 import io.qent.broxy.ui.adapter.icons.ServerIconRepository
 import io.qent.broxy.ui.adapter.icons.ServerIconRepositoryJvm
 import java.awt.Desktop
+import java.io.File
 import java.net.URI
+
+private val systemPicker: SystemPicker = SystemPickerJvm()
 
 actual fun provideConfigurationRepository(): ConfigurationRepository = JsonConfigurationRepository()
 
@@ -32,7 +35,19 @@ actual fun provideCapabilityCachePersistence(logger: CollectingLogger): Capabili
 
 actual fun provideCatalogRepository(): CatalogRepository = GithubCatalogRepository(cacheDir = AppCacheDir.resolve().resolve("catalog"))
 
-actual fun provideServerIconRepository(): ServerIconRepository = ServerIconRepositoryJvm()
+actual fun provideServerIconRepository(): ServerIconRepository = ServerIconRepositoryJvm(systemPicker = systemPicker)
+
+actual fun provideSystemPicker(): SystemPicker = systemPicker
+
+actual fun directoryExists(path: String): Boolean =
+    runCatching {
+        val normalized = path.trim()
+        if (normalized.isEmpty()) {
+            false
+        } else {
+            File(normalized).isDirectory
+        }
+    }.getOrDefault(false)
 
 actual fun openLogsFolder(): Result<Unit> =
     runCatching {

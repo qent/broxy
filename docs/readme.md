@@ -22,6 +22,7 @@ This directory is organized into two levels:
 | Inbound HTTP/SSE session behavior | `docs/inbound_transports.md` | `docs/proxy_facade.md` |
 | Remote preset notifications over WS | `docs/websocket_preset_capabilities.md` | `docs/remote_auth_and_websocket.md` |
 | UI capability snapshots / refresh | `docs/capabilities_cache_and_ui_refresh.md` | `docs/presets_and_filtering.md` |
+| Agents, scheduling, runs | `docs/agents_and_scheduling.md` | `docs/cli_mode.md`, `docs/testing.md` |
 | AI client connectors / import flow | `docs/ai_clients.md` | `docs/configuration_and_hot_reload.md` |
 | Catalog install behavior | `docs/mcp_catalog.md` | `docs/server_icons.md` |
 | Logging event contracts | `docs/logging_and_observability.md` | related subsystem doc where event source changed |
@@ -50,6 +51,7 @@ UI and adapter boundaries:
 - `docs/ui_adapter_boundary.md`
 - `docs/ai_clients.md`
 - `docs/localization.md`
+- `docs/agents_and_scheduling.md`
 
 Catalog and assets:
 

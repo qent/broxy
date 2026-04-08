@@ -22,6 +22,10 @@ expect fun provideCapabilityCachePersistence(logger: CollectingLogger): Capabili
 
 expect fun provideServerIconRepository(): ServerIconRepository
 
+expect fun provideSystemPicker(): SystemPicker
+
+expect fun directoryExists(path: String): Boolean
+
 expect fun openLogsFolder(): Result<Unit>
 
 expect fun openExternalUrl(url: String): Result<Unit>

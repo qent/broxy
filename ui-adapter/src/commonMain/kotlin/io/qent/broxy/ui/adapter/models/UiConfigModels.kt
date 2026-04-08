@@ -70,6 +70,7 @@ data class UiPresetCore(
     val id: String,
     val name: String,
     val tools: List<UiToolRef> = emptyList(),
+    val agentTools: List<UiAgentToolRef> = emptyList(),
     val prompts: List<UiPromptRef>? = null,
     val resources: List<UiResourceRef>? = null,
     val orderIndex: Int = 0,
@@ -84,6 +85,7 @@ data class UiPresetCore(
                 id = EMPTY_PRESET_ID,
                 name = "Empty preset",
                 tools = emptyList(),
+                agentTools = emptyList(),
                 prompts = emptyList(),
                 resources = emptyList(),
             )
@@ -93,6 +95,7 @@ data class UiPresetCore(
                 id = ALL_ENABLED_PRESET_ID,
                 name = "All enabled servers",
                 tools = emptyList(),
+                agentTools = emptyList(),
                 prompts = null,
                 resources = null,
             )

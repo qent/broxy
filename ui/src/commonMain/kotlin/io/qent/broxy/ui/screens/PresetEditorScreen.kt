@@ -31,6 +31,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import io.qent.broxy.ui.adapter.models.UiAgentToolRef
 import io.qent.broxy.ui.adapter.models.UiPresetDraft
 import io.qent.broxy.ui.adapter.models.UiPromptRef
 import io.qent.broxy.ui.adapter.models.UiResourceRef
@@ -38,6 +39,7 @@ import io.qent.broxy.ui.adapter.models.UiServerCapsSnapshot
 import io.qent.broxy.ui.adapter.models.UiToolRef
 import io.qent.broxy.ui.adapter.store.AppStore
 import io.qent.broxy.ui.adapter.store.UIState
+import io.qent.broxy.ui.components.AgentsSelector
 import io.qent.broxy.ui.components.AppPrimaryButton
 import io.qent.broxy.ui.components.AppSecondaryButton
 import io.qent.broxy.ui.components.AppVerticalScrollbar
@@ -68,6 +70,7 @@ fun PresetEditorScreen(
                         id = "",
                         name = "",
                         tools = emptyList(),
+                        agentTools = emptyList(),
                         prompts = emptyList(),
                         resources = emptyList(),
                         promptsConfigured = true,
@@ -104,6 +107,7 @@ fun PresetEditorScreen(
 
     var name by remember(editor) { mutableStateOf(initialDraft.name) }
     var selectedTools by remember(editor) { mutableStateOf<List<UiToolRef>>(initialDraft.tools) }
+    var selectedAgentTools by remember(editor) { mutableStateOf<List<UiAgentToolRef>>(initialDraft.agentTools) }
     var selectedPrompts by remember(editor) { mutableStateOf<List<UiPromptRef>>(initialDraft.prompts) }
     var selectedResources by remember(editor) { mutableStateOf<List<UiResourceRef>>(initialDraft.resources) }
     var promptsConfigured by remember(editor) { mutableStateOf(initialDraft.promptsConfigured) }
@@ -205,6 +209,7 @@ fun PresetEditorScreen(
                                     id = resolvedId,
                                     name = resolvedName,
                                     tools = selectedTools,
+                                    agentTools = selectedAgentTools,
                                     prompts = selectedPrompts,
                                     resources = selectedResources,
                                     promptsConfigured = promptsConfigured,
@@ -271,6 +276,16 @@ fun PresetEditorScreen(
                                 isCreateMode = isCreate,
                                 selectedWholeServer = enabled,
                             )
+                    },
+                )
+            }
+
+            FormCard(title = strings.navAgents) {
+                AgentsSelector(
+                    availableAgents = (ui as? UIState.Ready)?.agents.orEmpty(),
+                    initialRefs = selectedAgentTools,
+                    onSelectionChanged = { refs ->
+                        selectedAgentTools = refs
                     },
                 )
             }
