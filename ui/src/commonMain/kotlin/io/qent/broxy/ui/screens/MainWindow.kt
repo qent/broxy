@@ -40,6 +40,9 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.dp
+import io.qent.broxy.ui.adapter.models.UiAgentProviderSettings
+import io.qent.broxy.ui.adapter.models.UiAgentRuntime
+import io.qent.broxy.ui.adapter.models.UiLlmProvider
 import io.qent.broxy.ui.adapter.store.AppStore
 import io.qent.broxy.ui.adapter.store.UIState
 import io.qent.broxy.ui.components.AppNavigationRail
@@ -52,6 +55,7 @@ import io.qent.broxy.ui.components.LocalExternalLinkHoverReporter
 import io.qent.broxy.ui.strings.LocalStrings
 import io.qent.broxy.ui.theme.AppTheme
 import io.qent.broxy.ui.theme.ThemeStyle
+import io.qent.broxy.ui.viewmodels.AgentEditorState
 import io.qent.broxy.ui.viewmodels.AppState
 import io.qent.broxy.ui.viewmodels.PresetEditorState
 import io.qent.broxy.ui.viewmodels.Screen
@@ -181,9 +185,38 @@ fun MainWindow(
                                 }
                             }
 
-                            Screen.Clients -> Unit
+                            Screen.Agents -> {
+                                if (isAgentsRootListVisible(state)) {
+                                    hasVisibleFab = true
+                                    BroxyFab(
+                                        onClick = {
+                                            state.agentEditor.value = null
+                                            state.agentLaunchId.value = null
+                                            state.agentDetailsId.value = null
 
-                            Screen.Settings -> {
+                                            if (isLlmAgentCreationReady(readyUi?.agentProviderSettings)) {
+                                                state.agentGenerateMode.value = true
+                                            } else {
+                                                state.agentGenerateMode.value = false
+                                                state.agentEditor.value = AgentEditorState.Create
+                                            }
+                                        },
+                                    ) {
+                                        Icon(
+                                            Icons.Outlined.Add,
+                                            contentDescription = strings.addAgentContentDescription,
+                                        )
+                                    }
+                                }
+                            }
+
+                            Screen.Runs,
+                            Screen.Clients,
+                            -> Unit
+
+                            Screen.AgentSettings,
+                            Screen.Settings,
+                            -> {
                                 val fabState = settingsFabState.value
                                 if (fabState != null) {
                                     hasVisibleFab = true
@@ -219,8 +252,14 @@ fun MainWindow(
                             onSelect = {
                                 state.presetEditor.value = null
                                 state.serverEditor.value = null
+                                state.agentEditor.value = null
+                                state.agentLaunchId.value = null
+                                state.agentDetailsId.value = null
+                                state.agentGenerateMode.value = false
+                                state.runDetailsId.value = null
                                 state.serverDetailsId.value = null
                                 state.catalogInstall.value = null
+                                settingsFabState.value = null
                                 state.currentScreen.value = it
                             },
                             proxyStatus = readyUi?.proxyStatus,
@@ -240,7 +279,16 @@ fun MainWindow(
                                     Screen.Servers -> ServersScreen(ui, state, store, notify)
                                     Screen.Catalog -> CatalogScreen(ui = ui, state = state, notify = notify)
                                     Screen.Presets -> PresetsScreen(ui, state, store, notify)
+                                    Screen.Agents -> AgentsScreen(ui, state, store)
+                                    Screen.Runs -> RunsScreen(ui, state, store)
                                     Screen.Clients -> ClientsScreen(ui, notify)
+                                    Screen.AgentSettings ->
+                                        AgentSettingsScreen(
+                                            ui = ui,
+                                            store = store,
+                                            onFabStateChange = { settingsFabState.value = it },
+                                            notify = notify,
+                                        )
                                     Screen.Settings ->
                                         SettingsScreen(
                                             ui = ui,
@@ -277,4 +325,34 @@ fun MainWindow(
             }
         }
     }
+}
+
+private fun isAgentsRootListVisible(state: AppState): Boolean =
+    state.agentEditor.value == null &&
+        state.agentLaunchId.value == null &&
+        state.agentDetailsId.value == null &&
+        !state.agentGenerateMode.value
+
+internal fun isLlmAgentCreationReady(settings: UiAgentProviderSettings?): Boolean {
+    val resolvedSettings = settings ?: return false
+    val aiFeatures = resolvedSettings.aiFeatures
+    return aiFeatures.enabled &&
+        when (aiFeatures.runtime) {
+            UiAgentRuntime.LANGCHAIN -> {
+                aiFeatures.llm.model
+                    .trim()
+                    .isNotBlank() &&
+                    when (aiFeatures.llm.provider) {
+                        UiLlmProvider.OPENAI -> resolvedSettings.openAi.hasSavedApiKey
+                        UiLlmProvider.ANTHROPIC -> resolvedSettings.anthropic.hasSavedApiKey
+                        UiLlmProvider.LM_STUDIO -> true
+                    }
+            }
+            UiAgentRuntime.CODEX_CLI -> {
+                resolvedSettings.enableCodexProvider &&
+                    resolvedSettings.codex.command
+                        .trim()
+                        .isNotBlank()
+            }
+        }
 }

@@ -44,10 +44,26 @@ The resulting DMG is located in `ui/build/compose/binaries/main-release/dmg`.
 Notes:
 
 - ProGuard rules live in `ui/proguard-release.pro` to suppress optional dependency warnings.
+- ProGuard rules also suppress optional `javax.validation.*` references used by `cronutils` validation APIs,
+  which are not shipped in the desktop runtime.
+- macOS notifications use a dedicated JNI bridge (`ui/src/desktopMain/native/macos/broxy_notifications_bridge.m`).
+  During build, `:ui:buildMacOsNotificationBridge` compiles and bundles
+  `libbroxy_notifications.dylib` into desktop resources (`native/macos/<arch>/`).
 - Release ProGuard keeps Kotlin serialization metadata and MCP SDK types to avoid runtime decode failures.
 - Release builds disable ProGuard optimization to avoid incomplete class hierarchy errors while still shrinking.
 - Bro-cloud remote auth uses Ktor `ServiceLoader` providers; the ProGuard config keeps
-  `io.ktor.client.engine.cio.*` and `io.ktor.serialization.kotlinx.*` so provider classes are not stripped.
+  `io.ktor.client.engine.cio.*`, `io.ktor.serialization.kotlinx.*`, and
+  `io.ktor.server.config.*` so provider classes are not stripped.
+- Agent providers rely on Java HTTP and LangChain4j JDK HTTP factories in release builds; runtime modules
+  include `java.net.http` and `java.sql`, and ProGuard keeps `dev.langchain4j.http.client.jdk.*` for
+  `ServiceLoader` discovery.
+- Agent execution in release builds keeps `dev.langchain4j.agentic.*`, `io.qent.broxy.agents.*`, and
+  `META-INF/services/dev.langchain4j.service.ParameterNameResolver` so LangChain4j `ServiceLoader`
+  resolution for `AgenticParameterNameResolver` is not stripped.
+- Release ProGuard also preserves enum `values()/valueOf()` members to keep Jackson feature enums valid
+  after shrinking (`ObjectMapper` initialization depends on these methods).
+- Release ProGuard keeps LangChain4j OpenAI/Anthropic internal model classes so Jackson can deserialize
+  reflective builder-based DTOs (`dev.langchain4j.model.*.internal.*`).
 - The macOS app bundle name is `Broxy` (capitalized) via the UI native distribution package name.
 - Headless STDIO proxy support is bundled from `headless-runtime/` for packaged app STDIO mode.
 

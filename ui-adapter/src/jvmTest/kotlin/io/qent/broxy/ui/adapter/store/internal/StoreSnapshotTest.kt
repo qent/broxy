@@ -235,6 +235,36 @@ class StoreSnapshotTest {
 
         override fun reorderPresets(presetIds: List<String>) {}
 
+        override fun upsertAgent(draft: io.qent.broxy.ui.adapter.models.UiAgentDraft) {}
+
+        override fun removeAgent(id: String) {}
+
+        override fun reorderAgents(agentIds: List<String>) {}
+
+        override fun runAgent(
+            id: String,
+            prompt: String,
+            llm: io.qent.broxy.ui.adapter.models.UiAgentLlmConfig,
+            fileSystem: io.qent.broxy.ui.adapter.models.UiAgentFileSystemSettings,
+            cron: String?,
+            clearExistingScheduleBeforeRun: Boolean,
+            runtime: io.qent.broxy.ui.adapter.models.UiAgentRuntime,
+            codex: io.qent.broxy.ui.adapter.models.UiAgentCodexConfig?,
+        ) {}
+
+        override fun stopAgent(id: String) {}
+
+        override fun removeAgentSchedule(id: String) {}
+
+        override fun saveAgentProviderSettings(settings: io.qent.broxy.ui.adapter.models.UiAgentProviderSettings) {}
+
+        override fun saveAgentProviderApiKey(
+            provider: io.qent.broxy.ui.adapter.models.UiLlmProvider,
+            apiKey: String,
+        ) {}
+
+        override fun clearAgentProviderApiKey(provider: io.qent.broxy.ui.adapter.models.UiLlmProvider) {}
+
         override fun selectProxyPreset(presetId: String?) {}
 
         override fun updateInboundHttpPort(port: Int) {}
@@ -252,6 +282,8 @@ class StoreSnapshotTest {
         override fun updateMcpFilePath(path: String) {}
 
         override fun updateTrayIconVisibility(visible: Boolean) {}
+
+        override fun updateAgentRunNotificationsEnabled(enabled: Boolean) {}
 
         override fun updateFallbackPromptsAndResourcesToTools(enabled: Boolean) {}
 

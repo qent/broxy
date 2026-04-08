@@ -42,7 +42,15 @@ broxy:
     ignoreOverriddenDeclarations: true
     allowlistSimpleNames:
       - "main"
-    allowlistFqNames: []
+    allowlistFqNames:
+      - "io.qent.broxy.agents.application.defaultAgentService"
+      - "io.qent.broxy.agents.application.emptyMcpConfigProvider"
+      - "io.qent.broxy.ui.createDesktopSystemNotificationCenter"
+      - "io.qent.broxy.ui.screens.generationRuntimeOptions"
+      - "io.qent.broxy.ui.adapter.store.AppStore.agentNotificationPermissionRequests"
+      - "io.qent.broxy.ui.adapter.store.AppStore.agentRunNotifications"
+      - "io.qent.broxy.ui.adapter.store.AppStore.clearAgentGenerationError"
+      - "io.qent.broxy.ui.adapter.store.AppStore.listServerConfigs"
     allowlistFqNamePrefixes: []
     excludedPathRegexes:
       - ".*/generated/.*"

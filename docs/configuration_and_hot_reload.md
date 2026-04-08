@@ -44,10 +44,18 @@ Key files:
 
 - `config.json` - Broxy global settings (timeouts, retry, adapter mode, `mcpFilePath`, etc.).
 - `mcp.json` - downstream server definitions in Claude-compatible `mcpServers` format.
-- `ui.json` - desktop UI-only settings (not used by CLI).
-- `preset_<id>.json` - presets for filtering.
-- OAuth cache for HTTP/WS servers is stored in secure storage.
-  - Cache entries are deleted when a server is removed from the active MCP servers file.
+- `ui.json` - desktop UI settings (UI-only, not used by CLI).
+- `preset_<id>.json` - presets for filtering (`tools/prompts/resources` + `agentTools`).
+- `agents/<id>.md` - Claude-compatible agent definitions (frontmatter + markdown system prompt).
+- `agents/metadata/agent_<id>.json` - Broxy sidecar metadata for agent-only fields
+  (`tools`, `agentTools`, `prompts`, `resources`, `orderIndex`, `schedule`, `manualLaunchDefaults`).
+- `agents/runs/run_<runId>.json` - full structured run trace (dialogue + runtime actions + tool call/result payloads).
+- `agents/runs_index.json` - compact run summaries used for `Runs` list rendering.
+- `agents/agents_settings.json` - non-secret agent provider settings (endpoint overrides + per-provider model cache +
+  optional `agentsDirectoryPath` for external Claude-agent folders).
+- `agents/agents_secrets.json` - fallback API key storage for agents when secure storage is unavailable.
+- OAuth cache for HTTP/WS servers is stored in system secure storage.
+  - Cache entries are deleted when a server is removed from `mcp.json`.
 
 ### Source-of-truth matrix
 
@@ -110,6 +118,11 @@ Desktop UI startup behavior:
   `__preset_management__` as the active preset;
 - this is a runtime UI fallback; `config.json` remains unchanged until the user explicitly selects/saves a preset.
 
+`ignoreHttpsCertificateErrors` is a global setting for all downstream HTTPS/WSS connections.
+When enabled, Broxy disables certificate validation in Ktor CIO clients (MCP transport and OAuth HTTP flows)
+and in agent LLM provider HTTP clients (OpenAI/Anthropic endpoints, including endpoint overrides), which
+allows corporate/self-signed certificates but reduces TLS security guarantees.
+
 ### `config.json` example
 
 ```json
@@ -127,6 +140,8 @@ Desktop UI startup behavior:
   "adapterMode": false
 }
 ```
+
+For full field reference and interoperability rules, see `docs/claude_code_mcp_format.md`.
 
 ## `mcp.json` (Cursor/Claude-compatible server file)
 
@@ -162,7 +177,48 @@ Desktop UI startup behavior:
 }
 ```
 
-For full field reference and interoperability rules, see `docs/claude_code_mcp_format.md`.
+## ui.json (UI-only settings)
+
+UI-only settings are stored in `ui.json` next to `mcp.json`. These settings are not read by CLI or core.
+
+- `showTrayIcon` (default true): whether the desktop UI displays a system tray icon.
+- `agentRunNotificationsEnabled` (default true): whether desktop agent runs emit system notifications.
+  - macOS uses native UserNotifications only (`UNUserNotificationCenter`) via JNI bridge
+    (`broxy_notifications_bridge.m` + `MacOsNotificationNativeBridge.kt`).
+    - Broxy can issue up to three native notification authorization requests per app session via
+      `requestAuthorization(...)` while authorization is not yet granted.
+    - the native bridge sets a notification center delegate so alerts can be presented while the app window is active.
+    - notifications are enabled only when the process is launched from a macOS `.app` bundle.
+      Non-bundle runs (for example IDE/Gradle JVM launch) skip notifications to avoid
+      UserNotifications runtime crashes (`bundleProxyForCurrentProcess is nil`).
+    - no fallback to deprecated `NSUserNotification*` APIs is implemented.
+  - Windows uses native toast notifications (`Windows.UI.Notifications`).
+    - requires a desktop AppUserModelID shortcut (installer-managed) and PowerShell WinRT APIs.
+    - when toast notifications are disabled in system settings, Broxy opens Windows notification settings on the first manual agent launch.
+  - Linux uses freedesktop notifications (`notify-send` with actions).
+    - requires `notify-send` with action support and an active desktop notification daemon.
+
+### ui.json example
+
+```json
+{
+  "showTrayIcon": true,
+  "agentRunNotificationsEnabled": true
+}
+```
+
+### serverId in Desktop UI
+
+- In `mcp.json`, `serverId` is the key of `mcpServers` and is part of the tool namespace: `serverId_toolName`.
+- Desktop UI auto-generates `serverId` from `name` (slugified).
+- Desktop UI server cards support drag-and-drop reordering; the saved `mcpServers` object keeps that order.
+- When renaming a server, `ConfigurationManager.renameServer(...)` updates `mcp.json` and rewrites all
+  `preset_*.json` references from the old id to the new id (best-effort; errors are logged).
+- New server ids created via UI/CLI must not contain `_` (to avoid `serverId_tool` namespace collisions).
+  Existing configs with `_` are supported but log a warning on load.
+- While editing a STDIO server, the Desktop UI checks command availability against the resolved user `PATH`
+  (login + interactive shell, plus standard Homebrew paths on macOS) when the command field loses focus and
+  shows a warning if the command cannot be found.
 
 ## Supported downstream transports
 
@@ -292,7 +348,14 @@ Preset listing:
 
 File:
 
-- `core/src/jvmMain/kotlin/io/qent/broxy/core/config/ConfigurationWatcher.kt`
+Agent reference semantics in config files:
+
+- `preset_<id>.json.agentTools[*].agentId` and `agents/metadata/agent_<id>.json.agentTools[*].agentId`
+  may point to currently missing agents; these refs are preserved and not auto-cleaned.
+- deleting an agent does not rewrite other config files.
+- renaming an agent id through UI flow rewrites `agentTools` refs in presets and agents before old file removal.
+
+## Hot reload: ConfigurationWatcher
 
 Watcher observes:
 
@@ -307,6 +370,49 @@ Behavior:
 - `preset_*.json` change -> `onPresetChanged(preset)`.
 - debounce default: 300 ms.
 
+Manual triggers (tests/headless):
+
+- `triggerConfigReload()`
+- `triggerPresetReload(id)`
+
+`emitInitialState`:
+
+- If `true`, the watcher emits an initial config event after debounce.
+- CLI uses `emitInitialState = false` because config is loaded before start. Desktop UI refreshes
+  configuration via `AppStore` intents and does not wire `ConfigurationWatcher` by default.
+- Agent files (`agents/*.md`, `agents/metadata/*.json`, `agents/runs/*.json`, `agents/runs_index.json`,
+  `agents/agents_settings.json`) are not observed by `ConfigurationWatcher`;
+  the desktop app updates agent state via `AgentGateway` after agent operations and on startup.
+
+## Agent provider settings (`agents/agents_settings.json`)
+
+`agents/agents_settings.json` stores non-secret provider runtime config used by agent launches:
+
+- `agentsDirectoryPath`: optional path to directory with Claude subagent markdown files (`<id>.md`).
+  when omitted/blank, Broxy uses `~/.config/broxy/agents`.
+
+- endpoint overrides:
+  - `openAi.baseUrl` (default `https://api.openai.com/v1`)
+  - `anthropic.baseUrl` (default `https://api.anthropic.com`)
+  - `lmStudio.baseUrl` (default `http://127.0.0.1:1234/v1`)
+- model cache:
+  - `modelCache.openAi`
+  - `modelCache.anthropic`
+  - `modelCache.lmStudio`
+
+Model cache flow:
+
+1) launch form picks provider;
+2) UI reads cached models from `agents/agents_settings.json`;
+3) if cache is empty, Broxy requests provider models API and persists the result into cache;
+4) refresh icon in launch form forces API reload and cache overwrite.
+
+Secrets are not stored in this file:
+
+- OpenAI/Anthropic API keys live in secure storage (`agents/agents_secrets.json` fallback only).
+- LM Studio does not require API key and has endpoint-only settings.
+- LM Studio HTTP requests for model listing and execution use HTTP/1.1 to avoid `h2c` upgrade issues
+  on local endpoints.
 ## CLI usage of hot reload
 
 File:

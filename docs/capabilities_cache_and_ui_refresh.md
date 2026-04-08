@@ -41,8 +41,9 @@ UI (Compose Desktop) uses these snapshots to display compact summaries in:
 - preset summary rows (including orange warning/tint for partial unavailability and reduced card
   opacity when all preset capabilities are unavailable at runtime, including references to disabled
   or removed servers).
-- preset editor (`PresetEditorScreen`) capability selection and selected capability cards, including
-  cached data for disabled servers.
+- preset/agent capability editors: the selector and selected-capabilities cards read cached snapshots
+  for all configured servers (enabled and disabled). Disabled servers are shown only when a cached
+  snapshot exists and are visually marked as `Disabled`.
 - server capability details screen (`ServerCapabilitiesScreen`) where tool/prompt/resource text
   (name, arguments, description) is selectable for copy.
 - these snapshots are read-only UI/runtime availability data and do not rewrite saved preset capability
@@ -123,6 +124,10 @@ Dependencies:
 - refresh jobs are supervised so a single server failure/cancellation does not cancel the rest.
 - refreshes are de-duplicated per server; if a refresh is already active, new refreshes for that server are skipped.
 - cancels any in-flight refreshes when a server is disabled or removed to stop further reconnect attempts.
+
+Editor selectors do not trigger refreshes for disabled servers. They only read existing cache entries
+via `AppStore.listSelectableServerCaps()` / `CapabilityRefresher.listCachedServerCaps(...)`, so
+disabled servers appear in selection UI only when cached capabilities already exist.
 
 On `AppStore.start()`:
 

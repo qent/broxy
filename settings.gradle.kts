@@ -25,6 +25,8 @@ rootProject.name = "broxy"
 
 include(
     "detekt-rules",
+    "agents",
+    "agents-codex",
     "core",
     "server-registry",
     "headless-runtime",

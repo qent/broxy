@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Apps
 import androidx.compose.material.icons.outlined.Cable
+import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material.icons.outlined.Tune
@@ -36,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.qent.broxy.ui.adapter.models.UiProxyStatus
 import io.qent.broxy.ui.icons.rememberNavIconPainter
+import io.qent.broxy.ui.strings.AppStrings
 import io.qent.broxy.ui.strings.LocalStrings
 import io.qent.broxy.ui.theme.AppTheme
 import io.qent.broxy.ui.viewmodels.Screen
@@ -44,10 +46,57 @@ data class NavItem(
     val screen: Screen,
     val label: String,
     val icon: ImageVector,
+    val iconId: String? = null,
+    val showLabel: Boolean = true,
 )
 
+internal data class NavigationRailItems(
+    val topItems: List<NavItem>,
+    val bottomItems: List<NavItem>,
+)
+
+internal fun navigationRailItems(strings: AppStrings): NavigationRailItems =
+    NavigationRailItems(
+        topItems =
+            listOf(
+                NavItem(Screen.Catalog, strings.navRegistry, Icons.Outlined.Apps),
+                NavItem(Screen.Servers, strings.navMcp, Icons.Outlined.Storage),
+                NavItem(Screen.Presets, strings.navPresets, Icons.Outlined.Tune),
+                NavItem(
+                    Screen.Agents,
+                    strings.navAgents,
+                    Icons.Outlined.Tune,
+                    iconId = "cyber_brain",
+                ),
+                NavItem(Screen.Runs, strings.navRuns, Icons.Outlined.History),
+            ),
+        bottomItems =
+            listOf(
+                NavItem(
+                    Screen.Clients,
+                    strings.navConnection,
+                    Icons.Outlined.Cable,
+                    iconId = "plug_connect",
+                    showLabel = false,
+                ),
+                NavItem(
+                    Screen.AgentSettings,
+                    strings.navAgentSettings,
+                    Icons.Outlined.Settings,
+                    iconId = "agent_settings",
+                    showLabel = false,
+                ),
+                NavItem(
+                    Screen.Settings,
+                    strings.navSettings,
+                    Icons.Outlined.Settings,
+                    showLabel = false,
+                ),
+            ),
+    )
+
 @Composable
-@Suppress("LongMethod")
+@Suppress("LongMethod", "CyclomaticComplexMethod")
 fun AppNavigationRail(
     selected: Screen,
     onSelect: (Screen) -> Unit,
@@ -59,17 +108,9 @@ fun AppNavigationRail(
     val strings = LocalStrings.current
     val navIconSize = 22.dp
     val connectionNavPainter = rememberNavIconPainter("plug_connect", navIconSize)
-    val navItems =
-        listOf(
-            NavItem(Screen.Catalog, strings.navRegistry, Icons.Outlined.Apps),
-            NavItem(Screen.Servers, strings.navMcp, Icons.Outlined.Storage),
-            NavItem(Screen.Presets, strings.navPresets, Icons.Outlined.Tune),
-        )
-    val bottomNavItems =
-        listOf(
-            NavItem(Screen.Clients, strings.navConnection, Icons.Outlined.Cable),
-            NavItem(Screen.Settings, strings.navSettings, Icons.Outlined.Settings),
-        )
+    val agentsNavPainter = rememberNavIconPainter("cyber_brain", navIconSize)
+    val agentSettingsNavPainter = rememberNavIconPainter("agent_settings", navIconSize)
+    val railItems = navigationRailItems(strings)
 
     Column(
         modifier =
@@ -89,7 +130,7 @@ fun AppNavigationRail(
                     .padding(horizontal = AppTheme.spacing.sm),
         ) {
             // Navigation Items
-            navItems.forEach { item ->
+            railItems.topItems.forEach { item ->
                 val isSelected = selected == item.screen
                 val backgroundColor = if (isSelected) colors.primary else Color.Transparent
                 val contentColor = if (isSelected) colors.onPrimary else colors.secondary
@@ -108,26 +149,41 @@ fun AppNavigationRail(
                     CompositionLocalProvider(
                         LocalContentColor provides contentColor,
                     ) {
-                        Icon(
-                            imageVector = item.icon,
-                            contentDescription = item.label,
-                            modifier = Modifier.size(navIconSize),
+                        val iconPainter =
+                            when (item.iconId) {
+                                "plug_connect" -> connectionNavPainter
+                                "cyber_brain" -> agentsNavPainter
+                                "agent_settings" -> agentSettingsNavPainter
+                                else -> null
+                            }
+                        if (iconPainter != null) {
+                            Icon(
+                                painter = iconPainter,
+                                contentDescription = item.label,
+                                modifier = Modifier.size(navIconSize),
+                            )
+                        } else {
+                            Icon(
+                                imageVector = item.icon,
+                                contentDescription = item.label,
+                                modifier = Modifier.size(navIconSize),
+                            )
+                        }
+                    }
+                    if (item.showLabel) {
+                        Spacer(modifier = Modifier.height(3.dp))
+                        Text(
+                            text = item.label,
+                            style =
+                                MaterialTheme.typography.labelMedium.copy(
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Medium,
+                                ),
+                            color = contentColor,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
-
-                    Spacer(modifier = Modifier.height(3.dp))
-
-                    Text(
-                        text = item.label,
-                        style =
-                            MaterialTheme.typography.labelMedium.copy(
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Medium,
-                            ),
-                        color = contentColor,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
                 }
             }
         }
@@ -142,38 +198,33 @@ fun AppNavigationRail(
                     .fillMaxWidth()
                     .padding(horizontal = AppTheme.spacing.sm),
         ) {
-            bottomNavItems.forEach { item ->
+            railItems.bottomItems.forEach { item ->
                 val isSelected = selected == item.screen
-                val backgroundColor = if (isSelected) colors.primary else Color.Transparent
-                val contentColor = if (isSelected) colors.onPrimary else colors.secondary
-
+                val background = if (isSelected) colors.primary else Color.Transparent
+                val content = if (isSelected) colors.onPrimary else colors.secondary
                 Box(
                     modifier =
                         Modifier
                             .fillMaxWidth()
                             .clip(AppTheme.shapes.button)
-                            .background(backgroundColor)
+                            .background(background)
                             .clickable { onSelect(item.screen) }
                             .padding(vertical = 8.dp),
                     contentAlignment = Alignment.Center,
                 ) {
-                    CompositionLocalProvider(
-                        LocalContentColor provides contentColor,
-                    ) {
-                        if (item.screen == Screen.Clients) {
-                            if (connectionNavPainter != null) {
-                                Icon(
-                                    painter = connectionNavPainter,
-                                    contentDescription = item.label,
-                                    modifier = Modifier.size(navIconSize),
-                                )
-                            } else {
-                                Icon(
-                                    imageVector = item.icon,
-                                    contentDescription = item.label,
-                                    modifier = Modifier.size(navIconSize),
-                                )
+                    CompositionLocalProvider(LocalContentColor provides content) {
+                        val iconPainter =
+                            when (item.iconId) {
+                                "plug_connect" -> connectionNavPainter
+                                "agent_settings" -> agentSettingsNavPainter
+                                else -> null
                             }
+                        if (iconPainter != null) {
+                            Icon(
+                                painter = iconPainter,
+                                contentDescription = item.label,
+                                modifier = Modifier.size(navIconSize),
+                            )
                         } else {
                             Icon(
                                 imageVector = item.icon,

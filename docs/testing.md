@@ -26,6 +26,9 @@ What to test first (critical path):
 
 - Core MCP flows: server connection, capabilities, tool routing.
 - Proxy filtering and routing: preset filtering, allow list enforcement, prompt/resource routing.
+- Agent runtime flows: schedule overlap policy, standalone run persistence (`runs_index.json` + `run_<id>.json`), and repository consistency.
+- Agent tool flows: nested `agent -> agent` execution, unresolved refs behavior, and cycle detection.
+- Agent filesystem flows: workspace sandbox policy, traversal blocking, and access-level tool exposure.
 - Client adapters (HTTP/SSE, WebSocket, STDIO): capability mapping, tool/prompt/resource calls.
 - Inbound Streamable HTTP: POST request/response (JSON-only mode).
 - Inbound SSE: connect via `/sse` and validate tool/prompt/resource flows.
@@ -47,6 +50,7 @@ Locations and naming:
   - `core/src/jvmTest/kotlin/...`
   - `server-registry/src/jvmTest/kotlin/...`
   - `ui-adapter/src/jvmTest/kotlin/...`
+- Agent unit tests live under `agents/src/test/kotlin/...`.
 - Name tests by behavior, not method name:
   `filters_and_prefixes_with_mappings`, `connect_and_capabilities_and_callTool_with_mockito`.
 
@@ -54,7 +58,10 @@ Running tests:
 
 - `./gradlew testAll` runs all tests across modules (unit + integration).
 - `./gradlew allTests` is an alias for `testAll`.
-- `./gradlew :cli:integrationTest` runs CLI integration tests (STDIO + Streamable HTTP).
+- `./gradlew :agents:test` runs agent module unit tests.
+- `./gradlew :agents-codex:test --tests "*CodexCliExecutorLiveIntegrationTest*" -Dbroxy.codex.live=true`
+  runs an opt-in live Codex CLI integration check (real `codex exec`; requires local Codex auth).
+- `./gradlew :cli:integrationTest` runs CLI integration tests (proxy STDIO/HTTP + agent one-shot flows).
 - `./gradlew :test-mcp-server:selfCheck` runs the test MCP server self-check (STDIO, Streamable HTTP, HTTP SSE, WebSocket).
 
 CLI tests:
@@ -65,6 +72,25 @@ CLI tests:
   - `broxy.cliJar` (path to the `broxy-cli` shadowJar; provided by `:cli:shadowJar`)
   - `broxy.testMcpServerHome` (install dir with `bin/test-mcp-server`; provided by `:test-mcp-server:installDist`)
   - These are set automatically by the Gradle `:cli:integrationTest` task.
+- Agent CLI integration coverage (`BroxyCliAgentRunLangChainIntegrationTest`) is included in
+  `:cli:integrationTest`:
+  - uses `broxy agent run` (one-shot);
+  - covers LangChain runtime only;
+  - uses an embedded OpenAI-compatible test backend for `/chat/completions`, scripted by endpoint URL
+    scenario arguments;
+  - verifies a behavioral matrix for `capabilities × filesystem`:
+    - no capabilities + no filesystem access + plain text response;
+    - capabilities enabled + no filesystem access + downstream tool allowed;
+    - no capabilities + no filesystem access + downstream tool blocked by preset allow list;
+    - no capabilities + no filesystem access + filesystem tool blocked by preset allow list;
+    - no capabilities + `READ_ONLY` filesystem + local `fsRead` allowed;
+    - capabilities enabled + `READ_ONLY` filesystem + mixed downstream + filesystem tool sequence;
+  - asserts structured one-shot output (`status`, `runtime`, `response`, `errorMessage`) and strict
+    `toolCalls` order/composition (`serverId`, `toolName`, `step`).
+- Nested agent-tool CLI integration coverage (`BroxyCliAgentRunNestedAgentToolIntegrationTest`) is included in
+  `:cli:integrationTest` and is mandatory for `LANGCHAIN`:
+  - positive: outer agent calls inner agent tool and consumes returned string (`A -> B`);
+  - negative: cycle (`A -> B -> A`) returns `FAILED` with non-zero exit code and cycle-related error message.
 
 Static analysis and coverage:
 
@@ -98,9 +124,19 @@ Examples in this repo:
   `KtorMcpClientAuthFlowTest`, `StdioMcpClientTest`.
 - Utilities: `ExponentialBackoffTest`, `CapabilitiesCacheTest`.
 - Catalog registry: `CatalogInstallPlannerTest`, `GithubCatalogRepositoryTest`.
+- Agents: `DefaultAgentServiceTest`, `JsonAgentRepositoryTest`, `JsonAgentRunRepositoryTest`, `CronScheduleValidatorTest`,
+  `ClaudeSubagentMarkdownCodecTest`, `ClaudeCompatibilityTest`, `ScopedMcpConnectionsFactoryTest`,
+  `AgentSecretsStoreJvmTest`, `LangChain4jAgentExecutorTest`, `AgentFileSystemToolsTest`,
+  `AgentToolsMcpConnectionTest`.
 
 Adding new tests:
 
 - Cover both happy and failure paths for core flows.
+- For filesystem tools, cover:
+  - `NONE`/`READ_ONLY`/`READ_WRITE` exposure differences;
+  - missing non-default workspace failure;
+  - binary file rejection (`binary_file_not_supported`);
+  - path traversal rejection (`path_outside_workspace`);
+  - unified response envelope (`ok/data` or `ok=false/code/message`).
 - Keep tests independent; no external network or disk I/O (loopback/embedded servers are OK for inbound tests).
 - Prefer verifying public outcomes; verify interactions only for critical delegation/guard logic.

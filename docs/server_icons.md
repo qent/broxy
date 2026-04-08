@@ -28,6 +28,9 @@ Broxy resolves server icons in two steps:
 Users can also assign custom icons from the desktop UI. Custom icons are stored on disk and
 override registry-based icon lookup. Custom icons can be cleared from the UI; clearing resets the
 icon to registry/default resolution and removes the stored icon file if it is no longer referenced.
+The icon file chooser uses the same shared desktop `SystemPicker` component as the agent workspace
+directory picker and applies an image-extension filter (`png`, `jpg`, `jpeg`, `gif`, `bmp`,
+`webp`, `tif`, `tiff`).
 
 ## Auto-detection source and matching
 

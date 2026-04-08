@@ -174,6 +174,11 @@ Broxy stores OAuth tokens and dynamic client registration data in the system sec
 valid, and refresh tokens are used when available to avoid interactive login. If the cached
 resource URL does not match the current server URL, the cached entry is ignored.
 
+Agent runtimes also reuse this storage. Both LangChain and Codex agent executions restore OAuth
+state for scoped downstream HTTP/WS servers and persist updates using the same `serverId +
+resourceUrl` keying rules, so repeated runs avoid re-running interactive OAuth when cached state
+remains valid.
+
 OAuth state snapshots are persisted asynchronously after authorization changes, so the final
 secure storage write may complete shortly after a connection teardown.
 

@@ -8,9 +8,18 @@ import io.qent.broxy.ui.adapter.catalog.CatalogConnectionType
 import io.qent.broxy.ui.adapter.catalog.CatalogIcon
 import io.qent.broxy.ui.adapter.catalog.CatalogServerDetail
 import io.qent.broxy.ui.adapter.catalog.CatalogServerEntry
+import io.qent.broxy.ui.adapter.models.UiAgentCodexConfig
+import io.qent.broxy.ui.adapter.models.UiAgentDraft
+import io.qent.broxy.ui.adapter.models.UiAgentFileSystemSettings
+import io.qent.broxy.ui.adapter.models.UiAgentLlmConfig
+import io.qent.broxy.ui.adapter.models.UiAgentProviderSettings
+import io.qent.broxy.ui.adapter.models.UiAgentRuntime
 import io.qent.broxy.ui.adapter.models.UiAuthorizationPopupStatus
+import io.qent.broxy.ui.adapter.models.UiLlmProvider
 import io.qent.broxy.ui.adapter.models.UiMcpServerConfig
 import io.qent.broxy.ui.adapter.models.UiMcpServersConfig
+import io.qent.broxy.ui.adapter.models.UiPreset
+import io.qent.broxy.ui.adapter.models.UiPresetDraft
 import io.qent.broxy.ui.adapter.models.UiServer
 import io.qent.broxy.ui.adapter.models.UiServerDraft
 import io.qent.broxy.ui.adapter.models.UiStreamableHttpTransport
@@ -459,13 +468,43 @@ private object NoOpIntents : Intents {
 
     override fun clearServerIcon(serverId: String) {}
 
-    override fun addOrUpdatePreset(preset: io.qent.broxy.ui.adapter.models.UiPreset) {}
+    override fun addOrUpdatePreset(preset: UiPreset) {}
 
-    override fun upsertPreset(draft: io.qent.broxy.ui.adapter.models.UiPresetDraft) {}
+    override fun upsertPreset(draft: UiPresetDraft) {}
 
     override fun removePreset(id: String) {}
 
     override fun reorderPresets(presetIds: List<String>) {}
+
+    override fun upsertAgent(draft: UiAgentDraft) {}
+
+    override fun removeAgent(id: String) {}
+
+    override fun reorderAgents(agentIds: List<String>) {}
+
+    override fun runAgent(
+        id: String,
+        prompt: String,
+        llm: UiAgentLlmConfig,
+        fileSystem: UiAgentFileSystemSettings,
+        cron: String?,
+        clearExistingScheduleBeforeRun: Boolean,
+        runtime: UiAgentRuntime,
+        codex: UiAgentCodexConfig?,
+    ) {}
+
+    override fun stopAgent(id: String) {}
+
+    override fun removeAgentSchedule(id: String) {}
+
+    override fun saveAgentProviderSettings(settings: UiAgentProviderSettings) {}
+
+    override fun saveAgentProviderApiKey(
+        provider: UiLlmProvider,
+        apiKey: String,
+    ) {}
+
+    override fun clearAgentProviderApiKey(provider: UiLlmProvider) {}
 
     override fun selectProxyPreset(presetId: String?) {}
 
@@ -484,6 +523,8 @@ private object NoOpIntents : Intents {
     override fun updateCapabilitiesRefreshInterval(seconds: Int) {}
 
     override fun updateTrayIconVisibility(visible: Boolean) {}
+
+    override fun updateAgentRunNotificationsEnabled(enabled: Boolean) {}
 
     override fun updateFallbackPromptsAndResourcesToTools(enabled: Boolean) {}
 

@@ -191,6 +191,7 @@ TLS/certificate behavior:
 
 - Global `config.json` setting `ignoreHttpsCertificateErrors` controls HTTPS/WSS certificate validation for downstream HTTP/SSE/Streamable HTTP/WebSocket sessions.
 - When enabled, Ktor CIO clients use a permissive trust manager for both MCP transport connections and OAuth HTTP discovery/token calls.
+- The same flag is also applied to agent LLM provider HTTP clients (`OpenAiChatModel` / `AnthropicChatModel`) so provider endpoint overrides with self-signed certificates can be used.
 - This is intended for trusted corporate/self-signed environments only.
 
 Timeout behavior:

@@ -1,4 +1,7 @@
 import io.gitlab.arturbosch.detekt.Detekt
+import org.gradle.api.tasks.Copy
+import org.gradle.jvm.toolchain.JavaLanguageVersion
+import org.gradle.jvm.toolchain.JavaToolchainService
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.compose.desktop.application.tasks.AbstractJLinkTask
 
@@ -50,6 +53,66 @@ val desktopCompilation =
         .compilations
         .getByName("main")
 
+val javaToolchainService = extensions.getByType(JavaToolchainService::class.java)
+val java17Launcher = javaToolchainService.launcherFor { languageVersion.set(JavaLanguageVersion.of(17)) }
+val isMacOsHost = System.getProperty("os.name").contains("Mac", ignoreCase = true)
+val macOsNativeArch =
+    when (System.getProperty("os.arch").orEmpty().lowercase()) {
+        "arm64", "aarch64" -> "arm64"
+        "x86_64", "amd64" -> "x86_64"
+        else -> null
+    }
+val nativeBridgeSourceFile = layout.projectDirectory.file("src/desktopMain/native/macos/broxy_notifications_bridge.m")
+val nativeBridgeResourcesDir = layout.buildDirectory.dir("generated/macosNotificationResources")
+val nativeBridgeLibraryName = "libbroxy_notifications.dylib"
+
+val buildMacOsNotificationBridge by
+    tasks.registering {
+        group = "build"
+        description = "Builds macOS UserNotifications JNI bridge library."
+        inputs.file(nativeBridgeSourceFile)
+        outputs.dir(nativeBridgeResourcesDir)
+        onlyIf {
+            isMacOsHost && macOsNativeArch != null
+        }
+
+        doLast {
+            val arch = requireNotNull(macOsNativeArch) { "Unsupported macOS arch: ${System.getProperty("os.arch")}" }
+            val outputDir = nativeBridgeResourcesDir.get().dir("native/macos/$arch").asFile
+            outputDir.mkdirs()
+
+            val outputLibrary = outputDir.resolve(nativeBridgeLibraryName)
+            val javaHome =
+                java17Launcher
+                    .get()
+                    .metadata
+                    .installationPath
+                    .asFile
+                    .absolutePath
+
+            val execResult =
+                providers.exec {
+                    commandLine(
+                        "xcrun",
+                        "clang",
+                        "-fobjc-arc",
+                        "-dynamiclib",
+                        "-mmacosx-version-min=10.14",
+                        "-I$javaHome/include",
+                        "-I$javaHome/include/darwin",
+                        nativeBridgeSourceFile.asFile.absolutePath,
+                        "-framework",
+                        "Foundation",
+                        "-framework",
+                        "UserNotifications",
+                        "-o",
+                        outputLibrary.absolutePath,
+                    )
+                }
+            execResult.result.get()
+        }
+    }
+
 tasks.withType<Detekt>().configureEach {
     if (name == "detektMetadataMain") {
         classpath.setFrom(
@@ -61,6 +124,16 @@ tasks.withType<Detekt>().configureEach {
 
 tasks.named("detekt") {
     dependsOn("detektMetadataMain")
+}
+
+tasks.named<Copy>("processDesktopMainResources") {
+    dependsOn(buildMacOsNotificationBridge)
+    from(nativeBridgeResourcesDir)
+}
+
+tasks.named<Copy>("desktopProcessResources") {
+    dependsOn(buildMacOsNotificationBridge)
+    from(nativeBridgeResourcesDir)
 }
 
 compose.desktop {
@@ -76,6 +149,8 @@ compose.desktop {
             modules(
                 "java.instrument",
                 "java.management",
+                "java.net.http",
+                "java.sql",
                 "jdk.unsupported",
             )
             // Compose Desktop installers require MAJOR > 0

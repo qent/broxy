@@ -61,6 +61,7 @@ internal fun UiPresetDraft.toPresetCore(): UiPresetCore =
             tools.map { tool ->
                 UiToolRef(serverId = tool.serverId, toolName = tool.toolName, enabled = tool.enabled)
             },
+        agentTools = agentTools,
         prompts =
             if (promptsConfigured) {
                 prompts.map { prompt ->

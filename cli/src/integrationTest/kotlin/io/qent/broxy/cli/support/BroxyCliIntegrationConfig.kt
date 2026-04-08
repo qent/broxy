@@ -56,7 +56,9 @@ internal object BroxyCliIntegrationConfig {
     // Allow extra startup time: CLI performs upstream capability sync before exposing inbound HTTP.
     const val CONNECT_ATTEMPTS = 120
     const val CONNECT_DELAY_MILLIS = 250L
-    const val HTTP_SERVER_ATTEMPTS = 50
+
+    // HTTP test server can require extra warmup time on busy CI/macOS workers.
+    const val HTTP_SERVER_ATTEMPTS = 120
     const val HTTP_SERVER_DELAY_MILLIS = 100L
     const val HTTP_INBOUND_PATH = "/mcp"
     const val SSE_INBOUND_PATH = "/sse"

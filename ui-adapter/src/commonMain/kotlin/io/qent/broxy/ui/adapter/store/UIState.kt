@@ -2,14 +2,23 @@ package io.qent.broxy.ui.adapter.store
 
 import io.qent.broxy.ui.adapter.catalog.CatalogInstallSession
 import io.qent.broxy.ui.adapter.catalog.CatalogServerItem
+import io.qent.broxy.ui.adapter.models.UiAgent
+import io.qent.broxy.ui.adapter.models.UiAgentCodexConfig
+import io.qent.broxy.ui.adapter.models.UiAgentDraft
+import io.qent.broxy.ui.adapter.models.UiAgentFileSystemSettings
+import io.qent.broxy.ui.adapter.models.UiAgentLlmConfig
+import io.qent.broxy.ui.adapter.models.UiAgentProviderSettings
+import io.qent.broxy.ui.adapter.models.UiAgentRuntime
 import io.qent.broxy.ui.adapter.models.UiAiClient
 import io.qent.broxy.ui.adapter.models.UiAuthorizationPopup
 import io.qent.broxy.ui.adapter.models.UiImportedServerGroup
+import io.qent.broxy.ui.adapter.models.UiLlmProvider
 import io.qent.broxy.ui.adapter.models.UiPendingImportedServerCreate
 import io.qent.broxy.ui.adapter.models.UiPreset
 import io.qent.broxy.ui.adapter.models.UiPresetDraft
 import io.qent.broxy.ui.adapter.models.UiProxyStatus
 import io.qent.broxy.ui.adapter.models.UiRemoteConnectionState
+import io.qent.broxy.ui.adapter.models.UiRunSummary
 import io.qent.broxy.ui.adapter.models.UiServer
 import io.qent.broxy.ui.adapter.models.UiServerDraft
 
@@ -25,6 +34,9 @@ sealed class UIState {
         val servers: List<UiServer>,
         val importedServerGroups: List<UiImportedServerGroup>,
         val presets: List<UiPreset>,
+        val agents: List<UiAgent>,
+        val runs: List<UiRunSummary>,
+        val agentProviderSettings: UiAgentProviderSettings,
         val clients: List<UiAiClient>,
         val activeProxyPresetId: String?,
         val pendingImportedServerCreate: UiPendingImportedServerCreate?,
@@ -48,6 +60,7 @@ sealed class UIState {
         val ignoreHttpsCertificateErrors: Boolean,
         val capabilitiesRefreshIntervalSeconds: Int,
         val showTrayIcon: Boolean,
+        val agentRunNotificationsEnabled: Boolean,
         val fallbackPromptsAndResourcesToTools: Boolean,
         val adapterMode: Boolean,
         val intents: Intents,
@@ -125,6 +138,36 @@ interface Intents {
 
     fun reorderPresets(presetIds: List<String>)
 
+    fun upsertAgent(draft: UiAgentDraft)
+
+    fun removeAgent(id: String)
+
+    fun reorderAgents(agentIds: List<String>)
+
+    fun runAgent(
+        id: String,
+        prompt: String,
+        llm: UiAgentLlmConfig,
+        fileSystem: UiAgentFileSystemSettings,
+        cron: String? = null,
+        clearExistingScheduleBeforeRun: Boolean = false,
+        runtime: UiAgentRuntime = UiAgentRuntime.LANGCHAIN,
+        codex: UiAgentCodexConfig? = null,
+    )
+
+    fun stopAgent(id: String)
+
+    fun removeAgentSchedule(id: String)
+
+    fun saveAgentProviderSettings(settings: UiAgentProviderSettings)
+
+    fun saveAgentProviderApiKey(
+        provider: UiLlmProvider,
+        apiKey: String,
+    )
+
+    fun clearAgentProviderApiKey(provider: UiLlmProvider)
+
     fun selectProxyPreset(presetId: String?)
 
     fun updateInboundHttpPort(port: Int)
@@ -142,6 +185,8 @@ interface Intents {
     fun updateCapabilitiesRefreshInterval(seconds: Int)
 
     fun updateTrayIconVisibility(visible: Boolean)
+
+    fun updateAgentRunNotificationsEnabled(enabled: Boolean)
 
     fun updateFallbackPromptsAndResourcesToTools(enabled: Boolean)
 

@@ -8,12 +8,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -25,7 +22,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CornerSize
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -49,13 +45,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.adapter.store.UIState
 import io.qent.broxy.ui.components.AppPrimaryButton
 import io.qent.broxy.ui.components.AppVerticalScrollbar
-import io.qent.broxy.ui.components.SettingsLikeItem
 import io.qent.broxy.ui.strings.LocalStrings
 import io.qent.broxy.ui.theme.AppTheme
 import io.qent.broxy.ui.theme.ThemeStyle
@@ -63,8 +56,6 @@ import io.qent.broxy.ui.theme.ThemeStyle
 private const val MIN_REFRESH_INTERVAL_SECONDS = 30
 private const val MIN_PORT = 1
 private const val MAX_PORT = 65535
-private const val SETTING_CONTROL_HEIGHT_DP = 32
-private const val SETTING_CONTROL_WIDTH_DP = 140
 private const val TOGGLE_SCALE = 0.7f
 
 @Immutable
@@ -191,19 +182,14 @@ private fun SettingsContent(
     onOpenLogsFolder: () -> Unit,
     onResetHiddenImportedServers: () -> Unit,
 ) {
-    val strings = LocalStrings.current
     var requestTimeoutInput by rememberSaveable(requestTimeoutSeconds) {
         mutableStateOf(requestTimeoutSeconds.toString())
     }
     var capabilitiesTimeoutInput by rememberSaveable(capabilitiesTimeoutSeconds) {
-        mutableStateOf(
-            capabilitiesTimeoutSeconds.toString(),
-        )
+        mutableStateOf(capabilitiesTimeoutSeconds.toString())
     }
     var capabilitiesRefreshInput by rememberSaveable(capabilitiesRefreshIntervalSeconds) {
-        mutableStateOf(
-            capabilitiesRefreshIntervalSeconds.toString(),
-        )
+        mutableStateOf(capabilitiesRefreshIntervalSeconds.toString())
     }
     var connectionRetryInput by rememberSaveable(connectionRetryCount) {
         mutableStateOf(connectionRetryCount.toString())
@@ -215,19 +201,15 @@ private fun SettingsContent(
     LaunchedEffect(requestTimeoutSeconds) {
         requestTimeoutInput = requestTimeoutSeconds.toString()
     }
-
     LaunchedEffect(capabilitiesTimeoutSeconds) {
         capabilitiesTimeoutInput = capabilitiesTimeoutSeconds.toString()
     }
-
     LaunchedEffect(capabilitiesRefreshIntervalSeconds) {
         capabilitiesRefreshInput = capabilitiesRefreshIntervalSeconds.toString()
     }
-
     LaunchedEffect(connectionRetryCount) {
         connectionRetryInput = connectionRetryCount.toString()
     }
-
     LaunchedEffect(inboundHttpPort) {
         inboundHttpPortInput = inboundHttpPort.toString()
     }
@@ -300,10 +282,10 @@ private fun SettingsContent(
                     .padding(bottom = AppTheme.spacing.fab),
             verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
         ) {
-            Spacer(Modifier.height(AppTheme.spacing.xs))
+            Spacer(modifier = Modifier.height(AppTheme.spacing.xs))
             TimeoutSetting(
-                title = strings.httpPortTitle,
-                description = strings.httpPortDescription,
+                title = LocalStrings.current.httpPortTitle,
+                description = LocalStrings.current.httpPortDescription,
                 value = inboundHttpPortInput,
                 onValueChange = { value ->
                     if (value.isEmpty() || value.all { it.isDigit() }) {
@@ -312,8 +294,8 @@ private fun SettingsContent(
                 },
             )
             TimeoutSetting(
-                title = strings.requestTimeoutTitle,
-                description = strings.requestTimeoutDescription,
+                title = LocalStrings.current.requestTimeoutTitle,
+                description = LocalStrings.current.requestTimeoutDescription,
                 value = requestTimeoutInput,
                 onValueChange = { value ->
                     if (value.isEmpty() || value.all { it.isDigit() }) {
@@ -322,8 +304,8 @@ private fun SettingsContent(
                 },
             )
             TimeoutSetting(
-                title = strings.capabilitiesTimeoutTitle,
-                description = strings.capabilitiesTimeoutDescription,
+                title = LocalStrings.current.capabilitiesTimeoutTitle,
+                description = LocalStrings.current.capabilitiesTimeoutDescription,
                 value = capabilitiesTimeoutInput,
                 onValueChange = { value ->
                     if (value.isEmpty() || value.all { it.isDigit() }) {
@@ -332,8 +314,8 @@ private fun SettingsContent(
                 },
             )
             TimeoutSetting(
-                title = strings.connectionRetryCountTitle,
-                description = strings.connectionRetryCountDescription,
+                title = LocalStrings.current.connectionRetryCountTitle,
+                description = LocalStrings.current.connectionRetryCountDescription,
                 value = connectionRetryInput,
                 onValueChange = { value ->
                     if (value.isEmpty() || value.all { it.isDigit() }) {
@@ -346,8 +328,8 @@ private fun SettingsContent(
                 onToggle = onToggleIgnoreHttpsCertificateErrors,
             )
             TimeoutSetting(
-                title = strings.capabilitiesRefreshTitle,
-                description = strings.capabilitiesRefreshDescription,
+                title = LocalStrings.current.capabilitiesRefreshTitle,
+                description = LocalStrings.current.capabilitiesRefreshDescription,
                 value = capabilitiesRefreshInput,
                 onValueChange = { value ->
                     if (value.isEmpty() || value.all { it.isDigit() }) {
@@ -548,28 +530,6 @@ private fun TimeoutSetting(
 }
 
 @Composable
-private fun SettingItem(
-    title: String,
-    description: String,
-    supportingContent: (@Composable ColumnScope.() -> Unit)? = null,
-    control: @Composable RowScope.() -> Unit,
-) {
-    SettingsLikeItem(
-        title = title,
-        description = description,
-        contentPadding =
-            PaddingValues(
-                start = AppTheme.spacing.md + AppTheme.spacing.sm,
-                end = AppTheme.spacing.md,
-                top = AppTheme.spacing.md,
-                bottom = AppTheme.spacing.md,
-            ),
-        supportingContent = supportingContent,
-        control = control,
-    )
-}
-
-@Composable
 @Suppress("LongMethod")
 private fun ThemeSetting(
     themeStyle: ThemeStyle,
@@ -685,73 +645,5 @@ private fun ThemeDropdownItem(
         text = { Text(text, style = MaterialTheme.typography.bodySmall) },
         contentPadding = PaddingValues(horizontal = AppTheme.spacing.md, vertical = AppTheme.spacing.xxs),
         onClick = onClick,
-    )
-}
-
-@Composable
-private fun CompactTextField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    modifier: Modifier = Modifier,
-    label: String? = null,
-) {
-    BasicTextField(
-        value = value,
-        onValueChange = onValueChange,
-        modifier = modifier.height(SETTING_CONTROL_HEIGHT_DP.dp),
-        textStyle = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurface),
-        singleLine = true,
-        decorationBox = { innerTextField ->
-            CompactInputSurface {
-                Row(
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = AppTheme.spacing.md),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Box(modifier = Modifier.weight(1f)) {
-                        if (value.isEmpty() && label != null) {
-                            Text(
-                                text = label,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        innerTextField()
-                    }
-                }
-            }
-        },
-        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-    )
-}
-
-@Composable
-private fun CompactInputSurface(
-    modifier: Modifier = Modifier,
-    content: @Composable () -> Unit,
-) {
-    Surface(
-        modifier = modifier.height(SETTING_CONTROL_HEIGHT_DP.dp),
-        shape = AppTheme.shapes.input,
-        color = MaterialTheme.colorScheme.surface,
-        contentColor = MaterialTheme.colorScheme.onSurface,
-        border = BorderStroke(AppTheme.strokeWidths.thin, MaterialTheme.colorScheme.outline),
-        content = content,
-    )
-}
-
-private val SettingControlWidth: Dp = SETTING_CONTROL_WIDTH_DP.dp
-
-@Composable
-private fun SettingControlBox(content: @Composable BoxScope.() -> Unit) {
-    Box(
-        modifier =
-            Modifier
-                .widthIn(min = SettingControlWidth, max = SettingControlWidth)
-                .height(SETTING_CONTROL_HEIGHT_DP.dp),
-        contentAlignment = Alignment.CenterEnd,
-        content = content,
     )
 }

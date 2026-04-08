@@ -1,5 +1,6 @@
 package io.qent.broxy.ui.adapter.models
 
+import io.qent.broxy.core.models.AgentToolReference
 import io.qent.broxy.core.models.AuthConfig
 import io.qent.broxy.core.models.McpServerConfig
 import io.qent.broxy.core.models.McpServersConfig
@@ -122,6 +123,7 @@ fun Preset.toUi(): UiPresetCore =
         id = id,
         name = name,
         tools = tools.map { it.toUi() },
+        agentTools = agentTools.map { it.toUi() },
         prompts = prompts?.map { it.toUi() },
         resources = resources?.map { it.toUi() },
         orderIndex = orderIndex,
@@ -132,6 +134,7 @@ fun UiPresetCore.toCore(): Preset =
         id = id,
         name = name,
         tools = tools.map { it.toCore() },
+        agentTools = agentTools.map { it.toCore() },
         prompts = prompts?.map { it.toCore() },
         resources = resources?.map { it.toCore() },
         orderIndex = orderIndex,
@@ -148,6 +151,18 @@ fun UiToolRef.toCore(): ToolReference =
     ToolReference(
         serverId = serverId,
         toolName = toolName,
+        enabled = enabled,
+    )
+
+fun AgentToolReference.toUi(): UiAgentToolRef =
+    UiAgentToolRef(
+        agentId = agentId,
+        enabled = enabled,
+    )
+
+fun UiAgentToolRef.toCore(): AgentToolReference =
+    AgentToolReference(
+        agentId = agentId,
         enabled = enabled,
     )
 
