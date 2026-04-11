@@ -4,6 +4,7 @@ import io.qent.broxy.core.mcp.ServerCapabilities
 import io.qent.broxy.core.models.McpServerConfig
 import io.qent.broxy.core.models.Preset
 import io.qent.broxy.core.models.TransportConfig
+import io.qent.broxy.core.presetmanagement.PresetManagementBackend
 import io.qent.broxy.core.proxy.ProxyMcpServer
 import io.qent.broxy.core.utils.CollectingLogger
 import io.qent.broxy.core.utils.LogEvent
@@ -66,6 +67,10 @@ interface ProxyController {
     fun updateFallbackPromptsAndResourcesToTools(enabled: Boolean)
 
     fun updateAdapterMode(enabled: Boolean)
+
+    fun registerPresetManagementBackend(backend: PresetManagementBackend)
+
+    fun clearPresetManagementBackend()
 
     /**
      * Forces a downstream capability refresh for a specific server.

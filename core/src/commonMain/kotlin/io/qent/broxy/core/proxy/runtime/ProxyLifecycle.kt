@@ -4,6 +4,7 @@ import io.qent.broxy.core.mcp.ServerCapabilities
 import io.qent.broxy.core.models.McpServersConfig
 import io.qent.broxy.core.models.Preset
 import io.qent.broxy.core.models.TransportConfig
+import io.qent.broxy.core.presetmanagement.PresetManagementBackend
 import io.qent.broxy.core.proxy.ProxyMcpServer
 import io.qent.broxy.core.utils.Logger
 import kotlinx.coroutines.flow.Flow
@@ -135,6 +136,14 @@ class ProxyLifecycle(
     override fun updateAdapterMode(enabled: Boolean) {
         controller.updateAdapterMode(enabled)
         currentConfig = currentConfig?.copy(adapterMode = enabled)
+    }
+
+    override fun registerPresetManagementBackend(backend: PresetManagementBackend) {
+        controller.registerPresetManagementBackend(backend)
+    }
+
+    override fun clearPresetManagementBackend() {
+        controller.clearPresetManagementBackend()
     }
 
     override fun refreshServerCapabilities(serverId: String): Result<Unit> =

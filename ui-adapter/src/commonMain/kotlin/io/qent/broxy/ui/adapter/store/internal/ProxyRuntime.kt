@@ -1,5 +1,6 @@
 package io.qent.broxy.ui.adapter.store.internal
 
+import io.qent.broxy.core.models.BuiltInPresetResolver
 import io.qent.broxy.core.proxy.runtime.ProxyRuntimeFacade
 import io.qent.broxy.core.repository.ConfigurationRepository
 import io.qent.broxy.core.utils.CollectingLogger
@@ -163,11 +164,11 @@ internal class ProxyRuntime(
     }
 
     private suspend fun loadPresetOrEmpty(presetId: String?): Result<UiPresetCore> {
-        if (presetId.isNullOrBlank() || presetId == UiPresetCore.EMPTY_PRESET_ID) {
+        if (presetId.isNullOrBlank()) {
             return Result.success(UiPresetCore.empty())
         }
-        if (presetId == UiPresetCore.ALL_ENABLED_PRESET_ID) {
-            return Result.success(UiPresetCore.allEnabled())
+        BuiltInPresetResolver.resolve(presetId)?.let { builtIn ->
+            return Result.success(builtIn.toUi())
         }
         return runCatching { configurationRepository.loadPreset(presetId) }
             .map { it.toUi() }

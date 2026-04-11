@@ -484,6 +484,26 @@ private fun PresetDropdown(
                         },
                     )
 
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                strings.presetManagement,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = AppTheme.colors.onSurface,
+                            )
+                        },
+                        contentPadding =
+                            PaddingValues(
+                                horizontal = AppTheme.spacing.md,
+                                vertical = AppTheme.spacing.xxs,
+                            ),
+                        onClick = {
+                            expanded = false
+                            ui.intents.selectProxyPreset(UiPresetCore.PRESET_MANAGEMENT_ID)
+                            notify(strings.presetSelected(strings.presetManagement))
+                        },
+                    )
+
                     ui.presets.forEach { p ->
                         DropdownMenuItem(
                             text = {
@@ -566,5 +586,6 @@ private fun resolvePresetName(
     when (presetId) {
         UiPresetCore.EMPTY_PRESET_ID -> strings.noPreset
         UiPresetCore.ALL_ENABLED_PRESET_ID -> strings.allEnabledServers
+        UiPresetCore.PRESET_MANAGEMENT_ID -> strings.presetManagement
         else -> presets.firstOrNull { it.id == presetId }?.name ?: presetId
     }

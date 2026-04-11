@@ -4,6 +4,7 @@ import io.qent.broxy.core.mcp.ServerCapabilities
 import io.qent.broxy.core.models.McpServersConfig
 import io.qent.broxy.core.models.Preset
 import io.qent.broxy.core.models.TransportConfig
+import io.qent.broxy.core.presetmanagement.PresetManagementBackend
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -42,4 +43,8 @@ interface ProxyRuntimeFacade {
     fun updateFallbackPromptsAndResourcesToTools(enabled: Boolean)
 
     fun updateAdapterMode(enabled: Boolean)
+
+    fun registerPresetManagementBackend(backend: PresetManagementBackend)
+
+    fun clearPresetManagementBackend()
 }

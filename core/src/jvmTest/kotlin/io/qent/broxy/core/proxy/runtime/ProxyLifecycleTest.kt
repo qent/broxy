@@ -5,6 +5,7 @@ import io.qent.broxy.core.models.McpServerConfig
 import io.qent.broxy.core.models.McpServersConfig
 import io.qent.broxy.core.models.Preset
 import io.qent.broxy.core.models.TransportConfig
+import io.qent.broxy.core.presetmanagement.PresetManagementBackend
 import io.qent.broxy.core.utils.LogEvent
 import io.qent.broxy.core.utils.Logger
 import kotlinx.coroutines.flow.Flow
@@ -161,6 +162,10 @@ private class FakeProxyController : ProxyController {
     override fun updateFallbackPromptsAndResourcesToTools(enabled: Boolean) = Unit
 
     override fun updateAdapterMode(enabled: Boolean) = Unit
+
+    override fun registerPresetManagementBackend(backend: PresetManagementBackend) = Unit
+
+    override fun clearPresetManagementBackend() = Unit
 
     override fun refreshServerCapabilities(serverId: String): Result<Unit> = Result.success(Unit)
 

@@ -55,6 +55,8 @@ interface AppStrings {
 
     val allEnabledServers: String
 
+    val presetManagement: String
+
     val openPresetMenu: String
 
     val openClientInfo: String
@@ -423,6 +425,8 @@ object EnglishStrings : AppStrings {
     override val noPreset = "No preset"
 
     override val allEnabledServers = "All enabled servers"
+
+    override val presetManagement = "Preset management"
 
     override val openPresetMenu = "Open preset menu"
 

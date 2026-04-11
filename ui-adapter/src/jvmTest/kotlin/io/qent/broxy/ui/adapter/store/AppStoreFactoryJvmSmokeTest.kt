@@ -5,6 +5,7 @@ import io.qent.broxy.core.models.McpServerConfig
 import io.qent.broxy.core.models.McpServersConfig
 import io.qent.broxy.core.models.Preset
 import io.qent.broxy.core.models.TransportConfig
+import io.qent.broxy.core.presetmanagement.PresetManagementBackend
 import io.qent.broxy.core.proxy.runtime.ProxyController
 import io.qent.broxy.core.proxy.runtime.ServerConnectionUpdate
 import io.qent.broxy.core.repository.ConfigurationRepository
@@ -92,6 +93,10 @@ class AppStoreFactoryJvmSmokeTest {
         override fun updateFallbackPromptsAndResourcesToTools(enabled: Boolean) = Unit
 
         override fun updateAdapterMode(enabled: Boolean) = Unit
+
+        override fun registerPresetManagementBackend(backend: PresetManagementBackend) = Unit
+
+        override fun clearPresetManagementBackend() = Unit
 
         override fun refreshServerCapabilities(serverId: String): Result<Unit> = Result.success(Unit)
 

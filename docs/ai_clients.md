@@ -125,6 +125,9 @@ Preset-specific Streamable HTTP connections are also supported:
 - preset-pinned sessions ignore later preset switching in the Broxy UI/CLI;
 - the Presets screen exposes a copy action on each preset card that copies
   `http://localhost:{port}/mcp/{presetId}` and shows a confirmation toast.
+- using `presetId = __preset_management__` pins the client to the management-only MCP surface
+  (`get_preset_creation_algorithm`, `list_server_names`, `get_server_description`,
+  `list_preset_names`, `get_preset_description`, `create_preset`).
 
 SSE:
 
@@ -139,6 +142,7 @@ SSE:
 ```
 
 Preset-specific SSE connections are also supported by replacing `/sse` with `/sse/{presetId}`.
+`/sse/__preset_management__` provides the same fixed management-only tool surface.
 
 ## Codex connector
 

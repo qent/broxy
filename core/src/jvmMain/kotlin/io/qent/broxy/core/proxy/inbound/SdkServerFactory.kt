@@ -11,6 +11,7 @@ import io.modelcontextprotocol.kotlin.sdk.types.Implementation
 import io.modelcontextprotocol.kotlin.sdk.types.ServerCapabilities
 import io.modelcontextprotocol.kotlin.sdk.types.Tool
 import io.modelcontextprotocol.kotlin.sdk.types.ToolSchema
+import io.qent.broxy.core.presetmanagement.PresetManagementBackend
 import io.qent.broxy.core.proxy.ProxyMcpServer
 import io.qent.broxy.core.utils.ConsoleLogger
 import io.qent.broxy.core.utils.LogEventBuilder
@@ -80,6 +81,8 @@ fun syncSdkServer(
         logger = logger,
         fallbackPromptsAndResourcesToTools = proxy.fallbackPromptsAndResourcesToTools,
         adapterMode = proxy.adapterMode,
+        managementMode = proxy.isPresetManagementMode(),
+        presetManagementBackend = proxy.presetManagementBackend,
         capabilitiesProvider = { proxy.capabilities },
     )
 }
@@ -92,9 +95,24 @@ internal fun syncSdkServer(
     logger: Logger = ConsoleLogger,
     fallbackPromptsAndResourcesToTools: Boolean = false,
     adapterMode: Boolean = false,
+    managementMode: Boolean = false,
+    presetManagementBackend: PresetManagementBackend? = null,
     capabilitiesProvider: () -> ProxyServerCapabilities = { capabilities },
 ) {
     val json = Json { ignoreUnknownKeys = true }
+
+    if (managementMode) {
+        val managementTools =
+            PresetManagementToolFactory.buildManagementTools(
+                backendProvider = { presetManagementBackend },
+                logger = logger,
+                json = json,
+            )
+        syncTools(server, managementTools)
+        syncPrompts(server, emptyList())
+        syncResources(server, emptyList())
+        return
+    }
 
     if (adapterMode) {
         val adapterTools = AdapterModeToolFactory.buildAdapterTools(capabilitiesProvider, backend, logger, json)

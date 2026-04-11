@@ -77,6 +77,7 @@ data class UiPresetCore(
     companion object {
         const val EMPTY_PRESET_ID: String = Preset.EMPTY_PRESET_ID
         const val ALL_ENABLED_PRESET_ID: String = Preset.ALL_ENABLED_PRESET_ID
+        const val PRESET_MANAGEMENT_ID: String = Preset.PRESET_MANAGEMENT_ID
 
         fun empty(): UiPresetCore =
             UiPresetCore(
@@ -94,6 +95,15 @@ data class UiPresetCore(
                 tools = emptyList(),
                 prompts = null,
                 resources = null,
+            )
+
+        fun presetManagement(): UiPresetCore =
+            UiPresetCore(
+                id = PRESET_MANAGEMENT_ID,
+                name = "Preset management",
+                tools = emptyList(),
+                prompts = emptyList(),
+                resources = emptyList(),
             )
     }
 }

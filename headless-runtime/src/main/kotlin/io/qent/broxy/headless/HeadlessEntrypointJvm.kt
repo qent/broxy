@@ -2,6 +2,7 @@ package io.qent.broxy.headless
 
 import io.modelcontextprotocol.kotlin.sdk.server.Server
 import io.modelcontextprotocol.kotlin.sdk.server.StdioServerTransport
+import io.qent.broxy.core.capabilities.FilePersistedCapabilityCacheStore
 import io.qent.broxy.core.config.JsonConfigurationRepository
 import io.qent.broxy.core.mcp.DefaultMcpServerConnection
 import io.qent.broxy.core.mcp.IsolatedMcpServerConnection
@@ -9,12 +10,15 @@ import io.qent.broxy.core.mcp.auth.OAuthState
 import io.qent.broxy.core.mcp.auth.OAuthStateStore
 import io.qent.broxy.core.mcp.auth.restoreFromLocked
 import io.qent.broxy.core.mcp.auth.toSnapshotLocked
+import io.qent.broxy.core.models.BuiltInPresetResolver
 import io.qent.broxy.core.models.McpServersConfig
 import io.qent.broxy.core.models.Preset
 import io.qent.broxy.core.models.TransportConfig
+import io.qent.broxy.core.presetmanagement.JvmPresetManagementBackend
 import io.qent.broxy.core.proxy.ProxyMcpServer
 import io.qent.broxy.core.proxy.inbound.buildSdkServer
 import io.qent.broxy.core.proxy.inbound.syncSdkServer
+import io.qent.broxy.core.utils.AppCacheDir
 import io.qent.broxy.core.utils.CollectingLogger
 import io.qent.broxy.core.utils.CompositeLogger
 import io.qent.broxy.core.utils.DailyFileLogger
@@ -53,6 +57,7 @@ import java.nio.file.Path
  * @param presetIdOverride Optional preset ID override
  * @param configDir Optional configuration directory (defaults to ~/.config/broxy)
  */
+@Suppress("LongMethod")
 fun runStdioProxy(
     presetIdOverride: String? = null,
     configDir: String? = null,
@@ -81,6 +86,18 @@ fun runStdioProxy(
 
         val syncBridge = SdkSyncBridge(logger)
         val proxy = createProxy(headlessConfig.config, downstreams, logger, syncBridge, rawCache)
+        val managementBackend =
+            JvmPresetManagementBackend(
+                configurationRepository = JsonConfigurationRepository(baseDir = baseDir, logger = sink),
+                liveCapabilitiesProvider = { proxy.snapshotDownstreamCapabilities() },
+                capabilityCacheStore =
+                    FilePersistedCapabilityCacheStore(
+                        baseDir = AppCacheDir.resolve(),
+                        logger = sink,
+                    ),
+                logger = sink,
+            )
+        proxy.presetManagementBackend = managementBackend
         syncBridge.attachProxy(proxy)
         proxy.start(headlessConfig.preset, inbound)
 
@@ -154,7 +171,8 @@ private fun loadHeadlessConfig(
         if (effectivePresetId == null) {
             Preset.empty()
         } else {
-            runCatching { repo.loadPreset(effectivePresetId) }.getOrElse { Preset.empty() }
+            BuiltInPresetResolver.resolve(effectivePresetId)
+                ?: runCatching { repo.loadPreset(effectivePresetId) }.getOrElse { Preset.empty() }
         }
     return HeadlessConfig(
         config = config,

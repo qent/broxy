@@ -1,116 +1,156 @@
 package io.qent.broxy.ui.adapter.capabilities
 
+import io.qent.broxy.core.capabilities.FilePersistedCapabilityCacheStore
+import io.qent.broxy.core.capabilities.PersistedCapabilityArgument
+import io.qent.broxy.core.capabilities.PersistedCapabilityCacheEntry
+import io.qent.broxy.core.capabilities.PersistedPromptSummary
+import io.qent.broxy.core.capabilities.PersistedResourceSummary
+import io.qent.broxy.core.capabilities.PersistedServerCapsSnapshot
+import io.qent.broxy.core.capabilities.PersistedToolSummary
 import io.qent.broxy.core.utils.Logger
-import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import java.nio.file.DirectoryStream
-import java.nio.file.Files
 import java.nio.file.Path
-import java.nio.file.StandardCopyOption
-import java.nio.file.StandardOpenOption
-import java.util.Base64
 
 class FileCapabilityCachePersistence(
     baseDir: Path,
     private val logger: Logger? = null,
     private val json: Json = defaultJson,
 ) : CapabilityCachePersistence {
-    private val root = baseDir.resolve("capabilities")
-    private val lock = Any()
+    private val store = FilePersistedCapabilityCacheStore(baseDir = baseDir, logger = logger, json = json)
 
-    override fun loadAll(): List<CapabilityCacheEntry> {
-        if (!Files.isDirectory(root)) return emptyList()
-        val entries = mutableListOf<CapabilityCacheEntry>()
-        synchronized(lock) {
-            directoryStream(root).use { stream ->
-                stream.forEach { path ->
-                    val name = path.fileName.toString()
-                    if (!name.startsWith(FILE_PREFIX) || !name.endsWith(FILE_SUFFIX)) return@forEach
-                    val entry = readEntry(path) ?: return@forEach
-                    entries += entry
-                }
-            }
-        }
-        return entries
-    }
+    override fun loadAll(): List<CapabilityCacheEntry> = store.loadAll().map { it.toUiEntry() }
 
     override fun save(entry: CapabilityCacheEntry) {
-        val payload = json.encodeToString(entry)
-        synchronized(lock) {
-            runCatching {
-                Files.createDirectories(root)
-                val path = root.resolve(fileName(entry.serverId))
-                writeAtomically(path, payload)
-            }.onFailure { ex ->
-                logger?.warn("Failed to persist capability cache for '${entry.serverId}': ${ex.message}")
-            }
-        }
+        store.save(entry.toPersistedEntry())
     }
 
     override fun remove(serverId: String) {
-        synchronized(lock) {
-            runCatching {
-                val path = root.resolve(fileName(serverId))
-                Files.deleteIfExists(path)
-            }.onFailure { ex ->
-                logger?.warn("Failed to remove capability cache for '$serverId': ${ex.message}")
-            }
-        }
+        store.remove(serverId)
     }
 
     override fun retain(validIds: Set<String>) {
-        val validFiles = validIds.mapTo(mutableSetOf()) { fileName(it) }
-        synchronized(lock) {
-            runCatching {
-                if (!Files.isDirectory(root)) return@runCatching
-                directoryStream(root).use { stream ->
-                    stream.forEach { path ->
-                        val name = path.fileName.toString()
-                        if (!name.startsWith(FILE_PREFIX) || !name.endsWith(FILE_SUFFIX)) return@forEach
-                        if (validIds.isEmpty() || name !in validFiles) {
-                            Files.deleteIfExists(path)
-                        }
-                    }
-                }
-            }.onFailure { ex ->
-                logger?.warn("Failed to prune capability cache: ${ex.message}")
-            }
-        }
+        store.retain(validIds)
     }
 
-    private fun readEntry(path: Path): CapabilityCacheEntry? =
-        runCatching {
-            val payload = Files.readString(path)
-            json.decodeFromString<CapabilityCacheEntry>(payload)
-        }.onFailure { ex ->
-            logger?.warn("Failed to decode capability cache entry '${path.fileName}': ${ex.message}")
-        }.getOrNull()
+    private fun PersistedCapabilityCacheEntry.toUiEntry(): CapabilityCacheEntry =
+        CapabilityCacheEntry(
+            serverId = serverId,
+            timestampMillis = timestampMillis,
+            snapshot = snapshot.toUiSnapshot(),
+        )
 
-    private fun writeAtomically(
-        path: Path,
-        payload: String,
-    ) {
-        val tmp = path.resolveSibling("${path.fileName}.tmp")
-        Files.writeString(tmp, payload, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)
-        try {
-            Files.move(tmp, path, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
-        } catch (_: Exception) {
-            Files.move(tmp, path, StandardCopyOption.REPLACE_EXISTING)
-        }
-    }
+    private fun CapabilityCacheEntry.toPersistedEntry(): PersistedCapabilityCacheEntry =
+        PersistedCapabilityCacheEntry(
+            serverId = serverId,
+            timestampMillis = timestampMillis,
+            snapshot = snapshot.toPersistedSnapshot(),
+        )
 
-    private fun fileName(serverId: String): String = "${FILE_PREFIX}${encode(serverId)}${FILE_SUFFIX}"
+    private fun PersistedServerCapsSnapshot.toUiSnapshot(): ServerCapsSnapshot =
+        ServerCapsSnapshot(
+            serverId = serverId,
+            name = name,
+            tools =
+                tools.map { tool ->
+                    ToolSummary(
+                        name = tool.name,
+                        description = tool.description,
+                        arguments =
+                            tool.arguments.map { argument ->
+                                CapabilityArgument(
+                                    name = argument.name,
+                                    type = argument.type,
+                                    required = argument.required,
+                                )
+                            },
+                    )
+                },
+            prompts =
+                prompts.map { prompt ->
+                    PromptSummary(
+                        name = prompt.name,
+                        description = prompt.description,
+                        arguments =
+                            prompt.arguments.map { argument ->
+                                CapabilityArgument(
+                                    name = argument.name,
+                                    type = argument.type,
+                                    required = argument.required,
+                                )
+                            },
+                    )
+                },
+            resources =
+                resources.map { resource ->
+                    ResourceSummary(
+                        key = resource.key,
+                        name = resource.name,
+                        description = resource.description,
+                        arguments =
+                            resource.arguments.map { argument ->
+                                CapabilityArgument(
+                                    name = argument.name,
+                                    type = argument.type,
+                                    required = argument.required,
+                                )
+                            },
+                    )
+                },
+        )
 
-    private fun encode(serverId: String): String =
-        Base64.getUrlEncoder().withoutPadding().encodeToString(serverId.toByteArray(Charsets.UTF_8))
-
-    private fun directoryStream(path: Path): DirectoryStream<Path> = Files.newDirectoryStream(path)
+    private fun ServerCapsSnapshot.toPersistedSnapshot(): PersistedServerCapsSnapshot =
+        PersistedServerCapsSnapshot(
+            serverId = serverId,
+            name = name,
+            tools =
+                tools.map { tool ->
+                    PersistedToolSummary(
+                        name = tool.name,
+                        description = tool.description,
+                        arguments =
+                            tool.arguments.map { argument ->
+                                PersistedCapabilityArgument(
+                                    name = argument.name,
+                                    type = argument.type,
+                                    required = argument.required,
+                                )
+                            },
+                    )
+                },
+            prompts =
+                prompts.map { prompt ->
+                    PersistedPromptSummary(
+                        name = prompt.name,
+                        description = prompt.description,
+                        arguments =
+                            prompt.arguments.map { argument ->
+                                PersistedCapabilityArgument(
+                                    name = argument.name,
+                                    type = argument.type,
+                                    required = argument.required,
+                                )
+                            },
+                    )
+                },
+            resources =
+                resources.map { resource ->
+                    PersistedResourceSummary(
+                        key = resource.key,
+                        name = resource.name,
+                        description = resource.description,
+                        arguments =
+                            resource.arguments.map { argument ->
+                                PersistedCapabilityArgument(
+                                    name = argument.name,
+                                    type = argument.type,
+                                    required = argument.required,
+                                )
+                            },
+                    )
+                },
+        )
 
     private companion object {
-        private const val FILE_PREFIX = "caps_"
-        private const val FILE_SUFFIX = ".json"
-
         private val defaultJson =
             Json {
                 encodeDefaults = true

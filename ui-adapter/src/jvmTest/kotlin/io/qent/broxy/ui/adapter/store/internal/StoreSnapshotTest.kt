@@ -11,6 +11,7 @@ import io.qent.broxy.ui.adapter.catalog.CatalogRepositoryMetadata
 import io.qent.broxy.ui.adapter.catalog.CatalogServerDetail
 import io.qent.broxy.ui.adapter.catalog.CatalogServerEntry
 import io.qent.broxy.ui.adapter.models.UiMcpServerConfig
+import io.qent.broxy.ui.adapter.models.UiPresetCore
 import io.qent.broxy.ui.adapter.models.UiServerConnStatus
 import io.qent.broxy.ui.adapter.models.UiStdioTransport
 import io.qent.broxy.ui.adapter.models.UiStreamableHttpTransport
@@ -152,6 +153,19 @@ class StoreSnapshotTest {
         val server = ready.servers.first()
         assertEquals(UiServerConnStatus.Available, server.status)
         assertEquals(null, server.connectingSinceEpochMillis)
+    }
+
+    @Test
+    fun withPresets_retains_management_built_in_default_id_without_file_backed_presets() {
+        val snapshot =
+            StoreSnapshot(
+                isLoading = false,
+                defaultPresetId = UiPresetCore.PRESET_MANAGEMENT_ID,
+            )
+
+        val updated = snapshot.withPresets(emptyList())
+
+        assertEquals(UiPresetCore.PRESET_MANAGEMENT_ID, updated.defaultPresetId)
     }
 
     private object NoOpIntents : Intents {

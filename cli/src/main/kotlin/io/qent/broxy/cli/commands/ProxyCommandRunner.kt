@@ -5,6 +5,7 @@ import io.qent.broxy.core.config.ConfigurationObserver
 import io.qent.broxy.core.config.ConfigurationWatcher
 import io.qent.broxy.core.config.EnvironmentVariableResolver
 import io.qent.broxy.core.config.JsonConfigurationRepository
+import io.qent.broxy.core.models.BuiltInPresetResolver
 import io.qent.broxy.core.models.McpServersConfig
 import io.qent.broxy.core.models.Preset
 import io.qent.broxy.core.proxy.runtime.ProxyController
@@ -86,7 +87,9 @@ internal open class ProxyCommandRunner(
         try {
             val repo = dependencies.repositoryFactory(baseDir, logger)
             var serversCfg = repo.loadMcpConfig()
-            var currentPreset = repo.loadPreset(options.presetId)
+            var currentPreset =
+                BuiltInPresetResolver.resolve(options.presetId)
+                    ?: repo.loadPreset(options.presetId)
             val inboundTransport = options.toInboundTransport()
 
             val startResult = proxyLifecycle.start(serversCfg, currentPreset, inboundTransport)

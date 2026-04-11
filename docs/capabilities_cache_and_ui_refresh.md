@@ -1,7 +1,7 @@
 # UI capabilities: cache, statuses, and background refresh
 
-This document describes the UI-oriented capability subsystem (for display and validation). It is
-separate from the proxy preset filtering pipeline.
+This document describes the persisted capability snapshot subsystem used by the UI and by JVM
+preset-management inspection fallback. It is separate from the proxy preset filtering pipeline.
 
 ## Where it is used
 
@@ -10,6 +10,9 @@ separate from the proxy preset filtering pipeline.
 - the server list and connection statuses;
 - capability snapshots for UI (tool/prompt/resource counts and argument summaries);
 - background refresh based on the configured interval.
+
+JVM preset-management backend (`JvmPresetManagementBackend`) also reads the same persisted snapshot
+format when live runtime capabilities are unavailable (`capabilities_source = "cached"`).
 
 UI (Compose Desktop) uses these snapshots to display compact summaries in:
 
@@ -49,7 +52,13 @@ JVM builds resolve the cache root via `AppCacheDir` and store JSON entries under
 - Linux: `${XDG_CACHE_HOME:-~/.cache}/broxy/capabilities/`
 - Windows: `%LOCALAPPDATA%\\broxy\\Cache\\capabilities\\`
 
-## Layer separation: UI snapshots vs proxy capabilities
+Shared schema and file store:
+
+- schema DTOs and conversions: `core/src/commonMain/kotlin/io/qent/broxy/core/capabilities/PersistedCapabilitySnapshots.kt`
+- JVM file store: `core/src/jvmMain/kotlin/io/qent/broxy/core/capabilities/FilePersistedCapabilityCacheStore.kt`
+- ui-adapter bridge: `ui-adapter/src/jvmMain/kotlin/io/qent/broxy/ui/adapter/capabilities/FileCapabilityCachePersistence.kt`
+
+## Layer separation: snapshot model vs proxy capabilities
 
 Important distinction:
 
@@ -61,7 +70,8 @@ Important distinction:
     - argument lists derived from JSON Schema (best-effort);
     - includes `serverId` and `name` for display.
 
-UI snapshots never participate in routing; they are for inspection and display only.
+Snapshots never participate in request routing. They are used for inspection/display and, for
+preset-management tools, read-only fallback descriptions when live capabilities are missing.
 
 ## CapabilityRefresher: orchestrator
 

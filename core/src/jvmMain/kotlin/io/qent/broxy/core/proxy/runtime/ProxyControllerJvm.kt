@@ -1,13 +1,17 @@
 package io.qent.broxy.core.proxy.runtime
 
+import io.qent.broxy.core.capabilities.FilePersistedCapabilityCacheStore
 import io.qent.broxy.core.config.JsonConfigurationRepository
 import io.qent.broxy.core.mcp.McpServerConnection
 import io.qent.broxy.core.mcp.ServerCapabilities
 import io.qent.broxy.core.models.McpServerConfig
 import io.qent.broxy.core.models.Preset
 import io.qent.broxy.core.models.TransportConfig
+import io.qent.broxy.core.presetmanagement.JvmPresetManagementBackend
+import io.qent.broxy.core.presetmanagement.PresetManagementBackend
 import io.qent.broxy.core.proxy.ProxyMcpServer
 import io.qent.broxy.core.proxy.inbound.InboundPresetResolver
+import io.qent.broxy.core.utils.AppCacheDir
 import io.qent.broxy.core.utils.CollectingLogger
 import io.qent.broxy.core.utils.LogEvent
 import kotlinx.coroutines.CoroutineScope
@@ -37,15 +41,29 @@ private class JvmProxyController(
 
     private var downstreams: List<McpServerConnection> = emptyList()
     private var managedDownstreams: Map<String, ManagedDownstream> = emptyMap()
+    private val baseDir = resolveConfigDir(configDir)
+    private val presetRepository = JsonConfigurationRepository(baseDir = baseDir, logger = logger)
+    private val capabilityCacheStore =
+        FilePersistedCapabilityCacheStore(
+            baseDir = AppCacheDir.resolve(),
+            logger = logger,
+        )
     private val presetResolver: InboundPresetResolver =
         { presetId ->
             runCatching {
-                JsonConfigurationRepository(
-                    baseDir = resolveConfigDir(configDir),
-                    logger = logger,
-                ).loadPreset(presetId)
+                presetRepository.loadPreset(presetId)
             }
         }
+    private val fallbackPresetManagementBackend: PresetManagementBackend =
+        JvmPresetManagementBackend(
+            configurationRepository = presetRepository,
+            liveCapabilitiesProvider = { runtimeLifecycle.currentProxy()?.snapshotDownstreamCapabilities().orEmpty() },
+            capabilityCacheStore = capabilityCacheStore,
+            logger = logger,
+        )
+
+    @Volatile
+    private var presetManagementBackend: PresetManagementBackend = fallbackPresetManagementBackend
     private val _capabilityUpdates = MutableSharedFlow<Map<String, ServerCapabilities>>(replay = 1)
     private val _serverStatusUpdates = MutableSharedFlow<ServerConnectionUpdate>(extraBufferCapacity = 32)
     private val runtimeScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -177,6 +195,18 @@ private class JvmProxyController(
         runtimeLifecycle.updateAdapterMode(enabled)
     }
 
+    override fun registerPresetManagementBackend(backend: PresetManagementBackend) {
+        presetManagementBackend = backend
+        runtimeLifecycle.updatePresetManagementBackend(backend)
+        runtimeLifecycle.refreshInboundCapabilities(force = true)
+    }
+
+    override fun clearPresetManagementBackend() {
+        presetManagementBackend = fallbackPresetManagementBackend
+        runtimeLifecycle.updatePresetManagementBackend(fallbackPresetManagementBackend)
+        runtimeLifecycle.refreshInboundCapabilities(force = true)
+    }
+
     override fun refreshServerCapabilities(serverId: String): Result<Unit> =
         runCatching {
             val proxy = runtimeLifecycle.requireProxy()
@@ -254,6 +284,7 @@ private class JvmProxyController(
                     awaitInitialCapabilities = awaitInitialCapabilities,
                     fallbackPromptsAndResourcesToTools = fallbackPromptsAndResourcesToTools,
                     adapterMode = adapterMode,
+                    presetManagementBackend = presetManagementBackend,
                 )
             if (!awaitInitialCapabilities) {
                 refreshScheduler.startInitial(proxy, downstreams)

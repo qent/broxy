@@ -6,6 +6,7 @@ import io.qent.broxy.core.mcp.ServerStatus
 import io.qent.broxy.core.mcp.collectCapabilities
 import io.qent.broxy.core.models.Preset
 import io.qent.broxy.core.models.TransportConfig
+import io.qent.broxy.core.presetmanagement.PresetManagementBackend
 import io.qent.broxy.core.utils.ConsoleLogger
 import io.qent.broxy.core.utils.Logger
 import kotlinx.coroutines.runBlocking
@@ -16,7 +17,7 @@ import kotlinx.serialization.json.JsonObject
  * Main broxy server. Aggregates downstream MCP servers, exposes filtered
  * capabilities based on a preset, and routes tool calls to the appropriate server.
  */
-@Suppress("TooManyFunctions")
+@Suppress("TooManyFunctions", "LongParameterList")
 class ProxyMcpServer(
     downstreams: List<McpServerConnection>,
     private val logger: Logger = ConsoleLogger,
@@ -24,6 +25,7 @@ class ProxyMcpServer(
     private val onCapabilitiesUpdated: ((Map<String, ServerCapabilities>) -> Unit)? = null,
     fallbackPromptsAndResourcesToToolsEnabled: Boolean = false,
     adapterModeEnabled: Boolean = false,
+    presetManagementBackend: PresetManagementBackend? = null,
 ) : ProxyServer {
     @Volatile
     private var status: ServerStatus = ServerStatus.Stopped
@@ -33,6 +35,9 @@ class ProxyMcpServer(
 
     @Volatile
     private var currentPreset: Preset? = null
+
+    @Volatile
+    var presetManagementBackend: PresetManagementBackend? = presetManagementBackend
 
     private val namespace: NamespaceManager = DefaultNamespaceManager()
     private val presetEngine: PresetEngine = DefaultPresetEngine(toolFilter)
@@ -94,6 +99,12 @@ class ProxyMcpServer(
     /** Returns the current filtered capabilities view. */
     val capabilities: ServerCapabilities
         get() = stateStore.currentCapabilities
+
+    /** Returns the currently selected preset, if any. */
+    fun currentPreset(): Preset? = currentPreset
+
+    /** True when the selected preset is the built-in preset-management mode. */
+    fun isPresetManagementMode(): Boolean = currentPreset?.id == Preset.PRESET_MANAGEMENT_ID
 
     /** Returns the latest raw downstream capabilities snapshot used for filtering. */
     fun snapshotDownstreamCapabilities(): Map<String, ServerCapabilities> = stateStore.snapshotCapabilities()

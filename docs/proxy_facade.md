@@ -97,6 +97,32 @@ File: `core/src/jvmMain/kotlin/io/qent/broxy/core/proxy/inbound/InboundServers.k
 - prompts: `server.addPrompt(...)` / `server.addPrompts(...)`
 - resources: `server.addResource(...)` / `server.addResources(...)`
 
+Surface selection precedence during sync (`syncSdkServer`) is strict:
+
+1. if current preset is `__preset_management__` -> register preset-management tools only;
+2. else if `adapterMode=true` -> register adapter-mode fixed tools only;
+3. else -> register normal filtered tools/prompts/resources (plus optional fallback prompt/resource tools).
+
+This precedence is applied for the main inbound server, preset-pinned HTTP/SSE sessions, and remote
+SDK facade re-sync paths.
+
+### Preset management facade mode
+
+When `ProxyMcpServer.currentPreset()?.id == "__preset_management__"`, the SDK surface is fixed to:
+
+- `get_preset_creation_algorithm`
+- `list_server_names`
+- `get_server_description`
+- `list_preset_names`
+- `get_preset_description`
+- `create_preset`
+
+In this mode:
+
+- no downstream tools are registered;
+- prompts/resources are not registered;
+- adapter-mode tools are not registered even if `adapterMode=true`.
+
 ### Prompt/resource fallback tools
 
 When `fallbackPromptsAndResourcesToTools` is enabled in `mcp.json`, the inbound SDK server also
@@ -146,6 +172,9 @@ When `adapterMode` is toggled at runtime Broxy:
 1) refreshes downstream capabilities and re-applies the current preset to keep the filtered view current;
 2) re-syncs the running SDK `Server` via `syncSdkServer(...)` so the exposed tool surface switches
    between the adapter tools and the full capabilities list.
+
+If the active preset is `__preset_management__`, adapter mode has no effect on exposed tools
+because management-mode precedence wins.
 
 Inbound does not restart; clients see the updated tool surface within the same session.
 

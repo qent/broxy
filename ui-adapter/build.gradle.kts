@@ -108,8 +108,10 @@ tasks.withType<KtLintCheckTask>().configureEach {
 
 val uiAdapterCoreAllowedPrefixes =
     listOf(
+        "io.qent.broxy.core.capabilities",
         "io.qent.broxy.core.mcp",
         "io.qent.broxy.core.models",
+        "io.qent.broxy.core.presetmanagement",
         "io.qent.broxy.core.proxy.runtime",
         "io.qent.broxy.core.repository",
         "io.qent.broxy.core.utils",

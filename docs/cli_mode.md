@@ -7,7 +7,8 @@ Broxy CLI exposes one command:
 ## `broxy proxy` flags, defaults, and aliases
 
 - `--config-dir`: config directory (default `~/.config/broxy`).
-- `--preset-id`: required preset id (loads `preset_<id>.json`).
+- `--preset-id`: required preset id. Supports both file-backed presets (`preset_<id>.json`) and
+  built-ins (`__empty__`, `__all_enabled__`, `__preset_management__`).
 - `--inbound`: inbound transport (default `stdio`).
   - `stdio` aliases: `local`
   - `http` aliases: `remote`, `sse`
@@ -23,6 +24,18 @@ Broxy CLI exposes one command:
   - active MCP servers file resolved from `mcpFilePath`
   - `preset_*.json`
 - Inbound server stays up; SDK capabilities are resynced in place.
+
+When started with `--preset-id __preset_management__`, CLI exposes the fixed management-only MCP
+tool surface:
+
+- `get_preset_creation_algorithm`
+- `list_server_names`
+- `get_server_description`
+- `list_preset_names`
+- `get_preset_description`
+- `create_preset`
+
+No downstream tools/prompts/resources are published in this mode.
 
 ## Logging (CLI contract)
 

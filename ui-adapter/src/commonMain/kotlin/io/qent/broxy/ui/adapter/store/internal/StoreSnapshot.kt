@@ -70,7 +70,12 @@ internal data class StoreSnapshot(
 )
 
 internal fun StoreSnapshot.withPresets(newPresets: List<UiPreset>): StoreSnapshot {
-    val builtinIds = setOf(UiPresetCore.EMPTY_PRESET_ID, UiPresetCore.ALL_ENABLED_PRESET_ID)
+    val builtinIds =
+        setOf(
+            UiPresetCore.EMPTY_PRESET_ID,
+            UiPresetCore.ALL_ENABLED_PRESET_ID,
+            UiPresetCore.PRESET_MANAGEMENT_ID,
+        )
     if (newPresets.isEmpty()) {
         return copy(
             presets = emptyList(),

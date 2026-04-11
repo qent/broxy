@@ -14,6 +14,7 @@ import io.qent.broxy.core.mcp.auth.toSnapshotLocked
 import io.qent.broxy.core.models.McpServerConfig
 import io.qent.broxy.core.models.Preset
 import io.qent.broxy.core.models.TransportConfig
+import io.qent.broxy.core.presetmanagement.PresetManagementBackend
 import io.qent.broxy.core.proxy.ProxyMcpServer
 import io.qent.broxy.core.proxy.inbound.InboundPresetResolver
 import io.qent.broxy.core.proxy.inbound.InboundServer
@@ -337,6 +338,7 @@ internal class DownstreamManager(
         }
 }
 
+@Suppress("TooManyFunctions")
 internal class ProxyRuntimeLifecycle(
     private val logger: CollectingLogger,
     private val emitCapabilities: (Map<String, ServerCapabilities>) -> Unit,
@@ -369,6 +371,7 @@ internal class ProxyRuntimeLifecycle(
         awaitInitialCapabilities: Boolean,
         fallbackPromptsAndResourcesToTools: Boolean,
         adapterMode: Boolean,
+        presetManagementBackend: PresetManagementBackend,
     ): ProxyMcpServer {
         stateLock.withLock {
             check(state is RuntimeState.Stopped) { "Proxy is already running" }
@@ -387,6 +390,7 @@ internal class ProxyRuntimeLifecycle(
                 },
                 fallbackPromptsAndResourcesToToolsEnabled = fallbackPromptsAndResourcesToTools,
                 adapterModeEnabled = adapterMode,
+                presetManagementBackend = presetManagementBackend,
             )
         var inboundServer: InboundServer? = null
         try {
@@ -469,6 +473,11 @@ internal class ProxyRuntimeLifecycle(
 
     fun updateDownstreams(downstreams: List<McpServerConnection>) {
         requireProxy().updateDownstreams(downstreams)
+    }
+
+    fun updatePresetManagementBackend(backend: PresetManagementBackend) {
+        val proxy = (state as? RuntimeState.Running)?.proxy ?: return
+        proxy.presetManagementBackend = backend
     }
 
     fun refreshInboundCapabilities(force: Boolean = false): Result<Unit>? {

@@ -7,6 +7,17 @@ import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 import io.qent.broxy.core.mcp.PromptDescriptor
 import io.qent.broxy.core.mcp.ResourceDescriptor
 import io.qent.broxy.core.mcp.ToolDescriptor
+import io.qent.broxy.core.presetmanagement.CreatePresetRequest
+import io.qent.broxy.core.presetmanagement.CreatePresetResponse
+import io.qent.broxy.core.presetmanagement.ListPresetNamesResponse
+import io.qent.broxy.core.presetmanagement.ListServerNamesResponse
+import io.qent.broxy.core.presetmanagement.PresetCreationAlgorithmResponse
+import io.qent.broxy.core.presetmanagement.PresetDescriptionRequest
+import io.qent.broxy.core.presetmanagement.PresetDescriptionResponse
+import io.qent.broxy.core.presetmanagement.PresetManagementBackend
+import io.qent.broxy.core.presetmanagement.PresetManagementToolNames
+import io.qent.broxy.core.presetmanagement.ServerDescriptionRequest
+import io.qent.broxy.core.presetmanagement.ServerDescriptionResponse
 import io.qent.broxy.core.utils.ConsoleLogger
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -166,7 +177,83 @@ class SdkServerFactoryTest {
         assertTrue(server.resources.isEmpty())
     }
 
+    @Test
+    fun `management mode takes precedence over adapter mode and exposes only management tools`() {
+        val server =
+            Server(
+                serverInfo = Implementation(name = "test", version = "0"),
+                options =
+                    ServerOptions(
+                        capabilities =
+                            SdkServerCapabilities(
+                                prompts = SdkServerCapabilities.Prompts(listChanged = false),
+                                resources = SdkServerCapabilities.Resources(listChanged = false, subscribe = false),
+                                tools = SdkServerCapabilities.Tools(listChanged = false),
+                                logging = SdkServerCapabilities.Logging,
+                            ),
+                    ),
+            )
+
+        val backend =
+            ProxyBackend(
+                callTool = { _, _ -> Result.success(JsonObject(emptyMap())) },
+                getPrompt = { _, _ -> Result.success(JsonObject(emptyMap())) },
+                readResource = { _ -> Result.success(JsonObject(emptyMap())) },
+            )
+
+        syncSdkServer(
+            server = server,
+            capabilities =
+                ProxyServerCapabilities(
+                    tools = listOf(ToolDescriptor(name = "s1_t1")),
+                    prompts = listOf(PromptDescriptor(name = "p1")),
+                    resources = listOf(ResourceDescriptor(name = "r1", uri = "file:///r1")),
+                ),
+            backend = backend,
+            logger = ConsoleLogger,
+            adapterMode = true,
+            managementMode = true,
+            presetManagementBackend = NoopPresetManagementBackend,
+        )
+
+        assertEquals(PresetManagementToolNames.all.toSet(), server.tools.keys)
+        assertTrue(!server.tools.containsKey("get_available_actions"))
+        assertTrue(!server.tools.containsKey("execute_action"))
+        assertTrue(server.prompts.isEmpty())
+        assertTrue(server.resources.isEmpty())
+    }
+
     private fun decodeWithFallback(element: kotlinx.serialization.json.JsonElement) =
         runCatching { decodeCallToolResult(json, element) }
             .getOrElse { fallbackCallToolResult(element) }
+
+    private object NoopPresetManagementBackend : PresetManagementBackend {
+        override suspend fun getPresetCreationAlgorithm(): PresetCreationAlgorithmResponse =
+            PresetCreationAlgorithmResponse(prompt = "prompt", steps = emptyList())
+
+        override suspend fun listServerNames(): ListServerNamesResponse = ListServerNamesResponse(servers = emptyList())
+
+        override suspend fun getServerDescription(request: ServerDescriptionRequest): ServerDescriptionResponse =
+            ServerDescriptionResponse(
+                serverId = "s1",
+                serverName = request.serverName,
+                description = "desc",
+                capabilitiesSource = io.qent.broxy.core.presetmanagement.CapabilitySourceStatus.Live,
+            )
+
+        override suspend fun listPresetNames(): ListPresetNamesResponse = ListPresetNamesResponse(presets = emptyList())
+
+        override suspend fun getPresetDescription(request: PresetDescriptionRequest): PresetDescriptionResponse =
+            PresetDescriptionResponse(
+                presetId = "p1",
+                presetName = request.presetName,
+                description = "desc",
+            )
+
+        override suspend fun createPreset(request: CreatePresetRequest): CreatePresetResponse =
+            CreatePresetResponse(
+                presetId = request.presetId,
+                presetName = request.presetName,
+            )
+    }
 }

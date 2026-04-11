@@ -91,6 +91,7 @@ class JsonConfigurationRepository(
     }
 
     override fun loadPreset(id: String): Preset {
+        validatePathSafePresetId(id).getOrElse { throw it }
         val file = dir.resolve("preset_$id.json")
         if (!file.exists() || !file.isRegularFile()) {
             throw ConfigurationException("Preset '$id' not found at ${file.toAbsolutePath()}")
@@ -116,6 +117,7 @@ class JsonConfigurationRepository(
     }
 
     override fun savePreset(preset: Preset) {
+        validatePathSafePresetId(preset.id).getOrElse { throw it }
         val file = dir.resolve("preset_${preset.id}.json")
         try {
             if (!Files.exists(dir)) Files.createDirectories(dir)
@@ -164,6 +166,7 @@ class JsonConfigurationRepository(
     }
 
     override fun deletePreset(id: String) {
+        validatePathSafePresetId(id).getOrElse { throw it }
         val file = dir.resolve("preset_$id.json")
         try {
             Files.deleteIfExists(file)

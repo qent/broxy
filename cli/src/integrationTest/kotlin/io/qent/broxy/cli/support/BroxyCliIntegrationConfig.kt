@@ -1,5 +1,6 @@
 package io.qent.broxy.cli.support
 
+import io.qent.broxy.core.presetmanagement.PresetManagementToolNames
 import io.qent.broxy.core.utils.FilteredLogger
 import io.qent.broxy.core.utils.LogLevel
 
@@ -8,6 +9,7 @@ internal object BroxyCliIntegrationConfig {
     const val FALLBACK_PRESET_ID = "fallback"
     const val MIXED_PRESET_ID = "mixed"
     const val NEGATIVE_PRESET_ID = "negative"
+    const val PRESET_MANAGEMENT_PRESET_ID = "__preset_management__"
     const val TEST_TIMEOUT_MILLIS = 15_000L
     const val TEST_SERVER_HOME_PROPERTY = "broxy.testMcpServerHome"
     const val TEST_SERVER_COMMAND_PLACEHOLDER = "__TEST_MCP_SERVER_COMMAND__"
@@ -101,6 +103,7 @@ internal object BroxyCliIntegrationConfig {
     val EXPECTED_RESOURCES = RESOURCE_EXPECTATIONS.keys
     val EXPECTED_RESOURCE_TEMPLATES = RESOURCE_TEMPLATE_EXPECTATIONS.keys
     val ADAPTER_TOOL_NAMES = setOf(ADAPTER_GET_ACTIONS_TOOL, ADAPTER_EXECUTE_ACTION_TOOL)
+    val PRESET_MANAGEMENT_TOOL_NAMES = PresetManagementToolNames.all.toSet()
     val TEST_LOGGER = FilteredLogger(LogLevel.WARN)
 
     data class ScenarioConfig(
@@ -170,6 +173,13 @@ internal object BroxyCliIntegrationConfig {
     val OUTAGE_ADAPTER_SCENARIO =
         OUTAGE_SCENARIO.copy(
             configResource = "/integration/mcp_adapter.json",
+        )
+
+    val PRESET_MANAGEMENT_SCENARIO =
+        ScenarioConfig(
+            presetId = PRESET_MANAGEMENT_PRESET_ID,
+            configResource = "/integration/mcp.json",
+            presetResource = "/integration/preset_test.json",
         )
 
     enum class StdioCommandMode {

@@ -14,6 +14,7 @@ data class Preset(
     companion object {
         const val EMPTY_PRESET_ID: String = "__empty__"
         const val ALL_ENABLED_PRESET_ID: String = "__all_enabled__"
+        const val PRESET_MANAGEMENT_ID: String = "__preset_management__"
 
         fun empty(): Preset =
             Preset(
@@ -31,6 +32,15 @@ data class Preset(
                 tools = emptyList(),
                 prompts = null,
                 resources = null,
+            )
+
+        fun presetManagement(): Preset =
+            Preset(
+                id = PRESET_MANAGEMENT_ID,
+                name = "Preset management",
+                tools = emptyList(),
+                prompts = emptyList(),
+                resources = emptyList(),
             )
     }
 }

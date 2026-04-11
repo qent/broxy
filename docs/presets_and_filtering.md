@@ -42,9 +42,15 @@ Broxy reserves a few preset ids that are not backed by `preset_*.json` files:
 - `__empty__` ("No preset") - always returns empty capabilities.
 - `__all_enabled__` ("All enabled servers") - exposes tools/prompts/resources from every enabled
   downstream server (the enabled subset from config/runtime, not all servers in the config file).
+- `__preset_management__` ("Preset management") - enables a fixed management-only MCP surface
+  (`get_preset_creation_algorithm`, `list_server_names`, `get_server_description`,
+  `list_preset_names`, `get_preset_description`, `create_preset`) and does not expose downstream
+  tools/prompts/resources or adapter-mode tools.
 
 The UI treats these as fixed presets for selection, and the core filter bypasses allow-list checks
 for `__all_enabled__` by building a full pass-through view with prefixed tool names.
+Built-ins are resolved through `BuiltInPresetResolver` and are recognized consistently in UI runtime
+switching, inbound preset-pinned routes (`/mcp/{presetId}`, `/sse/{presetId}`), and CLI startup.
 
 ## Filtering behavior (DefaultToolFilter)
 
@@ -114,6 +120,13 @@ Semantics:
 Resources behave the same:
 
 - allow list key is `(uri ?: name)` compared to `ResourceReference.resourceKey`.
+
+These exact null-vs-empty rules are also used by preset-management inspection (`get_preset_description`):
+
+- tools are always strict explicit allow-list only;
+- `prompts = null` / `resources = null` means unrestricted within in-scope servers;
+- `prompts = []` / `resources = []` means none;
+- non-empty prompt/resource lists are explicit allow-lists.
 
 ### Step 5: routing maps
 

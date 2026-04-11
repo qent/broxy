@@ -14,6 +14,8 @@ Categories:
 | io.qent.broxy.core.config.ConfigurationManager | runtime | config mutation workflow (AppStore/StoreConfigGateway) |
 | io.qent.broxy.core.config.EnvironmentVariableResolver | runtime | STDIO PATH/env resolution (ToolServiceJvm) |
 | io.qent.broxy.core.config.JsonConfigurationRepository | runtime | JVM repository wiring (RepositoriesJvm) |
+| io.qent.broxy.core.capabilities.FilePersistedCapabilityCacheStore | runtime | shared persisted capability snapshot store (JVM) |
+| io.qent.broxy.core.capabilities.PersistedCapabilityCacheStore | contracts/models | cache store contract for app-aware preset management backend |
 | io.qent.broxy.core.mcp.DefaultMcpServerConnection | runtime | JVM capability fetch fallback (ToolServiceJvm) |
 | io.qent.broxy.core.mcp.PromptDescriptor | contracts/models | raw capability descriptors for UI snapshots |
 | io.qent.broxy.core.mcp.ResourceDescriptor | contracts/models | raw capability descriptors for UI snapshots |
@@ -37,6 +39,7 @@ Categories:
 | io.qent.broxy.core.models.ResourceReference | contracts/models | mapper-only (UI <-> core) |
 | io.qent.broxy.core.models.ToolReference | contracts/models | mapper-only (UI <-> core) |
 | io.qent.broxy.core.models.TransportConfig | contracts/models | mapper-only (UI <-> core) |
+| io.qent.broxy.core.presetmanagement.* | contracts/models + runtime | preset-management backend contracts and JVM implementation wiring |
 | io.qent.broxy.core.proxy.runtime.ProxyController | runtime | JVM app-store factory wiring |
 | io.qent.broxy.core.proxy.runtime.ProxyLifecycle | runtime | JVM app-store factory wiring |
 | io.qent.broxy.core.proxy.runtime.ProxyRuntimeFacade | contracts/models | facade for UI/runtime calls |
@@ -62,6 +65,8 @@ Categories:
 - `io.qent.broxy.core.proxy.runtime.ProxyRuntimeFacade` for proxy start/stop/refresh, plus
   `ServerConnectionStatus`/`ServerConnectionUpdate` for status streams.
 - `io.qent.broxy.core.models` only inside UI <-> core mapper code.
+- `io.qent.broxy.core.capabilities` for shared persisted capability snapshot contracts/storage.
+- `io.qent.broxy.core.presetmanagement` for preset-management backend contracts and app-aware wiring.
 - `io.qent.broxy.core.utils` for logging interfaces; JVM wiring uses logging sinks and cache helpers.
 - `io.qent.broxy.core.config` only in AppStore/store intent config gateway and JVM wiring
   (`EnvironmentVariableResolver`, `JsonConfigurationRepository`).
@@ -82,6 +87,8 @@ JVM/config wiring uses file-specific exceptions:
 
 - `io.qent.broxy.core.mcp`
 - `io.qent.broxy.core.models`
+- `io.qent.broxy.core.capabilities`
+- `io.qent.broxy.core.presetmanagement`
 - `io.qent.broxy.core.proxy.runtime`
 - `io.qent.broxy.core.repository`
 - `io.qent.broxy.core.utils`

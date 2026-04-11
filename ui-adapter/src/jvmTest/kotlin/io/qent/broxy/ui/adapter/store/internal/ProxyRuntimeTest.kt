@@ -5,6 +5,7 @@ import io.qent.broxy.core.models.McpServerConfig
 import io.qent.broxy.core.models.McpServersConfig
 import io.qent.broxy.core.models.Preset
 import io.qent.broxy.core.models.TransportConfig
+import io.qent.broxy.core.presetmanagement.PresetManagementBackend
 import io.qent.broxy.core.proxy.runtime.ProxyController
 import io.qent.broxy.core.proxy.runtime.ProxyLifecycle
 import io.qent.broxy.core.proxy.runtime.ServerConnectionUpdate
@@ -163,14 +164,59 @@ class ProxyRuntimeTest {
             assertEquals(null, remoteConnector.lastChangeType)
         }
 
+    @Test
+    fun ensureInboundRunning_resolves_management_built_in_without_repository_load() =
+        runTest {
+            val config = McpServersConfig()
+            val state =
+                SnapshotState(
+                    defaultPresetId = Preset.PRESET_MANAGEMENT_ID,
+                    activeProxyPresetId = null,
+                    proxyStatus = UiProxyStatus.Stopped,
+                    activeInbound = null,
+                )
+            val repository =
+                FakeConfigurationRepository(
+                    preset = Preset(id = "unused", name = "Unused"),
+                    failOnLoadPreset = true,
+                )
+            val remoteConnector = RecordingRemoteConnector()
+            val proxyController = FakeProxyController()
+            val proxyLifecycle = ProxyLifecycle(proxyController, noopLogger)
+            val runtime =
+                ProxyRuntime(
+                    configurationRepository = repository,
+                    proxyRuntime = proxyLifecycle,
+                    logger = CollectingLogger(delegate = noopLogger),
+                    state = state.asAccess(config),
+                    publishReady = {},
+                    remoteConnector = remoteConnector,
+                    onProxyStatusChanged = {},
+                )
+
+            runtime.ensureInboundRunning()
+
+            assertEquals(Preset.PRESET_MANAGEMENT_ID, proxyController.startedPresetId)
+            assertEquals(0, repository.loadPresetCalls)
+        }
+
     private class FakeConfigurationRepository(
         private val preset: Preset,
+        private val failOnLoadPreset: Boolean = false,
     ) : ConfigurationRepository {
+        var loadPresetCalls: Int = 0
+
         override fun loadMcpConfig(): McpServersConfig = McpServersConfig()
 
         override fun saveMcpConfig(config: McpServersConfig) {}
 
-        override fun loadPreset(id: String): Preset = preset
+        override fun loadPreset(id: String): Preset {
+            loadPresetCalls += 1
+            if (failOnLoadPreset) {
+                error("loadPreset should not be called for built-in preset")
+            }
+            return preset
+        }
 
         override fun savePreset(preset: Preset) {}
 
@@ -235,6 +281,10 @@ class ProxyRuntimeTest {
         override fun updateFallbackPromptsAndResourcesToTools(enabled: Boolean) {}
 
         override fun updateAdapterMode(enabled: Boolean) {}
+
+        override fun registerPresetManagementBackend(backend: PresetManagementBackend) {}
+
+        override fun clearPresetManagementBackend() {}
 
         override fun refreshServerCapabilities(serverId: String): Result<Unit> = Result.success(Unit)
 

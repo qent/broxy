@@ -388,6 +388,11 @@ private fun createTrayModel(
                             name = strings.allEnabledServers,
                             isActive = activePresetId == UiPresetCore.ALL_ENABLED_PRESET_ID,
                         ),
+                        TrayPresetItem(
+                            id = UiPresetCore.PRESET_MANAGEMENT_ID,
+                            name = strings.presetManagement,
+                            isActive = activePresetId == UiPresetCore.PRESET_MANAGEMENT_ID,
+                        ),
                     )
                 val presets =
                     uiState.presets.map { preset ->

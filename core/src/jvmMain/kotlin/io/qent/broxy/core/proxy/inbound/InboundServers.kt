@@ -16,6 +16,7 @@ import io.modelcontextprotocol.kotlin.sdk.server.StdioServerTransport
 import io.qent.broxy.core.mcp.McpServerConnection
 import io.qent.broxy.core.mcp.ServerCapabilities
 import io.qent.broxy.core.mcp.ServerStatus
+import io.qent.broxy.core.models.BuiltInPresetResolver
 import io.qent.broxy.core.models.Preset
 import io.qent.broxy.core.models.TransportConfig
 import io.qent.broxy.core.proxy.ProxyMcpServer
@@ -358,6 +359,7 @@ private class KtorStreamableHttpInboundServer(
             sessionProxy.updateDownstreams(downstreams)
             sessionProxy.fallbackPromptsAndResourcesToTools = proxy.fallbackPromptsAndResourcesToTools
             sessionProxy.adapterMode = proxy.adapterMode
+            sessionProxy.presetManagementBackend = proxy.presetManagementBackend
             sessionProxy.setCapabilitiesSnapshot(rawCapabilities)
         }
         runCatching { syncSdkServer(session.sdkServer, sessionProxy, logger) }
@@ -408,6 +410,7 @@ private class KtorStreamableHttpInboundServer(
                 logger = logger,
                 fallbackPromptsAndResourcesToToolsEnabled = proxy.fallbackPromptsAndResourcesToTools,
                 adapterModeEnabled = proxy.adapterMode,
+                presetManagementBackend = proxy.presetManagementBackend,
             )
         sessionProxy.start(preset, TransportConfig.StreamableHttpTransport(url))
         sessionProxy.setCapabilitiesSnapshot(proxy.snapshotDownstreamCapabilities())
@@ -415,15 +418,9 @@ private class KtorStreamableHttpInboundServer(
     }
 
     private fun resolvePreset(presetId: String): Preset =
-        when (presetId) {
-            Preset.EMPTY_PRESET_ID -> Preset.empty()
-            Preset.ALL_ENABLED_PRESET_ID -> Preset.allEnabled()
-            else ->
-                presetResolver
-                    ?.invoke(presetId)
-                    ?.getOrElse { throw InboundPresetNotFoundException(presetId) }
-                    ?: throw InboundPresetNotFoundException(presetId)
-        }
+        BuiltInPresetResolver.resolve(presetId)
+            ?: presetResolver?.invoke(presetId)?.getOrElse { throw InboundPresetNotFoundException(presetId) }
+            ?: throw InboundPresetNotFoundException(presetId)
 }
 
 private fun joinRoutePath(

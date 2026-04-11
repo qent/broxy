@@ -1,6 +1,8 @@
 package io.qent.broxy.ui.adapter.store
 
 import io.qent.broxy.core.config.ConfigurationManager
+import io.qent.broxy.core.models.McpServerConfig
+import io.qent.broxy.core.presetmanagement.NamedPresetManagementItem
 import io.qent.broxy.core.proxy.runtime.ProxyRuntimeFacade
 import io.qent.broxy.core.repository.ConfigurationRepository
 import io.qent.broxy.core.utils.CollectingLogger
@@ -291,6 +293,26 @@ class AppStore(
         serverId: String,
         forceRefresh: Boolean = false,
     ): UiServerCapsSnapshot? = capabilityRefresher.getServerCaps(serverId, forceRefresh)?.toUiModel()
+
+    internal fun currentServersForPresetManagement(): List<McpServerConfig> = snapshot.servers.toCore()
+
+    internal fun currentPresetNamesForPresetManagement(): List<NamedPresetManagementItem> =
+        snapshot.presets.map { preset ->
+            NamedPresetManagementItem(
+                id = preset.id,
+                name = preset.name,
+            )
+        }
+
+    internal suspend fun refreshPresetsForPresetManagement(): Result<Unit> =
+        runCatching {
+            val loadedPresets =
+                withContext(ioDispatcher) {
+                    configurationRepository.listPresets().map { it.toUi().toUiPresetSummary() }
+                }
+            updateSnapshot { withPresets(loadedPresets) }
+            publishReadyIfNotError()
+        }
 
     private fun observeRemote() {
         storeScope.launch {

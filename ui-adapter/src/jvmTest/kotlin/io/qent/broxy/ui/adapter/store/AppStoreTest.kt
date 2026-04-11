@@ -10,6 +10,7 @@ import io.qent.broxy.core.models.McpServersConfig
 import io.qent.broxy.core.models.Preset
 import io.qent.broxy.core.models.ToolReference
 import io.qent.broxy.core.models.TransportConfig
+import io.qent.broxy.core.presetmanagement.PresetManagementBackend
 import io.qent.broxy.core.proxy.runtime.ProxyController
 import io.qent.broxy.core.proxy.runtime.ProxyLifecycle
 import io.qent.broxy.core.proxy.runtime.ServerConnectionStatus
@@ -278,6 +279,10 @@ class AppStoreTest {
                     override fun updateFallbackPromptsAndResourcesToTools(enabled: Boolean) {}
 
                     override fun updateAdapterMode(enabled: Boolean) {}
+
+                    override fun registerPresetManagementBackend(backend: PresetManagementBackend) {}
+
+                    override fun clearPresetManagementBackend() {}
 
                     override fun refreshServerCapabilities(serverId: String): Result<Unit> = Result.success(Unit)
 
@@ -3215,6 +3220,10 @@ class AppStoreTest {
         override fun updateAdapterMode(enabled: Boolean) {
             adapterModeUpdates += enabled
         }
+
+        override fun registerPresetManagementBackend(backend: PresetManagementBackend) {}
+
+        override fun clearPresetManagementBackend() {}
 
         override fun refreshServerCapabilities(serverId: String): Result<Unit> {
             refreshServerCapabilitiesCalls += serverId
