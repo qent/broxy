@@ -106,20 +106,16 @@ fun main(args: Array<String>) {
                 runCatching {
                     if (Desktop.isDesktopSupported()) Desktop.getDesktop() else null
                 }.getOrNull()
-            if (desktop != null && desktop.isSupported(Desktop.Action.APP_PREFERENCES)) {
-                runCatching {
-                    desktop.setPreferencesHandler { _ ->
-                        EventQueue.invokeLater { systemMenuSettingsHandler.value.invoke() }
-                    }
-                }
-                onDispose {
-                    runCatching {
-                        desktop.setPreferencesHandler { _ -> }
-                    }
-                }
-            } else {
-                onDispose {}
-            }
+            val disposeSystemMenuHandlers =
+                desktop?.let {
+                    installMacOsSystemMenuHandlers(
+                        menuBridge = DesktopMacOsSystemMenuBridge(it),
+                        onOpenSettingsRequested = {
+                            EventQueue.invokeLater { systemMenuSettingsHandler.value.invoke() }
+                        },
+                    )
+                } ?: {}
+            onDispose { disposeSystemMenuHandlers() }
         }
 
         DisposableEffect(Unit) {
@@ -250,6 +246,56 @@ internal fun openSettingsFromSystemMenu(
     appState.serverDetailsId.value = null
     appState.catalogInstall.value = null
     appState.currentScreen.value = Screen.Settings
+}
+
+internal interface MacOsSystemMenuBridge {
+    fun isSupported(action: Desktop.Action): Boolean
+
+    fun setDefaultAboutHandler()
+
+    fun setPreferencesHandler(handler: (() -> Unit)?)
+}
+
+private class DesktopMacOsSystemMenuBridge(
+    private val desktop: Desktop,
+) : MacOsSystemMenuBridge {
+    override fun isSupported(action: Desktop.Action): Boolean = desktop.isSupported(action)
+
+    override fun setDefaultAboutHandler() {
+        desktop.setAboutHandler(null)
+    }
+
+    override fun setPreferencesHandler(handler: (() -> Unit)?) {
+        if (handler == null) {
+            desktop.setPreferencesHandler(null)
+            return
+        }
+        desktop.setPreferencesHandler { _ -> handler() }
+    }
+}
+
+internal fun installMacOsSystemMenuHandlers(
+    menuBridge: MacOsSystemMenuBridge,
+    onOpenSettingsRequested: () -> Unit,
+): () -> Unit {
+    val aboutSupported = runCatching { menuBridge.isSupported(Desktop.Action.APP_ABOUT) }.getOrDefault(false)
+    if (aboutSupported) {
+        runCatching { menuBridge.setDefaultAboutHandler() }
+    }
+
+    val preferencesSupported = runCatching { menuBridge.isSupported(Desktop.Action.APP_PREFERENCES) }.getOrDefault(false)
+    if (preferencesSupported) {
+        runCatching { menuBridge.setPreferencesHandler(onOpenSettingsRequested) }
+    }
+
+    return {
+        if (preferencesSupported) {
+            runCatching { menuBridge.setPreferencesHandler(null) }
+        }
+        if (aboutSupported) {
+            runCatching { menuBridge.setDefaultAboutHandler() }
+        }
+    }
 }
 
 private fun probeStdinHasData(timeoutMillis: Long): Boolean {

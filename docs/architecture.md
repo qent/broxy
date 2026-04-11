@@ -123,6 +123,9 @@ indicator exposes a click target that toggles the local HTTP inbound server, whi
 exposes preset selection (including built-in `No preset` and `All enabled servers`) plus show/exit actions.
 On macOS, the standard application menu item `Settings…` (and `Cmd+,` when provided by the system)
 opens Broxy `Settings`, reveals the window if it is hidden, and brings it to the foreground.
+On macOS, the standard application menu item `About Broxy` opens the native Cocoa About popup
+without custom UI overrides. For packaged `.app` builds, macOS reads app name/icon/version/build
+from bundle metadata (`CFBundleShortVersionString`/`CFBundleVersion`).
 Navigation rail order starts with `Registry`, followed by `MCP` and `Presets`; the `Connection` entry is an icon-only
 button in the bottom block above `Settings`.
 Navigation keeps server sub-views (list/editor/capabilities) under the MCP entry; selecting MCP always returns to the server list. Preset sub-views return to the preset list when the Presets menu item is selected.
