@@ -77,7 +77,7 @@ jobs:
 
       - name: Publish GitHub Release (tag only)
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: |
             ${{ steps.paths_linux.outputs.path }}/*.deb
