@@ -371,8 +371,11 @@ private fun CatalogServerCard(
                         modifier = Modifier.size(CATALOG_CARD_ICON_SIZE),
                     )
                     Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.xxs),
+                        modifier =
+                            Modifier
+                                .weight(1f)
+                                .offset(y = (-2).dp),
+                        verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.none),
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
