@@ -8,6 +8,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class CatalogInstallPlannerTest {
@@ -74,6 +75,37 @@ class CatalogInstallPlannerTest {
         assertEquals(CatalogConnectionType.StreamableHttp, entries.first().connectionType)
         assertTrue(entries.first().canInstallWithoutInput)
         assertEquals("HTTP", entries.first().connectionTypeLabel)
+        assertNull(entries.first().runtimeCommand)
+        assertNull(entries.first().runtimeBinaryName)
+    }
+
+    @Test
+    fun buildServerEntries_sets_runtime_command_and_binary_for_stdio_profile() {
+        val detail =
+            CatalogServerDetail(
+                name = "time",
+                title = "Time",
+                description = "desc",
+                version = "1.0.0",
+                packages =
+                    listOf(
+                        CatalogPackage(
+                            registryType = "pypi",
+                            identifier = "mcp-server-time",
+                            runtimeHint = "/opt/homebrew/bin/uvx",
+                            transport = CatalogLocalTransport(type = "stdio"),
+                        ),
+                    ),
+            )
+
+        val entries = CatalogInstallPlanner.buildServerEntries(listOf(detail))
+        val entry = entries.single()
+        assertEquals("/opt/homebrew/bin/uvx", entry.runtimeCommand)
+        assertEquals("uvx", entry.runtimeBinaryName)
+
+        val items = CatalogInstallPlanner.toServerItems(entries, installedServerIds = emptySet())
+        assertEquals("/opt/homebrew/bin/uvx", items.single().runtimeCommand)
+        assertEquals("uvx", items.single().runtimeBinaryName)
     }
 
     @Test

@@ -32,9 +32,11 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.ContentPaste
+import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.Remove
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -55,6 +57,7 @@ import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -75,7 +78,9 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import io.qent.broxy.ui.adapter.catalog.CatalogConnectionType
 import io.qent.broxy.ui.adapter.catalog.CatalogFieldFormat
 import io.qent.broxy.ui.adapter.catalog.CatalogInstallField
 import io.qent.broxy.ui.adapter.catalog.CatalogInstallPlanner
@@ -83,6 +88,7 @@ import io.qent.broxy.ui.adapter.catalog.CatalogInstallSession
 import io.qent.broxy.ui.adapter.catalog.CatalogServerItem
 import io.qent.broxy.ui.adapter.models.UiServerDraft
 import io.qent.broxy.ui.adapter.models.UiServerIcon
+import io.qent.broxy.ui.adapter.services.checkStdioCommandAvailability
 import io.qent.broxy.ui.adapter.store.UIState
 import io.qent.broxy.ui.components.AppPrimaryButton
 import io.qent.broxy.ui.components.AppSecondaryButton
@@ -94,6 +100,7 @@ import io.qent.broxy.ui.components.SearchField
 import io.qent.broxy.ui.components.SearchFieldFabAlignedBottomPadding
 import io.qent.broxy.ui.components.ServerIconBadge
 import io.qent.broxy.ui.components.SettingsLikeItem
+import io.qent.broxy.ui.strings.AppStrings
 import io.qent.broxy.ui.strings.LocalStrings
 import io.qent.broxy.ui.theme.AppTheme
 import io.qent.broxy.ui.viewmodels.AppState
@@ -107,12 +114,26 @@ private val CATALOG_ACTION_ICON_SIZE = 16.dp
 private val CATALOG_INSTALL_TITLE_ICON_SIZE = 32.dp
 private val CATALOG_INSTALL_CONTROL_WIDTH = 280.dp
 private val CATALOG_INSTALL_CONTROL_HEIGHT = 32.dp
+private const val CATALOG_UNAVAILABLE_CONTENT_ALPHA = 0.5f
+private const val CATALOG_BINARY_PLACEHOLDER = "__catalog_binary__"
 private const val CATALOG_MARKDOWN_URL_TAG = "catalog-url"
 private val CATALOG_EXTERNAL_LINK_REGEX = Regex("""\[([^\]]+)]\((https?://[^\s)]+)\)""")
 private val CATALOG_FIELD_REFERENCE_REGEX = Regex("""\[([^\]]+)](?!\()""")
 private val CATALOG_NON_ALNUM_REGEX = Regex("[^\\p{L}\\p{Nd}]+")
 private val CATALOG_PUNCTUATION_SPACING_REGEX = Regex("\\s+([,.;:!?])")
 private val CATALOG_MULTIPLE_SPACES_REGEX = Regex("\\s{2,}")
+
+internal enum class CatalogBinaryAvailability {
+    Checking,
+    Available,
+    Unavailable,
+}
+
+internal enum class CatalogInstallActionMode {
+    Add,
+    InstallBinaryBadge,
+    InstalledControl,
+}
 
 @Composable
 @Suppress("CyclomaticComplexMethod")
@@ -157,6 +178,7 @@ fun CatalogScreen(
     var query by rememberSaveable { mutableStateOf("") }
     var pendingUninstall by remember { mutableStateOf<CatalogServerItem?>(null) }
     val listState = rememberLazyListState()
+    val binaryAvailabilityByKey = remember { mutableStateMapOf<String, CatalogBinaryAvailability>() }
 
     Box(modifier = Modifier.fillMaxSize().padding(horizontal = AppTheme.spacing.md)) {
         when (ui) {
@@ -169,6 +191,22 @@ fun CatalogScreen(
             }
 
             is UIState.Ready -> {
+                val binariesToCheck = collectCatalogRuntimeBinaries(ui.catalogServers)
+                LaunchedEffect(binariesToCheck) {
+                    binariesToCheck.forEach { (binaryKey, binaryName) ->
+                        if (binaryAvailabilityByKey[binaryKey] != null) {
+                            return@forEach
+                        }
+                        binaryAvailabilityByKey[binaryKey] = CatalogBinaryAvailability.Checking
+                        val availability = checkStdioCommandAvailability(binaryName).getOrNull()
+                        binaryAvailabilityByKey[binaryKey] =
+                            if (availability?.isAvailable == false) {
+                                CatalogBinaryAvailability.Unavailable
+                            } else {
+                                CatalogBinaryAvailability.Available
+                            }
+                    }
+                }
                 val filtered = filterCatalogItems(ui.catalogServers, query)
                 val rows = buildCatalogRows(filtered)
 
@@ -197,8 +235,14 @@ fun CatalogScreen(
                                     horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.md),
                                     verticalAlignment = Alignment.Top,
                                 ) {
+                                    val leftBinaryUnavailable =
+                                        isCatalogRuntimeBinaryUnavailable(
+                                            row.left,
+                                            binaryAvailabilityByKey,
+                                        )
                                     CatalogServerCard(
                                         item = row.left,
+                                        isRuntimeBinaryUnavailable = leftBinaryUnavailable,
                                         modifier = Modifier.weight(1f),
                                         onInstall = {
                                             ui.intents.installCatalogServer(row.left.id)
@@ -213,8 +257,14 @@ fun CatalogScreen(
 
                                     val right = row.right
                                     if (right != null) {
+                                        val rightBinaryUnavailable =
+                                            isCatalogRuntimeBinaryUnavailable(
+                                                right,
+                                                binaryAvailabilityByKey,
+                                            )
                                         CatalogServerCard(
                                             item = right,
+                                            isRuntimeBinaryUnavailable = rightBinaryUnavailable,
                                             modifier = Modifier.weight(1f),
                                             onInstall = {
                                                 ui.intents.installCatalogServer(right.id)
@@ -280,6 +330,7 @@ fun CatalogScreen(
 @Composable
 private fun CatalogServerCard(
     item: CatalogServerItem,
+    isRuntimeBinaryUnavailable: Boolean,
     modifier: Modifier = Modifier,
     onInstall: () -> Unit,
     onUninstall: () -> Unit,
@@ -287,6 +338,8 @@ private fun CatalogServerCard(
 ) {
     val strings = LocalStrings.current
     val externalUrl = resolveCatalogExternalUrl(item)
+    val actionMode = resolveCatalogInstallActionMode(item, isRuntimeBinaryUnavailable)
+    val contentAlpha = resolveCatalogCardContentAlpha(isRuntimeBinaryUnavailable)
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -297,6 +350,7 @@ private fun CatalogServerCard(
             modifier =
                 Modifier
                     .fillMaxWidth()
+                    .alpha(contentAlpha)
                     .padding(horizontal = AppTheme.spacing.md, vertical = AppTheme.spacing.md),
             verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm),
         ) {
@@ -332,6 +386,7 @@ private fun CatalogServerCard(
                                 buttonSize = 24.dp,
                                 modifier = Modifier.align(Alignment.Top),
                                 hoverUrl = externalUrl,
+                                icon = catalogExternalLinkIcon(item.connectionTypeLabel),
                             )
                         }
                     }
@@ -345,7 +400,8 @@ private fun CatalogServerCard(
                     )
                 }
                 CatalogInstallAction(
-                    installed = item.installed,
+                    actionMode = actionMode,
+                    runtimeBinaryName = item.runtimeBinaryName,
                     onInstall = onInstall,
                     onUninstall = onUninstall,
                     modifier = Modifier.offset(x = 6.dp, y = (-6).dp),
@@ -357,55 +413,83 @@ private fun CatalogServerCard(
 
 @Composable
 private fun CatalogInstallAction(
-    installed: Boolean,
+    actionMode: CatalogInstallActionMode,
+    runtimeBinaryName: String?,
     onInstall: () -> Unit,
     onUninstall: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    if (!installed) {
-        val hoverInteraction = remember { MutableInteractionSource() }
-        val isHovered by hoverInteraction.collectIsHoveredAsState()
-        Box(
-            modifier =
-                modifier
-                    .size(CATALOG_ACTION_BUTTON_SIZE)
-                    .hoverable(hoverInteraction),
-            contentAlignment = Alignment.Center,
-        ) {
-            CatalogCompactActionButton(
-                icon = Icons.Outlined.Add,
-                contentDescription = "Install",
-                onClick = onInstall,
-                showBorder = isHovered,
-            )
+    val strings = LocalStrings.current
+    when (actionMode) {
+        CatalogInstallActionMode.Add -> {
+            val hoverInteraction = remember { MutableInteractionSource() }
+            val isHovered by hoverInteraction.collectIsHoveredAsState()
+            Box(
+                modifier =
+                    modifier
+                        .size(CATALOG_ACTION_BUTTON_SIZE)
+                        .hoverable(hoverInteraction),
+                contentAlignment = Alignment.Center,
+            ) {
+                CatalogCompactActionButton(
+                    icon = Icons.Outlined.Add,
+                    contentDescription = "Install",
+                    onClick = onInstall,
+                    showBorder = isHovered,
+                )
+            }
         }
-        return
-    }
 
-    val hoverInteraction = remember { MutableInteractionSource() }
-    val isHovered by hoverInteraction.collectIsHoveredAsState()
+        CatalogInstallActionMode.InstallBinaryBadge -> {
+            val binaryName = runtimeBinaryName?.trim()?.takeIf { it.isNotEmpty() }
+            if (binaryName != null) {
+                Surface(
+                    modifier = modifier,
+                    shape = AppTheme.shapes.pill,
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    border = BorderStroke(AppTheme.strokeWidths.thin, MaterialTheme.colorScheme.outline),
+                ) {
+                    Text(
+                        text = buildCatalogInstallBinaryBadgeText(strings, binaryName),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier =
+                            Modifier.padding(
+                                horizontal = AppTheme.spacing.sm,
+                                vertical = AppTheme.spacing.xxs,
+                            ),
+                    )
+                }
+            }
+        }
 
-    Box(
-        modifier =
-            modifier
-                .size(CATALOG_ACTION_BUTTON_SIZE)
-                .hoverable(hoverInteraction),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (isHovered) {
-            CatalogCompactActionButton(
-                icon = Icons.Outlined.Remove,
-                contentDescription = "Uninstall",
-                onClick = onUninstall,
-                showBorder = true,
-            )
-        } else {
-            Icon(
-                imageVector = Icons.Outlined.Check,
-                contentDescription = "Installed",
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(CATALOG_ACTION_ICON_SIZE),
-            )
+        CatalogInstallActionMode.InstalledControl -> {
+            val hoverInteraction = remember { MutableInteractionSource() }
+            val isHovered by hoverInteraction.collectIsHoveredAsState()
+
+            Box(
+                modifier =
+                    modifier
+                        .size(CATALOG_ACTION_BUTTON_SIZE)
+                        .hoverable(hoverInteraction),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (isHovered) {
+                    CatalogCompactActionButton(
+                        icon = Icons.Outlined.Remove,
+                        contentDescription = "Uninstall",
+                        onClick = onUninstall,
+                        showBorder = true,
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Outlined.Check,
+                        contentDescription = "Installed",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(CATALOG_ACTION_ICON_SIZE),
+                    )
+                }
+            }
         }
     }
 }
@@ -458,6 +542,74 @@ internal fun shouldRedirectToServersAfterCatalogInstall(item: CatalogServerItem)
 
 internal fun shouldShowCatalogSearchField(catalogItemsCount: Int): Boolean = catalogItemsCount > 0
 
+internal fun collectCatalogRuntimeBinaries(items: List<CatalogServerItem>): Map<String, String> {
+    val binaries = LinkedHashMap<String, String>()
+    items.forEach { item ->
+        val binaryName = item.runtimeBinaryName?.trim()?.takeIf { it.isNotEmpty() }
+        if (binaryName != null) {
+            val key = normalizeCatalogRuntimeBinaryKey(binaryName)
+            if (key != null) {
+                binaries.putIfAbsent(key, binaryName)
+            }
+        }
+    }
+    return binaries
+}
+
+internal fun normalizeCatalogRuntimeBinaryKey(binaryName: String?): String? {
+    val trimmed = binaryName?.trim().orEmpty()
+    if (trimmed.isEmpty()) {
+        return null
+    }
+    return trimmed.lowercase()
+}
+
+internal fun isCatalogRuntimeBinaryUnavailable(
+    item: CatalogServerItem,
+    binaryAvailabilityByKey: Map<String, CatalogBinaryAvailability>,
+): Boolean {
+    val binaryKey = normalizeCatalogRuntimeBinaryKey(item.runtimeBinaryName) ?: return false
+    return binaryAvailabilityByKey[binaryKey] == CatalogBinaryAvailability.Unavailable
+}
+
+internal fun resolveCatalogInstallActionMode(
+    item: CatalogServerItem,
+    isRuntimeBinaryUnavailable: Boolean,
+): CatalogInstallActionMode =
+    when {
+        item.installed -> CatalogInstallActionMode.InstalledControl
+        isRuntimeBinaryUnavailable -> CatalogInstallActionMode.InstallBinaryBadge
+        else -> CatalogInstallActionMode.Add
+    }
+
+internal fun resolveCatalogCardContentAlpha(isRuntimeBinaryUnavailable: Boolean): Float =
+    if (isRuntimeBinaryUnavailable) {
+        CATALOG_UNAVAILABLE_CONTENT_ALPHA
+    } else {
+        1f
+    }
+
+internal fun buildCatalogInstallBinaryBadgeText(
+    strings: AppStrings,
+    binaryName: String,
+): AnnotatedString {
+    val template = strings.installBinaryBadge(CATALOG_BINARY_PLACEHOLDER)
+    val markerStart = template.indexOf(CATALOG_BINARY_PLACEHOLDER)
+    if (markerStart < 0) {
+        return AnnotatedString(strings.installBinaryBadge(binaryName))
+    }
+    val markerEnd = markerStart + CATALOG_BINARY_PLACEHOLDER.length
+    val before = template.substring(0, markerStart)
+    val after = template.substring(markerEnd)
+    return buildAnnotatedString {
+        append(before)
+        withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
+            append(binaryName)
+        }
+        append(after)
+    }
+}
+
 internal fun filterCatalogItems(
     items: List<CatalogServerItem>,
     query: String,
@@ -482,6 +634,29 @@ internal fun resolveCatalogExternalUrl(
     websiteUrl: String?,
     repositoryUrl: String?,
 ): String? = websiteUrl?.trim()?.takeIf { it.isNotEmpty() } ?: repositoryUrl?.trim()?.takeIf { it.isNotEmpty() }
+
+internal fun isCatalogRemoteConnection(connectionType: CatalogConnectionType): Boolean =
+    connectionType == CatalogConnectionType.StreamableHttp || connectionType == CatalogConnectionType.Sse
+
+internal fun isCatalogRemoteConnection(connectionTypeLabel: String): Boolean {
+    val normalized = connectionTypeLabel.trim()
+    return normalized.equals(CatalogConnectionType.StreamableHttp.label, ignoreCase = true) ||
+        normalized.equals(CatalogConnectionType.Sse.label, ignoreCase = true)
+}
+
+internal fun catalogExternalLinkIcon(connectionType: CatalogConnectionType): ImageVector =
+    if (isCatalogRemoteConnection(connectionType)) {
+        Icons.Outlined.Language
+    } else {
+        Icons.AutoMirrored.Outlined.OpenInNew
+    }
+
+internal fun catalogExternalLinkIcon(connectionTypeLabel: String): ImageVector =
+    if (isCatalogRemoteConnection(connectionTypeLabel)) {
+        Icons.Outlined.Language
+    } else {
+        Icons.AutoMirrored.Outlined.OpenInNew
+    }
 
 internal fun buildCatalogRows(items: List<CatalogServerItem>): List<CatalogRow> =
     items
@@ -564,6 +739,7 @@ private fun CatalogInstallScreen(
                                 contentDescription = strings.openServerPageContentDescription,
                                 modifier = Modifier.align(Alignment.Top),
                                 hoverUrl = externalUrl,
+                                icon = catalogExternalLinkIcon(session.connectionType),
                             )
                         }
                     }

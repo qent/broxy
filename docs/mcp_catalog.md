@@ -174,9 +174,10 @@ Form behavior:
 - fixed spec values are not rendered as inputs (for example, transport type and fixed server ID);
 - control types follow schema hints (`format`, `choices`, `isSecret`, `isRequired`, `default`, `placeholder`);
 - form header uses `Connect to <icon> <server title>` for the selected catalog entry;
-- the form header adds an external-link icon after the server title when catalog metadata provides
-  `websiteUrl` or `repository.url` (`websiteUrl` has priority);
-- hovering the form-header external-link icon shows a bottom overlay bar with semi-transparent
+- the form header adds a website icon after the server title when catalog metadata provides
+  `websiteUrl` or `repository.url` (`websiteUrl` has priority): remote profiles (`HTTP`/`SSE`) use
+  a globe icon, while `STDIO` profiles use the external-link icon;
+- hovering the form-header website icon shows a bottom overlay bar with semi-transparent
   background and the target URL text;
 - form body renders the catalog server description as plain text between the header and generated inputs (no card);
 - when `_meta.install_steps` is non-empty, the form body first renders numbered setup steps with markdown;
@@ -209,15 +210,23 @@ Catalog list behavior:
 - card click is no-op;
 - cards are rendered in two columns with equal-width tiles;
 - each card shows icon, title, and description (the fixed server ID is not shown in card content);
-- cards show an external-link icon next to the title when `websiteUrl` or `repository.url` is available
-  (`websiteUrl` first, then `repository.url`);
-- hovering catalog-card/header external-link icons shows the same bottom overlay bar with the target URL text;
+- cards show a website icon next to the title when `websiteUrl` or `repository.url` is available
+  (`websiteUrl` first, then `repository.url`): remote cards (`HTTP`/`SSE`) use a globe icon, while
+  `STDIO` cards use the external-link icon;
+- hovering catalog-card/header website icons shows the same bottom overlay bar with the target URL text;
 - description is always rendered with fixed height of 3 lines (short text keeps reserved space);
 - install action is a compact top-right control:
   - icon-only `+` control (without filled background); on hover it shows a thin outline;
   - `✓` indicator when installed;
   - on hover over `✓`, show an icon-only `-` control (without filled background) to uninstall; the `-` control keeps the same thin outline style;
-  - action control is nudged slightly right/up to align visually with the icon/title header line.
+  - action control is nudged slightly right/up to align visually with the icon/title header line;
+  - for `STDIO` package cards, Broxy checks runtime binary availability by normalized binary name
+    (shared cache across cards that use the same binary, for example `uvx`).
+  - check state is optimistic by default: before the check completes (or if the check fails), the card is treated as available.
+  - when the runtime binary is unavailable, card content is rendered at `alpha=0.5`.
+  - when unavailable + not installed, the `+` control is replaced with non-clickable badge
+    `Install <binary_name>`, where `<binary_name>` is bold.
+  - when unavailable + installed, the installed `✓`/hover `-` uninstall control is preserved.
 - actions:
   - `Install` when `server.name` is not present in current `mcp.json` server IDs;
   - `Uninstall` when it is present.

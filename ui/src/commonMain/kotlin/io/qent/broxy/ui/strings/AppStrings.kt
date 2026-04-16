@@ -177,6 +177,8 @@ interface AppStrings {
 
     val hideButtonLabel: String
 
+    fun installBinaryBadge(binaryName: String): String
+
     val selectCapabilitiesHint: String
 
     val serverDisabledBadge: String
@@ -569,6 +571,8 @@ object EnglishStrings : AppStrings {
     override val importButtonLabel = "Import"
 
     override val hideButtonLabel = "Hide"
+
+    override fun installBinaryBadge(binaryName: String): String = "Install $binaryName"
 
     override val selectCapabilitiesHint = "Select tools/prompts/resources from available servers"
 

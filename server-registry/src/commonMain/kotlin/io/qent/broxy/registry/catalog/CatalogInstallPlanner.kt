@@ -10,6 +10,7 @@ object CatalogInstallPlanner {
         servers
             .map { detail ->
                 val profile = selectProfile(detail)
+                val runtimeCommand = resolveRuntimeCommand(profile)
                 CatalogServerEntry(
                     detail = detail,
                     connectionType = profile?.type,
@@ -17,6 +18,8 @@ object CatalogInstallPlanner {
                     connectionTypeLabel = profile?.type?.label ?: "Unsupported",
                     capabilities = detail.capabilities(),
                     iconUrl = detail.iconUrl(),
+                    runtimeCommand = runtimeCommand,
+                    runtimeBinaryName = resolveRuntimeBinaryName(runtimeCommand),
                 )
             }.sortedBy { it.detail.displayName().lowercase() }
 
@@ -37,6 +40,8 @@ object CatalogInstallPlanner {
                 websiteUrl = entry.detail.websiteUrl,
                 repositoryUrl = entry.detail.repository?.url,
                 installed = entry.detail.name in installedServerIds,
+                runtimeCommand = entry.runtimeCommand,
+                runtimeBinaryName = entry.runtimeBinaryName,
             )
         }
 
@@ -698,6 +703,33 @@ object CatalogInstallPlanner {
             .replace(Regex("[^a-z0-9]+"), "-")
             .trim('-')
             .ifEmpty { "field" }
+
+    private fun resolveRuntimeCommand(profile: SupportedProfile?): String? {
+        if (profile?.type != CatalogConnectionType.StdioPackage) {
+            return null
+        }
+        return profile
+            .pkg
+            ?.runtimeHint
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() }
+    }
+
+    private fun resolveRuntimeBinaryName(runtimeCommand: String?): String? {
+        val token =
+            runtimeCommand
+                ?.trim()
+                ?.takeIf { it.isNotEmpty() }
+                ?.split(Regex("\\s+"), limit = 2)
+                ?.firstOrNull()
+                ?.trim(' ', '"', '\'')
+                .orEmpty()
+        if (token.isEmpty()) {
+            return null
+        }
+        val binaryName = token.substringAfterLast('/').substringAfterLast('\\').trim()
+        return binaryName.takeIf { it.isNotEmpty() }
+    }
 
     private fun canInstallWithoutInput(detail: CatalogServerDetail): Boolean {
         val session = buildInstallSession(detail).getOrNull() ?: return false

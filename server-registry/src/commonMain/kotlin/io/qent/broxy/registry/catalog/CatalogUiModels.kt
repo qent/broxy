@@ -22,6 +22,8 @@ data class CatalogServerEntry(
     val connectionTypeLabel: String,
     val capabilities: List<String>,
     val iconUrl: String?,
+    val runtimeCommand: String? = null,
+    val runtimeBinaryName: String? = null,
 )
 
 data class CatalogServerItem(
@@ -36,6 +38,8 @@ data class CatalogServerItem(
     val websiteUrl: String?,
     val repositoryUrl: String?,
     val installed: Boolean,
+    val runtimeCommand: String? = null,
+    val runtimeBinaryName: String? = null,
 )
 
 data class CatalogInstallField(

@@ -22,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
@@ -33,6 +34,7 @@ fun OpenExternalLinkButton(
     buttonSize: Dp = 28.dp,
     iconSize: Dp = 13.dp,
     hoverUrl: String? = null,
+    icon: ImageVector = Icons.AutoMirrored.Outlined.OpenInNew,
 ) {
     val iconHighlightSize = iconSize + 8.dp
     val interactionSource = remember { MutableInteractionSource() }
@@ -70,7 +72,7 @@ fun OpenExternalLinkButton(
             contentAlignment = Alignment.Center,
         ) {
             Icon(
-                imageVector = Icons.AutoMirrored.Outlined.OpenInNew,
+                imageVector = icon,
                 contentDescription = contentDescription,
                 tint = Color.White,
                 modifier = Modifier.size(iconSize),

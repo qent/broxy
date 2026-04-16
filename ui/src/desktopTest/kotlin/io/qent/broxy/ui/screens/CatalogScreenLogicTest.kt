@@ -1,12 +1,16 @@
 package io.qent.broxy.ui.screens
 
+import androidx.compose.ui.text.font.FontWeight
 import io.qent.broxy.ui.adapter.catalog.CatalogConnectionType
 import io.qent.broxy.ui.adapter.catalog.CatalogInstallField
 import io.qent.broxy.ui.adapter.catalog.CatalogInstallSession
 import io.qent.broxy.ui.adapter.catalog.CatalogServerDetail
 import io.qent.broxy.ui.adapter.catalog.CatalogServerItem
+import io.qent.broxy.ui.strings.EnglishStrings
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -50,12 +54,82 @@ class CatalogScreenLogicTest {
     }
 
     @Test
+    fun `isCatalogRemoteConnection detects remote labels`() {
+        assertTrue(isCatalogRemoteConnection("HTTP"))
+        assertTrue(isCatalogRemoteConnection("sse"))
+        assertFalse(isCatalogRemoteConnection("STDIO"))
+    }
+
+    @Test
+    fun `isCatalogRemoteConnection detects remote enum values`() {
+        assertTrue(isCatalogRemoteConnection(CatalogConnectionType.StreamableHttp))
+        assertTrue(isCatalogRemoteConnection(CatalogConnectionType.Sse))
+        assertFalse(isCatalogRemoteConnection(CatalogConnectionType.StdioPackage))
+    }
+
+    @Test
     fun `shouldRedirectToServersAfterCatalogInstall follows one-click flag`() {
         val oneClickItem = catalogItem(id = "one-click", canInstallWithoutInput = true)
         val formItem = catalogItem(id = "form", canInstallWithoutInput = false)
 
         assertEquals(true, shouldRedirectToServersAfterCatalogInstall(oneClickItem))
         assertEquals(false, shouldRedirectToServersAfterCatalogInstall(formItem))
+    }
+
+    @Test
+    fun `collectCatalogRuntimeBinaries deduplicates by normalized binary key`() {
+        val binaries =
+            collectCatalogRuntimeBinaries(
+                listOf(
+                    catalogItem(id = "a", runtimeBinaryName = "uvx"),
+                    catalogItem(id = "b", runtimeBinaryName = "UVX"),
+                    catalogItem(id = "c", runtimeBinaryName = "docker"),
+                    catalogItem(id = "d", runtimeBinaryName = null),
+                ),
+            )
+
+        assertEquals(2, binaries.size)
+        assertEquals("uvx", binaries["uvx"])
+        assertEquals("docker", binaries["docker"])
+    }
+
+    @Test
+    fun `catalog action mode uses install badge when binary is unavailable`() {
+        val unavailableItem = catalogItem(id = "missing", installed = false, runtimeBinaryName = "uvx")
+        val installedItem = catalogItem(id = "installed", installed = true, runtimeBinaryName = "uvx")
+
+        assertEquals(
+            CatalogInstallActionMode.InstallBinaryBadge,
+            resolveCatalogInstallActionMode(unavailableItem, isRuntimeBinaryUnavailable = true),
+        )
+        assertEquals(
+            CatalogInstallActionMode.Add,
+            resolveCatalogInstallActionMode(unavailableItem, isRuntimeBinaryUnavailable = false),
+        )
+        assertEquals(
+            CatalogInstallActionMode.InstalledControl,
+            resolveCatalogInstallActionMode(installedItem, isRuntimeBinaryUnavailable = true),
+        )
+    }
+
+    @Test
+    fun `isCatalogRuntimeBinaryUnavailable and alpha follow binary availability map`() {
+        val item = catalogItem(id = "time", runtimeBinaryName = "uvx")
+        val availability = mapOf("uvx" to CatalogBinaryAvailability.Unavailable)
+
+        assertTrue(isCatalogRuntimeBinaryUnavailable(item, availability))
+        assertEquals(0.5f, resolveCatalogCardContentAlpha(isRuntimeBinaryUnavailable = true))
+        assertEquals(1f, resolveCatalogCardContentAlpha(isRuntimeBinaryUnavailable = false))
+    }
+
+    @Test
+    fun `buildCatalogInstallBinaryBadgeText makes binary part bold`() {
+        val badgeText = buildCatalogInstallBinaryBadgeText(EnglishStrings, "uvx")
+
+        assertEquals("Install uvx", badgeText.text)
+        val binarySpan = badgeText.spanStyles.firstOrNull { it.item.fontWeight == FontWeight.Bold }
+        assertNotNull(binarySpan)
+        assertEquals("uvx", badgeText.text.substring(binarySpan.start, binarySpan.end))
     }
 
     @Test
@@ -215,6 +289,9 @@ class CatalogScreenLogicTest {
         capabilities: List<String> = emptyList(),
         websiteUrl: String? = null,
         repositoryUrl: String? = null,
+        installed: Boolean = false,
+        runtimeCommand: String? = null,
+        runtimeBinaryName: String? = null,
     ): CatalogServerItem =
         CatalogServerItem(
             id = id,
@@ -227,7 +304,9 @@ class CatalogScreenLogicTest {
             iconUrl = null,
             websiteUrl = websiteUrl,
             repositoryUrl = repositoryUrl,
-            installed = false,
+            installed = installed,
+            runtimeCommand = runtimeCommand,
+            runtimeBinaryName = runtimeBinaryName,
         )
 
     private fun minimalDetail(): CatalogServerDetail =
