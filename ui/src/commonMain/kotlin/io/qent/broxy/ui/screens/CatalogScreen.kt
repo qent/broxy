@@ -350,7 +350,6 @@ private fun CatalogServerCard(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .alpha(contentAlpha)
                     .padding(horizontal = AppTheme.spacing.md, vertical = AppTheme.spacing.md),
             verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm),
         ) {
@@ -359,45 +358,54 @@ private fun CatalogServerCard(
                 verticalAlignment = Alignment.Top,
                 horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm),
             ) {
-                ServerIconBadge(
-                    icon = item.iconUrl.toUiServerIcon(),
-                    modifier = Modifier.size(CATALOG_CARD_ICON_SIZE),
-                )
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.xxs),
+                Row(
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .alpha(contentAlpha),
+                    verticalAlignment = Alignment.Top,
+                    horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm),
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.xxs),
+                    ServerIconBadge(
+                        icon = item.iconUrl.toUiServerIcon(),
+                        modifier = Modifier.size(CATALOG_CARD_ICON_SIZE),
+                    )
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(AppTheme.spacing.xxs),
                     ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.xxs),
+                        ) {
+                            Text(
+                                text = item.title,
+                                modifier = Modifier.offset(y = (-2).dp),
+                                style = MaterialTheme.typography.titleSmall,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            if (externalUrl != null) {
+                                OpenExternalLinkButton(
+                                    onClick = { onOpenExternalUrl(externalUrl) },
+                                    contentDescription = strings.openServerPageContentDescription,
+                                    buttonSize = 24.dp,
+                                    modifier = Modifier.align(Alignment.Top),
+                                    hoverUrl = externalUrl,
+                                    icon = catalogExternalLinkIcon(item.connectionTypeLabel),
+                                )
+                            }
+                        }
                         Text(
-                            text = item.title,
-                            modifier = Modifier.offset(y = (-2).dp),
-                            style = MaterialTheme.typography.titleSmall,
-                            maxLines = 1,
+                            text = item.description,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            minLines = CATALOG_DESCRIPTION_MAX_LINES,
+                            maxLines = CATALOG_DESCRIPTION_MAX_LINES,
                             overflow = TextOverflow.Ellipsis,
                         )
-                        if (externalUrl != null) {
-                            OpenExternalLinkButton(
-                                onClick = { onOpenExternalUrl(externalUrl) },
-                                contentDescription = strings.openServerPageContentDescription,
-                                buttonSize = 24.dp,
-                                modifier = Modifier.align(Alignment.Top),
-                                hoverUrl = externalUrl,
-                                icon = catalogExternalLinkIcon(item.connectionTypeLabel),
-                            )
-                        }
                     }
-                    Text(
-                        text = item.description,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        minLines = CATALOG_DESCRIPTION_MAX_LINES,
-                        maxLines = CATALOG_DESCRIPTION_MAX_LINES,
-                        overflow = TextOverflow.Ellipsis,
-                    )
                 }
                 CatalogInstallAction(
                     actionMode = actionMode,
