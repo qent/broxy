@@ -77,6 +77,20 @@ fun main(args: Array<String>) {
         val language = remember { AppLanguage.fromTag(Locale.getDefault().toLanguageTag()) }
         val strings = remember(language) { AppStringsProvider.forLanguage(language) }
         val isMacOs = remember { System.getProperty("os.name")?.contains("Mac", ignoreCase = true) == true }
+        val macOsForegroundBridge =
+            remember(isMacOs) {
+                if (!isMacOs) {
+                    null
+                } else {
+                    runCatching {
+                        if (Desktop.isDesktopSupported()) {
+                            DesktopMacOsForegroundBridge(Desktop.getDesktop())
+                        } else {
+                            null
+                        }
+                    }.getOrNull()
+                }
+            }
         val isDarkTheme = appState.themeStyle.value == ThemeStyle.Dark
         val windowIconPainter = rememberApplicationIconPainter()
         val applicationIconImage = remember { createApplicationIconImage(size = 256) }
@@ -149,7 +163,10 @@ fun main(args: Array<String>) {
 
                 LaunchedEffect(isWindowVisible, bringToFrontRequest) {
                     if (isWindowVisible) {
-                        bringWindowToFront(window)
+                        bringWindowToFront(
+                            window = window,
+                            foregroundBridge = macOsForegroundBridge,
+                        )
                     }
                 }
 
@@ -256,6 +273,12 @@ internal interface MacOsSystemMenuBridge {
     fun setPreferencesHandler(handler: (() -> Unit)?)
 }
 
+internal interface MacOsForegroundBridge {
+    fun isRequestForegroundSupported(): Boolean
+
+    fun requestForeground(allWindows: Boolean)
+}
+
 private class DesktopMacOsSystemMenuBridge(
     private val desktop: Desktop,
 ) : MacOsSystemMenuBridge {
@@ -271,6 +294,16 @@ private class DesktopMacOsSystemMenuBridge(
             return
         }
         desktop.setPreferencesHandler { _ -> handler() }
+    }
+}
+
+private class DesktopMacOsForegroundBridge(
+    private val desktop: Desktop,
+) : MacOsForegroundBridge {
+    override fun isRequestForegroundSupported(): Boolean = desktop.isSupported(Desktop.Action.APP_REQUEST_FOREGROUND)
+
+    override fun requestForeground(allWindows: Boolean) {
+        desktop.requestForeground(allWindows)
     }
 }
 
@@ -329,9 +362,20 @@ private fun updateTaskbarIcon(image: Image) {
     }
 }
 
-private fun bringWindowToFront(window: AwtWindow) {
+internal fun requestMacOsForegroundIfSupported(foregroundBridge: MacOsForegroundBridge?) {
+    val bridge = foregroundBridge ?: return
+    val supported = runCatching { bridge.isRequestForegroundSupported() }.getOrDefault(false)
+    if (!supported) return
+    runCatching { bridge.requestForeground(allWindows = true) }
+}
+
+private fun bringWindowToFront(
+    window: AwtWindow,
+    foregroundBridge: MacOsForegroundBridge?,
+) {
     window.isVisible = true
     (window as? Frame)?.state = Frame.NORMAL
+    requestMacOsForegroundIfSupported(foregroundBridge)
     window.toFront()
     window.requestFocus()
     window.requestFocusInWindow()
