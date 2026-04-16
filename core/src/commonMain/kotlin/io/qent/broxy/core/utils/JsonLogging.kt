@@ -1,0 +1,59 @@
+@file:OptIn(ExperimentalSerializationApi::class, ExperimentalTime::class)
+
+package io.qent.broxy.core.utils
+
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonObjectBuilder
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
+
+private object JsonLogFormatter {
+    private val json =
+        Json {
+            prettyPrint = false
+            encodeDefaults = false
+        }
+
+    @OptIn(ExperimentalSerializationApi::class)
+    fun format(
+        event: String,
+        payload: JsonObject,
+    ): String {
+        val body =
+            buildJsonObject {
+                put("timestamp", JsonPrimitive(Clock.System.now().toString()))
+                put("event", JsonPrimitive(event))
+                put("payload", payload)
+            }
+        return json.encodeToString(JsonObject.serializer(), body)
+    }
+}
+
+private inline fun buildPayload(builder: JsonObjectBuilder.() -> Unit): JsonObject = buildJsonObject(builder)
+
+fun Logger.infoJson(
+    event: String,
+    builder: JsonObjectBuilder.() -> Unit,
+) {
+    info(JsonLogFormatter.format(event, buildPayload(builder)))
+}
+
+fun Logger.warnJson(
+    event: String,
+    throwable: Throwable? = null,
+    builder: JsonObjectBuilder.() -> Unit,
+) {
+    warn(JsonLogFormatter.format(event, buildPayload(builder)), throwable)
+}
+
+fun Logger.errorJson(
+    event: String,
+    throwable: Throwable? = null,
+    builder: JsonObjectBuilder.() -> Unit,
+) {
+    error(JsonLogFormatter.format(event, buildPayload(builder)), throwable)
+}

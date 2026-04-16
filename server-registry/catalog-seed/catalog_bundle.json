@@ -1,0 +1,342 @@
+{
+  "source": "seed",
+  "updatedAtEpochMillis": 0,
+  "servers": [
+    {
+      "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+      "name": "io.qent.broxy/brave",
+      "title": "Brave Search",
+      "description": "Web and local search powered by Brave Search API.",
+      "version": "0.6.2",
+      "websiteUrl": "https://brave.com/search/api/",
+      "repository": {
+        "source": "github",
+        "url": "https://github.com/modelcontextprotocol/servers-archived",
+        "subfolder": "src/brave-search"
+      },
+      "icons": [
+        {
+          "src": "https://raw.githubusercontent.com/qent/broxy-registry/main/icons/brave.png",
+          "mimeType": "image/png",
+          "sizes": [
+            "64x64"
+          ]
+        }
+      ],
+      "packages": [
+        {
+          "registryType": "oci",
+          "identifier": "docker.io/mcp/brave-search",
+          "version": "0.6.2",
+          "runtimeHint": "docker",
+          "transport": {
+            "type": "stdio"
+          },
+          "runtimeArguments": [
+            {
+              "type": "positional",
+              "value": "run"
+            },
+            {
+              "type": "positional",
+              "value": "-i"
+            },
+            {
+              "type": "positional",
+              "value": "--rm"
+            },
+            {
+              "type": "positional",
+              "value": "-e"
+            },
+            {
+              "type": "positional",
+              "value": "BRAVE_API_KEY"
+            }
+          ],
+          "environmentVariables": [
+            {
+              "name": "BRAVE_API_KEY",
+              "description": "Brave Search API key.",
+              "isRequired": true,
+              "isSecret": true
+            }
+          ]
+        }
+      ],
+      "_meta": {
+        "io.qent.broxy/catalog": {
+          "capabilities": [
+            "tools"
+          ]
+        }
+      }
+    },
+    {
+      "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+      "name": "io.qent.broxy/context7",
+      "title": "Context7",
+      "description": "Up-to-date code and API docs for prompts.",
+      "version": "2.1.6",
+      "websiteUrl": "https://context7.com",
+      "repository": {
+        "source": "github",
+        "url": "https://github.com/upstash/context7"
+      },
+      "icons": [
+        {
+          "src": "https://raw.githubusercontent.com/qent/broxy-registry/main/icons/context7.png",
+          "mimeType": "image/png",
+          "sizes": [
+            "64x64"
+          ]
+        }
+      ],
+      "remotes": [
+        {
+          "type": "streamable-http",
+          "url": "https://mcp.context7.com/mcp",
+          "headers": [
+            {
+              "name": "CONTEXT7_API_KEY",
+              "description": "Optional Context7 API key for authenticated access.",
+              "value": "{context7_api_key}",
+              "isRequired": false,
+              "isSecret": true,
+              "variables": {
+                "context7_api_key": {
+                  "description": "Context7 API key.",
+                  "isRequired": false,
+                  "isSecret": true
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "_meta": {
+        "install_steps": [
+          "Open your **GitHub** [Developer Settings](https://github.com/settings/apps).",
+          "Select [Tokens (classic)](https://github.com/settings/tokens) from **Personal access tokens**.",
+          "Click [Generate new token (classic)](https://github.com/settings/tokens/new) from **Generate new token** selector.",
+          "Fill **New personal access token (classic)** form and submit with the **Generate token** button.",
+          "Use created token below [Authorization]"
+        ],
+        "io.qent.broxy/catalog": {
+          "capabilities": [
+            "tools",
+            "resources"
+          ]
+        }
+      }
+    },
+    {
+      "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+      "name": "io.qent.broxy/exa",
+      "title": "Exa",
+      "description": "Web and code search from the Exa MCP endpoint.",
+      "version": "3.2.0",
+      "websiteUrl": "https://docs.exa.ai/reference/exa-mcp",
+      "repository": {
+        "source": "github",
+        "url": "https://github.com/exa-labs/exa-mcp-server"
+      },
+      "icons": [
+        {
+          "src": "https://raw.githubusercontent.com/qent/broxy-registry/main/icons/exa.png",
+          "mimeType": "image/png",
+          "sizes": [
+            "64x64"
+          ]
+        }
+      ],
+      "remotes": [
+        {
+          "type": "streamable-http",
+          "url": "https://mcp.exa.ai/mcp"
+        }
+      ],
+      "_meta": {
+        "io.qent.broxy/catalog": {
+          "capabilities": [
+            "tools"
+          ]
+        }
+      }
+    },
+    {
+      "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+      "name": "io.qent.broxy/github",
+      "title": "GitHub Copilot MCP",
+      "description": "GitHub remote MCP endpoint for Copilot-compatible clients.",
+      "version": "latest",
+      "websiteUrl": "https://docs.github.com/en/copilot/how-tos/provide-context/use-mcp/extend-copilot-chat-with-mcp",
+      "icons": [
+        {
+          "src": "https://raw.githubusercontent.com/qent/broxy-registry/main/icons/github.png",
+          "mimeType": "image/png",
+          "sizes": [
+            "64x64"
+          ]
+        }
+      ],
+      "remotes": [
+        {
+          "type": "streamable-http",
+          "url": "https://api.githubcopilot.com/mcp/",
+          "headers": [
+            {
+              "name": "Authorization",
+              "description": "GitHub PAT for Copilot MCP endpoint.",
+              "value": "Bearer {github_pat}",
+              "isRequired": true,
+              "isSecret": true,
+              "variables": {
+                "github_pat": {
+                  "description": "GitHub Personal Access Token.",
+                  "isRequired": true,
+                  "isSecret": true
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "_meta": {
+        "io.qent.broxy/catalog": {
+          "capabilities": [
+            "tools",
+            "resources"
+          ]
+        }
+      }
+    },
+    {
+      "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+      "name": "io.qent.broxy/intellij-idea-ce",
+      "title": "IntelliJ IDEA CE",
+      "description": "Connect to local IntelliJ MCP server over SSE.",
+      "version": "2026.1",
+      "websiteUrl": "https://www.jetbrains.com/help/idea/mcp-server.html",
+      "repository": {
+        "source": "npm",
+        "url": "https://www.npmjs.com/package/@jetbrains/mcp-proxy"
+      },
+      "icons": [
+        {
+          "src": "https://raw.githubusercontent.com/qent/broxy-registry/main/icons/intellij-idea-ce.png",
+          "mimeType": "image/png",
+          "sizes": [
+            "64x64"
+          ]
+        }
+      ],
+      "remotes": [
+        {
+          "type": "sse",
+          "url": "http://localhost:64343/sse",
+          "headers": [
+            {
+              "name": "IJ_MCP_SERVER_PROJECT_PATH",
+              "description": "Absolute path to the project opened in IntelliJ IDEA.",
+              "value": "{project_path}",
+              "isRequired": true,
+              "isSecret": false,
+              "variables": {
+                "project_path": {
+                  "description": "Absolute project path for IntelliJ MCP context.",
+                  "format": "filepath",
+                  "placeholder": "/Users/you/Repos/project",
+                  "isRequired": true
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "_meta": {
+        "io.qent.broxy/catalog": {
+          "capabilities": [
+            "tools",
+            "resources"
+          ]
+        }
+      }
+    },
+    {
+      "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+      "name": "io.qent.broxy/notion",
+      "title": "Notion",
+      "description": "Official Notion MCP endpoint with OAuth authentication.",
+      "version": "latest",
+      "websiteUrl": "https://developers.notion.com/guides/mcp/get-started-with-mcp",
+      "repository": {
+        "source": "github",
+        "url": "https://github.com/makenotion/notion-mcp-server"
+      },
+      "icons": [
+        {
+          "src": "https://raw.githubusercontent.com/qent/broxy-registry/main/icons/notion.png",
+          "mimeType": "image/png",
+          "sizes": [
+            "64x64"
+          ]
+        }
+      ],
+      "remotes": [
+        {
+          "type": "streamable-http",
+          "url": "https://mcp.notion.com/mcp"
+        }
+      ],
+      "_meta": {
+        "io.qent.broxy/catalog": {
+          "capabilities": [
+            "tools",
+            "resources",
+            "prompts"
+          ]
+        }
+      }
+    },
+    {
+      "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+      "name": "io.qent.broxy/time",
+      "title": "Time",
+      "description": "MCP server that provides current time and timezone tools.",
+      "version": "1.0.0",
+      "websiteUrl": "https://github.com/modelcontextprotocol/servers/tree/main/src/time",
+      "repository": {
+        "source": "github",
+        "url": "https://github.com/modelcontextprotocol/servers",
+        "subfolder": "src/time"
+      },
+      "icons": [
+        {
+          "src": "https://raw.githubusercontent.com/qent/broxy-registry/main/icons/time.png",
+          "mimeType": "image/png",
+          "sizes": [
+            "64x64"
+          ]
+        }
+      ],
+      "packages": [
+        {
+          "registryType": "pypi",
+          "identifier": "mcp-server-time",
+          "runtimeHint": "uvx",
+          "transport": {
+            "type": "stdio"
+          }
+        }
+      ],
+      "_meta": {
+        "io.qent.broxy/catalog": {
+          "capabilities": [
+            "tools"
+          ]
+        }
+      }
+    }
+  ]
+}
