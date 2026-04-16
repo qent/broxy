@@ -46,6 +46,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
@@ -80,6 +81,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import io.qent.broxy.ui.adapter.catalog.CatalogBinaryInstallUrlResolver
 import io.qent.broxy.ui.adapter.catalog.CatalogConnectionType
 import io.qent.broxy.ui.adapter.catalog.CatalogFieldFormat
 import io.qent.broxy.ui.adapter.catalog.CatalogInstallField
@@ -95,6 +97,7 @@ import io.qent.broxy.ui.components.AppSecondaryButton
 import io.qent.broxy.ui.components.AppVerticalScrollbar
 import io.qent.broxy.ui.components.DeleteConfirmationDialog
 import io.qent.broxy.ui.components.EditorHeaderRow
+import io.qent.broxy.ui.components.LocalExternalLinkHoverReporter
 import io.qent.broxy.ui.components.OpenExternalLinkButton
 import io.qent.broxy.ui.components.SearchField
 import io.qent.broxy.ui.components.SearchFieldFabAlignedBottomPadding
@@ -338,6 +341,7 @@ private fun CatalogServerCard(
 ) {
     val strings = LocalStrings.current
     val externalUrl = resolveCatalogExternalUrl(item)
+    val runtimeBinaryInstallUrl = resolveCatalogRuntimeBinaryInstallUrl(item.runtimeBinaryName)
     val actionMode = resolveCatalogInstallActionMode(item, isRuntimeBinaryUnavailable)
     val contentAlpha = resolveCatalogCardContentAlpha(isRuntimeBinaryUnavailable)
     Card(
@@ -413,8 +417,10 @@ private fun CatalogServerCard(
                 CatalogInstallAction(
                     actionMode = actionMode,
                     runtimeBinaryName = item.runtimeBinaryName,
+                    runtimeBinaryInstallUrl = runtimeBinaryInstallUrl,
                     onInstall = onInstall,
                     onUninstall = onUninstall,
+                    onOpenExternalUrl = onOpenExternalUrl,
                     modifier = Modifier.offset(x = 6.dp, y = (-6).dp),
                 )
             }
@@ -426,8 +432,10 @@ private fun CatalogServerCard(
 private fun CatalogInstallAction(
     actionMode: CatalogInstallActionMode,
     runtimeBinaryName: String?,
+    runtimeBinaryInstallUrl: String?,
     onInstall: () -> Unit,
     onUninstall: () -> Unit,
+    onOpenExternalUrl: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val strings = LocalStrings.current
@@ -453,9 +461,31 @@ private fun CatalogInstallAction(
 
         CatalogInstallActionMode.InstallBinaryBadge -> {
             val binaryName = runtimeBinaryName?.trim()?.takeIf { it.isNotEmpty() }
+            val installUrl = runtimeBinaryInstallUrl?.trim()?.takeIf { it.isNotEmpty() }
             if (binaryName != null) {
+                val hoverInteraction = remember { MutableInteractionSource() }
+                val isHovered by hoverInteraction.collectIsHoveredAsState()
+                val reportHover = LocalExternalLinkHoverReporter.current
+                LaunchedEffect(isHovered, installUrl, reportHover) {
+                    reportHover(if (isHovered) installUrl else null)
+                }
+                DisposableEffect(reportHover) {
+                    onDispose {
+                        reportHover(null)
+                    }
+                }
+                val clickModifier =
+                    if (installUrl != null) {
+                        Modifier.clickable(
+                            interactionSource = hoverInteraction,
+                            indication = null,
+                            onClick = { onOpenExternalUrl(installUrl) },
+                        )
+                    } else {
+                        Modifier
+                    }
                 Surface(
-                    modifier = modifier,
+                    modifier = modifier.hoverable(hoverInteraction).then(clickModifier),
                     shape = AppTheme.shapes.pill,
                     color = MaterialTheme.colorScheme.surfaceVariant,
                     border = BorderStroke(AppTheme.strokeWidths.thin, MaterialTheme.colorScheme.outline),
@@ -463,7 +493,12 @@ private fun CatalogInstallAction(
                     Text(
                         text = buildCatalogInstallBinaryBadgeText(strings, binaryName),
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color =
+                            resolveCatalogInstallBinaryBadgeTextColor(
+                                isHovered = isHovered,
+                                defaultColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                hoverColor = MaterialTheme.colorScheme.primary,
+                            ),
                         modifier =
                             Modifier.padding(
                                 horizontal = AppTheme.spacing.sm,
@@ -600,6 +635,17 @@ internal fun resolveCatalogCardContentAlpha(isRuntimeBinaryUnavailable: Boolean)
         1f
     }
 
+internal fun resolveCatalogInstallBinaryBadgeTextColor(
+    isHovered: Boolean,
+    defaultColor: Color,
+    hoverColor: Color,
+): Color =
+    if (isHovered) {
+        hoverColor
+    } else {
+        defaultColor
+    }
+
 internal fun buildCatalogInstallBinaryBadgeText(
     strings: AppStrings,
     binaryName: String,
@@ -620,6 +666,9 @@ internal fun buildCatalogInstallBinaryBadgeText(
         append(after)
     }
 }
+
+@Suppress("MaxLineLength")
+internal fun resolveCatalogRuntimeBinaryInstallUrl(binaryName: String?): String? = CatalogBinaryInstallUrlResolver.resolve(binaryName)
 
 internal fun filterCatalogItems(
     items: List<CatalogServerItem>,

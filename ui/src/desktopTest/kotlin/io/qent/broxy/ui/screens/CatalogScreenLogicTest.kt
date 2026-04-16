@@ -1,5 +1,6 @@
 package io.qent.broxy.ui.screens
 
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import io.qent.broxy.ui.adapter.catalog.CatalogConnectionType
 import io.qent.broxy.ui.adapter.catalog.CatalogInstallField
@@ -130,6 +131,38 @@ class CatalogScreenLogicTest {
         val binarySpan = badgeText.spanStyles.firstOrNull { it.item.fontWeight == FontWeight.Bold }
         assertNotNull(binarySpan)
         assertEquals("uvx", badgeText.text.substring(binarySpan.start, binarySpan.end))
+    }
+
+    @Test
+    fun `resolveCatalogInstallBinaryBadgeTextColor switches to hover color`() {
+        val defaultColor = Color(0xFF475569)
+        val hoverColor = Color(0xFF818CF8)
+
+        val initialColor =
+            resolveCatalogInstallBinaryBadgeTextColor(
+                isHovered = false,
+                defaultColor = defaultColor,
+                hoverColor = hoverColor,
+            )
+        val hoveredColor =
+            resolveCatalogInstallBinaryBadgeTextColor(
+                isHovered = true,
+                defaultColor = defaultColor,
+                hoverColor = hoverColor,
+            )
+
+        assertEquals(defaultColor, initialColor)
+        assertEquals(hoverColor, hoveredColor)
+    }
+
+    @Test
+    fun `resolveCatalogRuntimeBinaryInstallUrl returns mapped URL only for known binaries`() {
+        assertEquals("https://nodejs.org/en/download", resolveCatalogRuntimeBinaryInstallUrl("npx"))
+        assertEquals(
+            "https://docs.astral.sh/uv/getting-started/installation/",
+            resolveCatalogRuntimeBinaryInstallUrl(" UVX "),
+        )
+        assertNull(resolveCatalogRuntimeBinaryInstallUrl("unknown-binary"))
     }
 
     @Test

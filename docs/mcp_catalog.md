@@ -224,8 +224,12 @@ Catalog list behavior:
     (shared cache across cards that use the same binary, for example `uvx`).
   - check state is optimistic by default: before the check completes (or if the check fails), the card is treated as available.
   - when the runtime binary is unavailable, card content is rendered at `alpha=0.5`.
-  - when unavailable + not installed, the `+` control is replaced with non-clickable badge
+  - when unavailable + not installed, the `+` control is replaced with badge
     `Install <binary_name>`, where `<binary_name>` is bold.
+  - the missing-binary badge text switches to `primary` on hover.
+  - if `binary -> install URL` mapping exists, the badge is clickable, opens that URL in browser,
+    and hovering it shows the same bottom overlay bar with the target URL text.
+  - if the mapping is missing, the badge stays non-clickable and only keeps the hover color change.
   - when unavailable + installed, the installed `✓`/hover `-` uninstall control is preserved.
 - actions:
   - `Install` when `server.name` is not present in current `mcp.json` server IDs;
@@ -233,6 +237,11 @@ Catalog list behavior:
 - search field is pinned to the bottom (floating above content), matching other list screens, and is hidden
   when the catalog source list is empty;
 - search matches `title`, `server ID`, and `description`.
+
+Catalog binary install URL mapping resource:
+
+- `ui-adapter/src/commonMain/resources/catalog_binary_install_urls.json`
+- keys are normalized binary names (lowercase).
 
 `Uninstall` first shows the same delete confirmation dialog used in the Servers list, then removes the server
 by exact fixed ID (`server.name`) via the normal server removal flow.
