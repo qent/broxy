@@ -82,7 +82,7 @@ data class UiPresetCore(
         fun empty(): UiPresetCore =
             UiPresetCore(
                 id = EMPTY_PRESET_ID,
-                name = "No preset",
+                name = "Empty preset",
                 tools = emptyList(),
                 prompts = emptyList(),
                 resources = emptyList(),

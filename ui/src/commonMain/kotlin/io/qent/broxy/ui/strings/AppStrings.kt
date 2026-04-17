@@ -434,7 +434,7 @@ object EnglishStrings : AppStrings {
 
     override val unavailable = "Unavailable"
 
-    override val noPreset = "No preset"
+    override val noPreset = "Empty preset"
 
     override val allEnabledServers = "All enabled servers"
 
