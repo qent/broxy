@@ -1,3 +1,5 @@
+@file:Suppress("TooManyFunctions")
+
 package io.qent.broxy.core.proxy.inbound
 
 import io.modelcontextprotocol.kotlin.sdk.types.CallToolRequest
@@ -6,11 +8,14 @@ import io.modelcontextprotocol.kotlin.sdk.types.EmptyJsonObject
 import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 import io.modelcontextprotocol.kotlin.sdk.types.error
 import io.qent.broxy.core.presetmanagement.CreatePresetRequest
+import io.qent.broxy.core.presetmanagement.GetCatalogServerInstallStatusRequest
+import io.qent.broxy.core.presetmanagement.InstallCatalogServerRequest
 import io.qent.broxy.core.presetmanagement.PresetDescriptionRequest
 import io.qent.broxy.core.presetmanagement.PresetManagementAmbiguityException
 import io.qent.broxy.core.presetmanagement.PresetManagementBackend
 import io.qent.broxy.core.presetmanagement.PresetManagementException
 import io.qent.broxy.core.presetmanagement.ServerDescriptionRequest
+import io.qent.broxy.core.presetmanagement.SetServerEnabledRequest
 import io.qent.broxy.core.utils.LogEventBuilder
 import io.qent.broxy.core.utils.LogRequestContext
 import io.qent.broxy.core.utils.LogRequestType
@@ -99,6 +104,30 @@ internal fun decodeCreatePresetRequest(
                     )
                 },
         )
+    }
+
+internal fun decodeInstallCatalogServerRequest(
+    json: Json,
+    arguments: JsonObject,
+): InstallCatalogServerRequest =
+    decodeRequest(json, arguments, InstallCatalogServerRequest.serializer()) { request ->
+        request.copy(serverId = request.serverId.trim())
+    }
+
+internal fun decodeGetCatalogServerInstallStatusRequest(
+    json: Json,
+    arguments: JsonObject,
+): GetCatalogServerInstallStatusRequest =
+    decodeRequest(json, arguments, GetCatalogServerInstallStatusRequest.serializer()) { request ->
+        request.copy(serverId = request.serverId.trim())
+    }
+
+internal fun decodeSetServerEnabledRequest(
+    json: Json,
+    arguments: JsonObject,
+): SetServerEnabledRequest =
+    decodeRequest(json, arguments, SetServerEnabledRequest.serializer()) { request ->
+        request.copy(serverId = request.serverId.trim())
     }
 
 internal fun successResult(

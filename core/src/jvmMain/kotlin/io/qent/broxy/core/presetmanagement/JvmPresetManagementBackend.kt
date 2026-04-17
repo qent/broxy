@@ -34,7 +34,11 @@ class JvmPresetManagementBackend(
     private val configuredServersProvider: (() -> List<McpServerConfig>)? = null,
     private val savedPresetNamesProvider: (() -> List<NamedPresetManagementItem>)? = null,
     private val onPresetCreated: (suspend () -> Unit)? = null,
+    private val agenticModeProvider: (() -> Boolean)? = null,
 ) : PresetManagementBackend {
+    override val agenticModeEnabled: Boolean
+        get() = agenticModeProvider?.invoke() == true
+
     override suspend fun getPresetCreationAlgorithm(): PresetCreationAlgorithmResponse =
         PresetCreationAlgorithmResponse(
             prompt =
@@ -105,7 +109,7 @@ class JvmPresetManagementBackend(
 
         if (preset.id == Preset.PRESET_MANAGEMENT_ID) {
             val tools =
-                PresetManagementToolNames.all.map { name ->
+                availableToolNames().map { name ->
                     SourcedToolCapabilityPayload(
                         name = name,
                         description = "Preset-management tool '$name'.",

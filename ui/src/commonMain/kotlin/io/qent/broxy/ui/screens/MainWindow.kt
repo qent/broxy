@@ -42,6 +42,7 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.dp
 import io.qent.broxy.ui.adapter.store.AppStore
 import io.qent.broxy.ui.adapter.store.UIState
+import io.qent.broxy.ui.components.AgenticInstallPermissionDialog
 import io.qent.broxy.ui.components.AppNavigationRail
 import io.qent.broxy.ui.components.AppSnackbarHost
 import io.qent.broxy.ui.components.AuthorizationPopupDialog
@@ -273,6 +274,15 @@ fun MainWindow(
                         readyUi.intents.openAuthorizationInBrowser(authPopup.serverId, authPopup.authorizationUrl)
                     },
                     onDismiss = { readyUi.intents.dismissAuthorizationPopup(authPopup.serverId) },
+                )
+            }
+
+            val agenticPopup = readyUi?.agenticInstallPermissionPopup
+            if (readyUi != null && agenticPopup != null) {
+                AgenticInstallPermissionDialog(
+                    popup = agenticPopup,
+                    onAllow = { readyUi.intents.allowAgenticInstallPermission(agenticPopup.requestId) },
+                    onDeny = { readyUi.intents.denyAgenticInstallPermission(agenticPopup.requestId) },
                 )
             }
         }

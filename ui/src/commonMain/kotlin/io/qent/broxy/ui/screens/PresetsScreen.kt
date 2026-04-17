@@ -119,7 +119,12 @@ fun PresetsScreen(
                             .map { it.id }
                             .toSet()
                     if (presets.isEmpty()) {
-                        val emptyState = resolvePresetsEmptyState(strings, ui.activeProxyPresetId)
+                        val emptyState =
+                            resolvePresetsEmptyState(
+                                strings = strings,
+                                activeProxyPresetId = ui.activeProxyPresetId,
+                                presetManagementAgenticModeEnabled = ui.agenticModeEnabled,
+                            )
                         EmptyState(
                             title = emptyState.title,
                             subtitle = emptyState.subtitle,
@@ -410,10 +415,12 @@ internal data class PresetsEmptyStateText(
 internal fun resolvePresetsEmptyState(
     strings: AppStrings,
     activeProxyPresetId: String?,
+    presetManagementAgenticModeEnabled: Boolean = false,
 ): PresetsEmptyStateText {
     val subtitle =
         if (activeProxyPresetId == UiPresetCore.PRESET_MANAGEMENT_ID) {
-            strings.presetsEmptySubtitleForActiveMode(strings.presetManagement)
+            val modeName = if (presetManagementAgenticModeEnabled) strings.agenticMode else strings.presetManagement
+            strings.presetsEmptySubtitleForActiveMode(modeName)
         } else {
             strings.presetsEmptySubtitle
         }

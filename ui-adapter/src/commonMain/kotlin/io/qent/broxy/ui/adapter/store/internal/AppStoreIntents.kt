@@ -42,6 +42,8 @@ internal class AppStoreIntents(
     private val syncBackgroundRefresh: () -> Unit,
     private val publishReady: () -> Unit,
     private val remoteConnector: RemoteConnector,
+    private val allowAgenticInstallPermission: (Long) -> Unit,
+    private val denyAgenticInstallPermission: (Long) -> Unit,
 ) : Intents {
     private val context =
         IntentExecutionContext(
@@ -149,6 +151,8 @@ internal class AppStoreIntents(
 
     override fun selectProxyPreset(presetId: String?) = presetHandler.selectProxyPreset(presetId)
 
+    override fun setPresetManagementAgenticMode(enabled: Boolean) = presetHandler.setPresetManagementAgenticMode(enabled)
+
     override fun updateInboundHttpPort(port: Int) = runtimeSettingsHandler.updateInboundHttpPort(port)
 
     override fun updateRequestTimeout(seconds: Int) = runtimeSettingsHandler.updateRequestTimeout(seconds)
@@ -194,6 +198,10 @@ internal class AppStoreIntents(
     ) = serverHandler.openAuthorizationInBrowser(serverId, urlOverride)
 
     override fun dismissAuthorizationPopup(serverId: String) = serverHandler.dismissAuthorizationPopup(serverId)
+
+    override fun allowAgenticInstallPermission(requestId: Long) = allowAgenticInstallPermission.invoke(requestId)
+
+    override fun denyAgenticInstallPermission(requestId: Long) = denyAgenticInstallPermission.invoke(requestId)
 
     override fun connectAiClient(clientId: String) = integrationsHandler.connectAiClient(clientId)
 

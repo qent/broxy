@@ -81,6 +81,9 @@ Broxy reserves a few preset ids that are not backed by `preset_*.json` files:
   (`get_preset_creation_algorithm`, `list_server_names`, `get_server_description`,
   `list_preset_names`, `get_preset_description`, `create_preset`) and does not expose downstream
   tools/prompts/resources or adapter-mode tools.
+  In desktop UI, a `🤘` Agentic Mode toggle for this preset enables an extended tool surface:
+  `list_catalog_server_names`, `install_catalog_server`, `get_catalog_server_install_status`,
+  `set_server_enabled`.
 
 The UI treats these as fixed presets for selection, and the core filter bypasses allow-list checks
 for `__all_enabled__` by building a full pass-through view with prefixed tool names.
@@ -222,6 +225,10 @@ File: `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/RequestDispatcher.kt`
 - When the active preset is `__preset_management__` and no file-backed presets exist, the Presets
   screen empty state shows the active mode and explains that presets can be created through a
   connected AI agent.
+- Agentic Mode (`🤘`) is session-only UI state (not persisted in `ui.json`).
+  When `__preset_management__` is active and the proxy is running, toggling Agentic Mode triggers
+  `refreshFilteredCapabilities()` so `/mcp/__preset_management__` and `/sse/__preset_management__`
+  resync their management tool surface without inbound restart.
 - Preset cards now flag unavailable server references inline: if a preset contains enabled tool/prompt/resource
   references for servers that are currently disabled or removed from config, the card shows a warning
   ("Some capabilities are disabled"), tints affected capability type icon/count

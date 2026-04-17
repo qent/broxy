@@ -277,4 +277,30 @@ internal class PresetIntentsHandler(
             context.publishReady()
         }
     }
+
+    fun setPresetManagementAgenticMode(enabled: Boolean) {
+        context.scope.launch {
+            val snapshot = context.state.snapshot
+            if (snapshot.agenticModeEnabled == enabled) return@launch
+            context.state.updateSnapshot { copy(agenticModeEnabled = enabled) }
+            context.publishReady()
+            val isPresetManagementActive = snapshot.activeProxyPresetId == UiPresetCore.PRESET_MANAGEMENT_ID
+            val isProxyRunning = snapshot.proxyStatus is UiProxyStatus.Running
+            if (!isPresetManagementActive || !isProxyRunning) {
+                return@launch
+            }
+            val refreshResult =
+                withContext(context.ioDispatcher) {
+                    context.proxyRuntimeFacade.refreshFilteredCapabilities()
+                }
+            if (refreshResult.isFailure) {
+                val msg =
+                    failureMessage(
+                        refreshResult.exceptionOrNull(),
+                        "Failed to refresh preset management capabilities",
+                    )
+                context.pushToast(msg)
+            }
+        }
+    }
 }

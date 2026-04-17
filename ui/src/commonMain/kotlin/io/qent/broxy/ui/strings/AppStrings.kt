@@ -57,6 +57,8 @@ interface AppStrings {
 
     val presetManagement: String
 
+    val agenticMode: String
+
     val openPresetMenu: String
 
     val openClientInfo: String
@@ -131,6 +133,10 @@ interface AppStrings {
 
     val cancel: String
 
+    val allow: String
+
+    val deny: String
+
     val continueInBrowser: String
 
     val close: String
@@ -158,6 +164,10 @@ interface AppStrings {
     fun authorization(seconds: Long): String
 
     fun authorizationPopupTitle(name: String): String
+
+    fun agenticInstallPermissionTitle(name: String): String
+
+    val agenticInstallPermissionSubtitle: String
 
     val authorizationPopupPermissionSubtitle: String
 
@@ -440,6 +450,8 @@ object EnglishStrings : AppStrings {
 
     override val presetManagement = "AI Preset management"
 
+    override val agenticMode = "Agentic Mode"
+
     override val openPresetMenu = "Open preset menu"
 
     override val openClientInfo = "Open client info"
@@ -524,6 +536,10 @@ object EnglishStrings : AppStrings {
 
     override val cancel = "Cancel"
 
+    override val allow = "Allow"
+
+    override val deny = "Deny"
+
     override val continueInBrowser = "Continue in Browser"
 
     override val close = "Close"
@@ -551,6 +567,11 @@ object EnglishStrings : AppStrings {
     override fun authorization(seconds: Long): String = "Authorization: $seconds s"
 
     override fun authorizationPopupTitle(name: String): String = "Authorize $name"
+
+    override fun agenticInstallPermissionTitle(name: String): String = "Allow installation of $name?"
+
+    override val agenticInstallPermissionSubtitle =
+        "The agent requested one-click installation of this catalog server."
 
     override val authorizationPopupPermissionSubtitle =
         "This server wants to open a browser page for OAuth authorization."

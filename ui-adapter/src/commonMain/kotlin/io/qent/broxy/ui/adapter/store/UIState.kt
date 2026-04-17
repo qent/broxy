@@ -2,6 +2,7 @@ package io.qent.broxy.ui.adapter.store
 
 import io.qent.broxy.ui.adapter.catalog.CatalogInstallSession
 import io.qent.broxy.ui.adapter.catalog.CatalogServerItem
+import io.qent.broxy.ui.adapter.models.UiAgenticInstallPermissionPopup
 import io.qent.broxy.ui.adapter.models.UiAiClient
 import io.qent.broxy.ui.adapter.models.UiAuthorizationPopup
 import io.qent.broxy.ui.adapter.models.UiImportedServerGroup
@@ -50,10 +51,12 @@ sealed class UIState {
         val showTrayIcon: Boolean,
         val fallbackPromptsAndResourcesToTools: Boolean,
         val adapterMode: Boolean,
+        val agenticModeEnabled: Boolean,
         val intents: Intents,
         val remote: UiRemoteConnectionState,
         val remoteEnabled: Boolean,
         val authorizationPopup: UiAuthorizationPopup?,
+        val agenticInstallPermissionPopup: UiAgenticInstallPermissionPopup?,
     ) : UIState()
 }
 
@@ -127,6 +130,8 @@ interface Intents {
 
     fun selectProxyPreset(presetId: String?)
 
+    fun setPresetManagementAgenticMode(enabled: Boolean)
+
     fun updateInboundHttpPort(port: Int)
 
     fun updateRequestTimeout(seconds: Int)
@@ -171,6 +176,10 @@ interface Intents {
     )
 
     fun dismissAuthorizationPopup(serverId: String)
+
+    fun allowAgenticInstallPermission(requestId: Long)
+
+    fun denyAgenticInstallPermission(requestId: Long)
 
     fun connectAiClient(clientId: String)
 

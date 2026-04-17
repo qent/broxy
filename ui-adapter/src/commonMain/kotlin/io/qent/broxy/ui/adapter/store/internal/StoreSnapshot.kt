@@ -6,6 +6,7 @@ import io.qent.broxy.ui.adapter.catalog.CatalogInstallPlanner
 import io.qent.broxy.ui.adapter.catalog.CatalogInstallSession
 import io.qent.broxy.ui.adapter.catalog.CatalogServerEntry
 import io.qent.broxy.ui.adapter.icons.ServerIconResolver
+import io.qent.broxy.ui.adapter.models.UiAgenticInstallPermissionPopup
 import io.qent.broxy.ui.adapter.models.UiAiClient
 import io.qent.broxy.ui.adapter.models.UiAuthorizationPopup
 import io.qent.broxy.ui.adapter.models.UiHttpTransport
@@ -57,10 +58,13 @@ internal data class StoreSnapshot(
     val showTrayIcon: Boolean = true,
     val fallbackPromptsAndResourcesToTools: Boolean = false,
     val adapterMode: Boolean = false,
+    val agenticModeEnabled: Boolean = false,
     val remote: UiRemoteConnectionState = defaultRemoteState(),
     val remoteEnabled: Boolean = isRemoteIntegrationEnabled(),
     val authorizationPopup: UiAuthorizationPopup? = null,
     val authorizationPopupQueue: List<UiAuthorizationPopup> = emptyList(),
+    val agenticInstallPermissionPopup: UiAgenticInstallPermissionPopup? = null,
+    val agenticInstallPermissionQueue: List<UiAgenticInstallPermissionPopup> = emptyList(),
     val refreshingServerIds: Set<String> = emptySet(),
     val pendingImportedServerCreate: UiPendingImportedServerCreate? = null,
     val pendingImportedServerCreateRequestId: Long = 0L,
@@ -201,10 +205,12 @@ internal fun StoreSnapshot.toUiState(
         showTrayIcon = showTrayIcon,
         fallbackPromptsAndResourcesToTools = fallbackPromptsAndResourcesToTools,
         adapterMode = adapterMode,
+        agenticModeEnabled = agenticModeEnabled,
         intents = intents,
         remote = remote,
         remoteEnabled = remoteEnabled,
         authorizationPopup = authorizationPopup,
+        agenticInstallPermissionPopup = agenticInstallPermissionPopup,
     )
 }
 

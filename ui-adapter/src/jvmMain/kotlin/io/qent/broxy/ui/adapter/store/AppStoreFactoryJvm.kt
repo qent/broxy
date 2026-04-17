@@ -59,6 +59,7 @@ fun createAppStore(
 ): AppStore {
     val proxyController = proxyFactory(logger)
     val proxyLifecycle = ProxyLifecycle(proxyController, logger)
+    val catalogRepository = provideCatalogRepository()
     val remoteConnector =
         createRemoteConnector(
             logger = logger,
@@ -87,7 +88,7 @@ fun createAppStore(
             remoteConnector = remoteConnector,
             importedServerHideRepository = provideImportedServerHideRepository(),
             importedServerInstallRepository = provideImportedServerInstallRepository(),
-            catalogRepository = provideCatalogRepository(),
+            catalogRepository = catalogRepository,
             capabilityCachePersistence = capabilityCachePersistence,
         )
     proxyLifecycle.registerPresetManagementBackend(
@@ -103,6 +104,14 @@ fun createAppStore(
             configuredServersProvider = { store.currentServersForPresetManagement() },
             savedPresetNamesProvider = { store.currentPresetNamesForPresetManagement() },
             refreshPresetListAfterCreate = { store.refreshPresetsForPresetManagement().getOrThrow() },
+            catalogRepository = catalogRepository,
+            proxyRuntime = proxyLifecycle,
+            coroutineScope = scope,
+            requestInstallPermission = { request ->
+                store.requestAgenticInstallPermission(request)
+            },
+            refreshUiAfterServerMutation = { store.refreshServersForPresetManagement().getOrThrow() },
+            agenticModeEnabledProvider = { store.isPresetManagementAgenticModeEnabled() },
         ),
     )
     return store

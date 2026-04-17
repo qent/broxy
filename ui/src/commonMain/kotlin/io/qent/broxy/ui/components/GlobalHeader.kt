@@ -1,4 +1,4 @@
-@file:Suppress("FunctionNaming")
+@file:Suppress("FunctionNaming", "TooManyFunctions")
 @file:OptIn(ExperimentalMaterial3Api::class)
 
 package io.qent.broxy.ui.components
@@ -54,6 +54,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -87,7 +88,9 @@ private val REMOTE_ACTIONS_WIDTH = 280.dp
 private const val AUTH_GRADIENT_DISABLED_ALPHA = 0.45f
 private const val AUTH_GRADIENT_START = 0xFF3B82F6
 private const val AUTH_GRADIENT_END = 0xFF8B5CF6
-private const val PRESET_MANAGEMENT_AI_TOKEN = "AI"
+private const val PRESET_MANAGEMENT_ROCK_ICON = "🤘"
+private const val PRESET_MANAGEMENT_ROCK_ICON_DISABLED_ALPHA = 0.45f
+private const val AGENTIC_FIRST_LETTER_COLOR_HEX = 0xFF2563EB
 private const val REMOTE_CONNECTING_COLOR_HEX = 0xFF38BDF8
 private const val REMOTE_OFFLINE_COLOR_HEX = 0xFFF59E0B
 private val PRESET_STATUS_DOT_NO_CAPABILITIES_COLOR = Color(PRESET_STATUS_DOT_NO_CAPABILITIES_HEX)
@@ -384,28 +387,10 @@ private fun PresetDropdown(
         is UIState.Ready -> {
             val activePresetId = ui.activeProxyPresetId
             val normalizedActiveId = activePresetId ?: UiPresetCore.EMPTY_PRESET_ID
-            val currentName = resolvePresetName(normalizedActiveId, ui.presets, strings)
+            val currentName = resolvePresetName(normalizedActiveId, ui.presets, strings, ui.agenticModeEnabled)
             val isPresetManagementSelected = normalizedActiveId == UiPresetCore.PRESET_MANAGEMENT_ID
-            val presetManagementLabel = strings.presetManagement
-            val presetManagementLabelText =
-                if (presetManagementLabel.startsWith("$PRESET_MANAGEMENT_AI_TOKEN ")) {
-                    buildAnnotatedString {
-                        withStyle(
-                            SpanStyle(
-                                brush =
-                                    Brush.horizontalGradient(
-                                        listOf(Color(AUTH_GRADIENT_START), Color(AUTH_GRADIENT_END)),
-                                    ),
-                                fontWeight = FontWeight.Bold,
-                            ),
-                        ) {
-                            append(PRESET_MANAGEMENT_AI_TOKEN)
-                        }
-                        append(presetManagementLabel.removePrefix(PRESET_MANAGEMENT_AI_TOKEN))
-                    }
-                } else {
-                    buildAnnotatedString { append(presetManagementLabel) }
-                }
+            val presetManagementLabel = if (ui.agenticModeEnabled) strings.agenticMode else strings.presetManagement
+            val presetManagementLabelText = presetManagementLabelText(presetManagementLabel, ui.agenticModeEnabled)
             val activePreset = ui.presets.firstOrNull { it.id == normalizedActiveId }
             val enabledServerIds =
                 ui.servers
@@ -528,11 +513,26 @@ private fun PresetDropdown(
 
                     DropdownMenuItem(
                         text = {
-                            Text(
-                                text = presetManagementLabelText,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = AppTheme.colors.onSurface,
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(AppTheme.spacing.sm),
+                            ) {
+                                Text(
+                                    text = presetManagementLabelText,
+                                    modifier = Modifier.weight(1f),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = AppTheme.colors.onSurface,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                PresetManagementRockToggle(
+                                    enabled = ui.agenticModeEnabled,
+                                    onToggle = {
+                                        ui.intents.setPresetManagementAgenticMode(!ui.agenticModeEnabled)
+                                    },
+                                )
+                            }
                         },
                         contentPadding =
                             PaddingValues(
@@ -542,7 +542,7 @@ private fun PresetDropdown(
                         onClick = {
                             expanded = false
                             ui.intents.selectProxyPreset(UiPresetCore.PRESET_MANAGEMENT_ID)
-                            notify(strings.presetSelected(strings.presetManagement))
+                            notify(strings.presetSelected(presetManagementLabel))
                         },
                     )
 
@@ -629,14 +629,54 @@ private fun HeaderField(
     }
 }
 
+@Composable
+private fun PresetManagementRockToggle(
+    enabled: Boolean,
+    onToggle: () -> Unit,
+) {
+    Text(
+        text = PRESET_MANAGEMENT_ROCK_ICON,
+        modifier =
+            Modifier
+                .alpha(if (enabled) 1f else PRESET_MANAGEMENT_ROCK_ICON_DISABLED_ALPHA)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onToggle,
+                ),
+        style = MaterialTheme.typography.bodyMedium,
+        textAlign = TextAlign.Center,
+    )
+}
+
+private fun presetManagementLabelText(
+    label: String,
+    agenticModeEnabled: Boolean,
+) = buildAnnotatedString {
+    if (!agenticModeEnabled || label.isEmpty()) {
+        append(label)
+        return@buildAnnotatedString
+    }
+    withStyle(
+        SpanStyle(
+            color = Color(AGENTIC_FIRST_LETTER_COLOR_HEX),
+            fontWeight = FontWeight.Bold,
+        ),
+    ) {
+        append(label.first())
+    }
+    append(label.drop(1))
+}
+
 private fun resolvePresetName(
     presetId: String,
     presets: List<UiPreset>,
     strings: AppStrings,
+    agenticModeEnabled: Boolean,
 ): String =
     when (presetId) {
         UiPresetCore.EMPTY_PRESET_ID -> strings.noPreset
         UiPresetCore.ALL_ENABLED_PRESET_ID -> strings.allEnabledServers
-        UiPresetCore.PRESET_MANAGEMENT_ID -> strings.presetManagement
+        UiPresetCore.PRESET_MANAGEMENT_ID -> if (agenticModeEnabled) strings.agenticMode else strings.presetManagement
         else -> presets.firstOrNull { it.id == presetId }?.name ?: presetId
     }

@@ -237,6 +237,8 @@ class StoreSnapshotTest {
 
         override fun selectProxyPreset(presetId: String?) {}
 
+        override fun setPresetManagementAgenticMode(enabled: Boolean) {}
+
         override fun updateInboundHttpPort(port: Int) {}
 
         override fun updateRequestTimeout(seconds: Int) {}
@@ -281,6 +283,10 @@ class StoreSnapshotTest {
         ) {}
 
         override fun dismissAuthorizationPopup(serverId: String) {}
+
+        override fun allowAgenticInstallPermission(requestId: Long) {}
+
+        override fun denyAgenticInstallPermission(requestId: Long) {}
 
         override fun connectAiClient(clientId: String) {}
 

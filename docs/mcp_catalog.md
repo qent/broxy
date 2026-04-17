@@ -123,6 +123,23 @@ Catalog install UI:
 - one-click install starts the normal capabilities/auth flow in the background (including OAuth popup for
   remote HTTP/SSE/Streamable servers).
 
+### Agentic install via `__preset_management__`
+
+When Preset Management Agentic Mode (`🤘`) is enabled, MCP clients can trigger catalog one-click install
+through preset-management tools:
+
+- `list_catalog_server_names` - catalog IDs/names.
+- `install_catalog_server(server_id)` - asks for explicit user approval in Broxy UI popup
+  (reuse of the authorization popup pattern, with icon/name/description and `Allow` / `Deny`).
+- `get_catalog_server_install_status(server_id)` - status by catalog `server_id` (no `installation_id`).
+- `set_server_enabled(server_id, enabled)` - enable/disable installed server without removing it.
+
+Status mapping is derived from runtime/config state by catalog `server_id`:
+
+- server missing in `mcp.json` -> `not_installed`;
+- server present in `mcp.json` but no capabilities yet -> `installing`;
+- server has capabilities (live/cached) -> `installed`.
+
 ## Install steps metadata
 
 Catalog entries may provide optional setup instructions in `_meta.install_steps`:

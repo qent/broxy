@@ -24,6 +24,7 @@ import io.qent.broxy.ui.adapter.icons.ServerIconRepository
 import io.qent.broxy.ui.adapter.models.UiAiClient
 import io.qent.broxy.ui.adapter.models.UiAiClientNoticeSeverity
 import io.qent.broxy.ui.adapter.models.UiAiClientStatusLoadFailedNotice
+import io.qent.broxy.ui.adapter.models.UiCatalogInstallPermissionRequest
 import io.qent.broxy.ui.adapter.models.UiHttpDraft
 import io.qent.broxy.ui.adapter.models.UiHttpTransport
 import io.qent.broxy.ui.adapter.models.UiMcpServerConfig
@@ -47,6 +48,7 @@ import io.qent.broxy.ui.adapter.models.toCore
 import io.qent.broxy.ui.adapter.models.toUi
 import io.qent.broxy.ui.adapter.models.toUiModel
 import io.qent.broxy.ui.adapter.remote.RemoteConnector
+import io.qent.broxy.ui.adapter.store.internal.AgenticInstallPermissionCoordinator
 import io.qent.broxy.ui.adapter.store.internal.AppStoreIntents
 import io.qent.broxy.ui.adapter.store.internal.AuthorizationPopupCoordinator
 import io.qent.broxy.ui.adapter.store.internal.ImportedClientGroup
@@ -71,6 +73,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 
 /**
@@ -140,6 +143,12 @@ class AppStore(
             remoteConnector = remoteConnector,
             onProxyStatusChanged = ::syncBackgroundRefresh,
         )
+    private val agenticInstallPermissionCoordinator =
+        AgenticInstallPermissionCoordinator(
+            state = stateAccess,
+            publishReady = ::publishReady,
+            logger = logger,
+        )
     private val intents: Intents =
         AppStoreIntents(
             scope = storeScope,
@@ -164,6 +173,16 @@ class AppStore(
             syncBackgroundRefresh = ::syncBackgroundRefresh,
             publishReady = ::publishReady,
             remoteConnector = remoteConnector,
+            allowAgenticInstallPermission = { requestId ->
+                storeScope.launch {
+                    agenticInstallPermissionCoordinator.allow(requestId)
+                }
+            },
+            denyAgenticInstallPermission = { requestId ->
+                storeScope.launch {
+                    agenticInstallPermissionCoordinator.deny(requestId)
+                }
+            },
         )
     private val authorizationCoordinator =
         AuthorizationPopupCoordinator(
@@ -211,6 +230,11 @@ class AppStore(
     fun stop() {
         capabilityRefresher.restartBackgroundJob(false)
         registerAuthorizationPresenter(null)
+        runCatching {
+            runBlocking {
+                agenticInstallPermissionCoordinator.cancelAll()
+            }
+        }
         runCatching { proxyCoordinator.stopInbound() }
         if (snapshot.remoteEnabled) {
             runCatching { remoteConnector.disconnect() }
@@ -313,6 +337,23 @@ class AppStore(
                     configurationRepository.listPresets().map { it.toUi().toUiPresetSummary() }
                 }
             updateSnapshot { withPresets(loadedPresets) }
+            publishReadyIfNotError()
+        }
+
+    internal fun isPresetManagementAgenticModeEnabled(): Boolean = snapshot.agenticModeEnabled
+
+    internal suspend fun requestAgenticInstallPermission(request: UiCatalogInstallPermissionRequest): Boolean =
+        agenticInstallPermissionCoordinator.requestPermission(
+            serverId = request.serverId,
+            serverName = request.serverName,
+            serverDescription = request.serverDescription,
+            iconUrl = request.iconUrl,
+        )
+
+    internal suspend fun refreshServersForPresetManagement(): Result<Unit> =
+        runCatching {
+            loadConfigurationSnapshot().getOrThrow()
+            capabilityRefresher.syncWithServers(snapshot.servers.toCore())
             publishReadyIfNotError()
         }
 

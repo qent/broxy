@@ -469,6 +469,8 @@ private object NoOpIntents : Intents {
 
     override fun selectProxyPreset(presetId: String?) {}
 
+    override fun setPresetManagementAgenticMode(enabled: Boolean) {}
+
     override fun updateInboundHttpPort(port: Int) {}
 
     override fun updateRequestTimeout(seconds: Int) {}
@@ -513,6 +515,10 @@ private object NoOpIntents : Intents {
     ) {}
 
     override fun dismissAuthorizationPopup(serverId: String) {}
+
+    override fun allowAgenticInstallPermission(requestId: Long) {}
+
+    override fun denyAgenticInstallPermission(requestId: Long) {}
 
     override fun connectAiClient(clientId: String) {}
 

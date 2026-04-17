@@ -50,4 +50,20 @@ class PresetsScreenLogicTest {
         assertEquals("No presets yet", result.title)
         assertEquals("Use the + button to add your first preset", result.subtitle)
     }
+
+    @Test
+    fun `resolvePresetsEmptyState returns agentic message when management mode is agentic`() {
+        val result =
+            resolvePresetsEmptyState(
+                strings = EnglishStrings,
+                activeProxyPresetId = UiPresetCore.PRESET_MANAGEMENT_ID,
+                presetManagementAgenticModeEnabled = true,
+            )
+
+        assertEquals("No presets yet", result.title)
+        assertEquals(
+            "Active mode: Agentic Mode. Create presets with a connected AI agent.",
+            result.subtitle,
+        )
+    }
 }

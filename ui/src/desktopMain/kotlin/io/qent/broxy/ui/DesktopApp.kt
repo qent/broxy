@@ -110,6 +110,16 @@ fun main(args: Array<String>) {
                 isWindowVisible = true
             }
         }
+        val agenticInstallPopupRequestId =
+            (uiState as? UIState.Ready)
+                ?.agenticInstallPermissionPopup
+                ?.requestId
+        LaunchedEffect(agenticInstallPopupRequestId) {
+            if (agenticInstallPopupRequestId != null) {
+                isWindowVisible = true
+                bringToFrontRequest += 1
+            }
+        }
 
         DisposableEffect(isMacOs) {
             if (!isMacOs) {

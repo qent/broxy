@@ -8,8 +8,14 @@ import io.modelcontextprotocol.kotlin.sdk.types.CallToolResult
 import io.modelcontextprotocol.kotlin.sdk.types.EmptyJsonObject
 import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 import io.modelcontextprotocol.kotlin.sdk.types.ToolSchema
+import io.qent.broxy.core.presetmanagement.CatalogServerInstallState
+import io.qent.broxy.core.presetmanagement.CatalogServerInstallStatusResponse
 import io.qent.broxy.core.presetmanagement.CreatePresetRequest
 import io.qent.broxy.core.presetmanagement.CreatePresetResponse
+import io.qent.broxy.core.presetmanagement.GetCatalogServerInstallStatusRequest
+import io.qent.broxy.core.presetmanagement.InstallCatalogServerRequest
+import io.qent.broxy.core.presetmanagement.InstallCatalogServerResponse
+import io.qent.broxy.core.presetmanagement.ListCatalogServerNamesResponse
 import io.qent.broxy.core.presetmanagement.ListPresetNamesResponse
 import io.qent.broxy.core.presetmanagement.ListServerNamesResponse
 import io.qent.broxy.core.presetmanagement.NamedPresetManagementItem
@@ -21,6 +27,8 @@ import io.qent.broxy.core.presetmanagement.PresetManagementBackend
 import io.qent.broxy.core.presetmanagement.PresetManagementToolNames
 import io.qent.broxy.core.presetmanagement.ServerDescriptionRequest
 import io.qent.broxy.core.presetmanagement.ServerDescriptionResponse
+import io.qent.broxy.core.presetmanagement.SetServerEnabledRequest
+import io.qent.broxy.core.presetmanagement.SetServerEnabledResponse
 import io.qent.broxy.core.utils.Logger
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
@@ -99,6 +107,18 @@ class PresetManagementToolFactoryTest {
             val schema = assertNotNull(tools.first { it.tool.name == toolName }.tool.outputSchema)
             assertTrue(schema.requiredFields().containsAll(expectedRequired))
         }
+    }
+
+    @Test
+    fun buildManagementTools_includes_agentic_tools_when_enabled() {
+        val tools =
+            PresetManagementToolFactory.buildManagementTools(
+                backendProvider = { AgenticBackend() },
+                logger = NoopLogger,
+                json = json,
+            )
+
+        assertEquals(PresetManagementToolNames.allWithAgentic.toSet(), tools.map { it.tool.name }.toSet())
     }
 
     @Test
@@ -218,6 +238,38 @@ class PresetManagementToolFactoryTest {
             CreatePresetResponse(
                 presetId = request.presetId,
                 presetName = request.presetName,
+            )
+    }
+
+    private class AgenticBackend : SuccessBackend() {
+        override val agenticModeEnabled: Boolean = true
+
+        override suspend fun listCatalogServerNames(): ListCatalogServerNamesResponse =
+            ListCatalogServerNamesResponse(
+                servers = listOf(NamedPresetManagementItem(id = "catalog-1", name = "Catalog 1")),
+            )
+
+        override suspend fun installCatalogServer(request: InstallCatalogServerRequest): InstallCatalogServerResponse =
+            InstallCatalogServerResponse(
+                serverId = request.serverId,
+                state = CatalogServerInstallState.Installing,
+                message = "started",
+            )
+
+        override suspend fun getCatalogServerInstallStatus(
+            request: GetCatalogServerInstallStatusRequest,
+        ): CatalogServerInstallStatusResponse =
+            CatalogServerInstallStatusResponse(
+                serverId = request.serverId,
+                state = CatalogServerInstallState.Installed,
+                installed = true,
+                ready = false,
+            )
+
+        override suspend fun setServerEnabled(request: SetServerEnabledRequest): SetServerEnabledResponse =
+            SetServerEnabledResponse(
+                serverId = request.serverId,
+                enabled = request.enabled,
             )
     }
 

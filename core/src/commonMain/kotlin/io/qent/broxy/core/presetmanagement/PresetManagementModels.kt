@@ -21,8 +21,69 @@ data class ListServerNamesResponse(
 )
 
 @Serializable
+data class ListCatalogServerNamesResponse(
+    val servers: List<NamedPresetManagementItem>,
+)
+
+@Serializable
 data class ListPresetNamesResponse(
     val presets: List<NamedPresetManagementItem>,
+)
+
+@Serializable
+data class InstallCatalogServerRequest(
+    @SerialName("server_id")
+    val serverId: String,
+)
+
+@Serializable
+data class GetCatalogServerInstallStatusRequest(
+    @SerialName("server_id")
+    val serverId: String,
+)
+
+@Serializable
+data class SetServerEnabledRequest(
+    @SerialName("server_id")
+    val serverId: String,
+    val enabled: Boolean,
+)
+
+@Serializable
+enum class CatalogServerInstallState {
+    @SerialName("not_installed")
+    NotInstalled,
+
+    @SerialName("installing")
+    Installing,
+
+    @SerialName("installed")
+    Installed,
+}
+
+@Serializable
+data class InstallCatalogServerResponse(
+    @SerialName("server_id")
+    val serverId: String,
+    val state: CatalogServerInstallState,
+    val message: String? = null,
+)
+
+@Serializable
+data class CatalogServerInstallStatusResponse(
+    @SerialName("server_id")
+    val serverId: String,
+    val state: CatalogServerInstallState,
+    val installed: Boolean,
+    val ready: Boolean,
+    val message: String? = null,
+)
+
+@Serializable
+data class SetServerEnabledResponse(
+    @SerialName("server_id")
+    val serverId: String,
+    val enabled: Boolean,
 )
 
 @Serializable

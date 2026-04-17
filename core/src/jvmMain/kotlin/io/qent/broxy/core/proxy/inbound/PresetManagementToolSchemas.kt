@@ -33,6 +33,15 @@ internal const val GET_PRESET_DESCRIPTION_DESCRIPTION =
 internal const val CREATE_PRESET_DESCRIPTION =
     "Creates a new preset with explicit preset_id and preset_name. " +
         CALL_GET_PRESET_CREATION_ALGORITHM_FIRST
+internal const val LIST_CATALOG_SERVER_NAMES_DESCRIPTION =
+    "Lists available MCP servers from the catalog. $CALL_GET_PRESET_CREATION_ALGORITHM_FIRST"
+internal const val INSTALL_CATALOG_SERVER_DESCRIPTION =
+    "Requests one-click installation for a catalog server by server_id. " +
+        "Requires an explicit user approval popup in Broxy UI."
+internal const val GET_CATALOG_SERVER_INSTALL_STATUS_DESCRIPTION =
+    "Returns installation status for a catalog server by server_id."
+internal const val SET_SERVER_ENABLED_DESCRIPTION =
+    "Enables or disables an already installed server by server_id."
 
 private const val SCHEMA_KEY_TYPE = "type"
 private const val SCHEMA_KEY_DESCRIPTION = "description"
@@ -64,6 +73,10 @@ private const val FIELD_SOURCE_SERVER_ID = "source_server_id"
 private const val FIELD_SOURCE_SERVER_NAME = "source_server_name"
 private const val FIELD_MISSING_CAPABILITIES = "missing_capabilities"
 private const val FIELD_TYPE = "type"
+private const val FIELD_STATE = "state"
+private const val FIELD_INSTALLED = "installed"
+private const val FIELD_READY = "ready"
+private const val FIELD_MESSAGE = "message"
 
 private val toolSelectionItemSchema =
     objectSchema(
@@ -241,6 +254,34 @@ internal val CREATE_PRESET_INPUT_SCHEMA =
         required = listOf(ARG_PRESET_ID, ARG_PRESET_NAME, ARG_TOOLS),
     )
 
+internal val INSTALL_CATALOG_SERVER_INPUT_SCHEMA =
+    ToolSchema(
+        properties =
+            buildJsonObject {
+                put(ARG_SERVER_ID, stringSchema("Catalog server id to install."))
+            },
+        required = listOf(ARG_SERVER_ID),
+    )
+
+internal val GET_CATALOG_SERVER_INSTALL_STATUS_INPUT_SCHEMA =
+    ToolSchema(
+        properties =
+            buildJsonObject {
+                put(ARG_SERVER_ID, stringSchema("Catalog server id to inspect install status."))
+            },
+        required = listOf(ARG_SERVER_ID),
+    )
+
+internal val SET_SERVER_ENABLED_INPUT_SCHEMA =
+    ToolSchema(
+        properties =
+            buildJsonObject {
+                put(ARG_SERVER_ID, stringSchema("Installed server id to toggle."))
+                put("enabled", booleanSchema("Whether the server should be enabled."))
+            },
+        required = listOf(ARG_SERVER_ID, "enabled"),
+    )
+
 internal val GET_PRESET_CREATION_ALGORITHM_OUTPUT_SCHEMA =
     ToolSchema(
         properties =
@@ -328,6 +369,58 @@ internal val CREATE_PRESET_OUTPUT_SCHEMA =
                 put(ARG_PRESET_NAME, stringSchema("Created preset name."))
             },
         required = listOf(ARG_PRESET_ID, ARG_PRESET_NAME),
+    )
+
+internal val LIST_CATALOG_SERVER_NAMES_OUTPUT_SCHEMA =
+    ToolSchema(
+        properties = buildJsonObject { put(FIELD_SERVERS, arraySchema("Catalog servers.", namedPresetItemSchema)) },
+        required = listOf(FIELD_SERVERS),
+    )
+
+internal val INSTALL_CATALOG_SERVER_OUTPUT_SCHEMA =
+    ToolSchema(
+        properties =
+            buildJsonObject {
+                put(ARG_SERVER_ID, stringSchema("Catalog server id."))
+                put(
+                    FIELD_STATE,
+                    enumStringSchema(
+                        description = "Current installation state.",
+                        values = listOf("not_installed", "installing", "installed"),
+                    ),
+                )
+                put(FIELD_MESSAGE, stringSchema("Optional installation status message."))
+            },
+        required = listOf(ARG_SERVER_ID, FIELD_STATE),
+    )
+
+internal val GET_CATALOG_SERVER_INSTALL_STATUS_OUTPUT_SCHEMA =
+    ToolSchema(
+        properties =
+            buildJsonObject {
+                put(ARG_SERVER_ID, stringSchema("Catalog server id."))
+                put(
+                    FIELD_STATE,
+                    enumStringSchema(
+                        description = "Current installation state.",
+                        values = listOf("not_installed", "installing", "installed"),
+                    ),
+                )
+                put(FIELD_INSTALLED, booleanSchema("Whether the server is present in configured servers."))
+                put(FIELD_READY, booleanSchema("Whether the server is installed and capabilities are available."))
+                put(FIELD_MESSAGE, stringSchema("Optional installation status message."))
+            },
+        required = listOf(ARG_SERVER_ID, FIELD_STATE, FIELD_INSTALLED, FIELD_READY),
+    )
+
+internal val SET_SERVER_ENABLED_OUTPUT_SCHEMA =
+    ToolSchema(
+        properties =
+            buildJsonObject {
+                put(ARG_SERVER_ID, stringSchema("Installed server id."))
+                put("enabled", booleanSchema("Effective enabled value after update."))
+            },
+        required = listOf(ARG_SERVER_ID, "enabled"),
     )
 
 private fun stringSchema(description: String): JsonObject =
