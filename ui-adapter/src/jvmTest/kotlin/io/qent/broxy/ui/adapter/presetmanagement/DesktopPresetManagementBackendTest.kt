@@ -161,6 +161,47 @@ class DesktopPresetManagementBackendTest {
         }
 
     @Test
+    fun installCatalogServer_allow_refreshes_ui_before_runtime_update_when_runtime_running() =
+        runTest {
+            val serverId = "io.qent.broxy/context7"
+            val repository =
+                FakeConfigurationRepository(
+                    config = McpServersConfig(servers = emptyList()),
+                    presets = mutableListOf(),
+                )
+            val callOrder = mutableListOf<String>()
+            val proxyRuntime =
+                FakeProxyRuntimeFacade(
+                    isRunning = true,
+                    onUpdateServers = { callOrder += "updateServers" },
+                )
+            val backend =
+                buildBackend(
+                    scope = this,
+                    repository = repository,
+                    catalogServers = listOf(oneClickCatalogServer(serverId)),
+                    requestInstallPermission = { true },
+                    proxyRuntime = proxyRuntime,
+                    refreshUiAfterServerMutation = { callOrder += "refreshUi" },
+                )
+
+            val started = backend.installCatalogServer(InstallCatalogServerRequest(serverId = serverId))
+            assertEquals(CatalogServerInstallState.Installing, started.state)
+
+            advanceUntilIdle()
+
+            assertTrue(repository.loadMcpConfig().servers.any { it.id == serverId })
+            assertEquals(listOf("refreshUi", "updateServers"), callOrder)
+            assertTrue(proxyRuntime.refreshServerCapabilitiesCalls.isEmpty())
+            val status =
+                backend.getCatalogServerInstallStatus(
+                    GetCatalogServerInstallStatusRequest(serverId = serverId),
+                )
+            assertEquals(CatalogServerInstallState.Installing, status.state)
+            assertTrue(status.installed)
+        }
+
+    @Test
     fun setServerEnabled_toggles_server_enabled_flag() =
         runTest {
             val serverId = "io.qent.broxy/context7"
@@ -202,6 +243,7 @@ class DesktopPresetManagementBackendTest {
         requestInstallPermission: suspend () -> Boolean = { true },
         refreshPresetListAfterCreate: suspend () -> Unit = {},
         refreshUiAfterServerMutation: suspend () -> Unit = {},
+        proxyRuntime: ProxyRuntimeFacade = FakeProxyRuntimeFacade(),
     ): DesktopPresetManagementBackend {
         val catalogRepository = FakeCatalogRepository(CatalogBundle(servers = catalogServers))
         return DesktopPresetManagementBackend(
@@ -213,7 +255,7 @@ class DesktopPresetManagementBackendTest {
             savedPresetNamesProvider = { repository.listPresets().map { NamedPresetManagementItem(it.id, it.name) } },
             refreshPresetListAfterCreate = refreshPresetListAfterCreate,
             catalogRepository = catalogRepository,
-            proxyRuntime = FakeProxyRuntimeFacade(),
+            proxyRuntime = proxyRuntime,
             coroutineScope = scope,
             requestInstallPermission = { request ->
                 requestInstallPermission()
@@ -278,7 +320,18 @@ private class FakeCatalogRepository(
 private class FakeProxyRuntimeFacade : ProxyRuntimeFacade {
     override val capabilityUpdates: Flow<Map<String, ServerCapabilities>> = emptyFlow()
     override val serverStatusUpdates: Flow<ServerConnectionUpdate> = emptyFlow()
-    override val isRunning: Boolean = false
+    override val isRunning: Boolean
+    private val onUpdateServers: (() -> Unit)?
+    val updateServersCalls = mutableListOf<McpServersConfig>()
+    val refreshServerCapabilitiesCalls = mutableListOf<String>()
+
+    constructor(
+        isRunning: Boolean = false,
+        onUpdateServers: (() -> Unit)? = null,
+    ) {
+        this.isRunning = isRunning
+        this.onUpdateServers = onUpdateServers
+    }
 
     override fun start(
         config: McpServersConfig,
@@ -290,9 +343,16 @@ private class FakeProxyRuntimeFacade : ProxyRuntimeFacade {
 
     override fun applyPreset(preset: Preset): Result<Unit> = Result.success(Unit)
 
-    override fun updateServers(config: McpServersConfig): Result<Unit> = Result.success(Unit)
+    override fun updateServers(config: McpServersConfig): Result<Unit> {
+        updateServersCalls += config
+        onUpdateServers?.invoke()
+        return Result.success(Unit)
+    }
 
-    override fun refreshServerCapabilities(serverId: String): Result<Unit> = Result.success(Unit)
+    override fun refreshServerCapabilities(serverId: String): Result<Unit> {
+        refreshServerCapabilitiesCalls += serverId
+        return Result.success(Unit)
+    }
 
     override fun refreshFilteredCapabilities(): Result<Unit> = Result.success(Unit)
 

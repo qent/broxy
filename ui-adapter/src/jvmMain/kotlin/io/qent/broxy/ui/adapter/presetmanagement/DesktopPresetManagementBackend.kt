@@ -242,15 +242,14 @@ internal class DesktopPresetManagementBackend(
             val serverDraft = installResult.getOrThrow().draft
             val coreServer = serverDraft.toCoreServerConfig()
             val savedConfig = saveConfig(upsertServer(loadConfigOrThrow(), coreServer))
+            refreshUiAfterServerMutation()
             if (proxyRuntime.isRunning) {
                 proxyRuntime
                     .updateServers(savedConfig)
                     .getOrElse { error ->
                         throw PresetManagementException(error.message ?: "Failed to apply installed server to runtime")
                     }
-                proxyRuntime.refreshServerCapabilities(coreServer.id)
             }
-            refreshUiAfterServerMutation()
             val ready = hasCapabilities(coreServer.id)
             updateInstallStatus(
                 serverId = serverId,
