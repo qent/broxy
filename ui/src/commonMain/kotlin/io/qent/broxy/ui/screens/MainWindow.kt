@@ -31,9 +31,12 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -86,6 +89,26 @@ fun MainWindow(
         val settingsFabState = remember { mutableStateOf<SettingsFabState?>(null) }
         val hoveredExternalUrl = remember { mutableStateOf<String?>(null) }
         val readyUi = ui as? UIState.Ready
+        var lastHandledAgenticInstallPopupRequestId by rememberSaveable { mutableStateOf<Long?>(null) }
+        val agenticInstallPopupRequestId = readyUi?.agenticInstallPermissionPopup?.requestId
+
+        LaunchedEffect(agenticInstallPopupRequestId) {
+            val requestId = agenticInstallPopupRequestId ?: return@LaunchedEffect
+            val shouldRedirect =
+                shouldRedirectToServersForAgenticInstallPopup(
+                    popupRequestId = requestId,
+                    lastHandledPopupRequestId = lastHandledAgenticInstallPopupRequestId,
+                )
+            if (!shouldRedirect) {
+                return@LaunchedEffect
+            }
+            state.serverEditor.value = null
+            state.serverDetailsId.value = null
+            state.presetEditor.value = null
+            state.catalogInstall.value = null
+            state.currentScreen.value = Screen.Servers
+            lastHandledAgenticInstallPopupRequestId = requestId
+        }
 
         // Basic mapping: show snackbar on adapter Error state
         if (ui is UIState.Error) {
@@ -288,3 +311,8 @@ fun MainWindow(
         }
     }
 }
+
+internal fun shouldRedirectToServersForAgenticInstallPopup(
+    popupRequestId: Long?,
+    lastHandledPopupRequestId: Long?,
+): Boolean = popupRequestId != null && popupRequestId != lastHandledPopupRequestId

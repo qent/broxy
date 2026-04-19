@@ -131,6 +131,8 @@ through preset-management tools:
 - `list_catalog_server_names` - catalog IDs/names.
 - `install_catalog_server(server_id)` - asks for explicit user approval in Broxy UI popup
   (reuse of the authorization popup pattern, with icon/name/description and `Allow` / `Deny`).
+  When this popup appears, desktop UI automatically switches to the Servers screen and
+  renders the popup above it; after `Allow`/`Deny`, UI stays on Servers.
 - `get_catalog_server_install_status(server_id)` - status by catalog `server_id` (no `installation_id`).
 - `set_server_enabled(server_id, enabled)` - enable/disable installed server without removing it.
 
