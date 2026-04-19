@@ -73,8 +73,9 @@ Static analysis and coverage:
 - `./gradlew detektNoFullyQualifiedNames` runs the custom `NoFullyQualifiedNames` rule for every module
   (non-test sources only).
 - `./gradlew detektNoUnreferencedDeclarations` runs the custom `UnreferencedDeclaration` rule for every module
-  (non-test sources only). It checks `internal/public` declarations for repository-wide usage and supports
-  allowlists via `config/detekt/no_unreferenced_declarations.yml`.
+  (non-test sources only). It checks `internal/public` declarations using symbol-aware resolution
+  (`BindingContext` targets for calls/name references/callable references) and supports allowlists via
+  `config/detekt/no_unreferenced_declarations.yml`.
 - `./gradlew check` includes `detektNoFullyQualifiedNames` in each module, so fully-qualified name violations
   fail regular verification builds.
 - `./gradlew check` does not include `detektNoUnreferencedDeclarations` by default.

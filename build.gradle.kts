@@ -124,6 +124,13 @@ subprojects {
                 sarif.required.set(false)
                 txt.required.set(false)
             }
+            val typeResolutionClasspath =
+                listOf("jvmCompileClasspath", "mainCompileClasspath", "compileClasspath")
+                    .mapNotNull { configName -> configurations.findByName(configName) }
+                    .firstOrNull()
+            if (typeResolutionClasspath != null) {
+                classpath.setFrom(typeResolutionClasspath)
+            }
         }
         tasks.withType<Detekt>().configureEach {
             jvmTarget = "17"

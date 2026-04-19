@@ -42,7 +42,9 @@ broxy:
     ignoreOverriddenDeclarations: true
     allowlistSimpleNames:
       - "main"
-    allowlistFqNames: []
+    allowlistFqNames:
+      - "io.qent.broxy.core.config.requirePathSafePresetId"
+      - "io.qent.broxy.core.models.BuiltInPresetResolver.isBuiltIn"
     allowlistFqNamePrefixes: []
     excludedPathRegexes:
       - ".*/generated/.*"
