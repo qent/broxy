@@ -88,6 +88,7 @@ private val REMOTE_ACTIONS_WIDTH = 280.dp
 private const val AUTH_GRADIENT_DISABLED_ALPHA = 0.45f
 private const val AUTH_GRADIENT_START = 0xFF3B82F6
 private const val AUTH_GRADIENT_END = 0xFF8B5CF6
+private const val PRESET_MANAGEMENT_AI_TOKEN = "AI"
 private const val PRESET_MANAGEMENT_ROCK_ICON = "🤘"
 private const val PRESET_MANAGEMENT_ROCK_ICON_DISABLED_ALPHA = 0.45f
 private const val AGENTIC_FIRST_LETTER_COLOR_HEX = 0xFF2563EB
@@ -649,19 +650,32 @@ private fun PresetManagementRockToggle(
     )
 }
 
-private fun presetManagementLabelText(
+internal fun presetManagementLabelText(
     label: String,
     agenticModeEnabled: Boolean,
 ) = buildAnnotatedString {
-    if (!agenticModeEnabled || label.isEmpty()) {
+    if (label.isEmpty()) {
+        append(label)
+        return@buildAnnotatedString
+    }
+    val highlightStyle =
+        SpanStyle(
+            color = Color(AGENTIC_FIRST_LETTER_COLOR_HEX),
+            fontWeight = FontWeight.Bold,
+        )
+    if (label.startsWith("$PRESET_MANAGEMENT_AI_TOKEN ")) {
+        withStyle(highlightStyle) {
+            append(PRESET_MANAGEMENT_AI_TOKEN)
+        }
+        append(label.removePrefix(PRESET_MANAGEMENT_AI_TOKEN))
+        return@buildAnnotatedString
+    }
+    if (!agenticModeEnabled) {
         append(label)
         return@buildAnnotatedString
     }
     withStyle(
-        SpanStyle(
-            color = Color(AGENTIC_FIRST_LETTER_COLOR_HEX),
-            fontWeight = FontWeight.Bold,
-        ),
+        highlightStyle,
     ) {
         append(label.first())
     }
