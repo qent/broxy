@@ -240,6 +240,9 @@ File: `core/src/commonMain/kotlin/io/qent/broxy/core/proxy/RequestDispatcher.kt`
   the preset name (`#D97706`).
 - In the global header preset selector dropdown, built-in presets (`No preset`, `All enabled servers`,
   `AI Preset management`) are separated from user-defined presets by a visual divider line.
+- The built-in preset-management label is dynamic in desktop UI based on Agentic Mode (`🤘`):
+  `AI Preset management` when disabled and `Agentic Mode` when enabled; this applies in both the
+  global header preset selector and the tray menu.
 - If the active preset has no available capabilities at runtime (for example, every capability
   reference is `enabled=false`, or all enabled references point only to disabled/missing servers), the status
   dot is bright dark red (`#C62828`) instead of orange.

@@ -15,6 +15,7 @@ import io.qent.broxy.ui.icons.createApplicationIconImage
 import io.qent.broxy.ui.icons.createTrayIconImage
 import io.qent.broxy.ui.icons.rememberApplicationIconPainter
 import io.qent.broxy.ui.presets.resolvePresetCapabilityStatus
+import io.qent.broxy.ui.presets.resolvePresetManagementLabel
 import io.qent.broxy.ui.screens.MainWindow
 import io.qent.broxy.ui.strings.AppLanguage
 import io.qent.broxy.ui.strings.AppStrings
@@ -444,7 +445,11 @@ private fun createTrayModel(
                         ),
                         TrayPresetItem(
                             id = UiPresetCore.PRESET_MANAGEMENT_ID,
-                            name = strings.presetManagement,
+                            name =
+                                resolvePresetManagementLabel(
+                                    strings = strings,
+                                    agenticModeEnabled = uiState.agenticModeEnabled,
+                                ),
                             isActive = activePresetId == UiPresetCore.PRESET_MANAGEMENT_ID,
                         ),
                     )

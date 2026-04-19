@@ -74,6 +74,7 @@ import io.qent.broxy.ui.adapter.models.UiRemoteStatus
 import io.qent.broxy.ui.adapter.store.Intents
 import io.qent.broxy.ui.adapter.store.UIState
 import io.qent.broxy.ui.presets.resolvePresetCapabilityStatus
+import io.qent.broxy.ui.presets.resolvePresetManagementLabel
 import io.qent.broxy.ui.strings.AppStrings
 import io.qent.broxy.ui.strings.LocalStrings
 import io.qent.broxy.ui.theme.AppTheme
@@ -390,7 +391,11 @@ private fun PresetDropdown(
             val normalizedActiveId = activePresetId ?: UiPresetCore.EMPTY_PRESET_ID
             val currentName = resolvePresetName(normalizedActiveId, ui.presets, strings, ui.agenticModeEnabled)
             val isPresetManagementSelected = normalizedActiveId == UiPresetCore.PRESET_MANAGEMENT_ID
-            val presetManagementLabel = if (ui.agenticModeEnabled) strings.agenticMode else strings.presetManagement
+            val presetManagementLabel =
+                resolvePresetManagementLabel(
+                    strings = strings,
+                    agenticModeEnabled = ui.agenticModeEnabled,
+                )
             val presetManagementLabelText = presetManagementLabelText(presetManagementLabel, ui.agenticModeEnabled)
             val activePreset = ui.presets.firstOrNull { it.id == normalizedActiveId }
             val enabledServerIds =
@@ -691,6 +696,10 @@ private fun resolvePresetName(
     when (presetId) {
         UiPresetCore.EMPTY_PRESET_ID -> strings.noPreset
         UiPresetCore.ALL_ENABLED_PRESET_ID -> strings.allEnabledServers
-        UiPresetCore.PRESET_MANAGEMENT_ID -> if (agenticModeEnabled) strings.agenticMode else strings.presetManagement
+        UiPresetCore.PRESET_MANAGEMENT_ID ->
+            resolvePresetManagementLabel(
+                strings = strings,
+                agenticModeEnabled = agenticModeEnabled,
+            )
         else -> presets.firstOrNull { it.id == presetId }?.name ?: presetId
     }
