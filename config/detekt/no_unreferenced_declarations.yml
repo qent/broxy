@@ -1,0 +1,50 @@
+build:
+  maxIssues: 0
+
+config:
+  validation: false
+
+comments:
+  active: false
+
+complexity:
+  active: false
+
+coroutines:
+  active: false
+
+empty-blocks:
+  active: false
+
+exceptions:
+  active: false
+
+naming:
+  active: false
+
+performance:
+  active: false
+
+potential-bugs:
+  active: false
+
+style:
+  active: false
+
+broxy:
+  active: true
+  UnreferencedDeclaration:
+    active: true
+    useRepositoryIndex: true
+    includePublicDeclarations: true
+    includeInternalDeclarations: true
+    includeTestSources: false
+    ignoreOverriddenDeclarations: true
+    allowlistSimpleNames:
+      - "main"
+    allowlistFqNames:
+      - "io.qent.broxy.core.config.requirePathSafePresetId"
+      - "io.qent.broxy.core.models.BuiltInPresetResolver.isBuiltIn"
+    allowlistFqNamePrefixes: []
+    excludedPathRegexes:
+      - ".*/generated/.*"

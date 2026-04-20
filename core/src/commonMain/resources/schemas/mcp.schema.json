@@ -1,0 +1,217 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://io.qent.broxy/schemas/mcp.schema.json",
+  "title": "Broxy Cursor/Claude-Compatible MCP Servers File",
+  "description": "Server definitions compatible with Cursor and Claude Code mcpServers files. Unknown fields are allowed and ignored by Broxy.",
+  "type": "object",
+  "required": [
+    "mcpServers"
+  ],
+  "properties": {
+    "mcpServers": {
+      "type": "object",
+      "description": "Map of server IDs to MCP server definitions.",
+      "propertyNames": {
+        "type": "string",
+        "minLength": 1
+      },
+      "additionalProperties": {
+        "$ref": "#/definitions/FileMcpServer"
+      }
+    }
+  },
+  "additionalProperties": true,
+  "definitions": {
+    "FileMcpServer": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "stdio",
+            "http",
+            "sse",
+            "ws"
+          ]
+        },
+        "command": {
+          "type": "string",
+          "minLength": 1
+        },
+        "args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "url": {
+          "type": "string",
+          "minLength": 1
+        },
+        "headers": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {}
+        },
+        "env": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {}
+        },
+        "envFile": {
+          "type": "string",
+          "minLength": 1
+        },
+        "oauth": {
+          "$ref": "#/definitions/OAuthConfig"
+        },
+        "auth": {
+          "$ref": "#/definitions/OAuthConfig"
+        },
+        "iconPath": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Broxy-specific UI field for custom server icon path."
+        }
+      },
+      "allOf": [
+        {
+          "anyOf": [
+            {
+              "required": [
+                "type"
+              ]
+            },
+            {
+              "required": [
+                "command"
+              ]
+            },
+            {
+              "required": [
+                "url"
+              ]
+            }
+          ]
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "stdio"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "required": [
+              "command"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "http",
+                  "sse",
+                  "ws"
+                ]
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "required": [
+              "url"
+            ]
+          }
+        }
+      ],
+      "additionalProperties": true
+    },
+    "OAuthConfig": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "const": "oauth"
+        },
+        "clientId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "clientSecret": {
+          "type": "string",
+          "minLength": 1
+        },
+        "clientIdMetadataUrl": {
+          "type": "string",
+          "minLength": 1
+        },
+        "redirectUri": {
+          "type": "string",
+          "minLength": 1
+        },
+        "callbackPort": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "clientName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tokenEndpointAuthMethod": {
+          "type": "string",
+          "enum": [
+            "none",
+            "client_secret_basic",
+            "client_secret_post"
+          ]
+        },
+        "authorizationServer": {
+          "type": "string",
+          "minLength": 1
+        },
+        "authServerMetadataUrl": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^https://"
+        },
+        "scopes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "allowDynamicRegistration": {
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}
