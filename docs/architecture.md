@@ -143,6 +143,8 @@ See `docs/ui_adapter_boundary.md` for the current inventory and the baseline all
 UI renders `UIState` and calls intents, with no direct dependency on `core`. The navigation rail status
 indicator exposes a click target that toggles the local HTTP inbound server, while the tray menu
 exposes preset selection (including built-in `No preset` and `All enabled servers`) plus show/exit actions.
+On macOS, selecting `Exit` from the tray menu prioritizes immediate app exit; runtime and tray cleanup
+run asynchronously on a best-effort basis and do not block the menu action.
 On macOS, selecting `Show Broxy` from the tray menu requests app foreground activation first (when
 supported by `Desktop.Action.APP_REQUEST_FOREGROUND`) and then falls back to normal window focus calls.
 On macOS, the standard application menu item `Settings…` (and `Cmd+,` when provided by the system)

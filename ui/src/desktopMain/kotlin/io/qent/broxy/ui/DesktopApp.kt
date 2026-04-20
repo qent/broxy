@@ -31,6 +31,7 @@ import java.awt.event.ActionEvent
 import java.awt.event.ActionListener
 import java.io.PushbackInputStream
 import java.util.Locale
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.system.exitProcess
 import java.awt.Color as AwtColor
 import java.awt.Window as AwtWindow
@@ -95,6 +96,15 @@ fun main(args: Array<String>) {
         val isDarkTheme = appState.themeStyle.value == ThemeStyle.Dark
         val windowIconPainter = rememberApplicationIconPainter()
         val applicationIconImage = remember { createApplicationIconImage(size = 256) }
+        val shutdownCoordinator =
+            remember(store, trayController) {
+                DesktopShutdownCoordinator(
+                    hideWindow = { isWindowVisible = false },
+                    stopStore = { store.stop() },
+                    disposeTray = { trayController.dispose() },
+                    exitApplication = { exitApplication() },
+                )
+            }
         val systemMenuSettingsHandler =
             rememberUpdatedState {
                 openSettingsFromSystemMenu(
@@ -145,8 +155,7 @@ fun main(args: Array<String>) {
 
         DisposableEffect(Unit) {
             onDispose {
-                runCatching { store.stop() }
-                trayController.dispose()
+                shutdownCoordinator.dispose()
             }
         }
 
@@ -158,7 +167,7 @@ fun main(args: Array<String>) {
                     if (trayActive) {
                         isWindowVisible = false
                     } else {
-                        exitApplication()
+                        shutdownCoordinator.requestExit()
                     }
                 },
                 title = strings.appName,
@@ -239,9 +248,7 @@ fun main(args: Array<String>) {
                         bringToFrontRequest += 1
                     },
                     onExit = {
-                        isWindowVisible = false
-                        runCatching { store.stop() }
-                        exitApplication()
+                        shutdownCoordinator.requestExit()
                     },
                 )
             SideEffect {
@@ -274,6 +281,40 @@ internal fun openSettingsFromSystemMenu(
     appState.serverDetailsId.value = null
     appState.catalogInstall.value = null
     appState.currentScreen.value = Screen.Settings
+}
+
+internal class DesktopShutdownCoordinator(
+    private val hideWindow: () -> Unit,
+    private val stopStore: () -> Unit,
+    private val disposeTray: () -> Unit,
+    private val exitApplication: () -> Unit,
+    private val cleanupDispatcher: ((task: () -> Unit) -> Unit) = { task ->
+        Thread(task, "broxy-ui-shutdown").apply { isDaemon = true }.start()
+    },
+) {
+    private val exitRequested = AtomicBoolean(false)
+    private val cleanupRequested = AtomicBoolean(false)
+
+    fun requestExit() {
+        if (!exitRequested.compareAndSet(false, true)) return
+        hideWindow()
+        runCatching { exitApplication() }
+        scheduleCleanup()
+    }
+
+    fun dispose() {
+        scheduleCleanup()
+    }
+
+    private fun scheduleCleanup() {
+        if (!cleanupRequested.compareAndSet(false, true)) return
+        runCatching {
+            cleanupDispatcher {
+                runCatching { stopStore() }
+                runCatching { disposeTray() }
+            }
+        }
+    }
 }
 
 internal interface MacOsSystemMenuBridge {
