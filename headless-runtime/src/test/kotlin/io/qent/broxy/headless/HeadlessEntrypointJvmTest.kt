@@ -1,16 +1,20 @@
 package io.qent.broxy.headless
 
 import java.io.ByteArrayOutputStream
+import java.io.OutputStream
 import java.io.PipedInputStream
 import java.io.PipedOutputStream
 import java.io.PrintStream
 import java.nio.file.Files
 import java.util.concurrent.Callable
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 import kotlin.test.assertContains
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlin.test.fail
 
 class HeadlessEntrypointJvmTest {
     @org.junit.Test
@@ -40,8 +44,12 @@ class HeadlessEntrypointJvmTest {
             val future = executor.submit(Callable { runStdioProxy(configDir = tempDir.toString()).isSuccess })
 
             // It should block waiting for the MCP client / stdio session to end.
-            Thread.sleep(100)
-            assertFalse(future.isDone, "Expected runStdioProxy to block while stdin is open")
+            try {
+                future.get(100, TimeUnit.MILLISECONDS)
+                fail("Expected runStdioProxy to block while stdin is open")
+            } catch (_: TimeoutException) {
+                assertFalse(future.isDone, "Expected runStdioProxy to block while stdin is open")
+            }
 
             // Closing stdin should end the session and allow a graceful shutdown.
             pipedOut.close()
@@ -73,10 +81,11 @@ class HeadlessEntrypointJvmTest {
         val originalOut = System.out
         val originalErr = System.err
 
+        val expectedPresetLog = "presetId='test'"
         val pipedIn = PipedInputStream()
         val pipedOut = PipedOutputStream(pipedIn)
         val sinkOut = PrintStream(ByteArrayOutputStream())
-        val capturedErr = ByteArrayOutputStream()
+        val capturedErr = WatchedOutputStream(expectedPresetLog)
         val sinkErr = PrintStream(capturedErr)
 
         val executor = Executors.newSingleThreadExecutor()
@@ -87,15 +96,9 @@ class HeadlessEntrypointJvmTest {
 
             val future = executor.submit(Callable { runStdioProxy(configDir = tempDir.toString()).isSuccess })
 
-            val expectedPresetLog = "presetId='test'"
-            val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
-            while (System.nanoTime() < deadline) {
-                val text = capturedErr.toString(Charsets.UTF_8)
-                if (text.contains(expectedPresetLog)) break
-                Thread.sleep(10)
-            }
+            capturedErr.awaitText(5, TimeUnit.SECONDS)
 
-            val logs = capturedErr.toString(Charsets.UTF_8)
+            val logs = capturedErr.text()
             assertContains(logs, expectedPresetLog)
 
             pipedOut.close()
@@ -110,6 +113,49 @@ class HeadlessEntrypointJvmTest {
             System.setIn(originalIn)
             System.setOut(originalOut)
             System.setErr(originalErr)
+        }
+    }
+
+    private class WatchedOutputStream(
+        private val watchedText: String,
+    ) : OutputStream() {
+        private val delegate = ByteArrayOutputStream()
+        private val seen = CountDownLatch(1)
+
+        override fun write(b: Int) {
+            synchronized(delegate) {
+                delegate.write(b)
+                countDownIfSeen()
+            }
+        }
+
+        override fun write(
+            b: ByteArray,
+            off: Int,
+            len: Int,
+        ) {
+            synchronized(delegate) {
+                delegate.write(b, off, len)
+                countDownIfSeen()
+            }
+        }
+
+        fun awaitText(
+            timeout: Long,
+            unit: TimeUnit,
+        ) {
+            seen.await(timeout, unit)
+        }
+
+        fun text(): String =
+            synchronized(delegate) {
+                delegate.toString(Charsets.UTF_8)
+            }
+
+        private fun countDownIfSeen() {
+            if (delegate.toString(Charsets.UTF_8).contains(watchedText)) {
+                seen.countDown()
+            }
         }
     }
 }

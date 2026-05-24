@@ -31,6 +31,7 @@ private const val SERVER_START_DELAY_MILLIS = 100L
 private const val SOCKET_CONNECT_TIMEOUT_MILLIS = 100
 private const val EPHEMERAL_PORT = 0
 private const val READER_JOIN_TIMEOUT_MILLIS = 500L
+private const val PROCESS_OUTPUT_MAX_LINES = 200
 
 fun main(args: Array<String>) =
     runBlocking {
@@ -375,12 +376,17 @@ private class ManagedProcess(
 private class ProcessOutputCollector(
     process: Process,
 ) : AutoCloseable {
-    private val lines = mutableListOf<String>()
+    private val lines = ArrayDeque<String>()
     private val readerThread =
         thread(name = "simple-test-mcp-server-self-check") {
             process.inputStream.bufferedReader().useLines { seq ->
                 seq.forEach { line ->
-                    synchronized(lines) { lines.add(line) }
+                    synchronized(lines) {
+                        if (lines.size == PROCESS_OUTPUT_MAX_LINES) {
+                            lines.removeFirst()
+                        }
+                        lines.addLast(line)
+                    }
                 }
             }
         }

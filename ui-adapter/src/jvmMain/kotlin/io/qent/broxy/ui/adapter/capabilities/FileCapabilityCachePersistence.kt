@@ -11,7 +11,7 @@ import io.qent.broxy.core.utils.Logger
 import kotlinx.serialization.json.Json
 import java.nio.file.Path
 
-class FileCapabilityCachePersistence(
+internal class FileCapabilityCachePersistence(
     baseDir: Path,
     private val logger: Logger? = null,
     private val json: Json = defaultJson,

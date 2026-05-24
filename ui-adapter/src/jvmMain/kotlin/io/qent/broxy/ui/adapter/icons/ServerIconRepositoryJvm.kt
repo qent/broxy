@@ -1,5 +1,6 @@
 package io.qent.broxy.ui.adapter.icons
 
+import io.qent.broxy.ui.adapter.data.defaultConfigDir
 import java.awt.FileDialog
 import java.awt.Frame
 import java.io.FilenameFilter
@@ -58,5 +59,3 @@ class ServerIconRepositoryJvm(
         return if (normalized.startsWith(normalizedIcons)) normalized else null
     }
 }
-
-private fun defaultConfigDir(): Path = Paths.get(System.getProperty("user.home"), ".config", "broxy")

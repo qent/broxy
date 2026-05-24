@@ -26,7 +26,7 @@ interface RemoteConnector {
     )
 }
 
-class NoOpRemoteConnector(
+internal class NoOpRemoteConnector(
     initial: UiRemoteConnectionState,
 ) : RemoteConnector {
     private val _state = MutableStateFlow(initial)

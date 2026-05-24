@@ -52,19 +52,21 @@ class UnreferencedDeclaration(
         valueOrDefault(EXCLUDED_PATH_REGEXES, emptyList<String>()).map { it.toRegex() }
     private val repositoryRootOverride: String = valueOrDefault(REPOSITORY_ROOT, "")
 
-    private val repositoryReferenceIndex: Map<String, Int> by lazy {
+    private val repositoryTextIndex: RepositoryTextIndex by lazy {
         if (!useRepositoryIndex) {
-            emptyMap()
+            RepositoryTextIndex(
+                referenceCounts = emptyMap(),
+                qualifiedReferenceCounts = emptyMap(),
+            )
         } else {
-            loadRepositoryReferenceIndex()
+            loadRepositoryTextIndex()
         }
     }
+    private val repositoryReferenceIndex: Map<String, Int> by lazy {
+        repositoryTextIndex.referenceCounts
+    }
     private val repositoryQualifiedReferenceIndex: Map<QualifiedReferenceKey, Int> by lazy {
-        if (!useRepositoryIndex) {
-            emptyMap()
-        } else {
-            loadRepositoryQualifiedReferenceIndex()
-        }
+        repositoryTextIndex.qualifiedReferenceCounts
     }
     private val resolvedReferenceIndexByContext: IdentityHashMap<BindingContext, Map<String, Int>> = IdentityHashMap()
 
@@ -306,11 +308,22 @@ class UnreferencedDeclaration(
             tokenizeIdentifiers(containingFile.text)[name] ?: 0
         }
 
-    private fun loadRepositoryReferenceIndex(): Map<String, Int> {
-        val root = resolveRepositoryRoot() ?: return emptyMap()
-        if (!Files.exists(root)) return emptyMap()
+    private fun loadRepositoryTextIndex(): RepositoryTextIndex {
+        val root =
+            resolveRepositoryRoot()
+                ?: return RepositoryTextIndex(
+                    referenceCounts = emptyMap(),
+                    qualifiedReferenceCounts = emptyMap(),
+                )
+        if (!Files.exists(root)) {
+            return RepositoryTextIndex(
+                referenceCounts = emptyMap(),
+                qualifiedReferenceCounts = emptyMap(),
+            )
+        }
 
-        val counts = mutableMapOf<String, Int>()
+        val referenceCounts = mutableMapOf<String, Int>()
+        val qualifiedReferenceCounts = mutableMapOf<QualifiedReferenceKey, Int>()
         Files.walk(root).use { paths ->
             paths
                 .filter { Files.isRegularFile(it) }
@@ -319,31 +332,17 @@ class UnreferencedDeclaration(
                 .forEach { path ->
                     val text = runCatching { Files.readString(path) }.getOrDefault("")
                     for ((identifier, count) in tokenizeIdentifiers(text)) {
-                        counts[identifier] = (counts[identifier] ?: 0) + count
+                        referenceCounts[identifier] = (referenceCounts[identifier] ?: 0) + count
                     }
-                }
-        }
-        return counts
-    }
-
-    private fun loadRepositoryQualifiedReferenceIndex(): Map<QualifiedReferenceKey, Int> {
-        val root = resolveRepositoryRoot() ?: return emptyMap()
-        if (!Files.exists(root)) return emptyMap()
-
-        val counts = mutableMapOf<QualifiedReferenceKey, Int>()
-        Files.walk(root).use { paths ->
-            paths
-                .filter { Files.isRegularFile(it) }
-                .filter { it.fileName.toString().endsWith(".kt") }
-                .filter(::shouldIndexFile)
-                .forEach { path ->
-                    val text = runCatching { Files.readString(path) }.getOrDefault("")
                     for ((key, count) in tokenizeQualifiedReferences(text)) {
-                        counts[key] = (counts[key] ?: 0) + count
+                        qualifiedReferenceCounts[key] = (qualifiedReferenceCounts[key] ?: 0) + count
                     }
                 }
         }
-        return counts
+        return RepositoryTextIndex(
+            referenceCounts = referenceCounts,
+            qualifiedReferenceCounts = qualifiedReferenceCounts,
+        )
     }
 
     private fun resolveRepositoryRoot(): Path? {
@@ -465,5 +464,10 @@ class UnreferencedDeclaration(
     private data class QualifiedReferenceKey(
         val owner: String,
         val member: String,
+    )
+
+    private data class RepositoryTextIndex(
+        val referenceCounts: Map<String, Int>,
+        val qualifiedReferenceCounts: Map<QualifiedReferenceKey, Int>,
     )
 }
